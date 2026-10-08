@@ -7,15 +7,15 @@
   .spr-info-mark {
     display: inline-grid;
     place-content: center;
-    inline-size: 1.25em;
-    block-size: 1.25em;
+    inline-size: calc(1.25 * var(--spr-font-size-label));
+    block-size: calc(1.25 * var(--spr-font-size-label));
     padding: 0;
     border: var(--spr-border) solid var(--spr-line);
     border-radius: 50%;
     background: var(--spr-bg);
     color: var(--spr-muted);
     font: inherit;
-    font-size: var(--spr-font-size-label);
+    font-size: calc(0.9 * var(--spr-font-size-label));
     font-weight: var(--spr-weight-strong);
     line-height: 1;
     text-transform: lowercase;

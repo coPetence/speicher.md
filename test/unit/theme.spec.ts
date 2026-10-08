@@ -976,8 +976,11 @@ describe('the admin stylesheet', () => {
     expect(declarationsOf('.spr-fields')).toMatch(/align-items:\s*start/);
   });
 
-  it('centres a switch in its row, level with the field beside it', () => {
-    expect(declarationsOf('.spr-fields > .spr-field-boolean')).toMatch(/align-self:\s*center/);
+  it('centres a switch on the box of the field beside it, not on its label and box', () => {
+    const rule = declarationsOf('.spr-fields > .spr-field-boolean');
+    expect(rule).toMatch(/align-self:\s*end/);
+    expect(rule).toMatch(/justify-content:\s*center/);
+    expect(rule).toMatch(/min-block-size:\s*calc\(/);
   });
 
   it('does not widen the reading measure to do it', () => {
@@ -1718,8 +1721,9 @@ describe('the info popover', () => {
 
   it('sizes the marker the way the rest of the component assumes', () => {
     const marker = declarationsOf('.spr-info-mark');
-    expect(marker).toMatch(/block-size:\s*1\.25em/);
-    expect(marker).toMatch(/font-size:\s*var\(--spr-font-size-label\)/);
+    expect(marker).toContain(`block-size: calc(${MARKER_HEIGHT})`);
+    // The "i" is a touch smaller than the label, without shrinking its circle
+    expect(marker).toMatch(/font-size:\s*calc\(0\.9 \* var\(--spr-font-size-label\)\)/);
   });
 
   it('is not in the top layer', () => {

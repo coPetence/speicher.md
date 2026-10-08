@@ -250,8 +250,6 @@
           class="spr-pickable-clear"
           type="button"
           data-spr-unpick
-          aria-label="Use the box instead of the chosen file"
-          title="Use the box instead of the chosen file"
         ></button>
       </span>
       <label

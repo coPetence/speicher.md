@@ -242,7 +242,8 @@
 <form class="spr-config" id="config-form" method="post" enctype="multipart/form-data"
       action="/-/config/<%= it.section_id %><%= it.creating_kind ? '?kind=' + it.creating_kind : '' %>"
       data-spr-config="<%= it.section_id %>" <%= it.pending ? 'data-spr-pending' : '' %>
-      <%= it.holds_work ? 'data-spr-holds-work' : '' %>>
+      <%= it.holds_work ? 'data-spr-holds-work' : '' %>
+      <%= it.error || it.problems.length > 0 ? 'data-spr-attempted' : '' %>>
 
 <% if (it.editable) { it.shape.forEach(function (control) { %>
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">

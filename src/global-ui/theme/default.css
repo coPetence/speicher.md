@@ -17,9 +17,11 @@
     --spr-line: #e3e6ec;
     --spr-accent: #2f5d8a;
     --spr-surface: #f5f6f8;
+    /* The bar that floats over a form */
+    --spr-bar-bg: #dfe2e8;
     --spr-warn-bg: #fff6e5;
     --spr-warn-fg: #7a5200;
-    --spr-mark-bg: #a8ffff;
+    --spr-mark-bg: #b0eef6;
     --spr-mark-fg: #002a3b;
 
     --spr-code-keyword: #d7263d;
@@ -102,6 +104,7 @@
     --spr-preview-width: 22rem;
     --spr-preview-delay: 1s;
     --spr-gutter: var(--spr-space-8);
+    --spr-bar-reach: var(--spr-space-7);
     --spr-search-width: 16rem;
     --spr-brand-logo-height: 1.75rem;
     --spr-brand-logo-max-width: 14rem;
@@ -142,7 +145,8 @@
       --spr-muted: #98a1b0;
       --spr-line: #2a2f38;
       --spr-accent: #86b3de;
-      --spr-surface: #1c1f25;
+      --spr-surface: #171a1f;
+      --spr-bar-bg: #14151b;
       --spr-warn-bg: #33280f;
       --spr-warn-fg: #e8c069;
       --spr-mark-bg: #a8ffff;
@@ -765,6 +769,10 @@
   @media not all and (min-width: 48rem) {
     .spr-main {
       padding-inline: calc(var(--spr-space-3) + var(--spr-space-4));
+    }
+
+    :root {
+      --spr-bar-reach: var(--spr-space-4);
     }
   }
 
