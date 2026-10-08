@@ -3,7 +3,6 @@ import {
   BRAND_ICON,
   BRAND_LOGO,
   BRAND_LOGO_DARK,
-  acceptFor,
   describeBytes,
   parseBrandImage,
 } from '../../../../config/brand';
@@ -36,7 +35,7 @@ function storedImage(raw: unknown, spec: BrandImageSpec): { stored: string; stor
 function imageField(root: Obj, spec: BrandImageSpec, label: string, help: string): Field {
   return field(root, ['brand', spec.field], spec.key, label, 'file', {
     ...storedImage(at(root, ['brand', spec.field]), spec),
-    accept: acceptFor(spec),
+    accept: Object.keys(spec.types).join(','),
     help,
   });
 }
@@ -121,7 +120,7 @@ export function logosSection(root: Obj): SectionSource {
         BRAND_LOGO,
         'Header logo',
         `PNG, WebP or SVG (max. ${describeBytes(BRAND_LOGO.maxBytes)}). Shown at the top of ` +
-          'every page, and on dark pages too unless you add one below.',
+          'every page, and on dark pages too unless a seperate logo for dark mode is added',
       ),
       imageField(
         root,

@@ -29,12 +29,6 @@ export const UPLOAD_PREFIX = 'file:';
  * file inputs
  */
 const parse = multer({
-  /*
-    fileSize is the largest cap any one field has, which is the logo's — a field
-    with a smaller one of its own refuses on the way into the document, where the
-    refusal can say which field and what its limit is. Six files let all three
-    brand images and the keys share a post.
-  */
   limits: { fileSize: MAX_BRAND_LOGO_BYTES, files: 6, fieldNameSize: 256 },
 }).any();
 
@@ -101,7 +95,6 @@ export function fillUploads(
       if (!mediaType) {
         return 'That file is not a PNG, a WebP or an SVG';
       }
-      // What this particular field accepts, which is not what every one of them does
       const accepted = field.accept === '' ? [] : field.accept.split(',');
       if (accepted.length > 0 && !accepted.includes(mediaType)) {
         return (

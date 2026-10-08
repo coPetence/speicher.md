@@ -52,11 +52,6 @@ export const BRAND_ICON: BrandImageSpec = {
 
 export const BRAND_IMAGES: BrandImageSpec[] = [BRAND_LOGO, BRAND_LOGO_DARK, BRAND_ICON];
 
-/** The `accept` attribute a picker for this spec offers */
-export function acceptFor(spec: BrandImageSpec): string {
-  return Object.keys(spec.types).join(',');
-}
-
 export interface BrandImage {
   mediaType: string;
   bytes: Buffer;
@@ -116,11 +111,6 @@ function outwardReferences(svg: string): string[] {
 export interface BrandImageResult {
   image: BrandImage | null;
   problem: string | null; // Human-readable reason the image was refused
-}
-
-/** Validate `brand.logo` into a servable image, or say why it is refused */
-export function parseBrandLogo(value: string): BrandImageResult {
-  return parseBrandImage(value, BRAND_LOGO);
 }
 
 export function parseBrandImage(value: string, spec: BrandImageSpec): BrandImageResult {
@@ -192,6 +182,7 @@ function checkSquare(bytes: Buffer, mediaType: string, key: string): string | nu
 
   const { width, height } = size;
 
+  // gives 10% tolerance on the longer edge
   if (Math.abs(width - height) > Math.max(width, height) / 10) {
     return `\`${key}\` is ${width}×${height}; it has to be a square`;
   }
