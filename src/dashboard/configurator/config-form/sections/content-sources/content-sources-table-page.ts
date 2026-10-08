@@ -27,7 +27,7 @@ export function sourcesSection(root: Obj): SectionSource {
   return {
     ...sectionHead('sources'),
     blurb:
-      'A content source is a place Speicher reads documentation from, such as a GitHub App, a GitLab, Gitea or Forgejo instance, or a plain git remote.',
+      'A content source is a place Speicher reads content from, such as a GitHub App, a GitLab, Gitea or Forgejo instance, or a plain git remote.',
     fields: [],
     entries: ids.map((id) => forgeEntry(root, id)),
     layout: 'table',

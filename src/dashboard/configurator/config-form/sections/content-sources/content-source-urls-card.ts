@@ -32,7 +32,7 @@ export function urlCard(root: Obj, id: string): Card {
       ),
       field(root, [...base, 'primary'], p('primary'), 'Primary', 'boolean', {
         fallback: false,
-        help: 'If true, the repositorie name is left out of the URL in the reader, so the source is served at `/` instead of `/<source>`. There can be only one primary source.',
+        help: 'The primary source leaves its short id out of the URL, so its repositories are served at `/<owner>/<repo>` instead of `/<source>/<owner>/<repo>`. Only one source can be primary.',
       }),
     ],
   };

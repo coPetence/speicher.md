@@ -1743,8 +1743,9 @@ describe("a GitHub source's webhook URL", () => {
   it('offers the path to copy when no public URL is declared, for the browser to complete', () => {
     const field = withPublicUrl(undefined, secretField);
     expect(field.copy).toBe('/-/hooks/gh');
+    // One sentence for both: the browser completes the path, and without it the reader does
     expect(field.factHtml).toContain('<strong>Webhook URL</strong>');
-    expect(field.factForPathHtml).toContain('Enter this path after the address of this instance');
+    expect(field.factHtml).toContain('If only a path is shown');
   });
 
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {

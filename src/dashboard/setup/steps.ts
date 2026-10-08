@@ -56,8 +56,7 @@ export const STEP_PROSE: Record<SetupStepId, StepProse> = {
   },
   group: {
     heading: 'Groups',
-    blurb:
-      'Manage the groups of users in your instance. You can create, edit, and delete groups, as well as add or remove users from them.',
+    blurb: 'Manage the groups of users in your instance.',
     action: 'Manage groups',
     reviewAction: 'Review groups',
   },

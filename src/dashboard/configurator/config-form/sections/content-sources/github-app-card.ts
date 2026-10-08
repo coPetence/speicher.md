@@ -39,11 +39,9 @@ export function appCard(root: Obj, id: string): Card {
       }),
       field(root, [...base, 'webhook_secret'], p('webhook_secret'), 'Webhook secret', 'secret', {
         help: SECRET_HELP,
-        fact: 'Enter this as the **Webhook URL** in the settings of your GitHub App.',
         // Without SPEICHER_PUBLIC_URL only the path is known; if js is enabled, the browser can complete it with its own origin.
+        fact: 'Enter this as the **Webhook URL** in the settings of your GitHub App. If only a path without a host is shown, put the address of this instance in front of it.',
         copy: webhookUrl(id) ?? webhookPath(id),
-        factForPath:
-          'Enter this path after the address of this instance as the **Webhook URL** in the settings of your GitHub App.',
         startsRow: true,
       }),
     ],
