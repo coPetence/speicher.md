@@ -62,6 +62,9 @@ export interface PageChrome {
   docked?: boolean;
   query?: string;
 
+  /** If the progressBar from the setup should be shown */
+  progressBar?: string;
+
   sprite?: string;
 
   island?: string | null;

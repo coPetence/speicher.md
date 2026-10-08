@@ -31,7 +31,8 @@ import {
   readingSection,
   retrievalSection,
 } from './reading-settings';
-import { forgeSection, sourcesSection } from './sources';
+import { forgeSection } from './content-sources/content-source-page';
+import { sourcesSection } from './content-sources/content-sources-table-page';
 import { embeddingSection, storageSection } from './storage';
 
 export function buildSections(doc: Document, hint?: KindHint): FormSection[] {

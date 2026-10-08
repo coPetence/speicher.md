@@ -17,7 +17,7 @@ const FULL = readFileSync(join(__dirname, '../fixtures/instance-full.yaml'), 'ut
 const sectionsOf = (yaml: string) => buildSections(loadDocument(yaml));
 const SECTIONS = sectionsOf(FULL);
 
-const EVERYTHING = { showSetup: true, hasContent: true };
+const EVERYTHING = { showSetup: false, hasContent: true };
 
 const find = (query: string, yaml = FULL) =>
   searchDashboard(query, sectionsOf(yaml), EVERYTHING).hits;

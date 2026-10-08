@@ -4,10 +4,13 @@
 import { CONFIG_SECTIONS } from '../configurator/config-form/fields';
 import type { SectionIndexEntry } from '../configurator/config-form/model';
 
-const SETUP_SECTION_IDS = ['identity', 'sources', 'groups'] as const;
+const SETUP_SECTION_IDS = ['identity', 'groups', 'sources'] as const;
 
 // The mail transport section, prepended when a relay is involved
 export const MAIL_SECTION_ID = 'mail';
+
+export const ADMINISTRATOR_SECTION_ID = 'administrator';
+export const ADMINISTRATOR_HREF = '/-/setup/administrator';
 
 /** returns the ids of the sections that are shown in the setup navigation */
 export function setupNavSections(showMailTransport: boolean): SectionIndexEntry[] {

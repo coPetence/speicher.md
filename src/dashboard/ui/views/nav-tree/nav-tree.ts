@@ -13,7 +13,12 @@ import {
   visibleDashboardSections,
 } from '../../../dashboard-sections';
 import { CONFIG_NAV_SECTIONS } from '../../../configurator/config-form/fields';
-import { MAIL_SECTION_ID, setupNavSections } from '../../../setup/setup-sections';
+import {
+  ADMINISTRATOR_HREF,
+  ADMINISTRATOR_SECTION_ID,
+  MAIL_SECTION_ID,
+  setupNavSections,
+} from '../../../setup/setup-sections';
 import { renderIconRef, renderInlineIcon } from '../../../../content-reader/icons';
 import { renderTemplate } from '../../../../content-reader/views';
 
@@ -83,13 +88,24 @@ export function dashboardNav(
           // While the flow is unfinished the column *is* the flow, so it never folds shut
           open: true,
           children: [
-            ...setupNavSections(showMailTransport || subsection === MAIL_SECTION_ID).map((entry) =>
-              link(
-                `/-/config/${entry.id}`,
-                entry.title,
-                entry.icon,
-                entry.id === subsection ? 'page' : null,
-              ),
+            ...setupNavSections(showMailTransport || subsection === MAIL_SECTION_ID).map(
+              (entry) => {
+                const nested = subsection?.startsWith(`${entry.id}/`) ?? false;
+                return link(
+                  `/-/config/${entry.id}`,
+                  entry.title,
+                  entry.icon,
+                  entry.id === subsection ? 'page' : nested ? 'true' : null,
+                );
+              },
+            ),
+            link(
+              ADMINISTRATOR_HREF,
+              'Administrator',
+              'user-check',
+              currentDashboardView === 'setup' && subsection === ADMINISTRATOR_SECTION_ID
+                ? 'page'
+                : null,
             ),
             link(
               '/-/config',

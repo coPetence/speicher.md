@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { DashboardResponder } from '../../../../respond';
+import { ADMINISTRATOR_SECTION_ID } from '../../../../setup/setup-sections';
 import { renderTemplate } from '../../../../../content-reader/views';
 
 /** A configured OIDC provider the first-admin login can be completed through */
@@ -30,6 +31,7 @@ export function sendSetupAdministrator(
 ): void {
   respond.send(req, res, isAdmin, {
     section: 'setup',
+    subsection: ADMINISTRATOR_SECTION_ID,
     title: 'Administrator',
     status,
     payload,

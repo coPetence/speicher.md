@@ -61,6 +61,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     icon: 'activity',
     adminOnly: false,
     needsContent: true,
+    hiddenDuringSetup: 'unless-current',
   },
   // The log hangs off Sync status: a dead job is a sync that stopped, so it is read
   // from the page that says which repository stopped syncing
@@ -89,6 +90,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     icon: 'search',
     adminOnly: false,
     needsContent: true,
+    hiddenDuringSetup: 'unless-current',
   },
   // The link report, which draws from a content source
   {
@@ -98,6 +100,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     icon: 'waypoints',
     adminOnly: true,
     needsContent: true,
+    hiddenDuringSetup: 'unless-current',
   },
   // Read counts, the running instance's own record
   {
@@ -107,6 +110,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     icon: 'chart-line',
     adminOnly: true,
     needsContent: true,
+    hiddenDuringSetup: 'unless-current',
   },
   // The reader's own connections, open to any signed-in caller
   {
@@ -115,6 +119,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     href: '/-/connections',
     icon: 'plug',
     adminOnly: false,
+    hiddenDuringSetup: 'always',
   },
 ];
 
@@ -153,6 +158,7 @@ export function visibleDashboardSections(
         onBranch === section.id) &&
       (!section.hiddenDuringSetup ||
         !showSetup ||
-        (section.hiddenDuringSetup === 'unless-current' && currentDashboardSection === section.id)),
+        (section.hiddenDuringSetup === 'unless-current' &&
+          (currentDashboardSection === section.id || onBranch === section.id))),
   );
 }

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { markSprite } from '../../../provider-marks';
 import { DashboardResponder } from '../../../../respond';
 import { SetupStep } from '../../../../setup/steps';
+import { renderInlineIcon } from '../../../../../content-reader/icons';
 import { renderTemplate } from '../../../../../content-reader/views';
 
 /** A step as the overview renders it: SetupStep plus the prose copy from PROSE */
@@ -57,6 +58,7 @@ export function sendSetup(
         marks_sprite: markSprite(
           [...data.choices, ...data.sources].map((choice) => choice.providerMark),
         ),
+        check_icon: renderInlineIcon('circle-check', 'spr-icon'),
       }),
   });
 }

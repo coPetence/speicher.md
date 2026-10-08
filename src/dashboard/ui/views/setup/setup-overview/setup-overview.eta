@@ -21,7 +21,12 @@
   <%
   %>
   <li data-spr-step="<%= step.id %>" class="spr-step<%= step.done ? ' spr-step-done' : '' %><%= step.current ? ' spr-step-current' : '' %>">
-    <h2><%= step.heading %></h2>
+    <h2>
+      <%= step.heading %>
+      <% if (step.done) { %>
+      <span class="spr-step-check"><%~ it.check_icon %><span class="spr-clipped">done</span></span>
+      <% } %>
+    </h2>
     <p><%~ step.blurbHtml %></p>
 
     <%

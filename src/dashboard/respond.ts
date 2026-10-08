@@ -128,7 +128,7 @@ export function renderDashboardPage(
 
     hasContent?: boolean; // False hides the reports until a source exists
 
-    progress?: SetupStep[]; // First-run step rail, drawn above the body
+    progress?: SetupStep[]; // First-run step rail, drawn in the header beside the brand
 
     searchQuery?: string; // Prefills the nav search box
   },
@@ -143,11 +143,13 @@ export function renderDashboardPage(
   });
   const progress = page.progress ? renderSetupProgress(page.progress) : { html: '', icons: [] };
 
-  return renderPage(progress.html + page.body, {
+  return renderPage(page.body, {
     title: `${page.title} - Speicher`,
     nonce: page.nonce,
 
     nav: nav.html,
+
+    progressBar: progress.html,
 
     // One sprite carries what nav and rail actually drew
     sprite: renderSprite([...nav.icons, ...progress.icons]),
@@ -161,6 +163,9 @@ export function renderDashboardPage(
 
     // The themed reader chrome is off on admin pages
     ...pageChrome(req, config, { themed: false }),
+
+    // in the setup we do not need the search bar
+    ...(page.showSetup === true ? { search: false } : {}),
 
     // No attribution footer on admin pages
     attribution: false,

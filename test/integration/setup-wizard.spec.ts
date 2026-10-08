@@ -286,7 +286,8 @@ describe('the first run', () => {
     expect(after.text).toMatch(
       /spr-progress-step spr-progress-done[\s\S]*?Mail transport[\s\S]*?>done</,
     );
-    expect(after.text).toMatch(/aria-current="step"[\s\S]*?Content source/);
+    // All settings is no step's page, so the rail marks none
+    expect(after.text).not.toContain('aria-current="step"');
   });
 
   it('refuses that provider without a relay, which is why the step exists', async () => {
@@ -329,6 +330,10 @@ describe('the first run', () => {
 
     const source = await addSource(agent);
     expect(source.headers.location).toBe('/-/setup/administrator');
+
+    // Nobody is signed in to name yet, and it did not come from the file either
+    const sources = await agent.get('/-/config/sources').expect(200);
+    expect(sources.text).toMatch(/docs<\/a>[\s\S]*?spr-cell-quiet">setup</);
   });
 
   it('leaves an ordinary administrator where they saved', async () => {
@@ -363,10 +368,24 @@ describe('the first run', () => {
     expect(overview.text).toContain('href="/-/setup/administrator"');
     expect(overview.text).not.toContain('action="/-/setup/prove"');
 
+    // A finished step carries a check, and only a finished one
+    const step = (id: string) =>
+      /<li data-spr-step="[^"]*"[\s\S]*?<\/li>/g.exec(
+        overview.text.slice(overview.text.indexOf(`data-spr-step="${id}"`) - 20),
+      )?.[0] ?? '';
+    expect(step('provider')).toContain('class="spr-step-check"');
+    expect(step('provider')).toContain('<span class="spr-clipped">done</span>');
+    expect(step('content')).not.toContain('spr-step-check');
+
     const page = await agent.get('/-/setup/administrator').expect(200);
     expect(page.text).toContain('action="/-/setup/prove"');
     expect(page.text).toContain('spr-progress');
     expect(page.text).toMatch(/aria-current="step"[\s\S]*?Administrator/);
+    // In the header beside the brand, not in the content card
+    expect(page.text).toMatch(
+      /<header class="spr-header">[\s\S]*?<nav class="spr-progress"[\s\S]*?<\/header>/,
+    );
+    expect(page.text.slice(page.text.indexOf('<main'))).not.toContain('class="spr-progress"');
   });
 
   it('sends a claim session back to the wizard from anywhere else', async () => {
@@ -416,7 +435,7 @@ describe('the first run', () => {
     expect(config.text).toMatch(
       /spr-progress-step spr-progress-done[\s\S]*?Identity provider[\s\S]*?>done</,
     );
-    expect(config.text).toMatch(/aria-current="step"[\s\S]*?Administrator/);
+    expect(config.text).not.toContain('aria-current="step"');
     expect(config.text).toContain('href="/-/config/identity"');
     expect(config.text).toContain('href="/-/config/sources"');
 
