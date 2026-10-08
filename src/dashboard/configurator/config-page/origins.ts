@@ -35,8 +35,7 @@ export async function stampEntryOrigins(
   for (const entry of section.entries) {
     const origin = origins.get(entry.title);
     entry.cells = [
-      // Who applied it, or "seeded" for the initial version
-      origin ? (origin.applied_by ?? 'seeded') : UNKNOWN,
+      origin ? appliedBy(origin) : UNKNOWN,
       origin ? stamp(origin.applied_at) : UNKNOWN,
     ];
   }
@@ -44,6 +43,14 @@ export async function stampEntryOrigins(
 
 // Fallback value for cells when origin data is missing
 const UNKNOWN = '—';
+
+// Who applied a version
+function appliedBy(version: ConfigVersion): string {
+  if (version.applied_by) return version.applied_by;
+  if (version.origin === 'file') return 'seeded';
+  if (version.origin === 'setup') return 'setup';
+  return UNKNOWN;
+}
 
 // How many past versions to scan for origin detection
 const ORIGIN_SCAN = 500;

@@ -112,16 +112,19 @@ describe('the section list', () => {
     );
   });
 
-  it('puts the first run first, because it is the only thing worth doing yet', () => {
+  it('shows only the first run, because it is the only thing worth doing yet', () => {
+    // A source added during setup does not bring the reports in early
     const html = dashboardNav('config', true, {
       showSetup: true,
-      hasContent: false,
+      hasContent: true,
     }).html;
-    expect(html.indexOf('/-/setup')).toBeGreaterThan(-1);
-    expect(html.indexOf('/-/setup')).toBeLessThan(html.indexOf('/-/connections'));
+    expect(html).toContain('/-/setup');
+    for (const href of ['/-/status', '/-/explain', '/-/graph', '/-/analytics', '/-/connections']) {
+      expect(html).not.toContain(`href="${href}"`);
+    }
   });
 
-  it('marks the step whose page you are on, and the next one only when you are on none', () => {
+  it('marks the step whose page you are on, and none on a page that is no step', () => {
     const configured = {
       providerIds: ['entra'],
       hasAdministrator: false,
@@ -134,12 +137,20 @@ describe('the section list', () => {
     expect(onIdentity.find((step) => step.current)?.id).toBe('provider');
     expect(onIdentity.find((step) => step.id === 'provider')?.done).toBe(true);
 
-    const elsewhere = setupSteps(configured, '/-/logs');
-    expect(elsewhere.find((step) => step.current)?.id).toBe('content');
-
-    for (const steps of [onIdentity, elsewhere]) {
-      expect(steps.filter((step) => step.current)).toHaveLength(1);
+    // A source being added or edited is the source step, not the next undone one
+    for (const path of ['/-/config/sources/github', '/-/config/sources/docs/repo-1']) {
+      expect(setupSteps(configured, path).find((step) => step.current)?.id).toBe('content');
     }
+    expect(setupSteps(configured, '/-/config/identity/entra').find((s) => s.current)?.id).toBe(
+      'provider',
+    );
+
+    for (const path of ['/-/logs', '/-/config', '/-/config/groups', '/-/config/sourcesx']) {
+      expect(setupSteps(configured, path).filter((step) => step.current)).toEqual([]);
+    }
+
+    // The overview names no page, and points at the next undone step
+    expect(setupSteps(configured).find((step) => step.current)?.id).toBe('content');
   });
 
   it('asks for a relay before the provider that needs one, and only then', () => {
@@ -167,7 +178,7 @@ describe('the section list', () => {
     expect(arriving.find((step) => step.current)?.id).toBe('mail');
     expect(arriving.find((step) => step.id === 'mail')?.done).toBe(false);
 
-    const relayed = setupSteps({ ...fresh, hasMailTransport: true }, '/-/logs');
+    const relayed = setupSteps({ ...fresh, hasMailTransport: true });
     expect(relayed.find((step) => step.id === 'mail')?.done).toBe(true);
     expect(relayed.find((step) => step.current)?.id).toBe('provider');
 
@@ -248,11 +259,38 @@ describe('the section list', () => {
     expect(html).toContain('/-/config/identity');
     expect(html).toContain('/-/config/sources');
     expect(html).toContain('/-/config/groups');
-    expect(html.indexOf('/-/config/identity')).toBeLessThan(html.indexOf('/-/config/sources'));
-    expect(html.indexOf('/-/config/sources')).toBeLessThan(html.indexOf('/-/config/groups'));
+    expect(html.indexOf('/-/config/identity')).toBeLessThan(html.indexOf('/-/config/groups'));
+    expect(html.indexOf('/-/config/groups')).toBeLessThan(html.indexOf('/-/config/sources'));
 
     expect(html.match(/href="\/-\/config\/identity"/g)).toHaveLength(1);
     expect(html).toContain('>All settings<');
+  });
+
+  it('lists becoming the administrator under Set up, and marks it on its own page', () => {
+    const setup = dashboardNav('setup', true, { showSetup: true, hasContent: false }).html;
+    expect(setup).toContain('href="/-/setup/administrator"');
+    expect(setup.indexOf('/-/config/sources')).toBeLessThan(
+      setup.indexOf('/-/setup/administrator'),
+    );
+    expect(setup.indexOf('/-/setup/administrator')).toBeLessThan(setup.indexOf('>All settings<'));
+
+    const onIt = dashboardNav('setup', true, {
+      showSetup: true,
+      hasContent: false,
+      subsection: 'administrator',
+    }).html;
+    expect(onIt).toMatch(/href="\/-\/setup\/administrator" aria-current="page"/);
+    expect(onIt.match(/aria-current/g)).toHaveLength(1);
+  });
+
+  it('keeps a step marked while one of its members is being added or edited', () => {
+    const html = dashboardNav('config', true, {
+      showSetup: true,
+      hasContent: false,
+      subsection: 'sources/github',
+    }).html;
+    expect(html).toMatch(/href="\/-\/config\/sources" aria-current="true"/);
+    expect(html.match(/aria-current/g)).toHaveLength(1);
   });
 
   it('keeps Logs and Configuration off the column, each for its own reason', () => {

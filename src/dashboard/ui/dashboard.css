@@ -128,7 +128,8 @@
   }
 
   .spr-nav a[aria-current='true'] {
-    color: var(--spr-accent);
+    background: var(--spr-surface);
+    color: var(--spr-fg);
   }
 
   .spr-help {
@@ -1309,57 +1310,96 @@
     font-size: 1.5em;
   }
 
-  .spr-step-done > h2::after {
-    content: ' — done';
-    color: var(--spr-muted);
-    font-size: var(--spr-font-size-small);
-    font-weight: normal;
+  .spr-step-check {
+    display: inline-flex;
+    margin-inline-start: var(--spr-space-3);
+    vertical-align: -0.1em;
+    color: var(--spr-status-ok);
   }
 
-  .spr-progress {
-    margin-block-end: var(--spr-space-7);
+  .spr-step-check > .spr-icon {
+    inline-size: 0.9em;
+    block-size: 0.9em;
+  }
+
+  .spr-header > .spr-progress {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
   }
 
   .spr-progress ol {
-    position: relative;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--spr-space-4);
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--spr-space-3);
     margin: 0;
+    margin-inline: 40px;
     padding: 0;
     list-style: none;
   }
 
-  .spr-progress ol::before {
+  .spr-progress-step {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    flex: 0 0 auto;
+  }
+
+  .spr-progress-step + .spr-progress-step {
+    flex: 1 1 auto;
+  }
+
+  .spr-progress-step + .spr-progress-step::before {
     content: '';
-    position: absolute;
-    top: calc(var(--spr-space-8) / 2);
-    inset-inline: 0;
+    flex: 1 1 auto;
+    min-inline-size: var(--spr-space-6);
     border-top: var(--spr-border) solid var(--spr-line);
   }
 
-  .spr-progress-step {
-    flex: 0 0 auto;
+  @media (min-width: 48rem) {
+    .spr-layout[data-tree] > .spr-header:has(> .spr-progress) {
+      display: grid;
+      grid-template-columns:
+        calc(var(--spr-nav-width) - var(--spr-space-3) - var(--spr-space-4))
+        minmax(0, 1fr) auto;
+      column-gap: 0;
+    }
+
+    .spr-layout[data-tree] > .spr-header > .spr-progress {
+      grid-column: 2;
+      margin-inline-end: calc(-1 * var(--spr-space-4));
+    }
+
+    .spr-header:has(> .spr-progress) > .spr-toolbar:has(> *) {
+      margin-inline-start: var(--spr-space-7);
+    }
   }
 
   .spr-progress-step > a {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: var(--spr-space-2);
+    gap: var(--spr-space-3);
     color: var(--spr-muted);
     text-decoration: none;
   }
 
-  .spr-progress-step:first-child > a {
-    align-items: flex-start;
-    text-align: start;
-  }
+  @media not all and (min-width: 48rem) {
+    .spr-header > .spr-progress {
+      order: 1;
+      flex-basis: 100%;
+      justify-content: flex-start;
+    }
 
-  .spr-progress-step:last-child > a {
-    align-items: flex-end;
-    text-align: end;
+    .spr-progress-step:not(.spr-progress-current) .spr-progress-label {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   .spr-progress-step > a:hover,

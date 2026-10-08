@@ -52,6 +52,7 @@
           <span><%= it.brand %></span>
           <% } %>
         </a>
+        <%~ it.progressBar || '' %>
         <% if (!it.docked) { %><%~ include('@toolbar', it) %><% } %>
         
         <details class="spr-menu">

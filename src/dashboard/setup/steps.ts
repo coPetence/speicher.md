@@ -2,7 +2,7 @@
 import { ConfigService } from '../../config/config.service';
 
 /** Identifiers for the setup wizard steps, in display order */
-export type SetupStepId = 'mail' | 'provider' | 'administrator' | 'content';
+export type SetupStepId = 'mail' | 'provider' | 'group' | 'administrator' | 'content';
 
 /** A step in the setup wizard, drawn as a list item with status */
 export interface SetupStep {
@@ -54,6 +54,13 @@ export const STEP_PROSE: Record<SetupStepId, StepProse> = {
     action: 'Add an Identity provider',
     reviewAction: 'Review Identity providers',
   },
+  group: {
+    heading: 'Groups',
+    blurb:
+      'Manage the groups of users in your instance. You can create, edit, and delete groups, as well as add or remove users from them.',
+    action: 'Manage groups',
+    reviewAction: 'Review groups',
+  },
   content: {
     heading: 'Content source',
     blurb:
@@ -96,6 +103,13 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
       current: false,
     },
     {
+      id: 'group',
+      title: 'Groups',
+      href: '/-/config/groups',
+      done: config.providerIds.length > 0,
+      current: false,
+    },
+    {
       id: 'content',
       title: 'Content source',
       href: '/-/config/sources',
@@ -105,17 +119,15 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
     {
       id: 'administrator',
       title: 'Administrator',
-      // Administrator is under /-/setup, not /-/config, because it requires a live
-      // login instead of a form save
       href: '/-/setup/administrator',
       done: config.hasAdministrator,
       current: false,
     },
   ];
-  // Step matching currentPath is current; otherwise the first undone step
-  const here = currentPath ? steps.find((step) => step.href === currentPath) : undefined;
-
-  const current = here ?? steps.find((step) => !step.done);
+  const current =
+    currentPath === undefined
+      ? steps.find((step) => !step.done)
+      : steps.find((step) => currentPath === step.href || currentPath.startsWith(`${step.href}/`));
   if (current) current.current = true;
   return steps;
 }

@@ -46,7 +46,7 @@ export interface ConfigVersion {
   version: number;
   yaml: string;
   resolution_hash: string;
-  origin: 'file' | 'admin';
+  origin: 'file' | 'admin' | 'setup';
   applied_by: string | null;
   applied_at: Date;
 }
