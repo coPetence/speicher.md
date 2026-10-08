@@ -64,7 +64,6 @@ export interface FieldOptions {
   fact?: string;
   // Content to copy to the clpboard
   copy?: string;
-  factForPath?: string;
   // Form rebuilds when changed
   reshapes?: boolean;
   // Upload config for secrets
@@ -165,7 +164,6 @@ export function field(
     linkHtml: renderHelp(options.link ?? ''),
     factHtml: renderHelp(options.fact ?? ''),
     copy: options.copy,
-    factForPathHtml: renderHelp(options.factForPath ?? ''),
     upload: options.upload,
   };
 }

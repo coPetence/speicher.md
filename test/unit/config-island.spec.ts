@@ -430,14 +430,10 @@ describe('the save bar', () => {
     document.body.innerHTML = `
       <main>
         <form class="spr-config" method="post" action="/-/config/sources/gh" data-spr-config="sources/gh">
-          <div class="spr-field">
-            <p class="spr-help" data-spr-origin-fact hidden>Enter this as the Webhook URL.</p>
-            <p class="spr-help" data-spr-path-fact>Enter this path after the address.</p>
-            <span class="spr-copyable" data-spr-origin-path>
-              <code>/-/hooks/gh</code>
-              <button type="button" class="spr-copy" data-spr-clipboard="/-/hooks/gh" hidden></button>
-            </span>
-          </div>
+          <span class="spr-copyable" data-spr-origin-path>
+            <code>/-/hooks/gh</code>
+            <button type="button" class="spr-copy" data-spr-clipboard="/-/hooks/gh" hidden></button>
+          </span>
           <span class="spr-copyable">
             <code>https://docs.acme.example/-/hooks/other</code>
             <button type="button" class="spr-copy" data-spr-clipboard="https://docs.acme.example/-/hooks/other" hidden></button>
@@ -455,10 +451,6 @@ describe('the save bar', () => {
       `${location.origin}/-/hooks/gh`,
     );
     expect(full.querySelector('code')?.textContent).toBe('https://docs.acme.example/-/hooks/other');
-
-    // The sentence for a bare path gives way to the one for a full URL
-    expect((form().querySelector('[data-spr-path-fact]') as HTMLElement).hidden).toBe(true);
-    expect((form().querySelector('[data-spr-origin-fact]') as HTMLElement).hidden).toBe(false);
   });
 
   it('shows a rectangle to drop into while a file is dragged, and clears a picked file back to the box', () => {

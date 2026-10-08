@@ -280,28 +280,15 @@
       Configured. Type to replace it; blank keeps it.
     </p>
     <% } %>
-    <% const originPath = Boolean(f.copy && f.copy.startsWith('/')) %>
-    <% const pathFact = originPath && f.factForPathHtml !== '' %>
     <% if (f.factHtml) { %>
-    <p
-      class="spr-help"
-      <% if (pathFact) { %>data-spr-origin-fact hidden<% } %>
-    >
+    <p class="spr-help">
       <%~ f.factHtml %>
-    </p>
-    <% } %>
-    <% if (pathFact) { %>
-    <p
-      class="spr-help"
-      data-spr-path-fact
-    >
-      <%~ f.factForPathHtml %>
     </p>
     <% } %>
     <% if (f.copy) { %>
     <span
       class="spr-copyable"
-      <% if (originPath) { %>data-spr-origin-path<% } %>
+      <% if (f.copy.startsWith('/')) { %>data-spr-origin-path<% } %>
     >
       <code><%= f.copy %></code>
       <%~ include('@copy', {

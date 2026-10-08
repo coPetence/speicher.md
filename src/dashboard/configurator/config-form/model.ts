@@ -142,7 +142,6 @@ export interface Field {
   // A value shown below the fact with a button that copies it. One starting with `/`
   // is a path on this instance, and the browser puts its own origin in front
   copy?: string;
-  factForPathHtml: string;
   // Used when a value can be filled by a file upload (e.g. uploading a pem file to fill a string field) TODO: Rename to fillFromUpload
   upload?: FieldUpload;
 }

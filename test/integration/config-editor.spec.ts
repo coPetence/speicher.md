@@ -1251,12 +1251,11 @@ describe('the content sources section', () => {
     try {
       const { html } = await open('sources/gh');
       expect(html).toMatch(
-        /<p\s+class="spr-help"\s*>\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\.\s*<\/p>\s*<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>/,
+        /<p class="spr-help">\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\.[^<]*<\/p>\s*<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>/,
       );
       expect(html).toContain('data-spr-clipboard="https://docs.acme.example/-/hooks/gh"');
       expect(html).toContain('data-spr-copy-status');
       expect(html).not.toContain('data-spr-origin-path');
-      expect(html).not.toContain('data-spr-path-fact');
     } finally {
       if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
       else process.env.SPEICHER_PUBLIC_URL = before;
@@ -1270,11 +1269,10 @@ describe('the content sources section', () => {
       const { html } = await open('sources/gh');
       expect(html).toMatch(/class="spr-copyable"\s*data-spr-origin-path/);
       expect(html).toContain('data-spr-clipboard="/-/hooks/gh"');
-      // The path's sentence is shown; the full URL's waits for the browser to add the origin
-      expect(html).toMatch(
-        /data-spr-path-fact\s*>\s*Enter this path after the address of this instance/,
+      // One sentence that also reads right while only the path is shown
+      expect(html).toContain(
+        'If only a path is shown, put the address of this instance in front of it.',
       );
-      expect(html).toMatch(/data-spr-origin-fact hidden\s*>\s*Enter this as the/);
     } finally {
       if (before !== undefined) process.env.SPEICHER_PUBLIC_URL = before;
     }
