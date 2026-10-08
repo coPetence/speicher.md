@@ -1,0 +1,10 @@
+
+<div class="spr-empty-state spr-empty-state-page spr-signin-page">
+  <h1><%~ it.mark %>Sign in with <%= it.provider %></h1>
+  <form method="post" action="/api/auth/magic" class="spr-form spr-signin-form">
+    <input type="hidden" name="provider" value="<%= it.providerId %>" />
+    <input type="hidden" name="redirect_to" value="<%= it.redirectTo %>" />
+    <input type="email" name="email" required aria-label="Email address" placeholder="you@example.com" />
+    <button type="submit">Email me a link</button>
+  </form>
+</div>

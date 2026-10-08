@@ -1,0 +1,24 @@
+
+<div class="spr-article">
+<% if (it.results.length) { %>
+<h1>Search</h1>
+<p class="spr-crumbs"><%= it.count %> result<%= it.count === 1 ? '' : 's' %> for &ldquo;<%= it.query %>&rdquo;</p>
+<% } %>
+
+<ul class="spr-listing spr-cards spr-cards-rows">
+  <% it.results.forEach(function (hit) { %>
+  <li>
+    <span class="spr-kind"><%= hit.repo %></span>
+    <a href="<%= hit.href %>"><%~ hit.icon %><%= hit.title %></a>
+    <div class="spr-excerpt"><%~ hit.excerpt %></div>
+  </li>
+  <% }) %>
+</ul>
+
+<% if (!it.results.length) { %>
+<div class="spr-empty-state spr-empty-state-page">
+  <%~ it.art %>
+  <h1>0 results for &ldquo;<%= it.query %>&rdquo;</h1>
+</div>
+<% } %>
+</div>

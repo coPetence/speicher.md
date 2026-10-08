@@ -1,0 +1,52 @@
+@import '../../../../../global-ui/components/copy/copy.css';
+
+@layer speicher.base {
+  .spr-claim-run > .spr-claim-command {
+    user-select: all;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .spr-claim-run {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin: var(--spr-space-5) 0;
+    padding: var(--spr-space-4) var(--spr-space-5);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-surface);
+  }
+
+  .spr-claim-facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--spr-space-2) var(--spr-space-5);
+    margin: var(--spr-space-6) 0;
+  }
+
+  .spr-claim-facts dt {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-claim-facts dd {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin: 0;
+  }
+
+  .spr-claim-facts dd code {
+    user-select: all;
+  }
+
+  .spr-main .spr-claim-facts dd code {
+    padding: 0;
+    background: none;
+  }
+}

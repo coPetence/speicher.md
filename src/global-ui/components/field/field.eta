@@ -1,0 +1,321 @@
+
+<% const f = it.field, editable = it.editable %>
+  <% if (f.inapplicable) { %>
+  <input
+    type="hidden"
+    name="<%= f.path %>"
+    value=""
+  >
+  <% } else { %>
+  <% const info = Boolean(f.help) %>
+  <div
+    class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %>"
+    <% if (f.shownWith) { %>data-spr-shown-with="<%= f.shownWith %>"<% } %>
+    <% if (f.copiedFrom) { %>data-spr-copy-from="<%= f.copiedFrom %>"<% } %>
+  >
+    <% if (f.kind === 'boolean' || f.kind === 'membership') { %>
+    <% if (info) { %><div class="spr-field-head"><% } %>
+    <label class="spr-switch">
+      <input
+        type="checkbox"
+        name="<%= f.path %>"
+        value="on"
+        <%= f.checked ? 'checked' : '' %>
+        <%= editable ? '' : 'disabled' %>
+      >
+      <span>
+        <%= f.label %>
+      </span>
+    </label>
+    <% if (info) { %><%~ include('@info', { field: f }) %></div><% } %>
+    <% } else if (f.kind === 'checkboxes') { %>
+    <fieldset class="spr-choices">
+      <legend>
+        <%= f.label %><% if (info) { %><%~ include('@info', { field: f }) %><% } %>
+      </legend>
+      <% f.options.forEach(function (option) { %>
+      <label>
+        <input
+          type="checkbox"
+          name="<%= f.path %>"
+          value="<%= option.value %>"
+          <%= f.values.indexOf(option.value) >= 0 ? 'checked' : '' %>
+          <%= editable ? '' : 'disabled' %>
+        >
+        <span>
+          <%= option.label %>
+        </span>
+      </label>
+      <% }) %>
+    </fieldset>
+    <% } else if (f.kind === 'template' && f.options.length) { %>
+    <fieldset class="spr-choices spr-templates">
+      <legend>
+        <%= f.label %><% if (info) { %><%~ include('@info', { field: f }) %><% } %>
+      </legend>
+      <% f.options.forEach(function (option) { %>
+      <label class="spr-template">
+        <% if (option.previewHref) { %>
+        <span class="spr-template-frame">
+          <iframe
+            src="<%= option.previewHref %>"
+            loading="lazy"
+            inert
+            tabindex="-1"
+            scrolling="no"
+            title="A page in the <%= option.label %> template"
+          ></iframe>
+        </span>
+        <% } else { %>
+        <span class="spr-template-frame spr-template-missing">
+          Nothing to show
+        </span>
+        <% } %>
+        <span class="spr-template-pick">
+          <input
+            type="radio"
+            name="<%= f.path %>"
+            value="<%= option.value %>"
+            <%= String(f.value || f.fallback) === String(option.value) ? 'checked' : '' %>
+            <%= editable ? '' : 'disabled' %>
+          >
+          <span>
+            <%= option.label %>
+          </span>
+        </span>
+      </label>
+      <% }) %>
+    </fieldset>
+    <% } else { %>
+    <% if (info) { %><div class="spr-field-head"><% } %>
+    <label for="f-<%= f.path %>">
+      <%= f.label %>
+    </label>
+    <% if (info) { %><%~ include('@info', { field: f }) %></div><% } %>
+
+    <% if (f.kind === 'select') { %>
+    <%~ include('@select', {
+      attributes: {
+        id: 'f-' + f.path,
+        name: f.path,
+        'data-spr-reshapes': Boolean(f.reshapes),
+        disabled: !editable,
+      },
+      options: f.options.map(function (option) {
+        return {
+          value: option.value,
+          label: option.label,
+          selected: String(f.value) === String(option.value),
+          markHtml: (it.optionMarks || {})[option.mark],
+        };
+      }),
+    }) %>
+    <% } else if (f.kind === 'color') { %>
+    <span class="spr-swatch">
+      <input
+        type="color"
+        data-spr-swatch-for="<%= f.path %>"
+        hidden
+        aria-hidden="true"
+        tabindex="-1"
+        <%= editable ? '' : 'disabled' %>
+      >
+      <input
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        type="text"
+        value="<%= f.value %>"
+        <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
+        <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+        spellcheck="false"
+        autocomplete="off"
+        <%= editable ? '' : 'disabled' %>
+      >
+    </span>
+    <% } else if (f.kind === 'file') { %>
+    <% if (f.stored) { %>
+    <div class="spr-stored">
+      <% if (f.storedFile && f.storedFile === it.servedLogo) { %>
+      <img
+        class="spr-stored-thumb"
+        src="/-/brand/<%= f.storedFile %>"
+        alt=""
+      >
+      <% } %>
+      <span class="spr-stored-what">
+        <%= f.stored %>
+      </span>
+      <span
+        class="spr-stored-picked"
+        data-spr-picked
+        hidden
+      ></span>
+      <label
+        class="spr-stored-pick"
+        for="f-<%= f.path %>"
+        aria-hidden="true"
+      >
+        Browse…
+      </label>
+      <input
+        class="spr-file spr-file-tucked"
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        type="file"
+        accept="image/png,image/webp,image/svg+xml"
+        <%= editable ? '' : 'disabled' %>
+      >
+      <input
+        class="spr-stored-drop"
+        type="checkbox"
+        name="remove:<%= f.path %>"
+        value="on"
+        aria-label="Remove the stored <%= f.label.toLowerCase() %>"
+        title="Remove the stored <%= f.label.toLowerCase() %>"
+        <%= editable ? '' : 'disabled' %>
+      >
+    </div>
+    <% } else { %>
+    <input
+      class="spr-file"
+      id="f-<%= f.path %>"
+      name="<%= f.path %>"
+      type="file"
+      accept="image/png,image/webp,image/svg+xml"
+      <%= editable ? '' : 'disabled' %>
+    >
+    <% } %>
+    <% } else if (f.kind === 'lines' || f.kind === 'multiline') { %>
+    <textarea
+      id="f-<%= f.path %>"
+      name="<%= f.path %>"
+      rows="<%= f.rows %>"
+      spellcheck="false"
+      <%= editable ? '' : 'disabled' %>
+    ><%= f.value %></textarea>
+    <% } else { %>
+    <%
+      const masked = f.kind === 'secret' && f.value === '';
+      const stored = masked && f.secretHidden ? '••••••••••••' : f.placeholder;
+    %>
+    <% if (f.unitOptions.length) { %>
+    <span class="spr-unit">
+      <input
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        type="number"
+        min="0"
+        step="1"
+        value="<%= f.value %>"
+        <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
+        inputmode="numeric"
+        autocomplete="off"
+        <%= editable ? '' : 'disabled' %>
+      >
+      <%~ include('@select', {
+        attributes: {
+          name: 'unit:' + f.path,
+          'aria-label': f.label + ', unit',
+          disabled: !editable,
+        },
+        options: f.unitOptions.map(function (option) {
+          return { value: option.value, label: option.label, selected: f.unit === option.value };
+        }),
+      }) %>
+    </span>
+    <% } else { %>
+    <input
+      id="f-<%= f.path %>"
+      name="<%= f.path %>"
+      type="<%= masked ? 'password' : f.kind === 'number' ? 'number' : 'text' %>"
+      value="<%= f.value %>"
+      <% if (stored) { %>placeholder="<%= stored %>"<% } %>
+      <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+      <% if (f.kind === 'entra-tenant') { %>required<% } %>
+      <% if (f.widthInto) { %>data-spr-width-into="<%= f.widthInto %>"<% } %>
+      spellcheck="false"
+      autocomplete="off"
+      <%= editable ? '' : 'disabled' %>
+    >
+    <% } %>
+    <% if (f.widthInto) { %>
+    
+    <p class="spr-note spr-note-idle" data-spr-width-note hidden></p>
+    <% } %>
+    <% } %>
+    <% } %>
+
+    <% if (f.secretHidden) { %>
+    <p class="spr-help spr-help-warn">
+      Configured. Type to replace it; blank keeps it.
+    </p>
+    <% } %>
+    <% if (f.factHtml) { %>
+    <p class="spr-help">
+      <%~ f.factHtml %>
+    </p>
+    <% } %>
+    <% if (f.upload && editable) { %>
+    <span class="spr-upload">
+      <label for="u-<%= f.path %>">
+        <%= f.upload.label %>
+      </label>
+      <input
+        class="spr-file"
+        id="u-<%= f.path %>"
+        name="file:<%= f.path %>"
+        type="file"
+        accept="<%= f.upload.accept %>"
+      >
+    </span>
+    <% } %>
+    <% if (f.status) { %>
+    <p class="spr-note spr-note-<%= f.status.level %>">
+      <%~ (it.badgeIcons || {})[f.status.icon] || '' %><%= f.status.label %><% if (f.status.detail) { %>: <%= f.status.detail %><% } %>
+    </p>
+    <% } else if (f.checkHref) { %>
+    
+    <p
+      class="spr-note spr-note-idle"
+      data-spr-check="<%= f.checkHref %>"
+      data-spr-check-at="<%= f.path %>"
+    >
+      <span data-spr-check-mark="ok" hidden><%~ (it.badgeIcons || {})['check'] || '' %></span>
+      <span data-spr-check-mark="fail" hidden><%~ (it.badgeIcons || {})['circle-alert'] || '' %></span>
+      <span data-spr-check-text><a href="<%= f.checkHref %>">Check the connection</a></span>
+    </p>
+    <% } %>
+    <% if (f.copiedFrom && editable) { %>
+    <button
+      type="button"
+      data-spr-copy="<%= f.path %>"
+      hidden
+    >
+      Copy from the sign-in app
+    </button>
+    <% if (f.copiedStored) { %>
+    <input
+      type="checkbox"
+      name="copy:<%= f.path %>"
+      value="on"
+      data-spr-copy-stored
+      hidden
+    >
+    <p
+      class="spr-help"
+      data-spr-copy-note
+      hidden
+    >
+      Copied from the sign-in app when you save.
+    </p>
+    <% } %>
+    <% } %>
+    <% if (f.linkHtml) { %>
+    <p class="spr-help">
+      <%~ f.linkHtml %>
+    </p>
+    <% } %>
+
+    <% f.attached.forEach(function (child) { %><%~ include('@field', { ...it, field: child }) %><% }) %>
+  </div>
+  <% } %>

@@ -1,0 +1,220 @@
+@layer speicher.theme {
+  :root {
+    --spr-bg: #f9fbfc;
+    --spr-fg: #1e2b36;
+    --spr-muted: #5c6f80;
+    --spr-line: #c3d2dd;
+    --spr-accent: #155a9e;
+    --spr-surface: #eef3f6;
+    --spr-warn-bg: #fdf3d7;
+    --spr-warn-fg: #7a5200;
+    --spr-mark-bg: #fce9a0;
+    --spr-mark-fg: #3b2f00;
+
+    --spr-code-keyword: #a02c50;
+    --spr-code-type: #7d5410;
+    --spr-code-function: #5348b5;
+    --spr-code-tag: #1d6b46;
+    --spr-code-attr: #0f5f9e;
+    --spr-code-string: #0f4a7a;
+    --spr-code-number: #0f5f9e;
+    --spr-code-comment: #6e7f8c;
+    --spr-code-meta: #6e7f8c;
+    --spr-code-variable: #7d5410;
+    --spr-code-inserted: #1d6b46;
+    --spr-code-inserted-bg: #e2f1e8;
+    --spr-code-deleted: #a02c50;
+    --spr-code-deleted-bg: #f9e8ed;
+
+    --spr-callout-info: #0d6c96;
+    --spr-callout-tip: #1c7a50;
+    --spr-callout-important: #5f4bb5;
+    --spr-callout-warning: #8a5a12;
+    --spr-callout-danger: #a02c50;
+    --spr-callout-tint: 10%;
+
+    --spr-font-body: 'Helvetica Neue', Helvetica, 'Segoe UI', Roboto, Arial, sans-serif;
+    --spr-font-size-nav: 0.8rem;
+    --spr-font-size-label: 0.75rem;
+
+    --spr-space-6: 1.15rem;
+    --spr-space-7: 1.4rem;
+    --spr-space-8: 1.9rem;
+
+    --spr-radius: 0;
+    --spr-radius-sm: 0;
+    --spr-radius-lg: 0;
+    --spr-radius-xl: 0;
+
+    --spr-measure: 50rem;
+    --spr-nav-width-default: 16rem;
+    --spr-search-width: 14rem;
+    --spr-avatar-tint: 16%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #0d2236;
+      --spr-fg: #dcebf5;
+      --spr-muted: #8fadc4;
+      --spr-line: #2d4d6b;
+      --spr-accent: #7cccef;
+      --spr-surface: #14304a;
+      --spr-warn-bg: #3a2d0f;
+      --spr-warn-fg: #e8c069;
+      --spr-mark-bg: #6b5312;
+      --spr-mark-fg: #ffeec4;
+
+      --spr-code-keyword: #f49cb4;
+      --spr-code-type: #eac17e;
+      --spr-code-function: #b6aaf7;
+      --spr-code-tag: #8fdab2;
+      --spr-code-attr: #8ac6f0;
+      --spr-code-string: #a5d4ef;
+      --spr-code-number: #8ac6f0;
+      --spr-code-comment: #7f97ab;
+      --spr-code-meta: #7f97ab;
+      --spr-code-variable: #eac17e;
+      --spr-code-inserted: #8fdab2;
+      --spr-code-inserted-bg: #143427;
+      --spr-code-deleted: #f49cb4;
+      --spr-code-deleted-bg: #3a2130;
+
+      --spr-callout-info: #74bde2;
+      --spr-callout-tip: #8fdab2;
+      --spr-callout-important: #b6aaf7;
+      --spr-callout-warning: #eac17e;
+      --spr-callout-danger: #f49cb4;
+    }
+  }
+
+  .spr-header {
+    background-image:
+      linear-gradient(
+        color-mix(in oklab, var(--spr-line) 45%, transparent) var(--spr-border),
+        transparent var(--spr-border)
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--spr-line) 45%, transparent) var(--spr-border),
+        transparent var(--spr-border)
+      );
+    background-size: 1.5rem 1.5rem;
+    padding-inline-start: var(--spr-space-4);
+  }
+
+  .spr-brand {
+    font-family: var(--spr-font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .spr-article h1 {
+    border-bottom: var(--spr-border-strong) double var(--spr-line);
+    padding-bottom: var(--spr-space-4);
+  }
+
+  .spr-article {
+    counter-reset: spr-section;
+  }
+
+  .spr-article h2 {
+    counter-increment: spr-section;
+    border-top: var(--spr-border) solid var(--spr-line);
+    padding-top: var(--spr-space-5);
+  }
+
+  .spr-article h2::before {
+    content: counter(spr-section, decimal-leading-zero);
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-small);
+    font-weight: var(--spr-weight-strong);
+    letter-spacing: 0.08em;
+    color: var(--spr-accent);
+    margin-right: var(--spr-space-3);
+  }
+
+  .spr-article hr {
+    border: 0;
+    height: var(--spr-space-3);
+    margin: var(--spr-space-8) 0;
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        var(--spr-line) 0,
+        var(--spr-line) var(--spr-border),
+        transparent var(--spr-border),
+        transparent 1rem
+      ),
+      linear-gradient(var(--spr-line), var(--spr-line));
+    background-size:
+      100% 100%,
+      100% var(--spr-border);
+    background-position:
+      top left,
+      bottom left;
+    background-repeat: no-repeat;
+  }
+
+  .spr-main pre {
+    border: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-callout {
+    border: var(--spr-border) solid
+      color-mix(in oklab, var(--spr-callout-accent) 40%, var(--spr-bg));
+    border-left: var(--spr-border-strong) solid var(--spr-callout-accent);
+  }
+
+  .spr-callout-label {
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  @media (min-width: 48rem) {
+    .spr-pane {
+      margin: 0;
+      border-radius: 0;
+    }
+
+    .spr-pane > .spr-toolbar {
+      margin-block-start: var(--spr-space-4);
+      padding-inline-end: calc(var(--spr-space-3) + var(--spr-space-4));
+    }
+  }
+
+  .spr-nav {
+    font-family: var(--spr-font-mono);
+    padding-inline: 0;
+  }
+
+  @media (min-width: 48rem) {
+    .spr-nav {
+      scrollbar-gutter: stable;
+    }
+
+    .spr-brand {
+      scrollbar-gutter: auto;
+    }
+  }
+
+  .spr-crumbs {
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-label);
+  }
+
+  .spr-tag {
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-label);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .spr-aside-heading,
+  .spr-kind {
+    font-family: var(--spr-font-mono);
+  }
+}

@@ -1,0 +1,30 @@
+
+<% if (it.searchQuery !== null) { %>
+<form class="spr-search spr-nav-search" method="get" action="/-/search" role="search">
+  <span class="spr-input-icon"><%~ it.searchIcon %><input type="search" name="q" value="<%= it.searchQuery %>" aria-label="Search settings and pages" placeholder="Search settings" autocomplete="off" spellcheck="false"></span>
+</form>
+<% } %>
+<ul class="spr-nav-root">
+  <% it.items.forEach(function (item) { %>
+  <% if (item.children) { %>
+  <li class="spr-nav-branch">
+    <details class="spr-nav-fold" data-spr-fold="<%= item.id %>"<% if (item.open) { %> open<% } %>>
+    <summary class="spr-nav-row">
+      <a href="<%= item.href %>"<% if (item.current) { %> aria-current="<%= item.current %>"<% } %>><%~ item.iconHtml %><span><%= item.label %></span></a>
+    </summary>
+    <ul>
+      <% item.children.forEach(function (child) { %>
+      <li class="spr-nav-leaf">
+        <a href="<%= child.href %>"<% if (child.current) { %> aria-current="<%= child.current %>"<% } %>><%~ child.iconHtml %><span><%= child.label %></span></a>
+      </li>
+      <% }) %>
+    </ul>
+    </details>
+  </li>
+  <% } else { %>
+  <li class="spr-nav-leaf">
+    <a href="<%= item.href %>"<% if (item.current) { %> aria-current="<%= item.current %>"<% } %>><%~ item.iconHtml %><span><%= item.label %></span></a>
+  </li>
+  <% } %>
+  <% }) %>
+</ul>

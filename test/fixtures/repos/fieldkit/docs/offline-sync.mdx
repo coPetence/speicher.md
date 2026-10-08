@@ -1,0 +1,53 @@
+---
+title: Offline Sync
+description: What a device does without a connection, and how it catches up.
+---
+
+Fieldkit is built for places without signal. A device answers surveys, stores submissions and queues uploads locally, and syncs whenever a connection appears.
+
+## How Sync Works
+
+Each sync does three things in order:
+
+1. **Upload** pending submissions, oldest first, with their attachments
+2. **Download** survey versions and settings changed since the last sync
+3. **Report** health signals (battery, storage, clock skew)
+
+A sync that is interrupted resumes from the last submission that was acknowledged. Nothing is uploaded twice.
+
+:::note
+Attachments are uploaded after the submission that references them. A submission can therefore appear in the dashboard a few seconds before its photos do.
+:::
+
+### Before a trip without signal
+
+- [x] Publish the survey version the team will answer
+- [ ] Sync every device while it still has a connection
+- [ ] Check each device's free storage against the photos you expect
+- [ ] Raise `sync_interval` if the trip is longer than the auto-sleep interval
+
+## Sync Interval
+
+Devices try to sync every `sync_interval` minutes while connected, and immediately when a connection returns after an outage. See [Device Management](/docs/device-management#device-settings) for how to change it.
+
+## Storage on the Device
+
+Pending submissions are kept until they are acknowledged. Synced submissions are kept for `retention_days` so the team can review them in the field.
+
+When the device's `storage_quota` is full, the app refuses new submissions with a warning rather than discarding old ones.
+
+## Conflicts
+
+Two devices can edit the same record — for example, a site visited twice in one day. Fieldkit keeps both submissions and marks the later one as a revision of the earlier, by `device_time`.
+
+:::caution
+Revision order uses the **device** clock. A device with large clock skew can make an old visit look like the latest one. Check `clock_skew` in [health signals](/docs/device-management#health-signals).
+:::
+
+## Forcing a Sync
+
+```bash
+fieldkit devices sync tablet-07
+```
+
+The request is delivered as a push notification; a device without a connection picks it up when it next has one.

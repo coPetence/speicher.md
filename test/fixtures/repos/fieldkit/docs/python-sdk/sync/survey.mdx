@@ -1,0 +1,73 @@
+---
+title: "Survey"
+hideTitleOnPage: true
+---
+
+## Survey
+
+```python
+class Survey()
+```
+
+A versioned survey definition.
+
+#### Survey.update
+
+```python
+def update(questions: List[Question]) -> None
+```
+
+Publishes a new version with these questions.
+
+**Arguments**:
+
+- `questions` _List[Question]_ - The complete question list.
+
+**Raises**:
+
+- `FieldkitValidationError` - If two questions share an id.
+
+#### Survey.versions
+
+```python
+def versions() -> List[int]
+```
+
+Lists every published version.
+
+**Returns**:
+
+- `List[int]` - Version numbers, oldest first.
+
+#### Survey.assign
+
+```python
+def assign(labels: Dict[str, str]) -> int
+```
+
+Assigns the survey to every device carrying these labels.
+
+**Arguments**:
+
+- `labels` _Dict[str, str]_ - Labels to match.
+
+**Returns**:
+
+- `int` - Number of devices assigned.
+
+#### Survey.submissions
+
+```python
+def submissions(since: Optional[datetime] = None, version: Optional[int] = None) -> Iterator[Submission]
+```
+
+Iterates over submissions.
+
+**Arguments**:
+
+- `since` _Optional[datetime]_ - Only submissions received after this.
+- `version` _Optional[int]_ - Only this version.
+
+**Returns**:
+
+- `Iterator[Submission]` - Submissions, oldest first.

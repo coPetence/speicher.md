@@ -1,0 +1,112 @@
+---
+title: Getting Started
+description: Install an SDK, register a device and collect your first submission.
+lastUpdated: true
+---
+
+import { Tabs, TabItem, Steps, LinkButton } from '@astrojs/starlight/components';
+
+This guide walks through the pieces you need before a team goes out into the field: an API key, an SDK, a survey and at least one device. It takes about ten minutes.
+
+If you only want to try Fieldkit from a terminal, skip ahead to [setting up the Fieldkit CLI](#setting-up-the-fieldkit-cli).
+
+## Install the SDK
+
+<Tabs syncKey="language">
+  <TabItem label="Python" icon="seti:python">
+  ```bash
+  pip install fieldkit
+  ```
+  </TabItem>
+  <TabItem label="TypeScript" icon="seti:typescript">
+  ```bash
+  npm install @fieldkit/sdk
+  ```
+  </TabItem>
+</Tabs>
+
+## Configure your API key
+
+The SDK reads `FIELDKIT_API_KEY` from the environment. You can also pass the key explicitly; see [Configuration](#configuration-options) below for every option.
+
+```bash
+export FIELDKIT_API_KEY=fk_live_...
+```
+
+:::note
+Keys are scoped to a workspace. A key created in one workspace cannot read surveys or devices in another, even if you belong to both.
+:::
+
+### Configuration options
+
+| Option | Environment variable | Default |
+| ------ | -------------------- | ------- |
+| `api_key` | `FIELDKIT_API_KEY` | — |
+| `api_url` | `FIELDKIT_API_URL` | `https://api.fieldkit.example` |
+| `region` | `FIELDKIT_REGION` | `eu` |
+| `timeout` | `FIELDKIT_TIMEOUT` | `30` |
+
+## Create a survey
+
+A survey is a versioned list of questions. Devices download the version that was current when they last synced.
+
+```python
+from fieldkit import Fieldkit
+
+fk = Fieldkit()
+survey = fk.surveys.create(
+    name="water-quality-2025",
+    questions=[
+        {"id": "site", "type": "text", "required": True},
+        {"id": "ph", "type": "number", "min": 0, "max": 14},
+        {"id": "photo", "type": "image"},
+    ],
+)
+```
+
+## Register a device
+
+```python
+device = fk.devices.register(name="tablet-07", labels={"team": "north"})
+```
+
+The device is now visible on the dashboard and will pick up `water-quality-2025` on its next sync. See [Device Management](/docs/device-management) for the full lifecycle.
+
+## Setting up the Fieldkit CLI
+
+<Steps>
+
+1. Install the CLI with Homebrew:
+
+   ```bash
+   brew install fieldkit/tap/fieldkit
+   ```
+
+2. Log in. The CLI opens a browser and stores the key in the [configuration file](/docs/configuration#configuration-file):
+
+   ```bash
+   fieldkit login
+   ```
+
+3. Check that it can see your devices:
+
+   ```bash
+   fieldkit devices list
+   ```
+
+</Steps>
+
+<LinkButton href="/docs/tools/cli/" variant="secondary" icon="right-arrow">Read the CLI reference</LinkButton>
+
+## Context files for AI assistants
+
+We publish two plain-text files describing the SDKs for AI coding assistants:
+
+- `https://docs.fieldkit.example/llms.txt` — a short index
+- `https://docs.fieldkit.example/llms-full.txt` — the complete reference
+
+## Next steps
+
+- [Surveys](/docs/surveys) — question types, versions and conditional logic
+- [Offline Sync](/docs/offline-sync) — what happens when a device has no signal
+- [Python SDK reference](/docs/python-sdk)

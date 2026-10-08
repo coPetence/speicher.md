@@ -1,0 +1,80 @@
+---
+title: "AsyncSurvey"
+hideTitleOnPage: true
+---
+
+## AsyncSurvey
+
+```python
+class AsyncSurvey()
+```
+
+A versioned survey definition.
+
+Every method is a coroutine and must be awaited. The client is an async context manager:
+
+```python
+async with AsyncFieldkit() as fk:
+    ...
+```
+
+#### AsyncSurvey.update
+
+```python
+async def update(questions: List[Question]) -> None
+```
+
+Publishes a new version with these questions.
+
+**Arguments**:
+
+- `questions` _List[Question]_ - The complete question list.
+
+**Raises**:
+
+- `FieldkitValidationError` - If two questions share an id.
+
+#### AsyncSurvey.versions
+
+```python
+async def versions() -> List[int]
+```
+
+Lists every published version.
+
+**Returns**:
+
+- `List[int]` - Version numbers, oldest first.
+
+#### AsyncSurvey.assign
+
+```python
+async def assign(labels: Dict[str, str]) -> int
+```
+
+Assigns the survey to every device carrying these labels.
+
+**Arguments**:
+
+- `labels` _Dict[str, str]_ - Labels to match.
+
+**Returns**:
+
+- `int` - Number of devices assigned.
+
+#### AsyncSurvey.submissions
+
+```python
+async def submissions(since: Optional[datetime] = None, version: Optional[int] = None) -> Iterator[Submission]
+```
+
+Iterates over submissions.
+
+**Arguments**:
+
+- `since` _Optional[datetime]_ - Only submissions received after this.
+- `version` _Optional[int]_ - Only this version.
+
+**Returns**:
+
+- `Iterator[Submission]` - Submissions, oldest first.

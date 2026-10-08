@@ -1,0 +1,25 @@
+# A third repo, written to look like a Starlight site somebody pointed Speicher at
+# without preparing it first — see README.md for the rule that keeps it that way.
+#
+# `handbook` tests the conventions: numeric ordering, icons, the cascade, redirects,
+# the ACL matrix. This repo tests what a site built for another tool looks like on
+# arrival — `.mdx` almost throughout, frontmatter belonging to Starlight
+# (`hideTitleOnPage`, `template`, `tableOfContents`, `next`, `head`, `hero`,
+# `pagefind`, `editUrl`, `lastUpdated`, `banner`), component tags left in the body,
+# links written as the published site's URLs. None of that is Speicher's vocabulary,
+# and that is the point. `fixture-shapes.spec.ts` asserts the inventory.
+version: 1
+
+access:
+  groups: [engineering]
+
+ingest_root: docs
+
+# All but one file is `.mdx`. The default include is `**/*.md` only, so without this
+# the repo ingests exactly one file — which is also what happens to any real Starlight
+# or Docusaurus repository somebody points at Speicher.
+sync:
+  include: ['**/*.md', '**/*.mdx']
+
+display:
+  title: 'Fieldkit Documentation'

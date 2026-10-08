@@ -1,0 +1,15 @@
+
+<ul class="spr-findings">
+  <% it.findings.forEach(function (finding) { %>
+  <li>
+    <%~ include('@badge', { level: finding.level, label: finding.label, iconHtml: finding.iconHtml }) %>
+    <span class="spr-finding-source"><code><%= finding.source %></code></span>
+    <% if (finding.code) { %>
+    <span class="spr-finding-code"><%= finding.code %></span>
+    <% } %>
+    <p>
+      <%= finding.message %>
+    </p>
+  </li>
+  <% }) %>
+</ul>

@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+test
+plan
+var
+.git
+.github
+*.log
+.env
+.env.*
+compose.dev.yml
+deploy

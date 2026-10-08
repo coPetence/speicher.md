@@ -1,0 +1,37 @@
+---
+title: Exports
+description: Get submissions out as CSV, GeoJSON or Parquet.
+---
+
+An export is a snapshot of a survey's submissions in one file. Exports run in the background and are kept for the retention period of your plan.
+
+## Formats
+
+- **CSV** — one row per submission, one column per question across every version
+- **GeoJSON** — one feature per submission with a `location` answer
+- **Parquet** — typed columns; the best choice for anything over a million rows
+
+## Starting an Export
+
+```python
+export = fk.exports.create(survey="soil-samples", format="parquet", since="2025-06-01")
+export.wait()
+export.download("soil-samples.parquet")
+```
+
+```bash
+fieldkit exports create soil-samples --format csv --since 2025-06-01 --wait
+```
+
+## Columns
+
+Every export carries these columns before the survey's own:
+
+| Column | Description |
+| ------ | ----------- |
+| `submission_id` | Stable id of the submission |
+| `survey_version` | The version the submission answered |
+| `device_id` | The device it came from |
+| `device_time` | When it was submitted, by the device clock |
+| `received_at` | When it reached Fieldkit |
+| `revises` | The submission this one revises, if any |

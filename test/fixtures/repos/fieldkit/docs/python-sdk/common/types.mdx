@@ -1,0 +1,55 @@
+---
+title: "Types"
+hideTitleOnPage: true
+---
+
+## FieldkitConfig
+
+```python
+@dataclass
+class FieldkitConfig()
+```
+
+**Attributes**:
+
+- `api_key` _Optional[str]_ - Defaults to `FIELDKIT_API_KEY`.
+- `api_url` _Optional[str]_ - Defaults to `FIELDKIT_API_URL`.
+- `region` _Optional[str]_ - `eu` or `us`.
+- `timeout` _float_ - Seconds. Defaults to `30`.
+- `key_provider` _Optional[Callable[[], str]]_ - Called for a key on every request instead of reading `api_key`.
+
+## DeviceSettings
+
+```python
+@dataclass
+class DeviceSettings()
+```
+
+**Attributes**:
+
+- `sync_interval` _int_ - Minutes between sync attempts.
+- `auto_sleep_interval` _int_ - Minutes without input before reported asleep. `0` disables.
+- `auto_retire_interval` _int_ - Minutes asleep before retired. `0` disables.
+- `storage_quota` _int_ - MiB.
+- `retention_days` _int_ - Days synced submissions stay on the device.
+
+## SyncReport
+
+```python
+@dataclass
+class SyncReport()
+```
+
+**Attributes**:
+
+- `uploaded` _int_ - Submissions uploaded.
+- `downloaded` _List[str]_ - Survey ids whose versions changed.
+- `health` _Dict[str, Union[int, float, str]]_ - Health signals reported.
+
+## Question
+
+```python
+Question = Dict[str, Any]
+```
+
+A question definition. See [Surveys](/docs/surveys#question-types) for the keys each type accepts.

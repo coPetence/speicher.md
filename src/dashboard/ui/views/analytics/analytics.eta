@@ -1,0 +1,114 @@
+<h1>Analytics</h1>
+
+<% if (!it.enabled) { %>
+<p class="spr-empty">
+  This instance is not recording reads. Turn it on under
+  <a href="/-/config/analytics">Read analytics</a>.
+</p>
+<% } else { %>
+<p class="spr-empty">
+  The last <%= it.windowDays %> days, bucketed by <%= it.granularity %> in
+  <code><%= it.timezone %></code>.
+</p>
+
+<%~ include('@stats', { tiles: it.tiles }) %>
+
+
+<p class="spr-note">
+  <% if (it.beacon) { %>
+  Public pages are counted in the browser, so ad blockers and readers without
+  JavaScript are missing from those figures. Private pages are counted on the server
+  and are complete.
+  <% } else { %>
+  Public pages are counted on the server, and a public page answered to a signed-out
+  reader may be served by a cache without reaching this instance at all — so those
+  figures are a lower bound, and behind a CDN they can be far below the truth.
+  Private pages are complete.
+  <% } %>
+</p>
+
+
+<%~ it.chart %>
+
+<h2>Most read</h2>
+<% if (it.topPages.length === 0) { %>
+<p class="spr-empty">Nothing has been read in this window.</p>
+<% } else { %>
+<table class="spr-table">
+  <thead>
+    <tr>
+      <th scope="col">Repository</th>
+      <th scope="col">Page</th>
+      <th scope="col">People</th>
+      <th scope="col">Agents</th>
+      
+      <% if (it.uniqueReaders) { %>
+      <th scope="col">Readers</th>
+      <% } %>
+    </tr>
+  </thead>
+  <tbody>
+    <% it.topPages.forEach(function (row) { %>
+    <tr>
+      <td><%= row.repo %></td>
+      <td><a href="<%= row.href %>"><%= row.title %></a></td>
+      <td><%= row.webViews %></td>
+      <td><%= row.mcpViews %></td>
+      <% if (it.uniqueReaders) { %>
+      <td><%= row.readers === 0 ? '—' : row.readers %></td>
+      <% } %>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<% } %>
+
+<h2>Searched for, and not found</h2>
+
+<% if (it.searchMisses.length === 0) { %>
+<p class="spr-empty">Every search in this window found something.</p>
+<% } else { %>
+<table class="spr-table">
+  <thead>
+    <tr>
+      <th scope="col">Query</th>
+      <th scope="col">Times</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% it.searchMisses.forEach(function (row) { %>
+    <tr>
+      <td><code><%= row.query %></code></td>
+      <td><%= row.misses %></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<% } %>
+
+<h2>Not read at all</h2>
+
+<% if (it.neverRead.length === 0) { %>
+<p class="spr-empty">Every page has been read at least once in this window.</p>
+<% } else { %>
+<p class="spr-empty">
+  <%= it.neverReadTotal %> pages have not been read in this window<%= it.neverRead.length < it.neverReadTotal ? ', showing the first ' + it.neverRead.length : '' %>.
+</p>
+<table class="spr-table">
+  <thead>
+    <tr>
+      <th scope="col">Repository</th>
+      <th scope="col">Page</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% it.neverRead.forEach(function (row) { %>
+    <tr>
+      <td><%= row.repo %></td>
+      <td><%= row.title %></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<% } %>
+<% } %>

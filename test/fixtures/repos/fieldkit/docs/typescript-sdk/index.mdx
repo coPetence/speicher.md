@@ -1,0 +1,30 @@
+---
+title: TypeScript SDK Reference
+description: Work with Fieldkit from Node.js, Deno, Bun or the browser.
+next: /docs/typescript-sdk/fieldkit
+---
+
+The Fieldkit TypeScript SDK covers everything the dashboard does. It has no runtime dependencies and runs anywhere `fetch` does.
+
+## Installation
+
+```bash
+npm install @fieldkit/sdk
+```
+
+## Getting Started
+
+```typescript
+import { Fieldkit } from '@fieldkit/sdk'
+
+const fk = new Fieldkit({ apiKey: process.env.FIELDKIT_API_KEY })
+const devices = await fk.devices.list({ labels: { team: 'north' } })
+```
+
+:::caution
+Do not ship an API key to a browser. In a browser, pass `keyProvider` and fetch a short-lived key from your own backend.
+:::
+
+## Reference
+
+Every method returns a Promise. Lists are async iterables that page transparently.

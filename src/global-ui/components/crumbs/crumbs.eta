@@ -1,0 +1,4 @@
+
+<div class="spr-crumbs">
+  <% it.crumbs.forEach(function (crumb, i) { %><% if (i) { %> / <% } %><% if (crumb.href) { %><a href="<%= crumb.href %>"><%= crumb.title %></a><% } else { %><%= crumb.title %><% } %><% }) %>
+</div>

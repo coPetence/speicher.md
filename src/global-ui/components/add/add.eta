@@ -1,0 +1,37 @@
+
+<% const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1) %>
+  <div class="spr-add">
+    <% if (add.nameLabel) { %>
+    <label for="n-<%= add.op %>">
+      <%= add.nameLabel %>
+    </label>
+    <input
+      id="n-<%= add.op %>"
+      name="newname:<%= target %>"
+      type="text"
+      pattern="<%= add.namePattern %>"
+      title="<%= add.nameHint %>"
+      spellcheck="false"
+      autocomplete="off"
+      data-spr-transient
+    >
+    <% } %>
+    <% if (add.typeLabel) { %>
+    <label for="t-<%= add.op %>">
+      <%= add.typeLabel %>
+    </label>
+    <%~ include('@select', {
+      attributes: { id: 't-' + add.op, name: 'newtype:' + target, 'data-spr-transient': true },
+      options: add.typeOptions.map(function (option) {
+        return { value: option.value, label: option.label };
+      }),
+    }) %>
+    <% } %>
+    <button
+      type="submit"
+      name="op"
+      value="<%= add.op %>"
+    >
+      <%= add.label %>
+    </button>
+  </div>

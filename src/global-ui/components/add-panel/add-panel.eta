@@ -1,0 +1,80 @@
+
+<% const add = it.add %>
+  <div class="spr-modal-panel">
+    <h2 class="spr-modal-title">
+      <%= add.label %>
+    </h2>
+    <% if (add.typeLabel) { %>
+    <fieldset
+      class="spr-choices"
+      data-spr-suggests="add-name"
+    >
+      <legend>
+        <%= add.typeLabel %>
+      </legend>
+      <% if (add.typeOptions.some(function (option) { return option.mark; })) { %>
+      <%~ include('@dropdown', { options: add.typeOptions, name: 'kind', picked: it.openKind, optionMarks: it.optionMarks }) %>
+      <% } else { %>
+      <%~ include('@select', {
+        attributes: { id: 'add-kind', name: 'kind', form: 'add-member' },
+        options: add.typeOptions.map(function (option) {
+          return {
+            value: option.value,
+            label: option.label,
+            attributes: { 'data-spr-unavailable': Boolean(option.unavailable), 'data-spr-suggest': option.suggest },
+          };
+        }),
+      }) %>
+      <% } %>
+    <% add.typeOptions.filter(function (option) { return option.unavailable }).forEach(function (option) { %>
+    <p class="spr-note spr-note-warn spr-choice-note">
+      <%~ option.unavailableHtml %>
+    </p>
+    <% }) %>
+    </fieldset>
+    <% } %>
+    <div class="spr-add-label">
+      <label for="add-name">
+        <%= add.nameLabel %>
+      </label>
+      <% if (add.nameHelpHtml) { %>
+      <%~ include('@info', { field: { path: 'add-name', label: add.nameLabel, helpHtml: add.nameHelpHtml } }) %>
+      <% } %>
+    </div>
+    <% if (add.nameOptions && add.nameOptions.some(function (option) { return option.mark; })) { %>
+    <%~ include('@dropdown', { options: add.nameOptions, name: 'add', optionMarks: it.optionMarks }) %>
+    <% } else if (add.nameOptions && add.nameOptions.length > 0) { %>
+    <%~ include('@select', {
+      attributes: { id: 'add-name', name: 'add', form: 'add-member' },
+      options: add.nameOptions.map(function (option) {
+        return { value: option.value, label: option.label };
+      }),
+    }) %>
+    <% } else { %>
+    <%
+      const pickedKind =
+        (it.openKind && add.typeOptions.find(function (option) { return option.value === it.openKind; }))
+        || add.typeOptions[0] || {};
+    %>
+    <input
+      id="add-name"
+      name="add"
+      form="add-member"
+      type="text"
+      required
+      value="<%= pickedKind.suggest || '' %>"
+      pattern="<%= add.namePattern %>"
+      title="<%= add.nameHint %>"
+      spellcheck="false"
+      autocomplete="off"
+    >
+    <% } %>
+    <div class="spr-modal-actions">
+      <button
+        type="submit"
+        form="add-member"
+      >
+        <%= add.label %>
+      </button>
+    </div>
+  </div>

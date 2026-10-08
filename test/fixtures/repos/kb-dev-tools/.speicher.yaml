@@ -1,0 +1,11 @@
+# The *target* side. Narrower than `kb-azure` on purpose: `commercial` reads the
+# page that links here and nothing at the other end of the link.
+version: 1
+
+access:
+  groups: [engineering]
+
+ingest_root: docs
+
+display:
+  title: 'Developer Tooling'

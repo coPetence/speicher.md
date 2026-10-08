@@ -1,0 +1,46 @@
+@layer speicher.base {
+  .spr-card {
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    padding: var(--spr-space-5);
+    margin: var(--spr-space-5) 0;
+    background: var(--spr-surface);
+  }
+  .spr-card-2,
+  .spr-card-3 {
+    background: transparent;
+    border-radius: var(--spr-radius);
+    margin-left: var(--spr-space-5);
+  }
+  .spr-card > header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    column-gap: var(--spr-space-3);
+  }
+
+  .spr-card > header h4 {
+    grid-area: 1 / 1;
+    margin: 0;
+  }
+  .spr-card-key > header h4 {
+    font-family: var(--spr-font-mono);
+  }
+  .spr-card-sub {
+    margin: 0;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+  .spr-card > header .spr-card-sub {
+    grid-area: 2 / 1 / auto / -1;
+    margin-top: var(--spr-space-1);
+  }
+
+  .spr-card > header .spr-remove {
+    grid-area: 1 / 2;
+  }
+  .spr-tile .spr-card-sub a {
+    position: relative;
+    z-index: 1;
+  }
+}

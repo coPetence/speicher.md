@@ -1,0 +1,27 @@
+---
+title: Regions
+description: Where Fieldkit stores your data.
+banner:
+  content: The US region is in public preview.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+Every workspace stores its data in exactly one region, chosen when the workspace is created.
+
+| Region | Location | Identifier |
+| ------ | -------- | ---------- |
+| Europe | Frankfurt | `eu` |
+| United States | Ohio[^us-preview] | `us` <Badge text="Preview" variant="caution" /> |
+
+Submissions, attachments and exports never leave the region. Device health signals are processed in the same region.
+
+## Choosing a Region
+
+Pick the region closest to where your **data** has to live, not where your team is. A device in the field talks to the region's API over HTTPS from anywhere.
+
+## Moving a Workspace <Badge text="Not supported" variant="danger" />
+
+A workspace cannot change region. To move, create a workspace in the new region, re-register devices, and import surveys with `fieldkit surveys import`.
+
+[^us-preview]: Preview workspaces carry the same guarantees as Europe except the uptime commitment, which starts at general availability.

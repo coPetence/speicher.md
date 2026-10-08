@@ -1,0 +1,100 @@
+@layer speicher.theme {
+  :root {
+    --spr-bg: #fbf9f5;
+    --spr-fg: #23201b;
+    --spr-muted: #6b6459;
+    --spr-line: #e0d9cc;
+    --spr-accent: #8a4a2f;
+    --spr-surface: #f2ede3;
+    --spr-warn-bg: #fbf0d8;
+    --spr-warn-fg: #7a5200;
+    --spr-mark-bg: #f6e2a8;
+    --spr-mark-fg: #3b2f00;
+
+    --spr-code-keyword: #8f2e2a;
+    --spr-code-type: #7a4a12;
+    --spr-code-function: #6a4a8a;
+    --spr-code-tag: #3d6b3a;
+    --spr-code-attr: #2f5a7a;
+    --spr-code-string: #2f5a4a;
+    --spr-code-number: #8a4a2f;
+    --spr-code-comment: #8a8175;
+    --spr-code-meta: #8a8175;
+    --spr-code-variable: #7a4a12;
+    --spr-code-inserted: #3d6b3a;
+    --spr-code-inserted-bg: #eaf1e4;
+    --spr-code-deleted: #8f2e2a;
+    --spr-code-deleted-bg: #f7e8e2;
+
+    --spr-callout-info: #2f5a7a;
+    --spr-callout-tip: #3d6b3a;
+    --spr-callout-important: #6a4a8a;
+    --spr-callout-warning: #7a4a12;
+    --spr-callout-danger: #8f2e2a;
+    --spr-callout-tint: 12%;
+
+    --spr-font-body:
+      'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    --spr-font-size: 18px;
+    --spr-line-height: 1.7;
+    --spr-font-size-nav: 0.9rem;
+    --spr-weight-strong: 700;
+
+    --spr-space-3: 0.7rem;
+    --spr-space-4: 0.9rem;
+    --spr-space-5: 1.2rem;
+    --spr-space-6: 1.6rem;
+    --spr-space-7: 2.4rem;
+    --spr-space-8: 3rem;
+
+    --spr-radius: 0;
+    --spr-radius-sm: 0;
+    --spr-radius-lg: 2px;
+    --spr-radius-xl: 2px;
+    --spr-border-strong: 2px;
+
+    --spr-measure: 46rem;
+    --spr-nav-width-default: 15rem;
+    --spr-search-width: 12rem;
+    --spr-avatar-size: 2.2rem;
+    --spr-avatar-tint: 14%;
+    --spr-menu-width: 16rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #1b1917;
+      --spr-fg: #ece5d8;
+      --spr-muted: #a49a89;
+      --spr-line: #35302a;
+      --spr-accent: #d99a72;
+      --spr-surface: #242019;
+      --spr-warn-bg: #33280f;
+      --spr-warn-fg: #e8c069;
+      --spr-mark-bg: #6b5312;
+      --spr-mark-fg: #ffeec4;
+
+      --spr-code-keyword: #e79b8e;
+      --spr-code-type: #dcae74;
+      --spr-code-function: #c3a8d8;
+      --spr-code-tag: #9dc490;
+      --spr-code-attr: #8fb4cc;
+      --spr-code-string: #9cc2ac;
+      --spr-code-number: #d99a72;
+      --spr-code-comment: #948a79;
+      --spr-code-meta: #948a79;
+      --spr-code-variable: #dcae74;
+      --spr-code-inserted: #9dc490;
+      --spr-code-inserted-bg: #1e2419;
+      --spr-code-deleted: #e79b8e;
+      --spr-code-deleted-bg: #2a1d19;
+
+      --spr-callout-info: #8fb4cc;
+      --spr-callout-tip: #9dc490;
+      --spr-callout-important: #c3a8d8;
+      --spr-callout-warning: #dcae74;
+      --spr-callout-danger: #e79b8e;
+    }
+  }
+}

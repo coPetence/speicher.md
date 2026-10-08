@@ -1,0 +1,17 @@
+# Level two: intersected with the inherited set, so it can only narrow.
+#
+# The parent granted [engineering, commercial, client-northwind] plus dave. Naming
+# `commercial` alone drops the other three — including dave, whose individual grant
+# lives at the root and is not re-granted here.
+display:
+  title: 'Commercial'
+
+access:
+  groups: [commercial]
+
+retrieval:
+  # Out of AI retrieval, still browsable and still keyword-searchable.
+  indexable: false
+
+sync:
+  exclude: ['drafts/**']

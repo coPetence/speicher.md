@@ -1,0 +1,5 @@
+display:
+  title: 'Northwind Engineering'
+
+access:
+  groups: [client-northwind]

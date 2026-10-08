@@ -1,0 +1,8 @@
+
+<ul class="spr-problems">
+  <% it.problems.forEach(function (problem) { %>
+  <li>
+    <% if (it.html) { %><%~ problem %><% } else { %><%= problem %><% } %>
+  </li>
+  <% }) %>
+</ul>

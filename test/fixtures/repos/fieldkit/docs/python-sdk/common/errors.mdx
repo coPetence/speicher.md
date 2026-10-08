@@ -1,0 +1,50 @@
+---
+title: "Errors"
+hideTitleOnPage: true
+---
+
+## FieldkitError
+
+```python
+class FieldkitError(Exception)
+```
+
+Base class for every error the SDK raises.
+
+**Attributes**:
+
+- `message` _str_ - Description of the error.
+- `status_code` _Optional[int]_ - HTTP status, when the error came from the API.
+- `headers` _Mapping[str, Any]_ - Response headers, when the error came from the API.
+
+## FieldkitNotFoundError
+
+```python
+class FieldkitNotFoundError(FieldkitError)
+```
+
+The requested device, survey, submission or asset does not exist, or the key cannot see it.
+
+## FieldkitRateLimitError
+
+```python
+class FieldkitRateLimitError(FieldkitError)
+```
+
+Raised once the SDK's own retries are exhausted.
+
+**Attributes**:
+
+- `retry_after` _Optional[float]_ - Seconds the API asked us to wait.
+
+## FieldkitValidationError
+
+```python
+class FieldkitValidationError(FieldkitError)
+```
+
+A request was refused because a value did not match what the API expects.
+
+**Attributes**:
+
+- `errors` _List[Dict[str, str]]_ - One entry per invalid field, with `path` and `message`.

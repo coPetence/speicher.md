@@ -1,0 +1,47 @@
+---
+title: API Keys
+description: Create, scope and rotate API keys.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+API keys authenticate the SDKs, the CLI and the REST API. Each key belongs to one workspace and carries a set of **scopes**.
+
+## Scopes
+
+| Scope | Allows |
+| ----- | ------ |
+| `devices:read` | Listing and reading devices |
+| `devices:write` | Registering, updating, locking and retiring devices |
+| `surveys:read` | Reading surveys and their versions |
+| `surveys:write` | Creating and publishing surveys |
+| `submissions:read` | Reading submissions and attachments |
+| `exports:write` | Starting exports |
+
+A key with no scopes can authenticate and do nothing else, which is occasionally useful for testing connectivity.
+
+## Creating a Key
+
+Keys are created on the dashboard under **Settings → API keys**. The key is shown once.
+
+:::caution
+Treat a key with `devices:write` like a password: it can wipe every device in the workspace.
+:::
+
+## Rotating a Key
+
+Create the new key, deploy it, then delete the old one. Both keys work in the meantime.
+
+<Aside type="danger" title="A leaked key">
+Delete a key that has been committed to a repository **before** you rotate it. Rotation leaves the old key working until you delete it.
+</Aside>
+
+```bash
+fieldkit keys create --name "sync-worker 2025-07" --scope submissions:read
+fieldkit keys delete key_01HZ9...
+```
+
+## Key Prefixes
+
+- `fk_live_` — production workspaces
+- `fk_test_` — sandbox workspaces, which hold no real data and are reset weekly

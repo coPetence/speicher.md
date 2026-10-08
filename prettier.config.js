@@ -1,0 +1,11 @@
+module.exports = {
+  singleQuote: true,
+  printWidth: 100,
+
+  overrides: [
+    {
+      files: '*.md',
+      options: { embeddedLanguageFormatting: 'off' },
+    },
+  ],
+};

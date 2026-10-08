@@ -1,0 +1,15 @@
+# A second repo, in the second namespace. Its URL carries the namespace segment
+# because `northwind-engineering` is not the forge's `default_namespace`.
+version: 1
+
+access:
+  groups: [client-northwind]
+
+ingest_root: docs
+
+display:
+  title: 'Northwind Specifications'
+  # Inside `docs/internal/`, which resolves to nobody. See the config there: this
+  # repository's cover is one no reader may fetch, which is the case the site
+  # root's `assets` join exists for.
+  cover: docs/internal/cover.png

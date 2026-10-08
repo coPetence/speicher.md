@@ -1,0 +1,89 @@
+---
+title: Configuration
+description: Every way to configure the SDKs and the CLI, and which one wins.
+---
+
+import { Tabs, TabItem, FileTree, Code } from '@astrojs/starlight/components';
+
+The SDKs and the CLI read configuration from three places. When the same option is set in more than one, the first in this list wins:
+
+1. Arguments passed to the client constructor
+2. Environment variables
+3. The configuration file at `~/.config/fieldkit/config.toml`
+
+## Configuration Object
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+from fieldkit import Fieldkit, FieldkitConfig
+
+config = FieldkitConfig(
+    api_key="fk_live_...",
+    api_url="https://api.fieldkit.example",
+    region="eu",
+    timeout=30,
+)
+fk = Fieldkit(config)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+import { Fieldkit, FieldkitConfig } from '@fieldkit/sdk'
+
+const config: FieldkitConfig = {
+  apiKey: 'fk_live_...',
+  apiUrl: 'https://api.fieldkit.example',
+  region: 'eu',
+  timeout: 30,
+}
+const fk = new Fieldkit(config)
+```
+</TabItem>
+</Tabs>
+
+## Environment Variables
+
+| Variable | Description |
+| -------- | ----------- |
+| `FIELDKIT_API_KEY` | API key for the workspace |
+| `FIELDKIT_API_URL` | Base URL of the API |
+| `FIELDKIT_REGION` | Data region, `eu` or `us` |
+| `FIELDKIT_TIMEOUT` | Request timeout in seconds |
+| `FIELDKIT_LOG` | `debug`, `info` or `warn` |
+
+## Configuration File
+
+The CLI and the Python SDK look for it in two places. A project file overrides the user file, key by key:
+
+<FileTree>
+- ~/.config/fieldkit/
+  - **config.toml** read in every project
+- my-survey-project/
+  - .fieldkit/
+    - config.toml overrides for this project only
+  - …
+</FileTree>
+
+{/* TODO(docs): document the proxy settings once they ship */}
+
+```toml
+[default]
+api_key = "fk_live_..."
+region = "eu"
+
+[profiles.staging]
+api_url = "https://api.staging.fieldkit.example"
+```
+
+Select a profile with `FIELDKIT_PROFILE=staging` or `--profile staging` on the CLI.
+
+A CI job usually wants a longer timeout than a laptop does:
+
+<Code code={`[profiles.ci]
+api_url = "https://api.fieldkit.example"
+timeout = 120`} lang="toml" title="~/.config/fieldkit/config.toml" />
+
+:::note
+The configuration file is read by the CLI and by the Python SDK. The TypeScript SDK does not read it, since it also runs in browsers, which have no home directory.
+:::

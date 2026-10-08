@@ -1,0 +1,350 @@
+---
+title: Device Management
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 3
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import Image from 'astro/components/Image.astro';
+import deviceStates from '@assets/docs/device-states.svg?raw';
+
+Devices are the phones, tablets and rugged handhelds your team collects data on. This guide covers how to register, configure, retire and recover devices using the SDK.
+By default, a device syncs every **15 minutes** while it has a connection, keeps **30 days** of submissions locally, and sleeps after **2 hours** without input.
+
+## Device Lifecycle
+
+Throughout its lifecycle a device moves between several states. The diagram below shows the states and the transitions between them.
+
+<Fragment set:html={deviceStates} />
+
+A newly registered device is `pending` until it completes its first sync, then `active`. A device that has not synced for longer than its sleep interval is `asleep`; one that has been asleep for `90 days` is `retired` automatically. To keep a device active indefinitely, set the auto-sleep value to `0` at registration.
+
+## Registering Devices
+
+The Fieldkit SDK registers a device with default or custom settings. You can specify a name, labels, the [surveys](/docs/surveys) it should carry, its sync interval and its storage quota.
+Every registered device counts towards your plan's device limit, whatever its state.
+
+:::tip
+If a device spends long stretches out of coverage, you can [raise the auto-sleep interval](/docs/device-management#auto-sleep-interval) when registering it so it is not reported as asleep while it is still working.
+:::
+
+### Basic Registration
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+from fieldkit import Fieldkit
+
+fk = Fieldkit()
+
+# Register a device with the default settings
+device = fk.devices.register()
+
+# Register a device with a name and labels
+device = fk.devices.register(name="tablet-07", labels={"team": "north", "region": "highlands"})
+
+# Register a device that carries two surveys from the start
+device = fk.devices.register(
+    name="tablet-08",
+    surveys=["water-quality-2025", "soil-samples"],
+)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+import { Fieldkit } from '@fieldkit/sdk'
+
+const fk = new Fieldkit()
+
+// Register a device with the default settings
+const device = await fk.devices.register()
+
+// Register a device with a name and labels
+const named = await fk.devices.register({ name: 'tablet-07', labels: { team: 'north', region: 'highlands' } })
+
+// Register a device that carries two surveys from the start
+const carrying = await fk.devices.register({
+  name: 'tablet-08',
+  surveys: ['water-quality-2025', 'soil-samples'],
+})
+```
+</TabItem>
+</Tabs>
+
+### Device Settings
+
+Settings can be passed at registration or changed later with `update`. A change reaches the device on its next sync.
+
+| Setting | Type | Default | Description |
+| ------- | ---- | ------- | ----------- |
+| `sync_interval` | int | `15` | Minutes between sync attempts while connected |
+| `auto_sleep_interval` | int | `120` | Minutes without input before the device is reported asleep |
+| `auto_retire_interval` | int | `129600` | Minutes asleep before the device is retired |
+| `storage_quota` | int | `2048` | Local storage for pending submissions, in MiB |
+| `retention_days` | int | `30` | Days a synced submission is kept on the device |
+| `wipe_on_retire` | bool | `true` | Whether retiring a device erases its local data |
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+from fieldkit import DeviceSettings
+
+device = fk.devices.register(
+    name="tablet-09",
+    settings=DeviceSettings(
+        sync_interval=5,
+        auto_sleep_interval=480,
+        storage_quota=8192,
+    ),
+)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+const device = await fk.devices.register({
+  name: 'tablet-09',
+  settings: {
+    syncInterval: 5,
+    autoSleepInterval: 480,
+    storageQuota: 8192,
+  },
+})
+```
+</TabItem>
+</Tabs>
+
+:::note
+A `storage_quota` above the free space on the device is accepted, but the device reports the smaller of the two. Check `device.storage.available` rather than the quota when deciding whether a team can stay out another day.
+:::
+
+### Enrolment Codes
+
+Devices that are handed out rather than set up by an administrator can enrol themselves with a short-lived code. The code is shown once and expires after `24 hours`.
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+code = fk.devices.create_enrolment_code(labels={"team": "south"}, uses=10)
+print(code.value)  # e.g. "KESTREL-4417"
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+const code = await fk.devices.createEnrolmentCode({ labels: { team: 'south' }, uses: 10 })
+console.log(code.value) // e.g. "KESTREL-4417"
+```
+</TabItem>
+</Tabs>
+
+## Listing and Finding Devices
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+# Every device in the workspace
+for device in fk.devices.list():
+    print(device.name, device.state)
+
+# Only the devices with a given label
+north = fk.devices.list(labels={"team": "north"})
+
+# A single device, by id or by name
+device = fk.devices.get("dev_01HZX4")
+device = fk.devices.find_one(name="tablet-07")
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+// Every device in the workspace
+for await (const device of fk.devices.list()) {
+  console.log(device.name, device.state)
+}
+
+// Only the devices with a given label
+const north = await fk.devices.list({ labels: { team: 'north' } })
+
+// A single device, by id or by name
+const byId = await fk.devices.get('dev_01HZX4')
+const byName = await fk.devices.findOne({ name: 'tablet-07' })
+```
+</TabItem>
+</Tabs>
+
+`list` pages through results 100 at a time. Pass `page_size` to change that; the maximum is `500`.
+
+## Device Information
+
+A device object carries its last reported state. Call `refresh()` to fetch the current one.
+
+```python
+device.refresh()
+print(device.state)               # "active"
+print(device.last_sync_at)        # 2025-06-30T14:02:11Z
+print(device.pending_submissions) # 3
+print(device.battery)             # 0.64
+print(device.app_version)         # "4.12.0"
+```
+
+### Health Signals
+
+Every sync reports a handful of health signals. The dashboard turns the first three into the coloured dot beside a device's name.
+
+- `battery` — between `0` and `1`; below `0.15` is reported as low
+- `storage.available` — free space for pending submissions, in MiB
+- `clock_skew` — seconds between the device clock and ours; above `300` breaks submission ordering
+- `gps_fix` — the age of the last location fix, in seconds
+- `app_version` — the Fieldkit app build the device runs
+
+:::caution
+A device whose `clock_skew` is large still syncs, but its submissions are stamped with the device's clock. If you sort exports by time, check skew first.
+:::
+
+## Updating Devices
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+device.update(name="tablet-07-north", labels={"team": "north", "lead": "yes"})
+device.set_surveys(["water-quality-2025"])
+device.set_settings(sync_interval=30)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+await device.update({ name: 'tablet-07-north', labels: { team: 'north', lead: 'yes' } })
+await device.setSurveys(['water-quality-2025'])
+await device.setSettings({ syncInterval: 30 })
+```
+</TabItem>
+</Tabs>
+
+Removing a survey from a device does not delete answers already collected for it. They are uploaded at the next sync as usual.
+
+## Locking and Wiping
+
+A lost device should be locked first and wiped once you are sure it is not coming back. Locking takes effect at the device's next sync; wiping is irreversible.
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+device.lock(reason="left on the ferry")
+
+# Later, once the device is written off
+device.wipe(confirm=True)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+await device.lock({ reason: 'left on the ferry' })
+
+// Later, once the device is written off
+await device.wipe({ confirm: true })
+```
+</TabItem>
+</Tabs>
+
+:::danger
+Wiping deletes submissions that have not synced yet. There is no way to recover them afterwards. If there is any chance the device still holds unsynced work, lock it and wait.
+:::
+
+## Retiring Devices
+
+Retiring a device frees its slot in your plan. Its synced submissions stay in the workspace.
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+device.retire()
+
+# Retire everything that has been asleep for a month
+for device in fk.devices.list(state="asleep"):
+    if device.asleep_for_days > 30:
+        device.retire()
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+await device.retire()
+
+// Retire everything that has been asleep for a month
+for await (const d of fk.devices.list({ state: 'asleep' })) {
+  if (d.asleepForDays > 30) await d.retire()
+}
+```
+</TabItem>
+</Tabs>
+
+### Bulk Retirement
+
+The CLI is usually quicker for a clear-out:
+
+```bash
+fieldkit devices retire --state asleep --older-than 30d
+```
+
+```text
+Retired 14 devices
+```
+
+:::
+
+## Auto-sleep and Auto-retire
+
+Fieldkit marks devices asleep and retires them automatically based on intervals you set.
+
+### Auto-sleep Interval
+
+The auto-sleep interval sets how long a device can go without input before it is reported asleep.
+
+The parameter can be set to:
+
+- a time interval in minutes
+- `0`, which disables auto-sleep entirely, so the device is reported active until it is retired by hand
+
+If the parameter is not set, the default of `120` minutes is used.
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+device = fk.devices.register(
+    name="weather-station-3",
+    settings=DeviceSettings(auto_sleep_interval=0),  # never reported asleep
+)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+const device = await fk.devices.register({
+  name: 'weather-station-3',
+  settings: { autoSleepInterval: 0 }, // never reported asleep
+})
+```
+</TabItem>
+</Tabs>
+
+### Auto-retire Interval
+
+The auto-retire interval sets how long a device can stay asleep before it is retired. The default is `90 days`. Setting it to `0` keeps asleep devices forever, which is usually a mistake: they count towards your plan.
+
+```python
+device.set_settings(auto_retire_interval=60 * 24 * 14)  # two weeks
+```
+
+## Recovering a Device
+
+A device that was retired by mistake can be recovered within `30 days`, as long as it was not wiped. It comes back with its name, labels and settings, but must sync before it is active again.
+
+```python
+device = fk.devices.recover("dev_01HZX4")
+```
+
+See [Offline Sync](/docs/offline-sync#conflicts) for what happens to submissions the device collected while it was retired.
+
+## Troubleshooting
+
+**The device shows as pending forever.** It has never completed a sync. Check that the device can reach `api.fieldkit.example` on port `443`, and that the enrolment code had uses left.
+
+**The device is asleep but the team says it is in use.** The sleep interval counts input on the Fieldkit app, not on the device. Raise [the auto-sleep interval](#auto-sleep-interval) for devices that run other apps between surveys.
+
+**Submissions arrive out of order.** See [health signals](#health-signals) — this is almost always clock skew.

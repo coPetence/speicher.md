@@ -1,0 +1,33 @@
+---
+title: Limits
+description: Rate limits and quotas.
+editUrl: false
+---
+
+import { Icon } from '@astrojs/starlight/components';
+
+## Rate Limits
+
+| Endpoint group | Limit |
+| -------------- | ----- |
+| Read requests | 600 per minute per key |
+| Write requests | 120 per minute per key |
+| Device sync | 4 per minute per device |
+| Exports | 10 running per workspace |
+
+A request over the limit is answered `429 Too Many Requests` with a `Retry-After` header. The SDKs retry automatically, honouring it.
+
+## Quotas
+
+| Resource | Free | Team | Enterprise |
+| -------- | ---- | ---- | ---------- |
+| Devices | 5 | 100 | unlimited |
+| Surveys | 3 | unlimited | unlimited |
+| Attachment storage | 5 GB | 500 GB | by contract |
+| Export retention | 7 days | 30 days | 90 days |
+
+:::note
+Retired devices do not count towards the device quota. Asleep devices do.
+:::
+
+<Icon name="information" class="inline-icon" /> Enterprise quotas are set per contract; ask your account manager for the numbers that apply to you.

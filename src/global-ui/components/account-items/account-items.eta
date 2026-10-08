@@ -1,0 +1,35 @@
+
+<p class="spr-account-who">
+  <strong><%= it.account.name %></strong>
+  
+  <% if (it.account.email && it.account.email !== it.account.name) { %>
+  <span title="<%= it.account.email %>"><%= it.account.email %></span>
+  <% } %>
+</p>
+<% if (it.account.isAdmin) { %>
+
+<a class="spr-account-item" href="/-/status" data-spr-load="full"><%~ it.account.icons.dashboard %><span>Dashboard</span></a>
+<% } %>
+
+<a class="spr-account-item" href="/-/connections" data-spr-load="full"><%~ it.account.icons.connections %><span>Connections</span></a>
+
+<form class="spr-scheme" method="post" action="/api/appearance">
+  <p class="spr-scheme-label" id="<%= it.appearanceId %>">Appearance</p>
+  <div class="spr-scheme-choices" role="group" aria-labelledby="<%= it.appearanceId %>">
+    <% for (const choice of [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]) { %>
+    <button
+      class="spr-scheme-choice"
+      type="submit"
+      name="scheme"
+      value="<%= choice[0] %>"
+      aria-pressed="<%= (it.scheme || 'system') === choice[0] ? 'true' : 'false' %>"
+    >
+      <%= choice[1] %>
+    </button>
+    <% } %>
+  </div>
+</form>
+<form class="spr-signout" method="post" action="/api/auth/logout">
+  
+  <button class="spr-account-item" type="submit"><%~ it.account.icons.signOut %><span>Sign out</span></button>
+</form>

@@ -1,0 +1,112 @@
+
+<h1>Configuration</h1>
+
+
+
+<section class="spr-section" id="instance">
+  <h2>This instance</h2>
+  <div class="spr-tiles spr-tiles-wide">
+    <% if (it.config_source === 'database') { %>
+    <section class="spr-tile spr-tile-page">
+      <div class="spr-tile-head">
+        <%~ it.tile_icons.history || '' %>
+        <div>
+          <h4><a href="/-/config/history">Version history</a></h4>
+          <p class="spr-card-sub">Every stored version, the difference between any two, and rollback.</p>
+        </div>
+      </div>
+    </section>
+    <% } %>
+    <section class="spr-tile spr-tile-page">
+      <div class="spr-tile-head">
+        <%~ it.tile_icons.terminal || '' %>
+        <div>
+          <h4><a href="/-/config/environment">Environment</a></h4>
+          <p class="spr-card-sub">Every variable this process reads, and what it was started with.</p>
+        </div>
+      </div>
+    </section>
+    <section class="spr-tile spr-tile-page">
+      <div class="spr-tile-head">
+        <%~ it.tile_icons.download || '' %>
+        <div>
+          <h4><a href="/-/config/backup">Backup</a></h4>
+          <p class="spr-card-sub">Download this configuration as <code><%= it.backup_filename %></code>, to keep somewhere the database is not.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+
+<% if (it.config_source !== 'database') { %>
+<p class="spr-note spr-note-idle">
+  This instance takes its configuration from
+  <code><%= it.config_path || 'inline' %></code>. The file is authoritative, so
+  the settings are read-only here.
+</p>
+<% } %>
+
+<% if (it.unreadable) { %>
+<p class="spr-note spr-note-fail">
+  The configuration file cannot be read: <%= it.unreadable %>. This instance is
+  running what it loaded at startup.
+</p>
+<% } %>
+
+<% if (it.unparseable) { %>
+<p class="spr-note spr-note-fail">
+  The stored configuration does not parse, so there is nothing to show a form for:
+  <%= it.unparseable %>
+</p>
+<% } %>
+
+<% if (it.running_version !== null && it.editing_version !== null && it.running_version !== it.editing_version) { %>
+
+<% if (it.skipped.length > 0) { %>
+<p class="spr-note spr-note-fail">
+  Editing version <%= it.editing_version %>, the newest saved. This instance is
+  running version <%= it.running_version %>, because the newer one does not load.
+</p>
+<% it.skipped.forEach(function (skip) { %>
+<p class="spr-note spr-note-fail">Version <%= skip.version %>: <%= skip.problems.join('; ') %></p>
+<% }) %>
+<% } else if (it.waiting_on.length > 0) { %>
+
+<p class="spr-note spr-note-warn">
+  Version <%= it.editing_version %> is saved and waits for a restart. This instance
+  is running version <%= it.running_version %>, because
+  <% it.waiting_on.forEach(function (key, i) { %><%= i > 0 ? ', ' : '' %><code><%= key %></code><% }) %>
+  <%= it.waiting_on.length === 1 ? 'builds' : 'build' %> objects that only exist at
+  startup. Every other change in that version waits with
+  <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
+</p>
+
+<% it.waiting_consequences_html.forEach(function (line) { %>
+<p class="spr-note spr-note-warn"><%~ line %></p>
+<% }) %>
+<% } else { %>
+<p class="spr-note spr-note-idle">
+  Version <%= it.editing_version %> is saved but not yet in force here: this
+  instance is running version <%= it.running_version %> and has not picked the
+  newer one up yet.
+</p>
+<% } %>
+<% } %>
+
+<section class="spr-section" id="sections">
+  <h2>Settings</h2>
+  <div class="spr-tiles spr-tiles-wide">
+    <% it.sections.forEach(function (section) { %>
+    <section class="spr-tile spr-tile-page">
+      <div class="spr-tile-head">
+        <%~ it.tile_icons[section.icon] || '' %>
+        <div>
+          <h4><a href="/-/config/<%= section.id %>"><%= section.title %></a></h4>
+          <% if (section.blurb) { %><p class="spr-card-sub"><%~ section.blurbHtml %></p><% } %>
+        </div>
+      </div>
+    </section>
+    <% }) %>
+  </div>
+</section>

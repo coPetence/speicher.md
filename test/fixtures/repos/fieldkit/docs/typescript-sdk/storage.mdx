@@ -1,0 +1,32 @@
+---
+title: "ObjectStorage"
+hideTitleOnPage: true
+---
+
+## ObjectStorage
+
+Access to attachments.
+
+### Methods
+
+#### get()
+
+```ts
+get(assetId: string): Promise<ArrayBuffer>
+```
+
+#### url()
+
+```ts
+url(assetId: string, options?: { expiresIn?: number }): Promise<string>
+```
+
+Returns a signed URL, valid for `expiresIn` seconds (default 3600).
+
+#### stream()
+
+```ts
+stream(assetId: string): Promise<ReadableStream<Uint8Array>>
+```
+
+Prefer this over get() for anything larger than a photo: a ReadableStream<Uint8Array> never holds the whole file in memory.

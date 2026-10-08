@@ -1,0 +1,7 @@
+# The narrowed subtree, and the half of the idiom that is easy to get wrong.
+#
+# `engineering` is named at the repo root as well as here — it has to be, because
+# this level intersects with the inherited set rather than adding to it. What this
+# file does is take `public` away, which is the only direction a folder can move.
+access:
+  groups: [engineering]

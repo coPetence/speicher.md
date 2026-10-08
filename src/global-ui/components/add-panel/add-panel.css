@@ -1,0 +1,18 @@
+@layer speicher.base {
+  .spr-add-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-choices > .spr-choice-note {
+    display: none;
+    flex: 1 1 100%;
+    font-size: var(--spr-font-size-small);
+    max-width: var(--spr-measure);
+  }
+
+  .spr-choices:has(input[data-spr-unavailable]:checked) > .spr-choice-note {
+    display: block;
+  }
+}

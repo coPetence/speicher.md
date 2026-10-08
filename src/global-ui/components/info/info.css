@@ -1,0 +1,90 @@
+@layer speicher.base {
+  .spr-info {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .spr-info-mark {
+    display: inline-grid;
+    place-content: center;
+    inline-size: 1.25em;
+    block-size: 1.25em;
+    padding: 0;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: 50%;
+    background: var(--spr-bg);
+    color: var(--spr-muted);
+    font: inherit;
+    font-size: var(--spr-font-size-label);
+    font-weight: var(--spr-weight-strong);
+    line-height: 1;
+    text-transform: lowercase;
+    letter-spacing: normal;
+    cursor: help;
+  }
+
+  .spr-info:hover > .spr-info-mark,
+  .spr-info-mark:focus-visible {
+    border-color: var(--spr-accent);
+    color: var(--spr-accent);
+  }
+
+  .spr-info-mark:focus-visible {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+  .spr-info-note {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0s,
+      visibility 0s;
+    position: absolute;
+    inset-block-start: calc(100% + var(--spr-space-2));
+    inset-inline-start: 0;
+    z-index: 2;
+    inline-size: max-content;
+    max-inline-size: var(--spr-preview-width);
+    padding: var(--spr-space-3) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size-small);
+    line-height: var(--spr-line-height);
+    font-weight: normal;
+    text-align: start;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+  }
+  .spr-info-note::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 100%;
+    block-size: calc(var(--spr-space-2) + 1.25 * var(--spr-font-size-label));
+    clip-path: polygon(0 100%, 100% 100%, calc(0.625 * var(--spr-font-size-label)) 0);
+    cursor: help;
+  }
+  .spr-info-note::after {
+    content: '';
+    position: absolute;
+    inline-size: 0.5em;
+    block-size: 0.5em;
+    inset-block-start: calc(-0.25em - var(--spr-border));
+    inset-inline-start: calc(0.625 * var(--spr-font-size-label) - 0.25em);
+    background: var(--spr-surface);
+    border-block-start: var(--spr-border) solid var(--spr-line);
+    border-inline-start: var(--spr-border) solid var(--spr-line);
+    rotate: 45deg;
+  }
+  .spr-info:hover > .spr-info-note,
+  .spr-info-mark:focus-visible ~ .spr-info-note {
+    opacity: 1;
+    visibility: visible;
+    transition:
+      opacity var(--spr-transition),
+      visibility var(--spr-transition);
+  }
+}

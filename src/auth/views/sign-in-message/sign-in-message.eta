@@ -1,0 +1,2 @@
+
+<div class="spr-empty-state spr-empty-state-page spr-signin-page"><h1>Sign in</h1><p><%= it.message %></p></div>

@@ -1,0 +1,162 @@
+@layer speicher.base {
+  .spr-dropdown {
+    position: relative;
+    inline-size: 100%;
+  }
+  .spr-choices > .spr-dropdown {
+    flex: 1 1 100%;
+    min-inline-size: 0;
+  }
+
+  .spr-dropdown > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-2) var(--spr-space-7) var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    cursor: pointer;
+    list-style: none;
+  }
+  .spr-dropdown > summary::before {
+    content: '\200B';
+    min-block-size: 1.2em;
+  }
+  .spr-dropdown > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .spr-dropdown > summary:focus-visible {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+  .spr-dropdown > summary::after {
+    content: '';
+    margin-inline-start: auto;
+    inline-size: 0.4em;
+    block-size: 0.4em;
+    border-style: solid;
+    border-width: 0 0.1em 0.1em 0;
+    border-color: var(--spr-muted);
+    translate: 0 -0.1em;
+    rotate: 45deg;
+  }
+  .spr-dropdown[open] > summary::after {
+    translate: 0 0.1em;
+    rotate: 225deg;
+  }
+  .spr-dropdown:not([open])::details-content {
+    content-visibility: visible;
+  }
+  .spr-dropdown:not([open]) {
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+  }
+
+  .spr-dropdown:not([open]) > summary {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding-inline-end: var(--spr-space-7);
+    border: 0;
+    background: none;
+    border-radius: inherit;
+  }
+  .spr-dropdown:not([open]) > summary:focus-visible {
+    outline: 0;
+  }
+
+  .spr-dropdown:not([open]):has(> summary:focus-visible) {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+  .spr-dropdown:not([open]) > .spr-dd-list {
+    position: static;
+    z-index: auto;
+    display: block;
+    max-block-size: none;
+    overflow: visible;
+    padding: var(--spr-space-2) var(--spr-space-7) var(--spr-space-2) var(--spr-space-3);
+    border: 0;
+    background: none;
+    pointer-events: none;
+  }
+
+  .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row:not(:has(> input:checked)) {
+    display: none;
+  }
+  .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row {
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row:hover {
+    background: none;
+  }
+
+  .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row::after {
+    content: none;
+  }
+  .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row > input {
+    visibility: hidden;
+  }
+  .spr-modal-panel:has(.spr-dropdown[open]) {
+    overflow: visible;
+  }
+
+  .spr-dd-list {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: calc(100% + var(--spr-space-1));
+    z-index: 1;
+    display: grid;
+    gap: var(--spr-space-1);
+    max-block-size: 16rem;
+    overflow: auto;
+    padding: var(--spr-space-1);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+  }
+  .spr-dd-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border-radius: var(--spr-radius-sm);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-dd-row > .spr-icon {
+    inline-size: 1.2em;
+    block-size: 1.2em;
+    flex: none;
+  }
+
+  .spr-dd-row:hover {
+    background: var(--spr-surface);
+  }
+  .spr-dd-row:has(> input:focus-visible) {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: -2px;
+  }
+  .spr-dd-row:has(> input:checked)::after {
+    content: '';
+    margin-inline-start: auto;
+    inline-size: 0.3em;
+    block-size: 0.6em;
+    border-style: solid;
+    border-width: 0 0.12em 0.12em 0;
+    border-color: var(--spr-accent);
+    translate: 0 -0.1em;
+    rotate: 45deg;
+  }
+}

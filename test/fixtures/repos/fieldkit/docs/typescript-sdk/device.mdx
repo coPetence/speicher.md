@@ -1,0 +1,80 @@
+---
+title: "Device"
+hideTitleOnPage: true
+---
+
+## Device
+
+Represents a registered device. Returned by DeviceService.register and DeviceService.get as a Promise<Device>.
+
+### Properties
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `id` | `string` | Stable id |
+| `name` | `string` | Display name |
+| `labels` | `Record<string, string>` | Labels |
+| `state` | `DeviceState` | `pending`, `active`, `asleep` or `retired` |
+| `lastSyncAt?` | `Date` | Last completed sync |
+| `pendingSubmissions` | `number` | Submissions waiting to upload |
+| `health` | `DeviceHealth` | Last reported health signals |
+
+### Methods
+
+#### refresh()
+
+```ts
+refresh(): Promise<void>
+```
+
+Fetches the current state.
+
+#### submit()
+
+```ts
+submit(surveyId: string, answers: Record<string, unknown>, options?: { deviceTime?: Date }): Promise<Submission>
+```
+
+Submits answers on behalf of the device.
+
+**Parameters**:
+
+- `surveyId` _string_ - Survey to answer
+- `answers` _Record<string, unknown>_ - Answers keyed by question id
+- `options.deviceTime?` _Date_ - Overrides the submission time
+
+**Returns**:
+
+`Promise<Submission>`
+
+**Throws**:
+
+`FieldkitValidationError` if an answer does not match its question.
+
+#### onSync()
+
+```ts
+onSync(handler: (report: SyncReport) => void): () => void
+```
+
+Calls `handler` after every sync. Returns a function that unsubscribes.
+
+#### lock()
+
+```ts
+lock(options: { reason: string }): Promise<void>
+```
+
+#### wipe()
+
+```ts
+wipe(options: { confirm: true }): Promise<void>
+```
+
+Irreversible. The type of `confirm` is the literal `true`, so `wipe({ confirm: false })` does not compile.
+
+#### retire()
+
+```ts
+retire(): Promise<void>
+```

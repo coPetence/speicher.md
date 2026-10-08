@@ -1,0 +1,116 @@
+<h1>Path Access Check</h1>
+<p class="spr-empty">
+  Why a page is visible, or is not. Answers about content you may not be able to
+  read yourself — the question is who can read it, not whether you can.
+</p>
+
+
+<form class="spr-form" method="get" action="/-/explain">
+  <label for="explain-path">Path</label>
+  <input id="explain-path" type="text" name="path" value="<%= it.path %>"
+         placeholder="/handbook/commercial/pricing" autocomplete="off" spellcheck="false" />
+  <button type="submit">Explain</button>
+</form>
+
+<% if (it.result) { %>
+<% if (!it.result.found) { %>
+<p class="spr-note spr-note-warn">
+  Nothing is stored at that path — no page, no folder, no asset. It may never have
+  been ingested, or it may sit under a subtree whose last sync was rejected.
+</p>
+<% } else { %>
+
+<dl class="spr-defs">
+  <dt>Kind</dt>
+  <dd><%= it.result.kind %></dd>
+  <dt>Stored path</dt>
+  
+  <dd><code><%= it.result.slugPath || '/' %></code></dd>
+  <dt>Effective principals</dt>
+  <dd>
+    <% if (it.result.principals.length === 0) { %>
+    <%~ include('@badge', { level: 'fail', label: 'nobody' }) %>
+    <% } else { %>
+    <% it.result.principals.forEach(function (principal) { %><code><%= principal %></code> <% }) %>
+    <% } %>
+  </dd>
+  <% if (it.result.indexable !== null) { %>
+  <dt>Indexable</dt>
+  <dd><%= it.result.indexable ? 'yes' : 'no — excluded from search' %></dd>
+  <% } %>
+</dl>
+
+
+<h2>How it resolved</h2>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Source</th>
+        <th scope="col">Grants</th>
+        <th scope="col">Resolved to</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.result.chain.forEach(function (level) { %>
+      <tr>
+        <th scope="row"><code><%= level.source %></code></th>
+        <td>
+          <% if (level.groups.length === 0) { %>—<% } %>
+          <% level.groups.forEach(function (group) { %><code><%= group %></code> <% }) %>
+        </td>
+        
+        <td>
+          <% if (level.principals.length === 0) { %>—<% } %>
+          <% level.principals.forEach(function (principal) { %><code><%= principal %></code> <% }) %>
+        </td>
+      </tr>
+      <% if (level.notes.length) { %>
+      <tr class="spr-row-note">
+        <td colspan="3">
+          <% level.notes.forEach(function (note) { %>
+          
+          <p class="spr-note spr-note-idle"><%= note %></p>
+          <% }) %>
+        </td>
+      </tr>
+      <% } %>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (it.result.droppedGrants.length) { %>
+
+<h2>Dropped grants</h2>
+<%~ include('@findings', {
+  findings: it.result.droppedGrants.map(function (dropped) {
+    return { level: 'warn', label: 'dropped', source: dropped.principal, message: dropped.reason };
+  }),
+}) %>
+<% } %>
+
+<% if (it.result.groupSizes) { %>
+
+<h2>Group reach</h2>
+
+<dl class="spr-defs">
+  <% it.result.groupSizes.forEach(function (group) { %>
+  <dt><code><%= group.name %></code></dt>
+  
+  <dd>
+    <% if (group.size === 'unknown') { %>
+    not known — no directory answered for this group
+    <% } else { %>
+    up to <%= group.size %> reader<%= group.size === '1' ? '' : 's' %>
+    <% } %>
+    <% if (group.directoryUrl) { %>
+    <a href="<%= group.directoryUrl %>" target="_blank" rel="noopener noreferrer nofollow">who is in it<%~ it.external_mark || '' %><span class="spr-clipped"> (external link)</span></a>
+    <% } %>
+  </dd>
+  <% }) %>
+</dl>
+<% } %>
+
+<% } %>
+<% } %>

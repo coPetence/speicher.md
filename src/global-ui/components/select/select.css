@@ -1,0 +1,92 @@
+@layer speicher.base {
+  .spr-select {
+    display: grid;
+    grid-template-areas: 'control';
+    align-items: center;
+    min-inline-size: 0;
+  }
+
+  .spr-select > select,
+  .spr-select::after {
+    grid-area: control;
+  }
+
+  .spr-select > select {
+    appearance: none;
+    padding: var(--spr-space-2) var(--spr-space-7) var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+    min-inline-size: 0;
+    cursor: pointer;
+  }
+
+  .spr-select > select:focus-visible {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+  .spr-select::after {
+    content: '';
+    justify-self: end;
+    margin-inline-end: var(--spr-space-4);
+    inline-size: 0.4em;
+    block-size: 0.4em;
+    border-style: solid;
+    border-width: 0 0.1em 0.1em 0;
+    border-color: var(--spr-muted);
+    translate: 0 -0.1em;
+    rotate: 45deg;
+    pointer-events: none;
+  }
+  .spr-select > select:disabled {
+    background: var(--spr-surface);
+    color: var(--spr-muted);
+    cursor: not-allowed;
+  }
+
+  .spr-select:has(> select:disabled)::after {
+    opacity: 0.6;
+  }
+  @supports (appearance: base-select) {
+    .spr-select > select,
+    .spr-select > select::picker(select) {
+      appearance: base-select;
+    }
+    .spr-select > select::picker-icon {
+      display: none;
+    }
+    .spr-select > select::picker(select) {
+      padding: var(--spr-space-1);
+      border: var(--spr-border) solid var(--spr-line);
+      border-radius: var(--spr-radius);
+      background: var(--spr-bg);
+      margin-block-start: var(--spr-space-1);
+    }
+
+    .spr-select option {
+      display: flex;
+      align-items: center;
+      gap: var(--spr-space-2);
+      padding: var(--spr-space-2) var(--spr-space-3);
+      border-radius: var(--spr-radius-sm);
+      color: var(--spr-fg);
+      cursor: pointer;
+    }
+    .spr-select option:hover,
+    .spr-select option:focus {
+      background: var(--spr-surface);
+    }
+    .spr-select option::checkmark {
+      order: 1;
+      margin-inline-start: auto;
+      color: var(--spr-accent);
+    }
+    .spr-select option .spr-icon {
+      width: 1.1em;
+      height: 1.1em;
+      flex: none;
+    }
+  }
+}

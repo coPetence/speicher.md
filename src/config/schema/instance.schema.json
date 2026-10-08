@@ -1,0 +1,1030 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speicher.md/schema/instance.json",
+  "title": "Speicher instance config",
+  "description": "Admin-controlled. Never lives in a content repo. Only this file may use ${VAR} interpolation.",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "mail": {
+      "type": "object",
+      "description": "Shared transport. Required if any magic-link provider is configured.",
+      "required": ["host", "from"],
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "default": 587
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string",
+          "examples": ["Docs <docs@example.com>"]
+        },
+        "reply_to": {
+          "type": "string"
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "description": "Where asset bytes live. Metadata and ACLs always stay in Postgres; the browser never talks to the store directly \u2014 every read is proxied through the app after the authz check.",
+      "required": ["driver"],
+      "properties": {
+        "driver": {
+          "enum": ["filesystem", "s3", "azure"],
+          "default": "filesystem"
+        },
+        "path": {
+          "type": "string",
+          "description": "filesystem: volume mount path. Single replica, or an RWX volume."
+        },
+        "bucket": {
+          "type": "string",
+          "description": "s3"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "s3: for non-AWS providers such as Hetzner Object Storage or MinIO. azure: a blob endpoint other than `https://<account>.blob.core.windows.net` \u2014 a sovereign cloud, or Azurite in development. Give the account URL, not the container's: the container is appended."
+        },
+        "region": {
+          "type": "string",
+          "description": "s3"
+        },
+        "access_key_id": {
+          "type": "string",
+          "description": "s3"
+        },
+        "secret_access_key": {
+          "type": "string",
+          "description": "s3"
+        },
+        "account": {
+          "type": "string",
+          "description": "azure: storage account name."
+        },
+        "container": {
+          "type": "string",
+          "description": "azure: the container, which this instance never creates \u2014 a data-plane role cannot, so it is the operator's to make."
+        },
+        "auth": {
+          "enum": ["key", "connection_string", "managed_identity", "workload_identity", "default"],
+          "default": "key",
+          "description": "azure: how this instance proves who it is, and the default is `key` because it is the one an operator configuring this from a browser already has. `key` and `connection_string` are secrets this instance holds; a managed identity avoids holding one and is worth moving to once the storage account and this deployment are in the same directory. `managed_identity` is the identity of the host \u2014 a VM, Container App or App Service \u2014 and `workload_identity` is the federated token an AKS pod is handed; they are different mechanisms and the wrong one fails as a timeout rather than as a refusal, so it is named here rather than guessed. `default` walks the SDK's whole chain including the developer's `az` login: it is a development convenience, and in production it means no single answer to which identity this is running as \u2014 so `/-/config` does not offer it there."
+        },
+        "connection_string": {
+          "type": "string",
+          "description": "azure: required when `auth` is `connection_string`. It carries its own endpoint, so `endpoint` is not consulted alongside it."
+        },
+        "account_key": {
+          "type": "string",
+          "description": "azure: the storage account key, required when `auth` is `key`. A long-lived shared secret that grants the whole account \u2014 prefer a managed identity, which grants a role on one container and cannot be copied out of the process."
+        },
+        "client_id": {
+          "type": "string",
+          "description": "azure: the user-assigned identity to use, when `auth` resolves a token. Absent means the system-assigned one. Under `workload_identity` the AKS webhook normally injects this into the pod as `AZURE_CLIENT_ID` and the SDK reads it \u2014 set it here only to override that."
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "azure: the directory to authenticate against, when `auth` is `workload_identity` and the environment does not already say."
+        },
+        "max_asset_bytes": {
+          "type": "integer",
+          "default": 10000000
+        },
+        "presign_over_bytes": {
+          "type": "integer",
+          "default": 0,
+          "description": "Assets larger than this are delivered by presigned redirect after the authz check, instead of proxied. 0 disables presigning. Never applied to inline images."
+        },
+        "presign_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "60s",
+          "description": "Presigned URLs are bearer capabilities valid until expiry regardless of the ACL. Keep short."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "driver": {
+                "const": "filesystem"
+              }
+            }
+          },
+          "then": {
+            "required": ["path"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "driver": {
+                "const": "s3"
+              }
+            }
+          },
+          "then": {
+            "required": ["bucket"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "driver": {
+                "const": "azure"
+              }
+            }
+          },
+          "then": {
+            "required": ["account", "container"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "auth": {
+                      "const": "connection_string"
+                    }
+                  },
+                  "required": ["auth"]
+                },
+                "then": {
+                  "required": ["connection_string"]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "auth": {
+                      "const": "key"
+                    }
+                  },
+                  "required": ["auth"]
+                },
+                "then": {
+                  "required": ["account_key"]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "theme": {
+      "type": "object",
+      "description": "Presentation only. Not part of the resolution hash: a template change alters how content looks, never who can read it, so it must not trigger a rebuild.",
+      "additionalProperties": false,
+      "properties": {
+        "template": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "default": "default",
+          "description": "Name of a shipped template. Templates set design tokens in the `speicher.theme` cascade layer; a template with a structural identity may also carry rules there, written only against `spr-` names and resolving every colour through the tokens. An unknown name falls back to `default` and is reported."
+        },
+        "font": {
+          "type": "string",
+          "enum": ["system", "sans", "serif", "mono"],
+          "default": "system",
+          "description": "The face body text is set in, as one of four stacks this instance ships. A name is not accepted, and the reason is not tidiness: a face nobody has installed needs a web font, which is a request to whoever serves it from a page a reader is authenticated on, and `font-src 'self'` refuses it. Every stack here resolves to something already on the machine. `mono` also takes the code-size correction back to `1em`, since there is no longer a pairing to correct for."
+        },
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Overrides for every colour a template chooses, so an operator can carry their own palette onto any template without writing one. Each scheme is answered separately and both are optional: a colour left unset keeps the template's own, and a scheme left out entirely keeps the template's whole answer for it — which is what stops a light palette from painting a dark-mode reader's page white. Applied to the documentation a reader sees and deliberately not to `/-/*`, so a palette that cannot be read is still editable on the form that set it.",
+          "properties": {
+            "light": {
+              "$ref": "#/$defs/palette",
+              "description": "The palette a reader who has not asked for a dark page sees."
+            },
+            "dark": {
+              "$ref": "#/$defs/palette",
+              "description": "The palette a reader whose system asks for a dark page sees. Left out, the template's own dark scheme stands."
+            }
+          }
+        }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the header says and shows. Instance config only, never repo config, for the reason all styling is: a repo author who could set this would be renaming somebody else's instance from inside their own documentation. Presentation only, so it is absent from the resolution hash and changing it never triggers a rebuild.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "The instance's own name, linking to the root, and the logo's alt text when there is a logo. Unset, it falls back to the host of SPEICHER_PUBLIC_URL and then to a neutral word: the default must not be the vendor's name, and it is never taken from the request's Host header, which is attacker-chosen behind a permissive proxy.",
+          "examples": ["Acme Engineering Docs"]
+        },
+        "show_name": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the name is written beside the logo. On, because a logo is as often a symbol as a wordmark and a symbol alone leaves the header nameless. Turn it off for a logo that already spells the name, or the header says it twice. With no logo it decides nothing: the name is all there is.",
+          "examples": [false]
+        },
+        "logo": {
+          "type": "string",
+          "maxLength": 90000,
+          "pattern": "^data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}$",
+          "description": "The logo, as a base64 `data:` URI of at most 64 KB decoded — PNG, WebP or SVG. The bytes live in this document because it is the only store a tenant editing through the admin form can write, and because a logo beside the configuration rather than in it would not roll back with it. It is served from this instance under a content-hashed URL, never referenced from another host: a picture fetched from elsewhere onto an authenticated page reports when each reader is reading, and `img-src 'self'` refuses it in any case. An SVG that carries script, an event handler, a doctype or a reference to anything outside itself is refused rather than sanitised."
+        }
+      }
+    },
+    "attribution": {
+      "type": "boolean",
+      "default": true,
+      "description": "The \"Published with speicher.md\" line at the foot of the shell. Text and an outbound link, never a remote image — a logo fetched from another host on an authenticated page would report when each reader is reading, and `img-src 'self'` refuses it anyway. One switch and no text field: this names this product, and a configurable string would be a footer feature rather than an attribution. Presentation only, so it is absent from the resolution hash and changing it never triggers a rebuild.",
+      "examples": [false]
+    },
+    "graph": {
+      "type": "object",
+      "description": "The link graph derived at ingest: the Related aside beside an article, tag chips and their listing, link-weighted search ranking, and the /-/graph report. Presentation and retrieval only, so it is absent from the resolution hash — and it is read-side only: ingest records edges whichever way this is set, so turning the feature on is immediate rather than a full rebuild. An edge is never more visible than both of the pages it joins.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "The master switch. False removes every surface below, whatever they are set to."
+        },
+        "related": {
+          "type": "boolean",
+          "default": true,
+          "description": "The Related column beside an article: what this page links to, and what links to it. Both lists are filtered on both endpoints, and neither ever states how many entries were withheld — a count of what you cannot see is the same disclosure as the names."
+        },
+        "previews": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a destination's title and description on hover over an internal link in the article. Rendered into the page as a data attribute and revealed by CSS — no request per hover, and no JavaScript. Only destinations the reader can open carry one; a link to a restricted page is left with no marker of any kind, because a link that announced it had no preview would be a 403 with a stylesheet."
+        },
+        "terms": {
+          "type": "boolean",
+          "default": true,
+          "description": "Tag chips from frontmatter `tags`, and the listing behind them. A tag exists for a reader exactly when some page they can read carries it."
+        },
+        "search_boost": {
+          "type": "boolean",
+          "default": true,
+          "description": "Rank a search hit higher when other hits in the same result set link to it. Ordering only: it can never introduce a row the filter would not have returned."
+        },
+        "related_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 8,
+          "description": "Most entries shown per direction in the aside. The overflow is silent by design — see `related`."
+        }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "description": "Optional and off by default. Counts of page reads, held as aggregates per page per bucket, plus an estimate of how many distinct people read each page — never a record of who read what. There is no identity column and no per-person row: reach is a HyperLogLog sketch, salted per process with a salt that is never written down, so a sketch at rest cannot be asked whether a given person is in it. Absent from the resolution hash, since nothing here decides a principal, and read per request so a change applies without a restart. Consider the works-council position before enabling `granularity: hour` — see that key.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "The master switch. Off means nothing is recorded and nothing is served — not a panel that shows zeroes."
+        },
+        "timezone": {
+          "type": "string",
+          "default": "UTC",
+          "description": "An IANA zone name (`Europe/Berlin`). A day has to be a day somewhere: bucketing on UTC and reading the panel in Berlin attributes a 01:00 read to the previous day. This is the key that buys timezone correctness, which is the only benefit hourly granularity would otherwise have been needed for.",
+          "examples": ["Europe/Berlin", "UTC"]
+        },
+        "granularity": {
+          "enum": ["day", "hour"],
+          "default": "day",
+          "description": "How finely reads are bucketed. Storage is not the reason this defaults to `day`: re-identification is. A daily count of one on a small team is near-identifying, and an hourly series per page is a work-pattern record — it shows when people work, including outside contracted hours — which in Germany is the difference between a defensible aggregate and an Einrichtung capable of Verhaltens- und Leistungskontrolle under §87(1)(6) BetrVG. Setting this back to `day` does not merely change the panel: it rolls the stored hourly buckets up and deletes them, because a setting that leaves the fine rows in the table is a display preference wearing a privacy label."
+        },
+        "unique_readers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Estimate how many distinct signed-in people read each page. Reach is the number worth having for an internal handbook — 12 of 40 opened the new policy — and it is stored as a sketch, which holds cardinality and no members. Anonymous readers never contribute: on a public page there is no identity, and manufacturing one is the thing this design refuses. Always bucketed by day whatever `granularity` says, since small unique counts are simultaneously the most interesting and the most identifying."
+        },
+        "public_beacon": {
+          "type": "boolean",
+          "default": true,
+          "description": "Count reads of public pages in the browser rather than on the server. A public page answered to an anonymous caller earns `Cache-Control: public`, so a CDN or a browser cache serves it without the application ever hearing about it — server-side counts for exactly those pages mean cache misses. The beacon is a same-origin POST carrying the path and nothing else: no cookie, no device id, no stored address, so it is a hit counter rather than analytics and needs no consent banner. The trade is one bias for a smaller one: blockers and no-JS cost perhaps a fifth, where a CDN can cost everything. Off means public pages are counted server-side, undercounted, and carry no script."
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "default": 90,
+          "description": "How long a bucket is kept before the retention sweep deletes it."
+        },
+        "search_retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "default": 30,
+          "description": "How long a recorded search query is kept. Shorter than `retention_days` by default and deliberately: a query is caller-supplied text and is the most sensitive thing this feature stores — far more so than a page count, since somebody typing `grievance procedure` into a search box has disclosed an intention. Only queries that returned nothing are recorded at all, which is also where the value is."
+        }
+      }
+    },
+    "notify": {
+      "type": "object",
+      "description": "Optional. Requires `mail`. Targets resolve to known principals only; `committer` is a match rule against the commit author's address, never an address source.",
+      "additionalProperties": false,
+      "properties": {
+        "sync_failure": {
+          "type": "array",
+          "items": {
+            "enum": ["admins", "maintainers", "committer"]
+          },
+          "default": ["maintainers", "committer"]
+        },
+        "stale": {
+          "type": "array",
+          "items": {
+            "enum": ["admins", "maintainers"]
+          },
+          "default": ["admins"]
+        },
+        "grant_expiry": {
+          "type": "array",
+          "items": {
+            "enum": ["admins", "maintainers"]
+          },
+          "default": ["maintainers"]
+        },
+        "stale_after": {
+          "$ref": "#/$defs/duration",
+          "default": "6h"
+        },
+        "expiry_warning": {
+          "$ref": "#/$defs/duration",
+          "default": "14d"
+        }
+      }
+    },
+    "embedding": {
+      "type": "object",
+      "description": "Optional until semantic retrieval is enabled. Any OpenAI-compatible /v1/embeddings endpoint: Azure OpenAI, OpenAI, Ollama, vLLM, TEI, Mistral. No completion model is ever used \u2014 agents generate answers, Speicher returns permitted chunks.",
+      "required": ["base_url", "model", "dimensions"],
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "api_key": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer",
+          "description": "Must match the pgvector column width. Verified by a probe request at startup."
+        },
+        "send_dimensions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to send the `dimensions` parameter. Matryoshka-capable models accept it; others error."
+        },
+        "batch_size": {
+          "type": "integer",
+          "default": 96
+        },
+        "max_concurrency": {
+          "type": "integer",
+          "default": 4,
+          "description": "Azure enforces per-deployment TPM quotas; local endpoints generally don't."
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "Optional, and absent on an instance nobody has configured yet: there is then no way to sign in, so every caller holds `group:public` and nothing else. Present means at least one provider \u2014 absent and present-but-empty are different claims, and only the first is a fresh instance.",
+      "required": ["providers"],
+      "additionalProperties": false,
+      "properties": {
+        "default_provider": {
+          "type": "string",
+          "description": "Provider assumed when an individual grant omits `provider`. Without it, an unqualified grant is rejected \u2014 never guessed."
+        },
+        "providers": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/shortId"
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/oidcProvider"
+              },
+              {
+                "$ref": "#/$defs/magicLinkProvider"
+              },
+              {
+                "$ref": "#/$defs/githubProvider"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "admins": {
+      "type": "object",
+      "description": "Full access to operational surfaces under /-/. Same principal shape as repo `access`. Optional, because an instance nobody has claimed has no administrator and every /-/ route is the reader's 404 \u2014 the state a fresh instance boots in. Present means at least one entry, and a *save* is refused unless the document it would write still resolves to somebody: booting into a no-admin state is legitimate, saving into one from a form never is.",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/internalName"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/userGrant"
+          }
+        }
+      }
+    },
+    "groups": {
+      "type": "object",
+      "description": "Internal group name -> the provider-qualified sources it draws from. A name may aggregate across providers, and it may draw from none: the name is what a repository grants against, and the directory group it maps to is often not known — or not yet created — when the name is. An empty group makes nobody a member, which fails closed, so the only thing it cannot be is the last thing granting administrator access.",
+      "propertyNames": {
+        "$ref": "#/$defs/internalName"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/groupSource"
+        }
+      }
+    },
+    "public": {
+      "type": "object",
+      "description": "Which repositories this instance serves to callers with no credential at all. Public access is a principal — `group:public`, carried by every caller — so a repository named here is read through exactly the same filter as every other, and a page under it is public only when its own `access` says `public`. This key is the instance's half of that: a repository author writing `access: [public]` is publishing to the internet, and rule 4 says the instance has to have agreed first. In the resolution hash, hashed whole: every field of it decides a principal.",
+      "additionalProperties": false,
+      "required": ["repos"],
+      "properties": {
+        "repos": {
+          "type": "array",
+          "description": "`<namespace>/<slug>` per entry, spelled the way the reader's URL spells it. An explicit list and no `all: true` shorthand: there is no value here that should also mean the repository added next month. Naming a repository grants nothing on its own — it permits that repository's own configuration to name `public`.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "examples": ["copetence/speicher-docs"]
+          }
+        }
+      }
+    },
+    "forges": {
+      "type": "object",
+      "description": "Where documentation is read from. Optional, and may be empty: an instance with no content source loads, serves nothing and can be administered — which is the state every instance is in before its first source is configured, and the state it returns to when the last one is removed. Requiring one meant the first boot needed a forge the operator could not add until the instance was running.",
+      "propertyNames": {
+        "$ref": "#/$defs/shortId"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/forge"
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sync": {
+          "$ref": "#/$defs/sync"
+        },
+        "retrieval": {
+          "$ref": "#/$defs/retrieval"
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cover": {
+              "type": ["string", "null"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "colour": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+      "description": "A colour, as a hex triplet. Three digits or six, because both are what a brand guide prints and expanding one is arithmetic. Nothing else: a token value is a place the CSS parser will also accept `url(https://…)`, and a stylesheet that can name a selector can report which pages a reader can open."
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every colour the base sheet chooses, and no other: the six that carry a page, the two highlight pairs, the five callout accents and the fourteen the syntax highlighter maps onto. A colour a template derives from one of these \u2014 punctuation in code, the four status colours, a repository cover \u2014 is not here, because deriving it is the answer: move the neutral and quiet text, hairlines and operators in code move with it. `bg`, `fg` and `accent` are the three worth setting; leave `muted`, `line` and `surface` empty and they are mixed from the background and text colours in force, which is how a two-colour answer stays coherent instead of leaving hairlines and quiet text at the template's contrast against somebody else's background. Everything else left empty keeps the template's own.",
+      "properties": {
+        "bg": { "$ref": "#/$defs/colour", "description": "The page." },
+        "fg": { "$ref": "#/$defs/colour", "description": "Body text." },
+        "accent": {
+          "$ref": "#/$defs/colour",
+          "description": "Links, focus rings and anything the eye is meant to go to."
+        },
+        "muted": {
+          "$ref": "#/$defs/colour",
+          "description": "Quiet text — captions, metadata, punctuation in code. Mixed from `fg` and `bg` when unset."
+        },
+        "line": {
+          "$ref": "#/$defs/colour",
+          "description": "Rules, borders and table hairlines. Mixed from `fg` and `bg` when unset."
+        },
+        "surface": {
+          "$ref": "#/$defs/colour",
+          "description": "Panels that sit on the page — code blocks, the tree, table heads. Mixed from `fg` and `bg` when unset."
+        },
+        "warn-bg": {
+          "$ref": "#/$defs/colour",
+          "description": "Behind a warning strip \u2014 the banner over a page whose repository is failing to sync."
+        },
+        "warn-fg": {
+          "$ref": "#/$defs/colour",
+          "description": "The words on that strip. It is read against `warn-bg` and against nothing else."
+        },
+        "mark-bg": {
+          "$ref": "#/$defs/colour",
+          "description": "Behind a search term highlighted in a result snippet."
+        },
+        "mark-fg": { "$ref": "#/$defs/colour", "description": "The highlighted term itself." },
+        "callout-info": {
+          "$ref": "#/$defs/colour",
+          "description": "The `info` callout, and the note icon beside it."
+        },
+        "callout-tip": { "$ref": "#/$defs/colour", "description": "The `tip` callout." },
+        "callout-important": {
+          "$ref": "#/$defs/colour",
+          "description": "The `important` callout."
+        },
+        "callout-warning": {
+          "$ref": "#/$defs/colour",
+          "description": "The `warning` callout. It also colours the `warn` state on the operational surface."
+        },
+        "callout-danger": {
+          "$ref": "#/$defs/colour",
+          "description": "The `danger` callout, and the `fail` state on the operational surface."
+        },
+        "code-keyword": {
+          "$ref": "#/$defs/colour",
+          "description": "Keywords \u2014 `if`, `return`, `class`."
+        },
+        "code-type": { "$ref": "#/$defs/colour", "description": "Type names and class names." },
+        "code-function": { "$ref": "#/$defs/colour", "description": "Function and method names." },
+        "code-tag": { "$ref": "#/$defs/colour", "description": "Markup tag names." },
+        "code-attr": {
+          "$ref": "#/$defs/colour",
+          "description": "Markup attribute names, and object keys."
+        },
+        "code-string": { "$ref": "#/$defs/colour", "description": "String literals." },
+        "code-number": { "$ref": "#/$defs/colour", "description": "Numeric and boolean literals." },
+        "code-variable": {
+          "$ref": "#/$defs/colour",
+          "description": "Variables, and interpolations inside a string."
+        },
+        "code-comment": { "$ref": "#/$defs/colour", "description": "Comments." },
+        "code-meta": {
+          "$ref": "#/$defs/colour",
+          "description": "Preprocessor lines, shebangs, annotations."
+        },
+        "code-inserted": { "$ref": "#/$defs/colour", "description": "An added line in a diff." },
+        "code-inserted-bg": { "$ref": "#/$defs/colour", "description": "Behind that line." },
+        "code-deleted": { "$ref": "#/$defs/colour", "description": "A removed line in a diff." },
+        "code-deleted-bg": { "$ref": "#/$defs/colour", "description": "Behind that line." }
+      }
+    },
+    "shortId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,31}$"
+    },
+    "repoId": {
+      "type": "string",
+      "description": "What a repository may be called here: the character set a forge allows, up to a hundred characters — an operator naming a repository copies what the forge calls it, and `Design.System` or `docs_v2` are ordinary names. Not `shortId`, which is what a forge id and a provider id are: those appear in URLs, and this does not. The URL segment is `slug`, which defaults to this and is slugged, so an id with a capital or a dot still serves a lowercase path. The first character must be alphanumeric, which is the whole of what this restriction is for: the id names a directory under the mirror root, and `.`, `..`, a hidden name and a leading `-` — which git and ssh read as an option — are what a name joined into a path must not be. A repository actually called `.github` therefore takes an id that is not its name, which the id was always allowed to be.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}$"
+    },
+    "internalName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,63}$"
+    },
+    "oidcProvider": {
+      "type": "object",
+      "required": ["issuer", "client_id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "oidc",
+          "default": "oidc"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+        },
+        "issuer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "client_secret": {
+          "type": "string"
+        },
+        "subject_claim": {
+          "type": "string",
+          "default": "sub",
+          "description": "Claim carrying the stable identity. `oid` for Entra, `sub` for most others."
+        },
+        "groups_claim": {
+          "type": "string",
+          "default": "groups"
+        },
+        "email_claim": {
+          "type": "string",
+          "default": "email"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Home-realm discovery: send users at these domains here without a picker."
+        },
+        "session_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "8h",
+          "description": "Security parameter, not a convenience one: OIDC group claims are read from the login token, so membership changes only take effect at re-login."
+        },
+        "directory": {
+          "$ref": "#/$defs/directory"
+        }
+      }
+    },
+    "magicLinkProvider": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "magic-link"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+        },
+        "token_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "15m"
+        },
+        "session_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "30d"
+        },
+        "same_browser": {
+          "type": "boolean",
+          "default": true,
+          "description": "Redeemable only in the browser that requested it. Breaks request-on-laptop-open-on-phone."
+        }
+      }
+    },
+    "groupSource": {
+      "type": "object",
+      "description": "One way people arrive in an internal group. A group is a mapping first \u2014 a directory group id, or an email domain for a magic-link provider \u2014 and may also name individuals outright, which is the only mechanism there is where a provider emits no usable group ids: Google Workspace emits none at all, and an Entra app registration that was never configured to send the claim, or whose user is in more groups than the claim carries, emits none either. Exactly one of the four keys, because a source naming two things does not say which one it trusts.",
+      "required": ["provider"],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["id"]
+        },
+        {
+          "required": ["domain"]
+        },
+        {
+          "required": ["subject"]
+        },
+        {
+          "required": ["email"]
+        }
+      ],
+      "properties": {
+        "provider": {
+          "$ref": "#/$defs/shortId"
+        },
+        "id": {
+          "type": "string",
+          "description": "Group id as the provider emits it in groups_claim (oidc), or \"org/team-slug\" (github)."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Value of the provider's subject_claim, naming one person rather than a mapping. For a magic-link provider the subject IS the lowercased email address. The strongest of the four keys: a subject is assigned by the provider and cannot be set by the person it identifies, so it survives a rename and cannot be claimed by somebody else."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Address of one person, matched against the provider's email_claim. Mutable, reassignable, and on some providers set by a directory administrator rather than proven by the mailbox \u2014 so this is the convenient form and `subject` is the durable one. Refused on a provider whose issuer does not name one directory; see the loader."
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Why this source is here, on any of the four shapes. Optional, and worth writing on all of them: a directory group id is thirty-six characters that carry no meaning to read, and a person is a name whose reason for being in a group nobody remembers a year later. It is what an access review reads."
+        },
+        "until": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional review date. Written on an individual in practice, and honoured on any source: a key this accepted and the resolver ignored would have an operator believe a dated mapping lapses. Enforced at resolution rather than at ingest, because membership is resolved per request \u2014 the day it passes the member stops being one, with no rebuild and no re-login."
+        },
+        "domain": {
+          "type": "string",
+          "description": "Email domain as the group. magic-link providers only. The \"address already appears in some ACL\" check that gates link sending includes domain membership. Never use a freemail domain \u2014 it would grant anyone who can receive mail there."
+        }
+      }
+    },
+    "forge": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["github", "gitlab", "gitea", "forgejo", "git"],
+          "description": "`git` is a plain remote behind no forge API: repositories are listed here rather than discovered, freshness comes from polling rather than a webhook, and there is no pull-request check. It is what makes an unsupported forge a yes."
+        },
+        "primary": {
+          "type": "boolean",
+          "default": false,
+          "description": "Exactly one forge may be primary. The primary forge contributes no URL segment; all others contribute their id. Defaults to true when only one forge is configured."
+        },
+        "default_repository_owner": {
+          "type": "string",
+          "description": "The user or organization whose name is left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Its repository names then share the first path segment with forge ids and the names of other owners, which must all be unique."
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Self-hosted forges only."
+        },
+        "webhook_secret": {
+          "type": "string"
+        },
+        "app_id": {
+          "type": "string",
+          "description": "github"
+        },
+        "private_key": {
+          "type": "string",
+          "description": "github"
+        },
+        "token": {
+          "type": "string",
+          "description": "gitlab / gitea / forgejo"
+        },
+        "poll_interval": {
+          "$ref": "#/$defs/duration",
+          "default": "1h",
+          "description": "git: how often to fetch and compare heads, as a default for every repo below. This is an upper bound on staleness, not a schedule — repos are spread across the interval so they do not all poll on the same tick. Not part of the resolution hash: it changes how often the head is read, never who may read the result."
+        },
+        "known_hosts": {
+          "type": "string",
+          "description": "git: `known_hosts` lines pinning the host keys of every ssh remote below, as a default for every repo. Required for ssh — there is no trust-on-first-use mode, because an unattended poller accepting a new host key is a machine-in-the-middle window with nobody watching."
+        },
+        "repos": {
+          "type": "array",
+          "description": "git: the repositories this forge serves. There is no discovery API, so they are listed rather than found. Adding one is a config edit and nothing else: in `database` mode the saved version is adopted while the instance runs, and the entry is picked up at the next reconciler tick.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/gitRepo"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "github"
+              }
+            }
+          },
+          "then": {
+            "required": ["app_id", "private_key", "webhook_secret"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["gitlab", "gitea", "forgejo"]
+              }
+            }
+          },
+          "then": {
+            "required": ["token", "webhook_secret"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "git"
+              }
+            }
+          },
+          "then": {
+            "required": ["repos"]
+          }
+        }
+      ]
+    },
+    "gitRepo": {
+      "type": "object",
+      "required": ["id", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/repoId",
+          "description": "Stable identity, chosen here rather than issued by a forge. It survives both a moved remote and a changed slug, which is what keeps a rename a redirect instead of a delete-and-reingest that breaks every link. It also names the mirror directory, which is what the character set is about — and why two ids differing only in case are refused, since a case-insensitive filesystem makes them one directory."
+        },
+        "url": {
+          "type": "string",
+          "description": "`ssh://user@host/path.git` with a deploy key, or `https://host/path.git` with a token. Plain `http://` and `git://` are refused: neither authenticates the server, so the content served from them is whatever the network last said it was.",
+          "pattern": "^(ssh|https)://"
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL segment. Defaults to `id`. Changing it is a rename: the previous slug keeps serving a 301 rather than starting to 404."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Defaults to the remote's own HEAD, which is only readable once a mirror exists — so a repository whose default branch is renamed follows it without a config edit."
+        },
+        "deploy_key": {
+          "type": "string",
+          "description": "OpenSSH private key, read-only on the remote. Written to a mode-0600 file for the length of one fetch and never into `.git/config`, which would persist it."
+        },
+        "known_hosts": {
+          "type": "string",
+          "description": "Overrides the forge-level `known_hosts` for this remote."
+        },
+        "token": {
+          "type": "string",
+          "description": "https only. Placed in the remote URL per invocation, never in a credential helper."
+        },
+        "username": {
+          "type": "string",
+          "default": "x-access-token",
+          "description": "https only. The username the token pairs with; forges disagree about it (`oauth2` on GitLab, the account name on Bitbucket)."
+        },
+        "poll_interval": {
+          "$ref": "#/$defs/duration",
+          "description": "Overrides the forge-level interval for this repository."
+        }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "indexable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(s|m|h|d)$"
+    },
+    "userGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["subject", "note"]
+        },
+        {
+          "required": ["email"]
+        }
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Value of the provider's subject_claim. For a magic-link provider the subject IS the lowercased email address."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Mutable and reassignable, and here it stays that way: an administrator is resolved per request as user:<provider>:email:<lowercased-address> and matched against the provider's email_claim, so this grant follows the mailbox rather than the person. A `directory` block does not change it — that resolves addresses at *ingest*, which is a repository's access block and not this one. Write `subject` for a grant that has to survive a rename."
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "until": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional for admins; mandatory for content grants."
+        }
+      }
+    },
+    "githubProvider": {
+      "type": "object",
+      "description": "GitHub as an identity provider for readers. Groups map to org teams as \"org/team-slug\". Team membership is resolved by API call at login, not from a token claim. This is a separate OAuth client from the GitHub App used for content; the App only supplies identity directly if \"Request user authorization during installation\" is enabled.",
+      "required": ["type", "client_id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "github"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "client_secret": {
+          "type": "string"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "GitHub Enterprise Server only."
+        },
+        "team_cache_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "15m",
+          "description": "Team membership is an API call; cache it. Shorter means faster revocation, more requests."
+        },
+        "directory": {
+          "$ref": "#/$defs/directory"
+        }
+      }
+    },
+    "directory": {
+      "type": "object",
+      "description": "Optional per-provider directory access. Enables email -> subject resolution at ingest, group-size counts in the pull-request check, and detection of departed principals. Omit it and email grants match on `email_claim` instead, with counts absent from the check.",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["graph", "github"],
+          "description": "graph = Microsoft Graph. github = the org API, which the github provider already uses."
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "graph"
+        },
+        "client_id": {
+          "type": "string",
+          "description": "graph. Usually a separate app registration from the delegated-flow client: application permissions such as User.Read.All need admin consent."
+        },
+        "client_secret": {
+          "type": "string",
+          "description": "graph"
+        },
+        "cache_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "1h"
+        }
+      }
+    }
+  }
+}

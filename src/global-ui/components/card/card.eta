@@ -1,0 +1,37 @@
+
+<% const card = it.card, editable = it.editable %>
+  <section
+    class="spr-card spr-card-<%= it.depth %><%= card.titleIsKey ? ' spr-card-key' : '' %>"
+    <% if (card.shownWith) { %>data-spr-shown-with="<%= card.shownWith %>"<% } %>
+  >
+    <header>
+      <h4>
+        <%= card.title %>
+      </h4>
+      <% if (card.subtitle) { %>
+      <p class="spr-card-sub">
+        <%= card.subtitle %>
+      </p>
+      <% } %>
+      <% if (card.removeOp && editable) { %>
+      <button
+        type="submit"
+        name="op"
+        value="<%= card.removeOp %>"
+        class="spr-remove"
+      >
+        <%~ it.removeIcon || '' %>Remove
+      </button>
+      <% } %>
+    </header>
+    <% card.notes.forEach(function (note) { %>
+    <p class="spr-note spr-note-idle">
+      <%= note %>
+    </p>
+    <% }) %>
+    <div class="spr-fields">
+      <% card.fields.forEach(function (f) { %><%~ include('@field', { ...it, field: f }) %><% }) %>
+    </div>
+    <% card.cards.forEach(function (child) { %><%~ include('@card', { ...it, card: child, depth: it.depth + 1 }) %><% }) %>
+    <% if (editable) { card.addOps.forEach(function (add) { %><%~ include('@add', { add: add }) %><% }) } %>
+  </section>

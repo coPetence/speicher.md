@@ -1,0 +1,57 @@
+---
+title: Python SDK Reference
+description: Work with Fieldkit from Python, synchronously or with asyncio.
+next: /docs/python-sdk/sync/fieldkit
+---
+
+import { Tabs, TabItem, Card, CardGrid } from '@astrojs/starlight/components';
+
+The Fieldkit Python SDK covers everything the dashboard does: devices, surveys, submissions, attachments and exports.
+
+## Installation
+
+```bash
+pip install fieldkit
+```
+
+Python 3.9 or newer is required.
+
+## Sync or Async
+
+Every class comes in two flavours. They have the same methods with the same arguments; the async ones are coroutines.
+
+<Tabs>
+<TabItem label="Sync">
+```python
+from fieldkit import Fieldkit
+
+fk = Fieldkit()
+device = fk.devices.get("dev_01HZX4")
+```
+</TabItem>
+<TabItem label="Async">
+```python
+from fieldkit import AsyncFieldkit
+
+async with AsyncFieldkit() as fk:
+    device = await fk.devices.get("dev_01HZX4")
+```
+</TabItem>
+</Tabs>
+
+## Reference
+
+<CardGrid stagger>
+    <Card title="Sync" icon="seti:python">
+        `Fieldkit`, `Device`, `Survey` and `ObjectStorage`, for scripts and notebooks.
+    </Card>
+    <Card title="Async" icon="rocket">
+        `AsyncFieldkit`, `AsyncDevice`, `AsyncSurvey` and `AsyncObjectStorage`, for services that already run an event loop.
+    </Card>
+</CardGrid>
+
+Errors and shared types are common to both.
+
+:::note
+Callbacks are plain callables in both flavours — `on_token_refresh` takes a `Callable[[], str]` even on `AsyncFieldkit`. An async callback is not awaited.
+:::

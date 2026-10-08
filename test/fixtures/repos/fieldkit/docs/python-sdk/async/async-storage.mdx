@@ -1,0 +1,70 @@
+---
+title: "AsyncObjectStorage"
+hideTitleOnPage: true
+---
+
+## AsyncObjectStorage
+
+```python
+class AsyncObjectStorage()
+```
+
+Access to attachments: photos, signatures and files.
+
+Every method is a coroutine and must be awaited. The client is an async context manager:
+
+```python
+async with AsyncFieldkit() as fk:
+    ...
+```
+
+#### AsyncObjectStorage.get
+
+```python
+async def get(asset_id: str) -> bytes
+```
+
+Downloads an attachment.
+
+**Arguments**:
+
+- `asset_id` _str_ - Id from an `image` or `signature` answer.
+
+**Returns**:
+
+- `bytes` - The file.
+
+**Raises**:
+
+- `FieldkitNotFoundError` - If the asset does not exist.
+
+#### AsyncObjectStorage.download
+
+```python
+async def download(asset_id: str, path: str, progress: Optional[Callable[[int, int], None]] = None) -> None
+```
+
+Downloads an attachment to a file.
+
+**Arguments**:
+
+- `asset_id` _str_ - Asset to download.
+- `path` _str_ - Destination.
+- `progress` _Optional[Callable[[int, int], None]]_ - Called with bytes done and total.
+
+#### AsyncObjectStorage.url
+
+```python
+async def url(asset_id: str, expires_in: int = 3600) -> str
+```
+
+Returns a signed URL for an attachment.
+
+**Arguments**:
+
+- `asset_id` _str_ - Asset.
+- `expires_in` _int_ - Seconds the URL stays valid.
+
+**Returns**:
+
+- `str` - The URL.

@@ -1,0 +1,85 @@
+<h1>Connected applications</h1>
+<p class="spr-empty">
+  What is holding a credential for your account, and how to end it. Everything
+  listed here reads exactly the pages you can open yourself — none of it can
+  administer this instance, whatever you can.
+</p>
+
+<% if (it.revoked) { %>
+<p class="spr-note">That connection was disconnected. It will stop working on its next request.</p>
+<% } %>
+
+
+<h2>Applications you have connected</h2>
+<% if (it.grants.length === 0) { %>
+<p class="spr-empty">
+  You have connected no applications. One appears here after you sign in to an
+  application that asked for access.
+</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Application</th>
+        <th scope="col">Connected</th>
+        <th scope="col">Last used</th>
+        <th scope="col">Expires</th>
+        <th scope="col"><span class="spr-clip">Disconnect</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.grants.forEach(function (row) { %>
+      <tr>
+        <th scope="row"><%= row.name %></th>
+        <td><time datetime="<%= row.connectedAt %>"><%= row.connected %></time></td>
+        <td><%= row.lastUsed || 'never' %></td>
+        <td><%= row.expires || '—' %></td>
+        <td>
+          <form method="post" action="/-/connections/revoke">
+            <input type="hidden" name="id" value="<%= row.id %>" />
+            <button type="submit" class="spr-danger">Disconnect</button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<h2>API keys</h2>
+<% if (it.keys.length === 0) { %>
+<p class="spr-empty">You hold no API keys.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Last used</th>
+        <th scope="col">Expires</th>
+        <th scope="col"><span class="spr-clip">Revoke</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.keys.forEach(function (row) { %>
+      <tr>
+        <th scope="row"><%= row.name %></th>
+        <td><%= row.lastUsed || 'never' %></td>
+        <td><%= row.expires %></td>
+        <td>
+          <form method="post" action="/-/connections/revoke">
+            <input type="hidden" name="key_id" value="<%= row.id %>" />
+            <button type="submit" class="spr-danger">Revoke</button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<p class="spr-empty">
+  There is no page for creating a key yet — ask whoever operates this instance.
+</p>
+<% } %>

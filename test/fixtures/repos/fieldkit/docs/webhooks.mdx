@@ -1,0 +1,59 @@
+---
+title: Webhooks
+description: Get notified when submissions arrive.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A webhook is an HTTPS endpoint Fieldkit calls when something happens in your workspace.
+
+## Events
+
+| Event | Sent when |
+| ----- | --------- |
+| `submission.created` | A submission finishes uploading, attachments included |
+| `submission.revised` | A later submission revises an earlier one |
+| `device.asleep` | A device passes its auto-sleep interval |
+| `device.retired` | A device is retired, by hand or automatically |
+| `export.completed` | An export is ready to download |
+
+## Registering an Endpoint
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+hook = fk.webhooks.create(
+    url="https://example.org/fieldkit",
+    events=["submission.created", "device.retired"],
+)
+print(hook.secret)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+const hook = await fk.webhooks.create({
+  url: 'https://example.org/fieldkit',
+  events: ['submission.created', 'device.retired'],
+})
+console.log(hook.secret)
+```
+</TabItem>
+</Tabs>
+
+## Verifying Signatures
+
+Every delivery carries a `Fieldkit-Signature` header: an HMAC-SHA256 of the raw body under the webhook's secret.
+
+```python
+from fieldkit.webhooks import verify
+
+verify(body=request.body, signature=request.headers["Fieldkit-Signature"], secret=SECRET)
+```
+
+:::caution
+Verify against the **raw** body. A framework that parses JSON and re-serialises it produces different bytes, and every signature fails.
+:::
+
+## Retries
+
+A delivery that does not get a `2xx` within 10 seconds is retried with backoff for up to 24 hours. For `device.asleep` see [Device Management](/docs/device-management#auto-sleep-interval).

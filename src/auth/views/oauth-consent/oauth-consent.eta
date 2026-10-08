@@ -1,0 +1,18 @@
+
+<h1>Connect <%= it.name %></h1>
+<p>
+  <%= it.name %> is asking to read documentation as you. It will reach
+  exactly the pages you can open yourself, and nothing else — including
+  nothing an administrator can see, which this connection never grants.
+</p>
+<p class="spr-empty">You will be sent back to <code><%= it.host %></code>.</p>
+<form method="post" action="/api/auth/oauth/consent">
+  <% it.hidden.forEach(function (param) { %>
+  <input type="hidden" name="<%= param.name %>" value="<%= param.value %>" />
+  <% }) %>
+  <p><button type="submit">Connect</button></p>
+</form>
+<p class="spr-empty">
+  Close this page to refuse. You can disconnect it later from your
+  <a href="/-/connections">connected applications</a>.
+</p>

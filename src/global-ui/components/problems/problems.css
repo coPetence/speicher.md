@@ -1,0 +1,8 @@
+@layer speicher.base {
+  .spr-problems {
+    margin: var(--spr-space-3) 0;
+    padding-left: var(--spr-space-6);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+}

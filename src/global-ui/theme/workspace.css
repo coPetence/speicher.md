@@ -1,0 +1,100 @@
+@layer speicher.theme {
+  :root {
+    --spr-bg: #ffffff;
+    --spr-fg: #37352f;
+    --spr-muted: #787774;
+    --spr-line: #e9e9e7;
+    --spr-accent: #1f6fc4;
+    --spr-surface: #f7f6f3;
+    --spr-warn-bg: #fbf3db;
+    --spr-warn-fg: #7a5200;
+    --spr-mark-bg: #fdecc8;
+    --spr-mark-fg: #3b2f00;
+
+    --spr-code-keyword: #9b2f6d;
+    --spr-code-type: #8a5a12;
+    --spr-code-function: #2f6fa8;
+    --spr-code-tag: #1f7a4d;
+    --spr-code-attr: #0f6f8c;
+    --spr-code-string: #a63a2e;
+    --spr-code-number: #8a5a12;
+    --spr-code-comment: #8b8781;
+    --spr-code-meta: #8b8781;
+    --spr-code-variable: #8a5a12;
+    --spr-code-inserted: #1f7a4d;
+    --spr-code-inserted-bg: #eaf5ee;
+    --spr-code-deleted: #a63a2e;
+    --spr-code-deleted-bg: #fbecea;
+
+    --spr-callout-info: #0f6f8c;
+    --spr-callout-tip: #1f7a4d;
+    --spr-callout-important: #7a4a9e;
+    --spr-callout-warning: #8a5a12;
+    --spr-callout-danger: #a63a2e;
+    --spr-callout-tint: 18%;
+
+    --spr-font-body:
+      ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI',
+      Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --spr-font-size: 16px;
+    --spr-line-height: 1.5;
+    --spr-font-size-nav: 0.875rem;
+
+    --spr-space-3: 0.5rem;
+    --spr-space-4: 0.7rem;
+    --spr-space-5: 0.9rem;
+    --spr-space-6: 1.15rem;
+    --spr-space-8: 2.25rem;
+    --spr-gutter: 3rem;
+
+    --spr-radius: 3px;
+    --spr-radius-sm: 2px;
+    --spr-radius-lg: 5px;
+    --spr-radius-xl: 7px;
+
+    --spr-measure: 44rem;
+    --spr-nav-width-default: 15rem;
+    --spr-aside-width: 14rem;
+    --spr-search-width: 14rem;
+    --spr-avatar-size: 1.75rem;
+    --spr-avatar-tint: 18%;
+    --spr-menu-width: 15rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #191919;
+      --spr-fg: #d8d6d1;
+      --spr-muted: #9b9691;
+      --spr-line: #2f2e2c;
+      --spr-accent: #7ab0e4;
+      --spr-surface: #202020;
+      --spr-warn-bg: #33280f;
+      --spr-warn-fg: #e8c069;
+      --spr-mark-bg: #6b5312;
+      --spr-mark-fg: #ffeec4;
+
+      --spr-code-keyword: #e79ac4;
+      --spr-code-type: #e0b072;
+      --spr-code-function: #8fbde8;
+      --spr-code-tag: #7fcfa6;
+      --spr-code-attr: #7cc3d6;
+      --spr-code-string: #eb9c8f;
+      --spr-code-number: #e0b072;
+      --spr-code-comment: #8f8a83;
+      --spr-code-meta: #8f8a83;
+      --spr-code-variable: #e0b072;
+      --spr-code-inserted: #7fcfa6;
+      --spr-code-inserted-bg: #17241c;
+      --spr-code-deleted: #eb9c8f;
+      --spr-code-deleted-bg: #2a1a18;
+
+      --spr-callout-info: #7cc3d6;
+      --spr-callout-tip: #7fcfa6;
+      --spr-callout-important: #c3a2e0;
+      --spr-callout-warning: #e0b072;
+      --spr-callout-danger: #eb9c8f;
+    }
+  }
+}

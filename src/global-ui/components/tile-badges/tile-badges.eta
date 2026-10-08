@@ -1,0 +1,8 @@
+
+  <% if (it.badges.length > 0) { %>
+  <span class="spr-tile-badges">
+    <% it.badges.forEach(function (badge) { %>
+    <%~ include('@badge', { level: 'ok', label: badge.label, iconHtml: badge.icon ? (it.badgeIcons || {})[badge.icon] : '' }) %>
+    <% }) %>
+  </span>
+  <% } %>

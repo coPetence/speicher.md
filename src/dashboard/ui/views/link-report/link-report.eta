@@ -1,0 +1,113 @@
+<h1>Link report</h1>
+
+<p class="spr-empty">Every link Speicher resolved at ingest, asked again now.</p>
+
+<%~ include('@stats', { tiles: it.tiles }) %>
+
+<h2>Broken since their page was synced</h2>
+
+<% if (it.dangling.length === 0) { %>
+<p class="spr-empty">None. Every resolved link still lands on a page that exists.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Repository</th>
+        <th scope="col">From</th>
+        <th scope="col">Points at</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.dangling.forEach(function (edge) { %>
+      <tr>
+        <th scope="row"><%= edge.namespace %>/<%= edge.slug %></th>
+        <td><code><%= edge.source_slug_path || '(index)' %></code></td>
+        <td><code><%= edge.target_slug_path || '(index)' %></code></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<h2>Links into a narrower grant</h2>
+
+<% if (it.narrowing.length === 0) { %>
+<p class="spr-empty">None. Every link is at least as readable as the page it sits on.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Repository</th>
+        <th scope="col">From</th>
+        <th scope="col">Points at</th>
+        <th scope="col">Loses access</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.narrowing.forEach(function (edge) { %>
+      <tr>
+        <th scope="row"><%= edge.namespace %>/<%= edge.slug %></th>
+        <td><code><%= edge.source_slug_path || '(index)' %></code></td>
+        <td><code><%= edge.target_slug_path || '(index)' %></code></td>
+        <td><%= edge.detail %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<h2>Most linked to</h2>
+
+<% if (it.mostLinked.length === 0) { %>
+<p class="spr-empty">Nothing links to anything yet.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Page</th>
+        <th scope="col">Repository</th>
+        <th scope="col" class="spr-num">Inbound links</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.mostLinked.forEach(function (page) { %>
+      <tr>
+        <th scope="row"><a href="<%= page.href %>"><%= page.title %></a></th>
+        <td><%= page.name %></td>
+        <td class="spr-num"><%= page.inbound %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<h2>In the graph nowhere</h2>
+
+<% if (it.unlinked.length === 0) { %>
+<p class="spr-empty">None. Every page is connected to at least one other.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Page</th>
+        <th scope="col">Repository</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.unlinked.forEach(function (page) { %>
+      <tr>
+        <th scope="row"><a href="<%= page.href %>"><%= page.title %></a></th>
+        <td><%= page.name %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>

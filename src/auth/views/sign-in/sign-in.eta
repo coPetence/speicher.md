@@ -1,0 +1,36 @@
+
+<div class="spr-empty-state spr-empty-state-page spr-signin-page"><h1>Sign in</h1>
+  <% if (it.notice) { %><p class="spr-empty"><%= it.notice %></p><% } %>
+  <% if (it.options.length === 0) { %>
+    <p class="spr-empty">No sign-in provider is configured on this instance.</p>
+  <% } else { %>
+    <ul class="spr-signin-options">
+      <% it.options.forEach(function (option) { %>
+      <li><a class="spr-signin-option" href="<%= option.href %>"><%~ option.mark %><span>Sign in with <%= option.name %></span></a></li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<% if (it.devLogin) { %>
+<h2>Development sign-in</h2>
+<p class="spr-empty">
+  <strong>SPEICHER_DEV_LOGIN is on.</strong> This form issues a session for any
+  identity you type, with no authentication at all. It exists so a local
+  instance can be browsed before an identity provider is configured.
+</p>
+<form method="get" action="/api/auth/dev-login" class="spr-form spr-form-block">
+  <input type="hidden" name="redirect_to" value="<%= it.redirectTo %>" />
+  <label for="spr-dev-subject">Subject</label>
+  <input id="spr-dev-subject" type="text" name="subject" required placeholder="bob-oid" />
+  <label for="spr-dev-groups">Provider group ids, comma-separated</label>
+  <input id="spr-dev-groups" type="text" name="groups" placeholder="grp-com" />
+  <button type="submit">Sign in as this identity</button>
+</form>
+<p class="spr-empty">
+  The fixture uses <code>alice-oid</code>/<code>grp-eng</code>,
+  <code>bob-oid</code>/<code>grp-com</code>,
+  <code>carol-oid</code>/<code>grp-northwind</code>,
+  <code>dave-oid</code> with no groups, and <code>ops-oid</code>/<code>grp-ops</code>
+  for an admin who can read no content.
+</p>
+<% } %>

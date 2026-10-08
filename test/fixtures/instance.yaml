@@ -1,0 +1,56 @@
+# Instance config for the test fixture.
+#
+# Deliberately close to a real one: a primary forge whose default repository owner
+# is omitted from URLs, four groups, and an admin group that appears
+# in no content ACL — so "admins can see /-/*" and "admins can read content" stay
+# separate facts.
+version: 1
+
+auth:
+  default_provider: entra
+  providers:
+    entra:
+      type: oidc
+      issuer: https://login.example.test/v2.0
+      client_id: ${TEST_ENTRA_CLIENT_ID}
+      client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+      subject_claim: oid
+      groups_claim: groups
+      email_claim: preferred_username
+      domains: [copetence.test]
+      session_ttl: 8h
+
+groups:
+  engineering:
+    - { provider: entra, id: 'grp-eng' }
+  commercial:
+    - { provider: entra, id: 'grp-com' }
+  client-northwind:
+    - { provider: entra, id: 'grp-northwind' }
+  platform-ops:
+    - { provider: entra, id: 'grp-ops' }
+
+admins:
+  groups: [platform-ops]
+
+# The instance's half of a public grant. `copetence/speicher-docs` may write
+# `public` in its own `access`; the other three repositories may not, and a root
+# config there naming it is an ingest rejection rather than a wider grant.
+public:
+  repos: [copetence/speicher-docs]
+
+forges:
+  gh:
+    type: github
+    primary: true
+    default_repository_owner: copetence
+    app_id: ${TEST_GH_APP_ID}
+    private_key: ${TEST_GH_PRIVATE_KEY}
+    webhook_secret: ${TEST_GH_WEBHOOK_SECRET}
+
+defaults:
+  sync:
+    include: ['**/*.md']
+    exclude: ['**/README.md']
+  retrieval:
+    indexable: true

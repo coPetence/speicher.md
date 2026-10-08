@@ -1,0 +1,33 @@
+---
+title: "Errors"
+hideTitleOnPage: true
+---
+
+## FieldkitError
+
+Base class for every error the SDK throws. Extends `Error`. For how the API client reports the same failures, see [the client reference](@handbook:reference/client).
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `statusCode?` | `number` | HTTP status, when the error came from the API |
+| `headers?` | `Record<string, string>` | Response headers |
+
+## FieldkitNotFoundError
+
+Extends FieldkitError.
+
+## FieldkitRateLimitError
+
+Extends FieldkitError. Thrown once the SDK's own retries are exhausted.
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `retryAfter?` | `number` | Seconds the API asked us to wait |
+
+## FieldkitValidationError
+
+Extends FieldkitError.
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `errors` | `Array<{ path: string; message: string }>` | One entry per invalid field |

@@ -1,0 +1,11 @@
+@layer speicher.base {
+  .spr-crumbs {
+    color: var(--spr-muted);
+    font-size: 0.9rem;
+    margin-bottom: var(--spr-space-4);
+  }
+
+  .spr-crumbs a {
+    color: var(--spr-muted);
+  }
+}

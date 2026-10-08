@@ -1,0 +1,17 @@
+version: 1
+
+access:
+  groups: [engineering, commercial, client-northwind]
+  users:
+    - subject: 'dave-oid'
+      note: 'external reviewer, contract 2026-04'
+      until: 2099-12-31
+
+ingest_root: docs
+
+maintainers:
+  groups: [engineering]
+
+display:
+  title: 'coPetence Handbook'
+  cover: cover.jpg

@@ -1,0 +1,49 @@
+
+<% if (!it.done && !it.provable.length) { %>
+<p class="spr-note spr-note-warn">
+  This step needs an identity provider that uses OpenID Connect, such as Entra ID.
+  Email magic links cannot be used here.
+  <a href="/-/config/identity">Add a provider</a>, then come back.
+</p>
+<% } %>
+
+<h1>Administrator</h1>
+
+<% if (it.done) { %>
+<p class="spr-note spr-note-ok">
+  This instance already has an administrator configured.
+</p>
+<% } else { %>
+
+<p class="spr-empty">
+  Sign in with your identity provider. The account you sign in with becomes the
+  administrator of this instance.
+</p>
+
+<% if (it.error) { %>
+<p class="spr-note spr-note-fail" role="status"><%= it.error %></p>
+<% } %>
+
+<% if (it.provable.length) { %>
+<form method="post" action="/-/setup/prove" class="spr-form">
+  <% if (it.provable.length > 1) { %>
+  <label for="spr-prove-provider">Identity provider</label>
+  <%~ include('@select', {
+    attributes: { id: 'spr-prove-provider', name: 'provider' },
+    options: it.provable.map(function (option) {
+      return { value: option.id, label: option.name };
+    }),
+  }) %>
+  <% } else { %>
+  <input type="hidden" name="provider" value="<%= it.provable[0].id %>" />
+  <% } %>
+  <button type="submit">
+    <% if (it.provable.length === 1) { %>
+    Sign in with <%= it.provable[0].name %>
+    <% } else { %>
+    Sign in
+    <% } %>
+  </button>
+</form>
+<% } %>
+<% } %>

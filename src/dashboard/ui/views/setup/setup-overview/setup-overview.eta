@@ -1,0 +1,46 @@
+
+<h1>Set up this instance</h1>
+
+<% if (it.finished) { %>
+<p class="spr-note spr-note-ok">
+  This instance has an administrator and can no longer be claimed. All settings
+  below remain available under <a href="/-/config">Configuration</a>.
+</p>
+<% } else { %>
+<p class="spr-empty">
+  This instance has no administrator yet. To set up an administrator, follow the steps below.
+</p>
+<% } %>
+
+<% if (it.error) { %>
+<p class="spr-note spr-note-fail" role="status"><%= it.error %></p>
+<% } %>
+
+<ol class="spr-steps">
+  <% it.steps.forEach(function (step) { %>
+  <%
+  %>
+  <li data-spr-step="<%= step.id %>" class="spr-step<%= step.done ? ' spr-step-done' : '' %><%= step.current ? ' spr-step-current' : '' %>">
+    <h2><%= step.heading %></h2>
+    <p><%~ step.blurbHtml %></p>
+
+    <%
+      const kinds =
+        step.id === 'provider' ? it.choices : step.id === 'content' ? it.sources : [];
+    %>
+    <% if (kinds.length) { %>
+    <%~ it.marks_sprite || '' %>
+    <div class="spr-tiles spr-setup-kinds">
+      <% kinds.forEach(function (choice) { %>
+      <a class="spr-tile spr-setup-kind" href="<%= choice.providerHref %>">
+        <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= choice.providerMark %>"></use></svg>
+        <span><%= choice.providerLabel %></span>
+      </a>
+      <% }) %>
+    </div>
+    <% } else if (step.href) { %>
+    <p><a href="<%= step.href %>"><%= step.action %></a></p>
+    <% } %>
+  </li>
+  <% }) %>
+</ol>

@@ -1,0 +1,55 @@
+---
+title: "AsyncFieldkit"
+hideTitleOnPage: true
+---
+
+## AsyncFieldkit
+
+```python
+class AsyncFieldkit()
+```
+
+Main class for interacting with the Fieldkit API.
+
+Every method is a coroutine and must be awaited. The client is an async context manager:
+
+```python
+async with AsyncFieldkit() as fk:
+    ...
+```
+
+#### AsyncFieldkit.__init__
+
+```python
+def __init__(config: Optional[FieldkitConfig] = None)
+```
+
+Initializes a client, reading anything `config` leaves out from the environment.
+
+**Arguments**:
+
+- `config` _Optional[FieldkitConfig]_ - Configuration. Defaults to the environment.
+
+**Raises**:
+
+- `FieldkitError` - If no API key can be found.
+
+#### AsyncFieldkit.on_token_refresh
+
+```python
+async def on_token_refresh(callback: Callable[[], str]) -> None
+```
+
+Registers a callback that returns a fresh API key when the current one expires.
+
+**Arguments**:
+
+- `callback` _Callable[[], str]_ - Called with no arguments; returns the new key.
+
+#### AsyncFieldkit.close
+
+```python
+async def close() -> None
+```
+
+Closes the HTTP session. Calling any method afterwards raises.

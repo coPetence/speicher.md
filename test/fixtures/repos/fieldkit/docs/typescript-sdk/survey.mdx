@@ -1,0 +1,47 @@
+---
+title: "Survey"
+hideTitleOnPage: true
+---
+
+## Survey
+
+A versioned survey definition.
+
+### Properties
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `id` | `string` | Stable id |
+| `name` | `string` | Name |
+| `version` | `number` | Latest published version |
+| `questions` | `Question[]` | Questions of the latest version |
+
+### Methods
+
+#### update()
+
+```ts
+update(changes: { questions: Question[] }): Promise<void>
+```
+
+Publishes a new version.
+
+#### versions()
+
+```ts
+versions(): Promise<number[]>
+```
+
+#### submissions()
+
+```ts
+submissions(options?: { since?: Date; version?: number }): AsyncIterable<Submission>
+```
+
+Iterates over submissions oldest first. Use it with `for await`; collecting into an Array<Submission> loads every page.
+
+#### assign()
+
+```ts
+assign(options: { labels: Record<string, string> }): Promise<number>
+```

@@ -1,0 +1,28 @@
+@layer speicher.base {
+  .spr-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--spr-space-3);
+    margin-top: var(--spr-space-5);
+  }
+
+  .spr-add label {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    align-self: center;
+  }
+
+  .spr-add input:not([type='checkbox'], [type='radio'], [type='file']),
+  .spr-add select {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    padding-inline-start: var(--spr-input-lead);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+  }
+}

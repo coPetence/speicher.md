@@ -1,0 +1,29 @@
+<h1>Claim this instance</h1>
+
+<p class="spr-empty">
+  This Speicher instance has not been configured. To become its administrator,
+  run the command below from the shell on the host this instance is running on:
+</p>
+
+<% const command = `docker compose exec web speicher claim ${it.code}` %>
+<div class="spr-claim-run">
+  <pre class="spr-claim-command"><code><%= command %></code></pre>
+    <%~ include('@copy', { text: command, label: 'Copy command', copyIcon: it.copyIcon, copiedIcon: it.copiedIcon }) %>
+</div>
+
+<p class="spr-copy-status" role="status" data-spr-copy-status></p>
+
+<dl class="spr-claim-facts">
+  <dt>Code</dt>
+  <dd>
+    <code><%= it.code %></code>
+    <%~ include('@copy', { text: it.code, label: 'Copy code', copyIcon: it.copyIcon, copiedIcon: it.copiedIcon }) %>
+  </dd>
+  <dt>Requested</dt>
+  <dd><%= it.age %></dd>
+</dl>
+
+<p>
+  You'll be signed in automatically once the command has run. If nothing happens,
+  <a href="/" data-spr-setup-refresh>refresh the page</a>.
+</p>

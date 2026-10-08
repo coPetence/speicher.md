@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speicher.md/schema/frontmatter.json",
+  "title": "Speicher page frontmatter",
+  "description": "YAML frontmatter in a content file. Stripped before rendering, never emitted as content. Parsed with YAML 1.2 core schema. Frontmatter NEVER affects access \u2014 an `access` key is rejected, not warned.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Overrides the H1, then the de-slugged filename."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Search snippet fallback and meta description. Indexed."
+    },
+    "icon": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64,
+      "description": "Name of a Lucide icon (https://lucide.dev/icons), kebab-case, e.g. \"book-open\". Shown beside the page in navigation and folder listings. Validated against the bundled icon set at ingest: an unknown name warns and is dropped rather than failing the sync, since an icon is cosmetic. The name selects from icons Speicher ships \u2014 no SVG from the repository is ever rendered.",
+      "examples": ["book-open", "shield-check", "circle-alert"]
+    },
+    "redirect_from": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^/"
+      },
+      "description": "Former paths that should redirect here. Must be within the same repo, must not collide with a live path, and lose to a live slug exactly as retired slug-history redirects do."
+    },
+    "draft": {
+      "type": "boolean",
+      "default": false,
+      "description": "true excludes the file from ingest entirely."
+    },
+    "indexable": {
+      "type": "boolean",
+      "description": "Narrowing only: true -> false is honoured, false -> true is ignored."
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 48
+      },
+      "description": "Free-form tags relating this page to others. Case-folded for matching, shown as written. They have no effect on access whatsoever: a tag is only ever visible through a page the reader can already read, and a listing of a tag contains only such pages. Tagging a page does not widen it, and cannot — the cascade is the only thing that decides who may read anything."
+    },
+    "sidebar_position": {
+      "type": "number",
+      "description": "Docusaurus's sidebar ordering key, read for import compatibility only. Speicher's own ordering mechanism is the numeric filename prefix; this key is consulted per folder, and only where no sibling in that folder carries a prefix. `sidebar.order` is the Starlight spelling of the same thing."
+    },
+    "sidebar": {
+      "type": "object",
+      "description": "Starlight's sidebar block. Only `order` is read, on the same terms as `sidebar_position`. The rest of the block belongs to Starlight and is left alone rather than warned about \u2014 Speicher does not own this key.",
+      "properties": {
+        "order": {
+          "type": "number",
+          "description": "Starlight's sibling ordering key. Read exactly as `sidebar_position` is."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": ["access"]
+      },
+      {
+        "required": ["maintainers"]
+      },
+      {
+        "required": ["groups"]
+      },
+      {
+        "required": ["users"]
+      }
+    ]
+  },
+  "$comment": "Access keys are rejected rather than ignored. Per-file grants were cut in favour of directory granularity; permitting them here would reintroduce them and add a fourth cascade level with different semantics."
+}

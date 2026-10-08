@@ -1,0 +1,520 @@
+
+<% if (it.crumbs && it.crumbs.length > 1) { %>
+<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<% } %>
+
+<%~ it.marks_sprite || '' %>
+
+<div class="spr-page-head">
+  <% if (it.section && it.section.mark) { %>
+  <h1 class="spr-titled"><svg class="spr-icon" aria-hidden="true"><use href="#m-<%= it.section.mark %>"></use></svg><%= it.section_title %></h1>
+ <% } else if (it.head_icon) { %>
+  <h1 class="spr-titled"><%~ it.head_icon %><%= it.section_title %></h1>
+  <% } else { %>
+  <h1><%= it.section_title %></h1>
+  <% } %>
+
+  <% if (it.editable && it.section && it.section.renameOp && !it.creating) { %>
+  <details class="spr-modal spr-rename">
+    <summary aria-label="Rename <%= it.section_title %>"><%~ it.pencil_icon || 'Rename' %></summary>
+    <div class="spr-modal-panel">
+      <% const renameId = 'rename-' + it.section_id.replace(/[^a-z0-9]+/gi, '-'); %>
+      <h2 class="spr-modal-title">Rename <%= it.section_title %></h2>
+      <label for="<%= renameId %>">New short id</label>
+      <input id="<%= renameId %>" name="rename" form="config-form" type="text"
+             value="<%= it.section_title %>" pattern="<%= it.section.renamePattern %>" title="<%= it.section.renameHint %>"
+             spellcheck="false" autocomplete="off" data-spr-transient>
+      <p class="spr-note spr-note-warn">
+        <%~ it.warn_icon || '' %>Renaming will enqueue a full rebuild
+      </p>
+      <% if (it.usage && it.usage.length > 0) { %>
+      <div class="spr-note spr-note-warn">
+        <p>
+          <%~ it.warn_icon || '' %>
+          <% if (it.section.noun === 'group') { %>
+          Renaming will break <%= it.section.noun %> references in <code>.speicher.yaml</code> files across these repositories:
+          <% } else { %>
+          Renaming will break <%= it.section.noun || 'entry' %> references in <code>.speicher.yaml</code> files across these repositories:
+          <% } %>
+        </p>
+        <ul class="spr-problems">
+          <% it.usage.forEach(function (repo) { %>
+          <li><code><%= repo.namespace %>/<%= repo.slug %></code> (<%= repo.pages %>
+            page<%= repo.pages === 1 ? '' : 's' %>)</li>
+          <% }) %>
+        </ul>
+      </div>
+      <% } else { %>
+      <p class="spr-note spr-note-ok">
+        <%~ it.ok_icon || '' %>No <code>.speicher.yaml</code> references this <%= it.section.noun || 'entry' %>. You do not need to manually update it anywhere
+      </p>
+      <% } %>
+      <div class="spr-modal-actions">
+        <button type="submit" name="op" value="<%= it.section.renameOp %>" form="config-form">Rename</button>
+      </div>
+    </div>
+  </details>
+  <% } %>
+</div>
+<% if (it.section && it.section.blurb) { %>
+<p class="spr-section-blurb"><%~ it.section.blurbHtml %></p>
+<% } %>
+
+<% if (it.unreadable) { %>
+<p class="spr-note spr-note-fail">
+  The configuration file cannot be read: <%= it.unreadable %>. This instance is
+  running what it loaded at startup.
+</p>
+<% } %>
+
+<% if (it.unparseable) { %>
+<p class="spr-note spr-note-fail">
+  The stored configuration does not parse, so there is nothing to show a form for:
+  <%= it.unparseable %>
+</p>
+<% } %>
+
+<% if (!it.editable) { %>
+<p class="spr-note spr-note-idle">
+  This instance takes its configuration from <code><%= it.config_path || 'inline' %></code>,
+  which is authoritative. The settings below are shown as they are and cannot be
+  changed from here.
+</p>
+<% } %>
+
+<% if (it.saved) { %>
+<div class="spr-toast spr-note-ok">
+  <p class="spr-toast-text" role="status">Saved.</p>
+  <input class="spr-toast-dismiss" type="checkbox" aria-label="Dismiss">
+</div>
+<% } %>
+
+<% if (it.running_version !== null && it.editing_version !== null && it.running_version !== it.editing_version) { %>
+<% if (it.skipped.length > 0) { %>
+<p class="spr-note spr-note-fail">
+  Editing version <%= it.editing_version %>, the newest saved. This instance is
+  running version <%= it.running_version %>, because the newer one does not load.
+</p>
+<% it.skipped.forEach(function (skip) { %>
+<p class="spr-note spr-note-fail">Version <%= skip.version %>: <%= skip.problems.join('; ') %></p>
+<% }) %>
+<% } else if (it.waiting_on.length > 0) { %>
+<p class="spr-note spr-note-warn">
+  Version <%= it.editing_version %> is saved and waits for a restart. This instance
+  is running version <%= it.running_version %>, because
+  <% it.waiting_on.forEach(function (key, i) { %><%= i > 0 ? ', ' : '' %><code><%= key %></code><% }) %>
+  <%= it.waiting_on.length === 1 ? 'builds' : 'build' %> objects that only exist at
+  startup. Every other change in that version waits with
+  <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
+</p>
+<% it.waiting_consequences_html.forEach(function (line) { %>
+<p class="spr-note spr-note-warn"><%~ line %></p>
+<% }) %>
+<% } else { %>
+<p class="spr-note spr-note-idle">
+  Version <%= it.editing_version %> is saved but not yet in force here: this
+  instance is running version <%= it.running_version %> and has not picked the
+  newer one up yet.
+</p>
+<% } %>
+<% } %>
+
+<% if (it.error) { %>
+<p class="spr-note spr-note-fail"><%= it.error %></p>
+<% if (it.problems.length > 0) { %>
+<% const shown = it.problems_html || it.problems; %>
+<%~ include('@problems', { problems: shown, html: true }) %>
+<% } %>
+<% } %>
+
+<% if (it.verdict) { %>
+<section class="spr-verdict">
+  <h2>What this change does</h2>
+  <% if (it.verdict.effect === 'none') { %>
+  <p class="spr-note spr-note-idle">
+    Nothing differs from the version in force. Saving would append a version that
+    changes nothing.
+  </p>
+  <% } else { %>
+    <% if (it.verdict.hotReloadAvailable && !it.verdict.changed.some(function (c) { return c.requiresRestart })) { %>
+    <p class="spr-note spr-note-ok">
+      Applies to the next request. No restart needed.
+    </p>
+    <% } else { %>
+    <p class="spr-note spr-note-warn">
+      Takes effect when the instance restarts, because
+      <% if (!it.verdict.hotReloadAvailable) { %>
+      this instance does not reload its configuration while running.
+      <% } else { %>
+      <% it.verdict.changed.filter(function (c) { return c.requiresRestart }).forEach(function (c, i) { %>
+      <%= i > 0 ? ', ' : '' %><code><%= c.key %></code>
+      <% }) %>
+      builds objects that only exist at startup. Everything else in this change
+      waits with it — half of one version beside half of another is a combination
+      nothing has validated.
+      <% } %>
+    </p>
+    <% } %>
+
+    <% if (it.verdict.rebuild) { %>
+    <p class="spr-note spr-note-warn">
+      This changes how access resolves, so saving enqueues a <strong>full rebuild</strong>
+      of every repository. The rebuild runs in the background: until it finishes,
+      readers see pages materialised under the old rules.
+    </p>
+    <% } %>
+
+    <div class="spr-scroll">
+      <table class="spr-table">
+        <thead>
+          <tr>
+            <th scope="col">Setting</th>
+            <th scope="col">Applies</th>
+            <th scope="col">Rebuild</th>
+            <th scope="col">Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% it.verdict.changed.forEach(function (change) { %>
+          <tr>
+            <th scope="row"><code><%= change.key %></code></th>
+            <td>
+              <%~ include('@badge', { level: change.requiresRestart ? 'warn' : 'ok', label: change.requiresRestart ? 'on restart' : 'per request' }) %>
+            </td>
+            <td>
+              <%~ include('@badge', { level: change.affectsResolution ? 'warn' : 'ok', label: change.affectsResolution ? 'resolution' : 'no' }) %>
+            </td>
+            <td><%= change.note %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+<% } %>
+
+<% if (it.section) { %>
+<%
+  const addOp = it.editable
+    ? it.section.addOps.filter(function (a) {
+        return a.opensPage && (!a.nameOptions || a.nameOptions.length > 0);
+      })[0]
+    : undefined;
+%>
+<% const pageAdd = addOp; %>
+<%
+  const barRenders = it.section.layout === 'table' && (it.section.searchable || pageAdd);
+%>
+<% if (barRenders) { %>
+<div class="spr-index-bar">
+  <% if (it.section.searchable) { %>
+  <form class="spr-form spr-filter" method="get" role="search"
+        action="/-/config/<%= it.section_id %>" data-spr-filter>
+    <span class="spr-input-icon">
+      <%~ it.search_icon || '' %>
+      <input id="filter-<%= it.section_id %>" type="search" name="q" value="<%= it.query %>"
+             aria-label="Find <%= (it.section.entryNoun || 'entry') %>s"
+             placeholder="<%= it.section.searchPlaceholder || 'Name' %>"
+             autocomplete="off" spellcheck="false">
+    </span>
+    <button type="submit" class="spr-filter-go">Filter</button>
+  </form>
+  <% } %>
+
+  <% if (pageAdd && pageAdd.href) { %>
+  <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
+    <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
+  </a>
+  <% } else if (pageAdd) { %>
+  <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
+    <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
+    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
+  </details>
+  <% } %>
+</div>
+<% } %>
+
+<% if (pageAdd && !pageAdd.href) { %>
+<form id="add-member" method="get" action="/-/config/<%= it.section_id %>"></form>
+<% } %>
+
+<form class="spr-config" id="config-form" method="post" enctype="multipart/form-data"
+      action="/-/config/<%= it.section_id %><%= it.creating_kind ? '?kind=' + it.creating_kind : '' %>"
+      data-spr-config="<%= it.section_id %>" <%= it.pending ? 'data-spr-pending' : '' %>
+      <%= it.holds_work ? 'data-spr-holds-work' : '' %>>
+
+<% if (it.editable) { it.shape.forEach(function (control) { %>
+<input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
+<% }) } %>
+
+<% const fieldPage = { optionMarks: it.option_marks, servedLogo: it.served_logo, badgeIcons: it.badge_icons } %>
+
+<% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
+<div class="spr-table-head">
+  <% if (table.title) { %><h2 class="spr-table-title"><%= table.title %></h2><% } %>
+  <% if (it.editable && table.entries.some(function (e) { return e.removeOp })) { %>
+  <button type="submit" name="op" value="<%= table.bulkRemoveOp %>" class="spr-remove">
+    <%~ it.remove_icon || '' %>Remove selected
+  </button>
+  <% } %>
+</div>
+<% if (table.entries.length > 0) { %>
+  <table class="spr-table spr-rows" data-spr-grow="<%= table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1) %>"
+         data-spr-kind="<%= table.kind %>">
+    <thead>
+      <tr>
+        <th scope="col" class="spr-select-col"><span class="spr-clipped">Select</span></th>
+        <% table.columns.forEach(function (col) { %>
+        <th scope="col"><%= col.label %><% if (col.help) { %><%~ include('@info', { field: { path: it.section_id + '-' + col.label, label: col.label, helpHtml: col.helpHtml } }) %><% } %></th>
+        <% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% table.entries.forEach(function (entry) { %>
+      <% const shown = entry.fields.filter(function (f) { return !f.inapplicable });
+         const cleared = entry.fields.filter(function (f) { return f.inapplicable }); %>
+      <tr data-spr-position="<%= entry.position %>"<%= entry.removeOp ? '' : ' data-spr-trailing' %>>
+        <td class="spr-select-col">
+          <% if (entry.removeOp && it.editable) { %>
+          <input type="checkbox" name="select" value="<%= entry.removeOp %>"
+                 aria-label="Select <%= entry.search || 'this row' %>" data-spr-transient>
+          <% } 
+          cleared.forEach(function (f) { %>
+          <input type="hidden" name="<%= f.path %>" value="">
+          <% }) %>
+          <% entry.carried.forEach(function (f) { %>
+          <input type="hidden" name="<%= f.path %>" value="<%= f.value %>">
+          <% }) %>
+        </td>
+        <% shown.forEach(function (f) { %>
+        <td>
+          <input id="f-<%= f.path %>" name="<%= f.path %>" type="text" value="<%= f.value %>"
+                 aria-label="<%= f.label %>"
+                 <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
+                 <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+                 spellcheck="false" autocomplete="off" <%= it.editable ? '' : 'disabled' %>>
+          <% if (f.linkHtml) { %><p class="spr-help"><%~ f.linkHtml %></p><% } %>
+        </td>
+        <% }) %>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } else { %>
+<p class="spr-note spr-note-idle"><%= table.emptyNote %></p>
+<% } %>
+<% }) } else if (it.section.layout === 'table') { %>
+<div class="spr-scroll"<%= it.empty_art && it.section.entries.length === 0 ? ' hidden' : '' %>>
+  <table class="spr-table spr-entries">
+    <thead>
+      <tr>
+        <% it.section.columns.forEach(function (column) { %>
+        <th scope="col"><%= column %></th>
+        <% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.section.entries.forEach(function (entry) { %>
+      <tr data-spr-row="<%= entry.search %>">
+        <th scope="row">
+          <% entry.carried.forEach(function (f) { %>
+          <input type="hidden" name="<%= f.path %>" value="<%= f.value %>">
+          <% }) %>
+          <span class="spr-entry-name">
+            <% if (entry.mark) { %>
+            <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= entry.mark %>"></use></svg>
+            <% } %>
+            <% if (entry.href) { %>
+            <a href="<%= entry.href %>"><%= entry.title %></a>
+            <% } else { %>
+            <span><%= entry.title %></span>
+            <% } %>
+            <%~ include('@tile-badges', { badges: entry.badges, badgeIcons: it.badge_icons }) %>
+          </span>
+          <% if (entry.subtitle) { %>
+          <span class="spr-entry-sub"><%= entry.subtitle %></span>
+          <% } %>
+        </th>
+        <td>
+          <% if (entry.lines.length > 0) { %>
+          <ul class="spr-lines">
+            <% entry.lines.forEach(function (line) { %>
+            <li>
+              <% if (line.mark) { %>
+              <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= line.mark %>"></use></svg>
+              <% } %>
+              <% if (line.label) { %><span class="spr-line-label"><%= line.label %></span><% } %>
+              <code><%= line.value %></code>
+            </li>
+            <% }) %>
+          </ul>
+          <% } else { %>
+          <small>No <%= (it.section.columns[1] || 'entries').toLowerCase() %></small>
+          <% } %>
+        </td>
+        <% entry.cells.forEach(function (cell) { %>
+        <td class="spr-cell-quiet"><%= cell %></td>
+        <% }) %>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% if (it.empty_art) { %>
+<div class="spr-empty-state" data-spr-empty="none"
+   <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
+  <%~ it.empty_art %>
+  <p class="spr-empty">No <%= (it.section.entryNoun || 'entry') %>s here yet.</p>
+</div>
+<% } else { %>
+<p class="spr-note spr-note-idle" data-spr-empty="none"
+   <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
+  No <%= (it.section.entryNoun || 'entry') %>s here yet.
+</p>
+<% } %>
+<% function renderNoMatch() { %>
+  Nothing here matches <code data-spr-needle><%= it.query %></code>.
+  <a href="/-/config/<%= it.section_id %>">Show all</a>
+<% } %>
+<% if (it.section.searchable) { %>
+<% if (it.empty_art) { %>
+<div class="spr-empty-state" data-spr-empty="filtered"
+   <%= it.section.entries.length > 0 || !it.query ? 'hidden' : '' %>>
+  <%~ it.empty_art %>
+  <p class="spr-empty"><% renderNoMatch() %></p>
+</div>
+<% } else { %>
+<p class="spr-note spr-note-idle" data-spr-empty="filtered"
+   <%= it.section.entries.length > 0 || !it.query ? 'hidden' : '' %>>
+  <% renderNoMatch() %>
+</p>
+<% } %>
+<% } %>
+<% } else if (it.section.entries.length > 0 || pageAdd) { %>
+<div class="spr-tiles<%= it.section.entriesArePages ? ' spr-tiles-stacked' : '' %>">
+  <% it.section.entries.forEach(function (entry) { %>
+  <section class="spr-tile<%= it.section.entriesArePages ? ' spr-tile-page' : '' %>">
+    <div class="spr-tile-head">
+      <% if (entry.mark) { %>
+      <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= entry.mark %>"></use></svg>
+      <% } else if (entry.icon && (it.tile_icons || {})[entry.icon]) { %>
+      <%~ it.tile_icons[entry.icon] %>
+      <% } %>
+      <div>
+        <h4>
+          <a href="<%= entry.href %>"><%= entry.title %></a>
+          <%~ include('@tile-badges', { badges: entry.badges, badgeIcons: it.badge_icons }) %>
+        </h4>
+        <% if (entry.subtitleHtml) { %>
+        <p class="spr-card-sub"><%~ entry.subtitleHtml %></p>
+        <% } else { %>
+        <p class="spr-card-sub"><%= entry.subtitle %></p>
+        <% } %>
+      </div>
+    </div>
+  </section>
+  <% }) %>
+
+  <% if (pageAdd) { %>
+  <section class="spr-tile spr-tile-add">
+    <details class="spr-modal"<%= it.openKind ? ' open' : '' %>>
+      <summary aria-label="<%= pageAdd.label %>"><%~ it.add_icon || '+' %></summary>
+      <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
+    </details>
+  </section>
+  <% } %>
+</div>
+<% if (it.empty_art) { %>
+<div class="spr-empty-state"<%= it.section.entries.length > 0 ? ' hidden' : '' %>>
+  <%~ it.empty_art %>
+  <p class="spr-empty">No <%= (it.section.entryNoun || 'entry') %>s here yet.</p>
+</div>
+<% } %>
+<% } %>
+
+<%
+  const ordinary = it.section.fields.filter(function (f) { return !f.advanced });
+  const advanced = it.section.fields.filter(function (f) { return f.advanced });
+  const paired = ordinary.filter(function (f) { return f.kind !== 'template' });
+  const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
+%>
+<% const showsId = it.editable && it.creating && it.section.renameOp %>
+<% if (showsId || paired.length > 0) { %>
+<div class="spr-fields">
+  <% if (showsId) { %>
+  <div class="spr-field spr-field-text">
+    <div class="spr-field-head">
+      <label for="f-member-id">Short id</label>
+      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', helpHtml: it.member_id_help_html } }) %>
+    </div>
+    <input
+      id="f-member-id"
+      name="newname:<%= it.section_id %>"
+      type="text"
+      value="<%= it.section_title %>"
+      pattern="<%= it.section.renamePattern %>"
+      title="<%= it.section.renameHint %>"
+      spellcheck="false"
+      autocomplete="off"
+      required
+    >
+  </div>
+  <% } %>
+  <% paired.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
+<% if (gallery.length > 0) { %>
+<div class="spr-fields spr-fields-wide">
+  <% gallery.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
+<% it.section.cards.forEach(function (card) { %><%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon }) %><% }) %>
+
+<% if (it.editable) { it.section.addOps.filter(function (a) { return !a.opensPage }).forEach(function (add) { %><%~ include('@add', { add: add }) %><% }) } %>
+
+<% if (advanced.length > 0) { %>
+<details class="spr-advanced" <%= it.error ? 'open' : '' %>>
+  <summary>Advanced settings</summary>
+  <div class="spr-fields">
+    <% advanced.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+  </div>
+</details>
+<% } %>
+
+<% if (it.section.status) { %>
+<p class="spr-note spr-note-<%= it.section.status.level %> spr-section-status">
+  <%~ (it.badge_icons || {})[it.section.status.icon] || '' %><%= it.section.status.label %><% if (it.section.status.detail) { %>: <%= it.section.status.detail %><% } %>
+</p>
+<% } else if (it.section.checkHref) { %>
+<p class="spr-note spr-note-idle spr-section-status" data-spr-check="<%= it.section.checkHref %>">
+  <span data-spr-check-mark="ok" hidden><%~ (it.badge_icons || {})['check'] || '' %></span>
+  <span data-spr-check-mark="fail" hidden><%~ (it.badge_icons || {})['circle-alert'] || '' %></span>
+  <span data-spr-check-text><a href="<%= it.section.checkHref %>">Check the connection</a></span>
+</p>
+<% } %>
+
+<% if (it.editable && it.section && it.section.resetOp) { %>
+<div class="spr-danger">
+  <button type="submit" name="op" value="<%= it.section.resetOp %>" class="spr-remove"><%~ it.reset_icon || '' %>Reset to default</button>
+  <p class="spr-help">Clears everything set on this page, so the template&rsquo;s own answers stand again. Nothing is stored until you save.</p>
+</div>
+<% } %>
+
+<% if (it.editable && it.section.removeOp && it.section.parent && !it.creating) { %>
+<div class="spr-danger">
+  <button type="submit" name="op" value="<%= it.section.removeOp %>" class="spr-remove"
+          formaction="/-/config/<%= it.section.parent %>"><%~ it.remove_icon || '' %>Remove this <%= it.section.noun || 'entry' %></button>
+</div>
+<% } %>
+
+<% if (it.editable) { %>
+<div class="spr-config-actions">
+  <button type="submit" name="intent" value="check" class="spr-config-check">Check changes</button>
+  <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+</div>
+<% } %>
+</form>
+
+<% } %>
+

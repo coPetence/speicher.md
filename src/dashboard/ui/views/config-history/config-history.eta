@@ -1,0 +1,116 @@
+
+
+<%~ include('@crumbs', { crumbs: [{ href: '/-/config', title: 'Configuration' }, { title: 'Configuration history' }] }) %>
+
+<h1>Configuration history</h1>
+
+<% if (it.restored) { %>
+<p class="spr-note spr-note-ok">
+  Version <%= it.restored %> restored as a new version. Nothing was removed — the
+  history still holds every version it did.
+</p>
+<% } %>
+
+<% if (it.error) { %>
+<p class="spr-note spr-note-fail"><%= it.error %></p>
+<% if (it.problems.length > 0) { %>
+
+<%~ include('@problems', { problems: it.problems }) %>
+<% } %>
+<% } %>
+
+<% if (it.versions.length === 0) { %>
+<p class="spr-empty">No versions are stored. The file is authoritative on this instance.</p>
+<% } else { %>
+<div class="spr-history">
+  <nav class="spr-versions" aria-label="Versions">
+    <h2>Versions</h2>
+    <ol>
+      <% it.versions.forEach(function (v) { %>
+      <li>
+        
+        <a href="/-/config/history?to=<%= v.version %>"<% if (v.version === it.to) { %> aria-current="true"<% } %>>
+          
+          <span class="spr-version-name">
+            #<%= v.version %>
+            <time class="spr-version-meta" datetime="<%= v.applied_at %>" title="<%= String(v.applied_at).slice(0, 19).replace('T', ' ') %>"><%= v.applied_ago %></time>
+            <% if (v.running) { %><%~ include('@badge', { level: 'ok', label: 'running' }) %><% } %>
+          </span>
+          <span class="spr-version-meta">
+            
+            <%= v.applied_by
+                  || (v.origin === 'file' ? 'adopted from the file' : '')
+                  || (v.origin === 'setup' ? 'written during first-run setup' : '—') %>
+          </span>
+        </a>
+      </li>
+      <% }) %>
+    </ol>
+  </nav>
+
+  <div class="spr-history-diff">
+    
+    <div class="spr-history-bar">
+    <form class="spr-form" method="get" action="/-/config/history" data-spr-compare>
+      <label for="diff-from">Compare</label>
+      <%~ include('@select', {
+        attributes: { id: 'diff-from', name: 'from' },
+        options: it.versions.map(function (v) {
+          return { value: v.version, label: 'Version ' + v.version, selected: v.version === it.from };
+        }),
+      }) %>
+      <label for="diff-to">with</label>
+      <%~ include('@select', {
+        attributes: { id: 'diff-to', name: 'to' },
+        options: it.versions.map(function (v) {
+          return { value: v.version, label: 'Version ' + v.version, selected: v.version === it.to };
+        }),
+      }) %>
+      <button type="submit">Show the difference</button>
+    </form>
+    
+    <% var selected = it.versions.find(function (v) { return v.version === it.to; }); %>
+    <% if (it.editable && selected && !selected.running) { %>
+    <form method="post" action="/-/config/restore" class="spr-form spr-history-restore">
+      <input type="hidden" name="version" value="<%= it.to %>">
+      <button type="submit"><%~ it.restore_icon || '' %>Restore version <%= it.to %></button>
+    </form>
+    <% } %>
+    </div>
+
+    <% if (it.diff) { %>
+    <% if (it.diff.hiddenChanges.length > 0) { %>
+    
+    <p class="spr-note spr-note-warn">
+      A stored value changed that is not shown:
+      <% it.diff.hiddenChanges.forEach(function (path, i) { %><%= i > 0 ? ', ' : '' %><code><%= path %></code><% }) %>.
+    </p>
+    <% } %>
+
+    <% if (it.diff.identical) { %>
+    <p class="spr-note spr-note-idle">These two versions are identical.</p>
+    <% } else { %>
+    <div class="spr-scroll">
+      <table class="spr-diff">
+        <tbody>
+          <% it.diff.lines.forEach(function (line) { %>
+          <tr class="spr-diff-<%= line.kind %>">
+            <% if (line.kind === 'gap') { %>
+            <td class="spr-diff-num" colspan="2">…</td>
+            <td class="spr-diff-text"><%= line.text %></td>
+            <% } else { %>
+            <td class="spr-diff-num"><%= line.oldNumber === null ? '' : line.oldNumber %></td>
+            <td class="spr-diff-num"><%= line.newNumber === null ? '' : line.newNumber %></td>
+            
+            <td class="spr-diff-text"><%= line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' ' %> <%= line.text %></td>
+            <% } %>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+    <% } %>
+  </div>
+</div>
+<% } %>

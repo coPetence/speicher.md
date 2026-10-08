@@ -1,0 +1,40 @@
+---
+title: REST API
+description: The HTTP API underneath the SDKs.
+template: doc
+sidebar:
+  order: 2
+---
+
+The SDKs are thin wrappers over a JSON API at `https://api.fieldkit.example/v1`. Use it directly from any language.
+
+## Authentication
+
+Send the API key as a bearer token:
+
+```bash
+curl -H "Authorization: Bearer fk_live_..." https://api.fieldkit.example/v1/devices
+```
+
+## Endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/v1/devices` | List devices |
+| `POST` | `/v1/devices` | Register a device |
+| `GET` | `/v1/devices/{id}` | Get a device |
+| `PATCH` | `/v1/devices/{id}` | Update a device |
+| `POST` | `/v1/devices/{id}/lock` | Lock a device |
+| `POST` | `/v1/devices/{id}/retire` | Retire a device |
+| `GET` | `/v1/surveys` | List surveys |
+| `POST` | `/v1/surveys` | Create a survey |
+| `GET` | `/v1/surveys/{id}/submissions` | List submissions |
+| `POST` | `/v1/exports` | Start an export |
+
+## Pagination
+
+List endpoints return `next_cursor`. Pass it back as `?cursor=` until it is `null`.
+
+## Errors
+
+Errors are JSON with `error.code` and `error.message`. Validation errors add `error.fields`.

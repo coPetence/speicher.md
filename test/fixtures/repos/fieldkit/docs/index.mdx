@@ -1,0 +1,94 @@
+---
+title: Fieldkit Documentation
+description: Collect, sync and export field data from every device your team carries.
+template: doc
+head:
+  - tag: title
+    content: Documentation · Fieldkit
+  - tag: meta
+    attrs:
+        property: og:title
+        content: Documentation · Fieldkit
+tableOfContents: false
+---
+
+import { Tabs, TabItem, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import ExploreMore from '@components/ExploreMore.astro';
+
+Fieldkit gives survey teams one place to design forms, push them to devices, and get the answers back — including from places with no signal.
+The Fieldkit SDKs provide official Python and TypeScript interfaces for everything the dashboard does.
+
+### Quick Start
+
+Collect your first submission in five minutes. If you work with an AI assistant, our [LLM context files](/docs/getting-started#context-files-for-ai-assistants) help it write Fieldkit code.
+
+#### 1. Get Your API Key
+
+- Open the Fieldkit [Dashboard](https://app.fieldkit.example/dashboard).
+- Create a new [API key](https://app.fieldkit.example/dashboard/keys). Copy it straight away,
+it won't be shown again.
+
+#### 2. Install the SDK
+
+<Tabs syncKey="language">
+  <TabItem label="Python" icon="seti:python">
+  ```bash
+  pip install fieldkit
+  ```
+  </TabItem>
+  <TabItem label="TypeScript" icon="seti:typescript">
+  ```bash
+  npm install @fieldkit/sdk
+  ```
+  </TabItem>
+</Tabs>
+
+#### 3. Register a device and send a submission
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+from fieldkit import Fieldkit, FieldkitConfig
+
+fk = Fieldkit(FieldkitConfig(api_key="YOUR_API_KEY"))
+
+device = fk.devices.register(name="tablet-07")
+survey = fk.surveys.get("water-quality-2025")
+
+submission = device.submit(survey.id, {"site": "W-114", "ph": 7.2})
+print(submission.id)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+import { Fieldkit } from '@fieldkit/sdk'
+
+const fk = new Fieldkit({ apiKey: 'YOUR_API_KEY' })
+
+const device = await fk.devices.register({ name: 'tablet-07' })
+const survey = await fk.surveys.get('water-quality-2025')
+
+const submission = await device.submit(survey.id, { site: 'W-114', ph: 7.2 })
+console.log(submission.id)
+```
+</TabItem>
+</Tabs>
+
+:::tip
+Fieldkit also runs without the SDK. Every operation in this documentation is available from the [CLI](/docs/tools/cli) and the [REST API](/docs/tools/api).
+:::
+
+### Explore the docs
+
+<CardGrid>
+	<LinkCard
+		title="Surveys"
+		href="/docs/surveys/"
+		description="Question types, versions and conditional logic."
+	/>
+	<LinkCard title="Offline Sync" href="/docs/offline-sync/" description="What a device does without a connection." />
+	<LinkCard title="Python SDK" href="/docs/python-sdk/" />
+	<LinkCard title="TypeScript SDK" href="/docs/typescript-sdk/" />
+</CardGrid>
+
+<ExploreMore />

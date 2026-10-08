@@ -1,0 +1,80 @@
+<!doctype html>
+
+<html lang="<%= it.lang || 'en' %>"<% if (it.countable) { %> data-spr-count<% } %>>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= it.title %></title>
+    <% if (it.description) { %>
+    <meta name="description" content="<%= it.description %>" />
+    <% } %>
+    
+    <% if (!it.crawlable) { %>
+    <meta name="robots" content="noindex, nofollow" />
+    <% } %>
+    
+    <% if (it.stylesheet) { %>
+    <link rel="stylesheet" href="<%= it.stylesheet %>" />
+    <% } %>
+    
+    <% if (it.extraStylesheet) { %>
+    <link rel="stylesheet" href="<%= it.extraStylesheet %>" />
+    <% } %>
+    <% if (it.themeTokens) { %>
+    
+    <style nonce="<%= it.nonce %>"><%~ it.themeTokens %></style>
+    <% } %>
+  </head>
+  <body>
+    <%~ it.sprite || '' %>
+    
+    <div class="spr-layout"<%~ it.nav && it.nav.length ? ' data-tree' : '' %><% if (it.tree) { %> data-spr-tree="<%= it.tree %>"<% } %><%~ it.article ? ' data-article' : '' %><%~ it.docked ? ' data-docked' : '' %>>
+      <header class="spr-header">
+        
+        <a class="spr-brand" href="/">
+          <% if (it.brandLogo) { %>
+          <img src="<%= it.brandLogo %>" alt="<%= it.brandNameShown ? '' : it.brand %>" />
+          <% } else { %>
+          <%~ it.brandMark || '' %>
+          <% } %>
+          <% if (it.brandNameShown) { %>
+          <span><%= it.brand %></span>
+          <% } %>
+        </a>
+        <% if (!it.docked) { %><%~ include('@toolbar', it) %><% } %>
+        
+        <details class="spr-menu">
+          <summary aria-label="Menu">
+            <svg class="spr-icon spr-menu-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            <svg class="spr-icon spr-menu-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </summary>
+        </details>
+      </header>
+      <% if (it.nav && it.nav.length) { %>
+      <nav class="spr-nav" aria-label="Contents"><%~ it.nav %></nav>
+      <% } %>
+      
+      <% if (it.account) { %>
+      <div class="spr-menu-account"><%~ include('@account-items', { ...it, appearanceId: 'spr-appearance-menu' }) %></div>
+      <% } else if (it.signInHref) { %>
+      <div class="spr-menu-account"><a class="spr-signin" href="<%= it.signInHref %>" data-spr-signin data-spr-load="full">Sign in</a></div>
+      <% } %>
+      <div class="spr-pane">
+        
+        <% if (it.docked) { %><%~ include('@toolbar', it) %><% } %>
+        <main class="spr-main"><%~ it.body %></main>
+      </div>
+    </div>
+    
+    <% if (it.attribution) { %>
+    <footer class="spr-attribution">
+      Published with
+      <a href="https://speicher.md" target="_blank" rel="noopener noreferrer nofollow">speicher.md</a>
+    </footer>
+    <% } %>
+    
+    <% if (it.island) { %>
+    <script type="module" nonce="<%= it.nonce %>" src="<%= it.island %>"></script>
+    <% } %>
+  </body>
+</html>

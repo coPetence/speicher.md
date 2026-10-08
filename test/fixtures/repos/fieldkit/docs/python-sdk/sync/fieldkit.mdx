@@ -1,0 +1,48 @@
+---
+title: "Fieldkit"
+hideTitleOnPage: true
+---
+
+## Fieldkit
+
+```python
+class Fieldkit()
+```
+
+Main class for interacting with the Fieldkit API.
+
+#### Fieldkit.__init__
+
+```python
+def __init__(config: Optional[FieldkitConfig] = None)
+```
+
+Initializes a client, reading anything `config` leaves out from the environment.
+
+**Arguments**:
+
+- `config` _Optional[FieldkitConfig]_ - Configuration. Defaults to the environment.
+
+**Raises**:
+
+- `FieldkitError` - If no API key can be found.
+
+#### Fieldkit.on_token_refresh
+
+```python
+def on_token_refresh(callback: Callable[[], str]) -> None
+```
+
+Registers a callback that returns a fresh API key when the current one expires.
+
+**Arguments**:
+
+- `callback` _Callable[[], str]_ - Called with no arguments; returns the new key.
+
+#### Fieldkit.close
+
+```python
+def close() -> None
+```
+
+Closes the HTTP session. Calling any method afterwards raises.

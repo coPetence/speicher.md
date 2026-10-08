@@ -1,0 +1,14 @@
+
+<ul class="spr-stats">
+  <% it.tiles.forEach(function (tile) { %>
+  <li class="spr-stat spr-stat-<%= tile.level %>">
+    <%~ tile.iconHtml || '' %>
+    <span class="spr-stat-value"><%= tile.value %></span>
+    <% if (tile.href) { %>
+    <a class="spr-stat-label spr-stat-link" href="<%= tile.href %>"><%= tile.label %></a>
+    <% } else { %>
+    <span class="spr-stat-label"><%= tile.label %></span>
+    <% } %>
+  </li>
+  <% }) %>
+</ul>

@@ -1,0 +1,118 @@
+---
+title: "AsyncDevice"
+hideTitleOnPage: true
+---
+
+## AsyncDevice
+
+```python
+class AsyncDevice()
+```
+
+Represents a registered device.
+
+Every method is a coroutine and must be awaited. The client is an async context manager:
+
+```python
+async with AsyncFieldkit() as fk:
+    ...
+```
+
+#### AsyncDevice.refresh
+
+```python
+async def refresh() -> None
+```
+
+Fetches the device's current state from the API.
+
+**Raises**:
+
+- `FieldkitNotFoundError` - If the device was deleted.
+
+#### AsyncDevice.submit
+
+```python
+async def submit(survey_id: str, answers: Dict[str, Any], device_time: Optional[datetime] = None) -> Submission
+```
+
+Submits answers on behalf of the device. Intended for imports and tests; real devices submit from the app.
+
+**Arguments**:
+
+- `survey_id` _str_ - Survey to answer.
+- `answers` _Dict[str, Any]_ - Answers keyed by question id.
+- `device_time` _Optional[datetime]_ - Overrides the submission time.
+
+**Returns**:
+
+- `Submission` - The created submission.
+
+**Raises**:
+
+- `FieldkitValidationError` - If an answer does not match its question.
+
+#### AsyncDevice.update
+
+```python
+async def update(name: Optional[str] = None, labels: Optional[Dict[str, str]] = None) -> None
+```
+
+Renames the device or replaces its labels.
+
+**Arguments**:
+
+- `name` _Optional[str]_ - New name.
+- `labels` _Optional[Dict[str, str]]_ - Replaces every label.
+
+#### AsyncDevice.lock
+
+```python
+async def lock(reason: str) -> None
+```
+
+Locks the device at its next sync.
+
+**Arguments**:
+
+- `reason` _str_ - Shown on the device and recorded in the audit log.
+
+#### AsyncDevice.wipe
+
+```python
+async def wipe(confirm: bool = False) -> None
+```
+
+Erases the device. Irreversible.
+
+**Arguments**:
+
+- `confirm` _bool_ - Must be `True`.
+
+**Raises**:
+
+- `FieldkitError` - If `confirm` is not `True`.
+
+#### AsyncDevice.retire
+
+```python
+async def retire() -> None
+```
+
+Retires the device and frees its plan slot.
+
+#### AsyncDevice.on_sync
+
+```python
+async def on_sync(handler: Callable[[SyncReport], None]) -> Callable[[], None]
+```
+
+Calls `handler` after every sync this device completes. Returns a function that unsubscribes.
+
+**Arguments**:
+
+- `handler` _Callable[[SyncReport], None]_ - Receives the sync report.
+
+**Returns**:
+
+- `Callable[[], None]` - Unsubscribes the handler.

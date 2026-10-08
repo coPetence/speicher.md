@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speicher.md/schema/speicher.json",
+  "title": "Speicher repo / folder config (.speicher.yaml)",
+  "description": "One schema covers both, because both use the same filename and an editor can only bind one schema to it. Root-only keys are optional here and enforced positionally by the pull-request check: `version` and `ingest_root` are rejected in a folder config. ${VAR} interpolation is never permitted in this file. `content_branch` is reserved and rejected in v1 \u2014 branch support is not implemented.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1,
+      "description": "Repo root only. Declares the schema version for the whole tree. In a folder config: ignored if it matches the root, rejected if it differs."
+    },
+    "ingest_root": {
+      "type": "string",
+      "default": "",
+      "description": "Repo root only. Nothing outside this path is ever read. Trailing slash optional. Path traversal (`..`) and symlinks escaping the working tree are rejected by the resolver, not by this pattern.",
+      "pattern": "^[^/].*$|^$"
+    },
+    "access": {
+      "description": "Who may read. Intersected with the parent's resolved set at every level, so it can only narrow. At the repo root there is no parent, so it reads as the grant. A repo-root config with no `access` is rejected \u2014 an omitted grant is almost always a mistake, and \"no config = not synced\" only covers a missing file.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/internalName"
+          },
+          "description": "Shorthand for { groups: [...] }."
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "groups": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/internalName"
+              }
+            },
+            "users": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/userGrant"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "maintainers": {
+      "type": "object",
+      "description": "Repo root only. Scoped operational access to THIS repo: its sync status, its last error, explain for paths inside it. No cross-repo view, no group membership, generic collision errors.",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/internalName"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/userGrant"
+          }
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "cover": {
+          "type": ["string", "null"],
+          "description": "Image path relative to this config's directory. Must resolve inside the repo working tree; no traversal, no symlinks out. SVG rejected. Ingested regardless of sync.include. Served through the authorized route. null = show none."
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "indexable": {
+          "type": "boolean",
+          "description": "Participation in AI retrieval. Monotonic: true -> false is honoured down the tree, false -> true is ignored."
+        }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replaces the inherited value wholesale. Still bounded by ingest_root."
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Appends to inherited exclusions. You can add, never remove. Exclude beats include."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "internalName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,63}$"
+    },
+    "userGrant": {
+      "type": "object",
+      "required": ["until"],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["subject", "note"],
+          "description": "Opaque identity. `note` is mandatory \u2014 a bare identifier is unauditable."
+        },
+        {
+          "required": ["email"]
+        }
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Omittable only when one provider exists or auth.default_provider is set. Resolved at ingest; the stored principal is always qualified."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Value of the provider's subject_claim. Immutable and never reused. For a magic-link provider the subject IS the lowercased email address."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Mutable and reassignable. Resolved to a subject at ingest when the provider has a `directory` block; otherwise stored as user:<provider>:email:<lowercased-address> and matched against the provider's email_claim, so the grant follows the mailbox rather than the person."
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "until": {
+          "type": "string",
+          "format": "date",
+          "description": "Mandatory. Individual grants expire by construction; group membership is cleaned up by the IdP, config entries never are."
+        }
+      }
+    }
+  }
+}

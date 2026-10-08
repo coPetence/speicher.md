@@ -1,0 +1,19 @@
+# A folder narrowed to nobody, holding the repository's cover.
+#
+# `access` intersects, so naming `engineering` under a root that granted
+# `client-northwind` resolves to the empty set — the same arithmetic as
+# `handbook/docs/commercial/legal`, and here it is deliberate for one reason: the
+# cover is an **asset**, and an asset inherits the access of the folder it lives
+# in, not the access of the thing that points at it. So `specs` declares a cover
+# that nobody may fetch.
+#
+# That is the case `listVisibleRepos` joins `assets` for. Without the join the site
+# root would print the path and every reader would get a broken image; with it the
+# repository falls back to its default tile, which is what a repository with no
+# cover at all shows. The two are indistinguishable, deliberately.
+#
+# It is here rather than in `handbook` only because a repository has one
+# `display.cover` and the handbook's is spending it on the other rule — a cover
+# beside the root config, outside `ingest_root`.
+access:
+  groups: [engineering]

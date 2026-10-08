@@ -1,0 +1,55 @@
+<%~ include('@crumbs', { crumbs: [
+  { href: '/-/status', title: 'Sync status' },
+  { href: it.repo_href, title: it.name },
+  { title: it.stamp },
+] }) %>
+
+<h1>Sync run</h1>
+
+<dl class="spr-defs">
+  <dt>Started</dt>
+  <dd><time datetime="<%= it.run.startedAt %>"><%= it.stamp %></time> (<%= it.run.started %>)</dd>
+
+  <dt>State</dt>
+  <dd><%~ include('@badge', { level: it.run.level, label: it.run.status }) %></dd>
+
+  <dt>Trigger</dt>
+  <dd><%= it.run.trigger %></dd>
+
+  <dt>Commit</dt>
+  
+  <dd><% if (it.sha_full) { %><code><%= it.sha_full %></code><% } else { %>—<% } %></dd>
+
+  <dt>Took</dt>
+  <dd><%= it.run.took %></dd>
+
+  <dt>Pages</dt>
+  <dd><%= it.run.documents === null ? '—' : it.run.documents %></dd>
+
+  <dt>Assets</dt>
+  <dd><%= it.run.assets === null ? '—' : it.run.assets %></dd>
+
+  <dt>Dropped grants</dt>
+  <dd><%= it.run.droppedGrants %></dd>
+</dl>
+
+<% if (it.run.failedSubtrees.length) { %>
+
+<p class="spr-note spr-note-fail">
+  Serving the previous version under
+  <% it.run.failedSubtrees.forEach(function (path, i) { %><% if (i) { %>, <% } %><code><%= path || '/' %></code><% }) %>.
+</p>
+<% } %>
+
+<% if (it.show_findings) { %>
+<h2>Findings</h2>
+<% if (it.run.findings.length === 0) { %>
+<p class="spr-empty">This run found nothing to report.</p>
+<% } else { %>
+<%~ include('@findings', {
+  findings: it.run.findings.map(function (finding) {
+    return { level: finding.level, label: finding.severity, iconHtml: finding.iconHtml, source: finding.source, code: finding.code, message: finding.message };
+  }),
+}) %>
+<% } %>
+<% } %>

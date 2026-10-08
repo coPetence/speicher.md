@@ -1,0 +1,33 @@
+
+
+<%~ include('@crumbs', { crumbs: [{ href: '/-/config', title: 'Configuration' }, { title: 'Environment' }] }) %>
+
+<h1>Environment</h1>
+
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Variable</th>
+        <th scope="col">Value</th>
+        <th scope="col">Read by</th>
+        <th scope="col">Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.rows.forEach(function (row) { %>
+      <tr>
+        <th scope="row"><code><%= row.name %></code></th>
+        <td>
+          
+          <%~ include('@badge', { level: row.origin === 'environment' ? 'ok' : 'idle', label: row.origin === 'environment' ? 'set' : 'default' }) %>
+          <% if (row.value !== null) { %><code><%= row.value %></code><% } %>
+        </td>
+        
+        <td><%= row.read_by %></td>
+        <td><%= row.description %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

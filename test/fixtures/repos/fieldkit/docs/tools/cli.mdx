@@ -1,0 +1,89 @@
+---
+title: CLI
+description: Reference for the fieldkit command-line tool.
+sidebar:
+  label: Fieldkit CLI Reference
+  order: 1
+---
+import Aside from "@components/Aside.astro";
+
+The `fieldkit` CLI does everything the SDKs do, from a terminal or a CI job.
+
+```bash
+brew install fieldkit/tap/fieldkit
+```
+
+<Aside type="note">
+The CLI reads the same [configuration file](/docs/configuration#configuration-file) as the Python SDK.
+</Aside>
+
+## fieldkit login
+
+Authenticates the CLI and stores the key in the configuration file.
+
+```shell
+fieldkit login [flags]
+```
+
+__Flags__
+| Long | Short | Description |
+| :--- | :---- | :---------- |
+| `--api-key` |  | Use this key instead of opening a browser |
+| `--profile` | `-p` | Profile to store the key under |
+| `--help` |  | help for fieldkit login |
+
+## fieldkit devices list
+
+Lists devices.
+
+```shell
+fieldkit devices list [flags]
+```
+
+__Flags__
+| Long | Short | Description |
+| :--- | :---- | :---------- |
+| `--label` | `-l` | Filter by label, `key=value`; repeatable |
+| `--state` | `-s` | `pending`, `active`, `asleep` or `retired` |
+| `--format` | `-f` | `table`, `json` or `yaml` |
+| `--help` |  | help for fieldkit devices list |
+
+## fieldkit devices retire
+
+Retires devices.
+
+```shell
+fieldkit devices retire [DEVICE]... [flags]
+```
+
+__Flags__
+| Long | Short | Description |
+| :--- | :---- | :---------- |
+| `--state` |  | Retire every device in this state |
+| `--older-than` |  | With `--state`, only devices in it for longer than this |
+| `--yes` | `-y` | Do not ask for confirmation |
+| `--help` |  | help for fieldkit devices retire |
+
+## fieldkit devices sync
+
+Asks a device to sync now.
+
+```shell
+fieldkit devices sync DEVICE [flags]
+```
+
+## fieldkit exports create
+
+Starts an export.
+
+```shell
+fieldkit exports create SURVEY [flags]
+```
+
+__Flags__
+| Long | Short | Description |
+| :--- | :---- | :---------- |
+| `--format` | `-f` | `csv`, `geojson` or `parquet` |
+| `--since` |  | Only submissions received after this date |
+| `--wait` | `-w` | Wait for the export and download it |
+| `--help` |  | help for fieldkit exports create |

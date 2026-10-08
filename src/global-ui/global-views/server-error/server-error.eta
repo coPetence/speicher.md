@@ -1,0 +1,10 @@
+
+<div class="spr-empty-state spr-empty-state-page">
+  <%~ it.art %>
+  <h1>Something went wrong</h1>
+  <p class="spr-empty">
+    <% if (it.requestId) { %>
+    Request ID: <code><%= it.requestId %></code>
+    <% } %>
+  </p>
+</div>

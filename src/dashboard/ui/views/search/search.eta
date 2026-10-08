@@ -1,0 +1,61 @@
+<h1>Search</h1>
+
+
+
+<% if (!it.query) { %>
+<p class="spr-empty">
+  Everything this instance can be told, and every page that reports on it: the
+  settings sections, the individual controls on them, and the providers, groups and
+  content sources this instance is configured with. Type into the box beside the
+  navigation.
+</p>
+<% } else if (it.hits.length === 0) { %>
+
+<p class="spr-note spr-note-warn">
+  Nothing here matches <code><%= it.query %></code>. Every word has to match
+  something — try one of them on its own.
+</p>
+<% } else { %>
+
+
+<p class="spr-empty">
+  <% if (it.shown < it.total) { %>
+  The first <%= it.shown %> of <%= it.total %> matches for <code><%= it.query %></code>.
+  <% } else { %>
+  <%= it.total %> match<%= it.total === 1 ? '' : 'es' %> for <code><%= it.query %></code>.
+  <% } %>
+</p>
+
+
+<ul class="spr-hits">
+  <% it.hits.forEach(function (hit) { %>
+  <li class="spr-hit">
+    <a href="<%= hit.href %>">
+      
+      <span class="spr-hit-mark"><%~ (it.hit_icons || {})[hit.icon] || '' %></span>
+      <span class="spr-hit-body">
+        <% if (hit.context) { %>
+        <span class="spr-hit-context"><%= hit.context %></span>
+        <% } %>
+        <span class="spr-hit-title"><%= hit.title %></span>
+        <% if (hit.help) { %>
+        
+        <span class="spr-hit-help"><%~ hit.help_html %></span>
+        <% } %>
+      </span>
+      
+      <%~ include('@badge', { label: hit.kind === 'page' ? 'page' : hit.kind === 'setting' ? 'setting' : 'configured' }) %>
+    </a>
+  </li>
+  <% }) %>
+</ul>
+<% } %>
+
+<% if (!it.settings_searchable) { %>
+
+<p class="spr-note spr-note-warn">
+  Only pages are searchable at the moment: this instance’s stored configuration does
+  not parse, so there are no settings to search. <a href="/-/config">Configuration</a>
+  says what is wrong with it.
+</p>
+<% } %>

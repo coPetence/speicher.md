@@ -1,0 +1,88 @@
+---
+title: Surveys
+description: Question types, versions and conditional logic.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A survey is the form a device shows. It is a list of questions with an id each, and it is **versioned**: every change publishes a new version, and devices keep answering the version they last downloaded until they sync.
+
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/fk-surveys-intro" title="Designing a survey in Fieldkit" allowfullscreen></iframe>
+
+## Question Types
+
+| Type | Answer | Notes |
+| ---- | ------ | ----- |
+| `text` | string | `max_length` defaults to 2000 |
+| `number` | float | `min`, `max`, `step` |
+| `choice` | string | `options` is required |
+| `multi_choice` | list of strings | |
+| `date` | ISO date | uses the device's time zone |
+| `location` | `{lat, lon, accuracy}` | waits for a GPS fix unless `allow_stale` |
+| `image` | asset id | compressed on the device |
+| `signature` | asset id | |
+
+## Creating a Survey
+
+<Tabs syncKey="language">
+<TabItem label="Python" icon="seti:python">
+```python
+survey = fk.surveys.create(
+    name="soil-samples",
+    questions=[
+        {"id": "plot", "type": "text", "required": True},
+        {"id": "depth_cm", "type": "number", "min": 0, "max": 200},
+        {"id": "texture", "type": "choice", "options": ["sand", "silt", "clay", "loam"]},
+        {"id": "where", "type": "location"},
+    ],
+)
+```
+</TabItem>
+<TabItem label="TypeScript" icon="seti:typescript">
+```typescript
+const survey = await fk.surveys.create({
+  name: 'soil-samples',
+  questions: [
+    { id: 'plot', type: 'text', required: true },
+    { id: 'depth_cm', type: 'number', min: 0, max: 200 },
+    { id: 'texture', type: 'choice', options: ['sand', 'silt', 'clay', 'loam'] },
+    { id: 'where', type: 'location' },
+  ],
+})
+```
+</TabItem>
+</Tabs>
+
+## Conditional Questions
+
+A question with `show_if` is only asked when the condition holds. Conditions refer to earlier questions by id.
+
+```python
+{"id": "clay_colour", "type": "text", "show_if": {"texture": "clay"}}
+```
+
+:::note
+Conditions are evaluated on the device. A condition that refers to a question later in the survey is accepted by the API but never true, because the answer does not exist yet when the question would be shown.
+:::
+
+## Versions
+
+Publishing a change creates a new version. Old versions stay readable, and every submission records the version it answered.
+
+```python
+survey.update(questions=[...])
+print(survey.version)        # 4
+print(survey.versions())     # [1, 2, 3, 4]
+```
+
+:::tip
+Removing a question does not remove its answers from earlier submissions. Exports include a column for every question that appeared in any version — see [Exports](/docs/exports).
+:::
+
+## Assigning Surveys to Devices
+
+Surveys reach devices through [device settings](/docs/device-management#updating-devices), or through labels:
+
+```python
+survey.assign(labels={"team": "north"})
+```

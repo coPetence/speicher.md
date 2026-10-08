@@ -1,0 +1,23 @@
+
+<div class="spr-article">
+<% if (it.crumbs && it.crumbs.length > 1) { %>
+<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<% } %>
+<h1><%~ it.icon || '' %><%= it.heading %></h1>
+<% if (it.cover) { %>
+
+<span class="spr-cover spr-cover-page">
+<% if (it.cover.src) { %><img src="<%= it.cover.src %>" alt="" /><% } %>
+<%~ it.cover.pattern %>
+</span>
+<% } %>
+
+<ul class="spr-listing spr-cards">
+  <% it.children.forEach(function (child) { %>
+  <li>
+    <a href="<%= child.href %>"><%~ child.icon %><%= child.title %></a>
+    <% if (child.description) { %><p><%= child.description %></p><% } %>
+  </li>
+  <% }) %>
+</ul>
+</div>

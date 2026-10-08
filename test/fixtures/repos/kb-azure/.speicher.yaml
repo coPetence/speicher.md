@@ -1,0 +1,12 @@
+# The *source* side of the cross-repository cases. Readable by two groups, one of
+# which cannot read the repository it links to — which is what makes the edge's
+# visibility a property worth asserting rather than a rendering detail.
+version: 1
+
+access:
+  groups: [engineering, commercial]
+
+ingest_root: docs
+
+display:
+  title: 'Azure Knowledge Base'

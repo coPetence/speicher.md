@@ -1,0 +1,55 @@
+---
+title: "Fieldkit"
+hideTitleOnPage: true
+---
+
+## Fieldkit
+
+Main class for interacting with the Fieldkit API.
+
+### Constructors
+
+#### new Fieldkit()
+
+```ts
+new Fieldkit(config?: FieldkitConfig): Fieldkit
+```
+
+**Parameters**:
+
+- `config?` _FieldkitConfig_ - Configuration. Anything left out is read from the environment where there is one.
+
+### Properties
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `devices` | `DeviceService` | Register, find and manage devices |
+| `surveys` | `SurveyService` | Create and publish surveys |
+| `storage` | `ObjectStorage` | Download attachments |
+| `webhooks` | `WebhookService` | Manage webhook endpoints |
+
+### Methods
+
+#### close()
+
+```ts
+close(): Promise<void>
+```
+
+Releases keep-alive connections. Only needed in long-running Node processes that want to exit promptly.
+
+**Returns**:
+
+`Promise<void>`
+
+***
+
+## FieldkitConfig
+
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| `apiKey?` | `string` | API key |
+| `apiUrl?` | `string` | Base URL of the API |
+| `region?` | `"eu" \| "us"` | Data region |
+| `timeout?` | `number` | Seconds |
+| `keyProvider?` | `() => Promise<string>` | Called for a key on every request |

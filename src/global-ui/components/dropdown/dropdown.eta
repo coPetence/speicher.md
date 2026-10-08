@@ -1,0 +1,24 @@
+
+  <details class="spr-dropdown">
+    <summary></summary>
+    <div
+      class="spr-dd-list"
+      tabindex="-1"
+    >
+      <% it.options.forEach(function (option, index) { %>
+      <label class="spr-dd-row">
+        <input
+          class="spr-clipped"
+          type="radio"
+          name="<%= it.name %>"
+          value="<%= option.value %>"
+          form="add-member"
+          <%= (it.picked ? option.value === it.picked : index === 0) ? 'checked' : '' %>
+          <% if (option.unavailable) { %>data-spr-unavailable<% } %>
+          <% if (option.suggest) { %>data-spr-suggest="<%= option.suggest %>"<% } %>
+        >
+        <%~ (it.optionMarks || {})[option.mark] || '' %><span><%= option.label %></span>
+      </label>
+      <% }) %>
+    </div>
+  </details>

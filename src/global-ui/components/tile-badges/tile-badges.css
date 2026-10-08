@@ -1,0 +1,9 @@
+@layer speicher.base {
+  .spr-tile-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--spr-space-2);
+    margin: 0;
+    font-family: var(--spr-font-body);
+  }
+}

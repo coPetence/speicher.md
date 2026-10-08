@@ -1,0 +1,130 @@
+<%~ it.marks_sprite || '' %>
+<h1>Sync status</h1>
+
+
+<%~ include('@stats', { tiles: it.tiles }) %>
+
+<%
+
+  const filterRenders = it.repos.length > 0 || it.query;
+  const discoverRenders = it.instance && it.instance.forges.length > 0;
+%>
+<% if (filterRenders || discoverRenders) { %>
+<div class="spr-index-bar">
+  <% if (filterRenders) { %>
+  
+  <form class="spr-form spr-filter" method="get" role="search" action="/-/status"
+        data-spr-filter>
+    <span class="spr-input-icon">
+      <%~ it.search_icon || '' %>
+      <input id="filter-status" type="search" name="q" value="<%= it.query %>"
+             aria-label="Find a repository"
+             placeholder="Repository or source"
+             autocomplete="off" spellcheck="false">
+    </span>
+    <button type="submit" class="spr-filter-go">Filter</button>
+  </form>
+  <% } %>
+
+  
+  <% if (discoverRenders) { %>
+  <form method="post" action="/-/discover" class="spr-form spr-index-op">
+    <button type="submit"><%~ it.discover_icon || '' %>Discover now</button>
+  </form>
+  <% } %>
+</div>
+<% } %>
+
+<% if (it.discovering !== null) { %>
+<p class="spr-note">
+  Asking <%= it.discovering %> content source(s) what they hold. The worker picks
+  it up within a poll; anything new appears in the table below once it has synced.
+</p>
+<% } %>
+
+
+<div class="spr-scroll"<%= it.repos.length === 0 ? ' hidden' : '' %>>
+  <table class="spr-table" data-spr-rows>
+    <thead>
+      <tr>
+        <th scope="col">Repository</th>
+        <th scope="col">State</th>
+        <th scope="col">Last sync</th>
+        <th scope="col">Commit</th>
+        <th scope="col" class="spr-num">Pages</th>
+        <th scope="col" class="spr-num">Dropped grants</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.repos.forEach(function (repo) { %>
+      
+      <tr data-spr-row="<%= repo.search %>">
+        
+        <th scope="row"><%~ repo.markHtml || '' %><a href="<%= repo.href %>"><%= repo.name %></a></th>
+        <td><%~ include('@badge', { level: repo.level, label: repo.state }) %></td>
+        
+        
+        <td>
+          <time datetime="<%= repo.lastRunAt %>"><%= repo.lastRun %></time>
+          <% if (repo.pollEvery) { %><small>polls every <%= repo.pollEvery %></small><% } %>
+        </td>
+        <td><code><%= repo.sha %></code></td>
+        <td class="spr-num"><%= repo.documents %></td>
+        <td class="spr-num"><%= repo.droppedGrants %></td>
+      </tr>
+      <% if (repo.error) { %>
+      
+      <tr class="spr-row-note">
+        <td colspan="6"><p class="spr-note spr-note-fail"><%= repo.error %></p></td>
+      </tr>
+      <% } %>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="spr-empty-state" data-spr-empty="none"
+   <%= it.repos.length > 0 || it.query ? 'hidden' : '' %>>
+  <%~ it.empty_art || '' %>
+  <p class="spr-empty">No repositories are configured.</p>
+</div>
+
+<div class="spr-empty-state" data-spr-empty="filtered"
+   <%= it.repos.length > 0 || !it.query ? 'hidden' : '' %>>
+  <%~ it.empty_art || '' %>
+  <p class="spr-empty">
+    No repository matches <code data-spr-needle><%= it.query %></code>.
+    <a href="/-/status">Show all</a>
+  </p>
+</div>
+
+<% if (it.instance && it.instance.embedding) { %>
+
+<h2>Semantic retrieval</h2>
+<p>
+  <code><%= it.instance.embedding.model %></code>,
+  <%= it.instance.embedding.dimensions %> dimensions.
+  <%= it.instance.embedding.current %> chunks embedded
+  <% if (it.instance.embedding.stale > 0) { %>
+  <%~ include('@badge', { level: 'warn', label: it.instance.embedding.stale + ' on another model' }) %>
+  — those are excluded from semantic results until they are embedded again
+  <% } %>
+  <% if (it.instance.embedding.pending > 0) { %>
+  <br /><%= it.instance.embedding.pending %> waiting for the embed job
+  <% } %>
+</p>
+
+<% if (it.instance.embedding.stale > 0) { %>
+
+<form method="post" action="/-/reembed" class="spr-form">
+  <button type="submit">Re-embed <%= it.instance.embedding.stale %> chunks</button>
+</form>
+<% } %>
+<% if (it.reembedding !== null) { %>
+<p class="spr-note">
+  Re-embedding <%= it.reembedding %> chunks. Keyword search answers throughout;
+  semantic results come back as the job drains, and a restart resumes rather
+  than starting over.
+</p>
+<% } %>
+<% } %>

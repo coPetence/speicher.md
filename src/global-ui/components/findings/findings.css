@@ -1,0 +1,43 @@
+@layer speicher.base {
+  .spr-findings {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-3);
+    margin: var(--spr-space-3) 0 0;
+    padding: 0;
+  }
+
+  .spr-findings li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spr-space-2) var(--spr-space-3);
+    padding: var(--spr-space-4) var(--spr-space-5);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-surface);
+  }
+
+  .spr-finding-code {
+    margin-inline-start: auto;
+    color: var(--spr-muted);
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-label);
+  }
+
+  .spr-findings .spr-badge-icon {
+    padding: 0;
+    background: none;
+  }
+
+  .spr-finding-source {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+  }
+
+  .spr-findings p {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+}

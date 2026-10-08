@@ -1,0 +1,25 @@
+
+<div class="spr-toolbar">
+  
+  <% if (it.search !== false) { %>
+  <form class="spr-search" method="get" action="/">
+    <span class="spr-input-icon">
+      <%~ it.searchIcon || '' %>
+      <input type="search" name="q" placeholder="Search" value="<%= it.query || '' %>" aria-label="Search" />
+    </span>
+  </form>
+  <% } %>
+  
+  <% if (it.account) { %>
+  <details class="spr-account">
+    <summary aria-label="Account — <%= it.account.name %>">
+      <span class="spr-avatar" aria-hidden="true"><%= it.account.initials %></span>
+    </summary>
+    <div class="spr-account-menu">
+      <%~ include('@account-items', { ...it, appearanceId: 'spr-appearance' }) %>
+    </div>
+  </details>
+  <% } else if (it.signInHref) { %>
+  <a class="spr-signin" href="<%= it.signInHref %>" data-spr-signin data-spr-load="full">Sign in</a>
+  <% } %>
+</div>

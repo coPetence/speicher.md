@@ -1,0 +1,183 @@
+# One of everything.
+#
+# Not a realistic instance — nobody runs three identity providers beside two
+# forges — but the configurator renders a card only for an entry that exists, so a
+# fixture with one provider exercises one of the three provider shapes. This file
+# is what `config-form.spec.ts` builds the form from, which is what lets the
+# coverage assertion mean anything: every branch of the field model is on screen
+# at once, and a schema key nobody rendered has nowhere to hide.
+version: 1
+
+mail:
+  host: smtp.example.test
+  port: 587
+  username: docs
+  password: ${TEST_ENTRA_CLIENT_SECRET}
+  from: Docs <docs@example.test>
+  reply_to: nobody@example.test
+
+assets:
+  driver: filesystem
+  path: ./var/assets
+  max_asset_bytes: 10000000
+  presign_over_bytes: 0
+  presign_ttl: 60s
+
+theme:
+  template: default
+  font: sans
+  # Light only, which is the shape worth carrying in the fixture: an absent dark
+  # palette is what keeps a template's own dark scheme, and the mixed neutrals are
+  # what an operator gets for answering two boxes.
+  palette:
+    light:
+      bg: '#fffdf9'
+      fg: '#1a1714'
+      accent: '#8a4b2f'
+
+brand:
+  name: Acme Engineering Docs
+  show_name: true
+  # A 1x1 transparent PNG: the smallest thing that is genuinely a logo, so the
+  # form's file field and the serving route both have one to work with.
+  logo: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+
+attribution: true
+
+graph:
+  enabled: true
+  related: true
+  previews: true
+  terms: true
+  search_boost: true
+  related_limit: 8
+
+# One of everything, so the form-coverage walk sees a control for each key with a
+# value behind it. Hourly on purpose: the default is `day`, and a fixture that only
+# ever carried defaults would not prove the control round-trips the other value.
+analytics:
+  enabled: true
+  timezone: Europe/Berlin
+  granularity: hour
+  unique_readers: true
+  public_beacon: true
+  retention_days: 90
+  search_retention_days: 30
+
+notify:
+  sync_failure: [maintainers, committer]
+  stale: [admins]
+  grant_expiry: [maintainers]
+  stale_after: 6h
+  expiry_warning: 14d
+
+embedding:
+  base_url: https://api.example.test/v1
+  api_key: ${TEST_ENTRA_CLIENT_SECRET}
+  model: text-embedding-3-small
+  dimensions: 1536
+  send_dimensions: true
+  batch_size: 96
+  max_concurrency: 4
+
+auth:
+  default_provider: entra
+  providers:
+    entra:
+      type: oidc
+      issuer: https://login.example.test/v2.0
+      client_id: ${TEST_ENTRA_CLIENT_ID}
+      client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+      subject_claim: oid
+      groups_claim: groups
+      email_claim: preferred_username
+      domains: [example.test]
+      session_ttl: 8h
+      directory:
+        type: graph
+        tenant_id: a-tenant
+        client_id: a-client
+        client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+        cache_ttl: 1h
+    letter:
+      type: magic-link
+      token_ttl: 15m
+      session_ttl: 30d
+      same_browser: true
+    hub:
+      type: github
+      client_id: ${TEST_ENTRA_CLIENT_ID}
+      client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+      base_url: https://github.example.test
+      team_cache_ttl: 15m
+      directory:
+        type: github
+        tenant_id: unused
+        client_id: a-client
+        client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+        cache_ttl: 1h
+
+groups:
+  engineering:
+    - { provider: entra, id: 'grp-eng' }
+  everyone-at-example:
+    - { provider: letter, domain: example.test }
+  platform-ops:
+    - { provider: entra, id: 'grp-ops' }
+
+admins:
+  groups: [platform-ops]
+  users:
+    # A subject or an address, never both: the schema says exactly one, because a
+    # grant that names two identities does not say which one it trusts.
+    - provider: entra
+      subject: ops-oid
+      note: the founding administrator
+      until: '2027-01-01'
+
+# One of everything means one entry here too, so the configurator's Public access
+# page has a value to render.
+public:
+  repos:
+    - copetence/speicher-docs
+
+forges:
+  gh:
+    type: github
+    primary: true
+    default_repository_owner: copetence
+    base_url: https://github.example.test
+    app_id: ${TEST_GH_APP_ID}
+    private_key: ${TEST_GH_PRIVATE_KEY}
+    webhook_secret: ${TEST_GH_WEBHOOK_SECRET}
+  onprem:
+    type: git
+    default_repository_owner: internal
+    poll_interval: 1h
+    known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly
+    repos:
+      # An ssh remote: deploy key and a pinned host key.
+      - id: runbooks
+        url: ssh://git@example.test/internal/runbooks.git
+        slug: runbooks
+        branch: main
+        deploy_key: ${TEST_GH_PRIVATE_KEY}
+        known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly
+        poll_interval: 30m
+      # An https remote: token and username instead.
+      - id: playbooks
+        url: https://example.test/internal/playbooks.git
+        slug: playbooks
+        branch: main
+        token: ${TEST_GH_WEBHOOK_SECRET}
+        username: x-access-token
+        poll_interval: 2h
+
+defaults:
+  sync:
+    include: ['**/*.md']
+    exclude: ['**/README.md']
+  retrieval:
+    indexable: true
+  display:
+    cover: assets/cover.png

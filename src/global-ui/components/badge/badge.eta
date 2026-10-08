@@ -1,0 +1,5 @@
+
+<span
+  class="spr-badge<% if (it.level) { %> spr-badge-<%= it.level %><% } %><% if (it.iconHtml) { %> spr-badge-icon<% } %>"
+  <% if (it.iconHtml) { %>title="<%= it.label %>"<% } %>
+><% if (it.iconHtml) { %><%~ it.iconHtml %><span class="spr-clipped"><%= it.label %></span><% } else { %><%= it.label %><% } %></span>

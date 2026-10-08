@@ -1,0 +1,15 @@
+# The smallest document that is a configuration at all, and the state every
+# instance is in before anybody has configured it.
+#
+# `version` is the only required key. It stays required because an empty YAML
+# document parses to `null`, and "a config with nothing in it" has to be tellable
+# from "not a config at all". Everything else — a provider to sign in with, an
+# administrator, a forge to read documentation from — describes an instance that
+# somebody has already set up, and requiring any of it meant the first boot needed
+# what only a running instance could be used to add.
+#
+# What this instance does: serves nothing, signs nobody in, and answers the
+# reader's 404 on every `/-/*` route, because the admin check is an overlap against
+# a set of principals that is empty. In `file` mode that is a fault and is logged as
+# one; in `database` mode it is where a fresh instance waits to be claimed.
+version: 1

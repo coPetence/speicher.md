@@ -1,0 +1,8 @@
+# Level three, and the folder visible to nobody.
+#
+# The parent resolved to [commercial]. Naming `engineering` here does not add it —
+# `access` intersects — so the effective set is empty. That is valid, flagged, and
+# exactly what "nested config can only narrow" means when someone expects it to
+# widen.
+access:
+  groups: [engineering]

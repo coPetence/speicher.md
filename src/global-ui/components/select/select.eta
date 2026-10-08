@@ -1,0 +1,23 @@
+
+<% function attributes(map) { %>
+<% Object.entries(map || {}).forEach(function (entry) { %>
+<% if (entry[1] === true) { %>
+    <%= entry[0] %>
+<% } else if (entry[1] !== false && entry[1] != null) { %>
+    <%= entry[0] %>="<%= entry[1] %>"
+<% } %>
+<% }) %>
+<% } %>
+<span class="spr-select">
+  <select
+<% attributes(it.attributes) %>
+  >
+    <% it.options.forEach(function (option) { %>
+    <option
+      value="<%= option.value %>"
+      <% if (option.selected) { %>selected<% } %>
+<% attributes(option.attributes) %>
+    ><%~ option.markHtml || '' %><%= option.label %></option>
+    <% }) %>
+  </select>
+</span>

@@ -1,0 +1,54 @@
+
+<div class="spr-article">
+
+<div class="spr-article-head">
+<% if (it.crumbs && it.crumbs.length > 1) { %>
+<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<% } %>
+
+<h1<% if (it.headingId) { %> id="<%= it.headingId %>"<% } %>><%~ it.icon || '' %><%= it.title %></h1>
+</div>
+<div class="spr-article-body">
+<% if (it.cover) { %>
+
+<span class="spr-cover spr-cover-page">
+<% if (it.cover.src) { %><img src="<%= it.cover.src %>" alt="" /><% } %>
+<%~ it.cover.pattern %>
+</span>
+<% } %>
+<%~ it.html %>
+<% if (it.children && it.children.length) { %>
+<h2>In this section</h2>
+
+<ul class="spr-listing spr-cards">
+  <% it.children.forEach(function (child) { %>
+  <li>
+    <a href="<%= child.href %>"><%~ child.icon %><%= child.title %></a>
+    <% if (child.description) { %><p><%= child.description %></p><% } %>
+  </li>
+  <% }) %>
+</ul>
+<% } %>
+</div>
+</div>
+
+<% if (it.aside) { %>
+<aside class="spr-aside" aria-label="Related">
+  <% if (it.aside.tags.length) { %>
+  <h2 class="spr-aside-heading">Tags</h2>
+  <ul class="spr-tags">
+    <% it.aside.tags.forEach(function (tag) { %>
+    <li><a class="spr-tag" href="<%= tag.href %>"><%= tag.label %></a></li>
+    <% }) %>
+  </ul>
+  <% } %>
+  <% it.aside.groups.forEach(function (group) { %>
+  <h2 class="spr-aside-heading"><%= group.heading %></h2>
+  <ul class="spr-aside-list">
+    <% group.items.forEach(function (item) { %>
+    <li><a href="<%= item.href %>"><%~ item.icon %><span><%= item.title %></span></a></li>
+    <% }) %>
+  </ul>
+  <% }) %>
+</aside>
+<% } %>

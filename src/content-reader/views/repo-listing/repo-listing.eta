@@ -1,0 +1,31 @@
+
+<div class="spr-article">
+<h1>Speicher</h1>
+<% if (!it.authenticated) { %>
+<p class="spr-empty">
+  You are not signed in. <a href="/api/auth/login">Sign in</a> to see the
+  documentation you have access to.
+</p>
+<% } else if (!it.repos.length) { %>
+
+<p class="spr-empty">There is nothing here.</p>
+<% } else { %>
+
+<ul class="spr-repos">
+  <% it.repos.forEach(function (repo) { %>
+  <li class="spr-repo">
+    <a href="<%= repo.href %>">
+      <span class="spr-cover">
+        <% if (repo.cover.src) { %>
+        <img src="<%= repo.cover.src %>" alt="" loading="lazy" />
+        <% } %>
+        <%~ repo.cover.pattern %>
+      </span>
+      <span class="spr-repo-title"><%= repo.title %></span>
+      <span class="spr-repo-name"><%= repo.name %></span>
+    </a>
+  </li>
+  <% }) %>
+</ul>
+<% } %>
+</div>

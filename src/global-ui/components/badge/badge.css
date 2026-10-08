@@ -1,0 +1,12 @@
+@layer speicher.base {
+  .spr-badge {
+    display: inline-block;
+    padding: 0 var(--spr-space-2);
+    border-radius: var(--spr-radius-sm);
+    background: color-mix(in oklab, var(--spr-status-accent) var(--spr-status-tint), var(--spr-bg));
+    color: var(--spr-status-accent);
+    font-size: var(--spr-font-size-label);
+    font-weight: var(--spr-weight-strong);
+    white-space: nowrap;
+  }
+}

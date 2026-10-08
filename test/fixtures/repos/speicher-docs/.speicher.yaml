@@ -1,0 +1,28 @@
+# The public repository, and the idiom that actually works.
+#
+# `access` intersects at every level, so a root granting `public` alone cannot
+# have an `engineering` folder under it: `intersect(['group:public'],
+# ['group:engineering'])` is empty, and the folder resolves to nobody. The root has
+# to grant every principal that appears anywhere below it, and each level narrows.
+# Writing the root as `[public]` and the subtree as `[engineering]` is the first
+# thing an author tries and it is why `public-narrowed-away` exists.
+#
+# `public` resolves here only because the instance config lists
+# `copetence/speicher-docs` under `public.repos`. Without that half this file is an
+# ingest rejection, not a wider grant — which is rule 4: publishing to the internet
+# is not a repository's own decision to make.
+version: 1
+
+access:
+  groups: [public, engineering]
+
+ingest_root: docs
+
+# `public` is refused here whatever the instance says. Who hears about a failed
+# sync is operational access, and that is not a thing a reader with no credential
+# holds.
+maintainers:
+  groups: [engineering]
+
+display:
+  title: 'Speicher'

@@ -1,0 +1,86 @@
+const UNIT_MS: Record<string, number> = {
+  s: 1_000,
+  m: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+};
+
+/** Parse a configured duration like `30m` into milliseconds */
+export function parseDuration(value: string): number {
+  // Matches integer + unit: group 1 is the number, group 2 the unit
+  const match = /^(\d+)(s|m|h|d)$/.exec(value);
+  if (!match) throw new Error(`invalid duration: ${JSON.stringify(value)}`);
+  return Number(match[1]) * UNIT_MS[match[2]];
+}
+
+export function parseDurationWithFallback(value: string | undefined, fallback: string): number {
+  return parseDuration(value ?? fallback);
+}
+
+/**
+ * Human-readable relative time like "3 minutes ago"
+ *
+ * Returns "never" for null, NaN, or Infinity
+ * Returns "just now" for future dates
+ * Floors to the nearest whole unit, minimum 1
+ *
+ * Not i18n
+ */
+export function relativeTime(value: Date | string | null, now: Date = new Date()): string {
+  if (value === null) return 'never';
+  const parsedDate = value instanceof Date ? value : new Date(value);
+  const ms = now.getTime() - parsedDate.getTime();
+  if (!Number.isFinite(ms)) return 'never';
+
+  // TODO why would we ever want to return this if the date is in the future? Can this even happen?
+  if (ms < 0) return 'just now';
+
+  const units: [limit: number, size: number, name: string][] = [
+    [60_000, 1_000, 'second'],
+    [3_600_000, 60_000, 'minute'],
+    [86_400_000, 3_600_000, 'hour'],
+    [2_592_000_000, 86_400_000, 'day'],
+    [31_536_000_000, 2_592_000_000, 'month'],
+    [Infinity, 31_536_000_000, 'year'],
+  ];
+  for (const [limit, size, name] of units) {
+    if (ms >= limit) continue;
+    const n = Math.max(1, Math.floor(ms / size));
+    return `${n} ${name}${n === 1 ? '' : 's'} ago`;
+  }
+  return 'never';
+}
+
+/** Human duration from a start to a finish, or until now while the run is still going */
+export function elapsed(startedAt: Date | string, finishedAt: Date | string | null): string {
+  const from = new Date(startedAt).getTime();
+  const to = finishedAt === null ? Date.now() : new Date(finishedAt).getTime();
+  const ms = to - from;
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  if (ms < 1_000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1_000).toFixed(1)} s`;
+  return `${Math.round(ms / 60_000)} min`;
+}
+
+/** A coarse duration in whole units, largest first, falling back to milliseconds */
+export function approximateDuration(ms: number): string {
+  const units: [size: number, name: string][] = [
+    [86_400_000, 'day'],
+    [3_600_000, 'hour'],
+    [60_000, 'minute'],
+    [1_000, 'second'],
+  ];
+  for (const [size, name] of units) {
+    if (ms < size) continue;
+    const n = Math.round(ms / size);
+    return `${n} ${name}${n === 1 ? '' : 's'}`;
+  }
+  return `${ms} ms`;
+}
+
+/** A stable machine-readable instant, or '' for null and unparseable values */
+export function isoOf(value: Date | string | null): string {
+  if (value === null) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}

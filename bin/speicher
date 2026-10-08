@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# The one binary on PATH. `speicher rebuild`, not `node dist/cli/rebuild.js` —
+# which is not a path the image has anyway, since it prunes dev dependencies and
+# never copies `src/`.
+#
+# It resolves `dist/` relative to its own real location rather than to the working
+# directory, because in the image it is reached through a symlink in
+# /usr/local/bin and `docker compose exec` can be given any -w.
+set -e
+
+here=$(dirname "$(readlink -f "$0")")
+cli="$here/../dist/cli/cli.js"
+
+# From a checkout, `dist/` exists only after a build. Saying so beats node's
+# MODULE_NOT_FOUND naming a path nobody wrote.
+if [ ! -f "$cli" ]; then
+  echo "speicher: $cli is missing — run \`npm run build\` first" >&2
+  exit 1
+fi
+
+exec node "$cli" "$@"
