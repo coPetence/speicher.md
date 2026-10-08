@@ -1,12 +1,13 @@
 import { ConfigError } from '../../src/common/errors';
 import {
   BRAND_ICON,
+  BRAND_LOGO,
+  BrandImageResult,
   describeBytes,
   MAX_BRAND_ICON_BYTES,
   MAX_BRAND_LOGO_BYTES,
   MIN_BRAND_ICON_PIXELS,
   parseBrandImage,
-  parseBrandLogo,
   sniffMediaType,
 } from '../../src/config/brand';
 import { ConfigService } from '../../src/config/config.service';
@@ -32,6 +33,10 @@ forges:
     private_key: k
     webhook_secret: s
 `;
+
+function parseBrandLogo(value: string): BrandImageResult {
+  return parseBrandImage(value, BRAND_LOGO);
+}
 
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
