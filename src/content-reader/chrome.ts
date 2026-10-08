@@ -4,7 +4,7 @@ import { safeRedirect } from '../auth/oidc.service';
 import type { ResolvedCaller } from '../authz/caller';
 import type { ConfigService } from '../config/config.service';
 import { DEFAULT_TEMPLATE, stylesheetUrl } from './assets.controller';
-import { renderInlineIcon } from './icons';
+import { DEFAULT_BRAND_ICON, renderInlineIcon } from './icons';
 import { NAV_WIDTH_COOKIE, THEME_COOKIE, navWidthTokens, readerScheme } from './views';
 import {
   AccountChrome,
@@ -23,7 +23,10 @@ export type RouteChrome = Pick<
   | 'search'
   | 'brand'
   | 'brandLogo'
+  | 'brandLogoDark'
   | 'brandMark'
+  | 'faviconUrl'
+  | 'faviconType'
   | 'brandNameShown'
   | 'searchIcon'
   | 'attribution'
@@ -35,6 +38,9 @@ export type ChromeConfig = Pick<
   | 'themeOverridesFor'
   | 'brand'
   | 'brandLogoUrl'
+  | 'brandLogoDarkUrl'
+  | 'faviconUrl'
+  | 'faviconType'
   | 'brandShowName'
   | 'attribution'
   | 'hasContentSource'
@@ -72,7 +78,11 @@ export function pageChrome(
     brand: config.brand,
 
     brandLogo: config.brandLogoUrl,
+    brandLogoDark: config.brandLogoDarkUrl,
     brandMark: config.brandLogoUrl ? null : brandMark(),
+
+    faviconUrl: config.faviconUrl,
+    faviconType: config.faviconType,
 
     brandNameShown: config.brandLogoUrl ? config.brandShowName : true,
     searchIcon: searchIcon(),
@@ -84,8 +94,6 @@ export function pageChrome(
       options.offerSignIn === false || req.caller?.viaSetup === true ? null : signInHref(req),
   };
 }
-
-export const DEFAULT_BRAND_ICON = 'library';
 
 export function brandMark(): string {
   return renderInlineIcon(DEFAULT_BRAND_ICON, 'spr-brand-mark');

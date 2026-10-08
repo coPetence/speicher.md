@@ -35,8 +35,7 @@ export interface ConfigCommon {
   unreadable: string | null;
   // Error parsing the YAML, null on success
   unparseable: string | null;
-  // Filename of the currently served brand logo, null if none
-  served_logo: string | null;
+  served_logos: string[];
 }
 
 export interface SectionSummary {

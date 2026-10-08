@@ -12,7 +12,16 @@ import { env } from '../common/env';
 import { emailPrincipal, groupPrincipal, Principal, subjectPrincipal } from '../common/principals';
 import { slugify } from '../common/slug';
 import { isExpired } from '../common/until';
-import { BrandLogo, brandLogoUrl, parseBrandLogo } from './brand';
+import {
+  BRAND_ICON,
+  BRAND_IMAGES,
+  BRAND_LOGO,
+  BRAND_LOGO_DARK,
+  BrandImage,
+  BrandImageSpec,
+  brandImageUrl,
+  parseBrandImage,
+} from './brand';
 import { pollIntervalMs } from './checks/git-forges';
 import type { ColourScheme } from './palette';
 import { themeOverrides } from './palette';
@@ -46,8 +55,8 @@ export interface RepoRef {
 export class ConfigService {
   private loaded: LoadedInstanceConfig;
 
-  private logoSource: string | undefined;
-  private logoCache: BrandLogo | null = null;
+  private readonly brandImageSource = new Map<string, string | undefined>();
+  private readonly brandImageCache = new Map<string, BrandImage | null>();
   private themeSource: ThemeConfig | undefined;
   private readonly themeCache = new Map<string, string | null>();
 
@@ -218,14 +227,32 @@ export class ConfigService {
     return this.instance.brand?.name?.trim() || defaultBrand();
   }
 
-  get brandLogo(): BrandLogo | null {
-    const stored = this.instance.brand?.logo;
+  private brandImage(spec: BrandImageSpec): BrandImage | null {
+    const stored = this.instance.brand?.[spec.field];
     if (stored === undefined) return null;
-    if (this.logoSource !== stored) {
-      this.logoSource = stored;
-      this.logoCache = parseBrandLogo(stored).logo;
+    if (this.brandImageSource.get(spec.field) !== stored) {
+      this.brandImageSource.set(spec.field, stored);
+      this.brandImageCache.set(spec.field, parseBrandImage(stored, spec).image);
     }
-    return this.logoCache;
+    return this.brandImageCache.get(spec.field) ?? null;
+  }
+
+  get brandLogo(): BrandImage | null {
+    return this.brandImage(BRAND_LOGO);
+  }
+
+  get brandLogoDark(): BrandImage | null {
+    return this.brandImage(BRAND_LOGO_DARK);
+  }
+
+  get brandIcon(): BrandImage | null {
+    return this.brandImage(BRAND_ICON);
+  }
+
+  get brandImages(): BrandImage[] {
+    return BRAND_IMAGES.map((spec) => this.brandImage(spec)).filter(
+      (image): image is BrandImage => image !== null,
+    );
   }
 
   get brandShowName(): boolean {
@@ -234,7 +261,21 @@ export class ConfigService {
 
   get brandLogoUrl(): string | null {
     const logo = this.brandLogo;
-    return logo ? brandLogoUrl(logo) : null;
+    return logo ? brandImageUrl(logo) : null;
+  }
+
+  get brandLogoDarkUrl(): string | null {
+    const logo = this.brandLogoDark;
+    return logo ? brandImageUrl(logo) : null;
+  }
+
+  get faviconUrl(): string {
+    const icon = this.brandIcon;
+    return icon ? brandImageUrl(icon) : '/favicon.ico';
+  }
+
+  get faviconType(): string {
+    return this.brandIcon?.mediaType ?? 'image/svg+xml';
   }
 
   get graph(): Required<GraphConfig> {

@@ -248,7 +248,7 @@
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
 <% }) } %>
 
-<% const fieldPage = { optionMarks: it.option_marks, servedLogo: it.served_logo, badgeIcons: it.badge_icons } %>
+<% const fieldPage = { optionMarks: it.option_marks, servedLogos: it.served_logos, badgeIcons: it.badge_icons } %>
 
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <div class="spr-table-head">

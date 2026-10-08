@@ -1,17 +1,9 @@
-/**
- * Brand logo from the instance configuration
- *
- * `brand.logo` holds a base64 `data:` URI written by the config form from an upload
- * A configuration loads only when its logo parses; a served logo has passed the checks
- * The served file name is a hash of the bytes, addressed under the `-/brand` route
- *
- * SVG is treated as untrusted markup and refused unless it survives SVG_REFUSALS
- */
-
 import { createHash } from 'node:crypto';
 
-/** Cap on a logo: every saved version of the configuration carries a copy */
+/** Only small logos: everytime an instance config is saved a new version is written to the db (incl. image files) */
 export const MAX_BRAND_LOGO_BYTES = 64 * 1024;
+export const MAX_BRAND_ICON_BYTES = 32 * 1024;
+export const MIN_BRAND_ICON_PIXELS = 32;
 
 /** Media types a logo may have, mapped to the extension its file gets */
 export const BRAND_LOGO_TYPES: Record<string, string> = {
@@ -20,16 +12,60 @@ export const BRAND_LOGO_TYPES: Record<string, string> = {
   'image/webp': 'webp',
 };
 
-export interface BrandLogo {
+export const BRAND_ICON_TYPES: Record<string, string> = {
+  'image/svg+xml': 'svg',
+  'image/png': 'png',
+};
+
+/** What an image at one of the three keys may be */
+export interface BrandImageSpec {
+  /** The key under `brand`, where its stored */
+  field: 'logo' | 'logo_dark' | 'icon';
+  key: string;
+  /** Accepted media types */
+  types: Record<string, string>;
+  maxBytes: number;
+  square?: boolean;
+}
+
+export const BRAND_LOGO: BrandImageSpec = {
+  field: 'logo',
+  key: 'brand.logo',
+  types: BRAND_LOGO_TYPES,
+  maxBytes: MAX_BRAND_LOGO_BYTES,
+};
+
+export const BRAND_LOGO_DARK: BrandImageSpec = {
+  field: 'logo_dark',
+  key: 'brand.logo_dark',
+  types: BRAND_LOGO_TYPES,
+  maxBytes: MAX_BRAND_LOGO_BYTES,
+};
+
+export const BRAND_ICON: BrandImageSpec = {
+  field: 'icon',
+  key: 'brand.icon',
+  types: BRAND_ICON_TYPES,
+  maxBytes: MAX_BRAND_ICON_BYTES,
+  square: true,
+};
+
+export const BRAND_IMAGES: BrandImageSpec[] = [BRAND_LOGO, BRAND_LOGO_DARK, BRAND_ICON];
+
+/** The `accept` attribute a picker for this spec offers */
+export function acceptFor(spec: BrandImageSpec): string {
+  return Object.keys(spec.types).join(',');
+}
+
+export interface BrandImage {
   mediaType: string;
   bytes: Buffer;
 
   file: string; // Content-addressed: SHA-256 prefix plus extension
 }
 
-/** URL the logo is served at, under the assets controller's `-/brand` route */
-export function brandLogoUrl(logo: BrandLogo): string {
-  return `/-/brand/${logo.file}`;
+export function brandImageUrl(image: BrandImage): string {
+  return `/-/brand/${image.file}`;
 }
 
 // Matches `data:` URIs: media type (Group 1), base64 payload (Group 2)
@@ -77,32 +113,31 @@ function outwardReferences(svg: string): string[] {
   return targets.filter((target) => !target.startsWith('#'));
 }
 
-export interface BrandLogoResult {
-  logo: BrandLogo | null;
-
-  problem: string | null; // Human-readable reason the logo was refused
+export interface BrandImageResult {
+  image: BrandImage | null;
+  problem: string | null; // Human-readable reason the image was refused
 }
 
-/** Validate a `brand.logo` value into a servable logo, or say why it is refused
- *
- * Checks the data-URI shape, the media whitelist, valid base64, the size cap,
- * that the bytes match the claimed type, and SVG against SVG_REFUSALS
- */
-export function parseBrandLogo(value: string): BrandLogoResult {
+/** Validate `brand.logo` into a servable image, or say why it is refused */
+export function parseBrandLogo(value: string): BrandImageResult {
+  return parseBrandImage(value, BRAND_LOGO);
+}
+
+export function parseBrandImage(value: string, spec: BrandImageSpec): BrandImageResult {
   const match = DATA_URI.exec(value.trim());
   if (!match) {
     return {
-      logo: null,
-      problem: '`brand.logo` must be a base64 `data:` URI — the form writes one from an upload',
+      image: null,
+      problem: `\`${spec.key}\` must be a base64 \`data:\` URI`,
     };
   }
 
   const [, mediaType, base64] = match;
-  const extension = BRAND_LOGO_TYPES[mediaType];
+  const extension = spec.types[mediaType];
   if (!extension) {
     return {
-      logo: null,
-      problem: `\`brand.logo\` is ${mediaType}; it must be one of ${Object.keys(BRAND_LOGO_TYPES).join(', ')}`,
+      image: null,
+      problem: `\`${spec.key}\` is ${mediaType}; it must be one of ${Object.keys(spec.types).join(', ')}`,
     };
   }
 
@@ -110,25 +145,25 @@ export function parseBrandLogo(value: string): BrandLogoResult {
 
   // Buffer.from tolerates stray characters, so re-encode to catch malformed base64
   if (bytes.toString('base64').replace(/=+$/, '') !== base64.replace(/=+$/, '')) {
-    return { logo: null, problem: '`brand.logo` is not valid base64' };
+    return { image: null, problem: `\`${spec.key}\` is not valid base64` };
   }
   if (bytes.length === 0) {
-    return { logo: null, problem: '`brand.logo` decodes to nothing' };
+    return { image: null, problem: `\`${spec.key}\` is corrupted` };
   }
-  if (bytes.length > MAX_BRAND_LOGO_BYTES) {
+  if (bytes.length > spec.maxBytes) {
     return {
-      logo: null,
-      problem: `\`brand.logo\` is ${describeBytes(bytes.length)}; the limit is ${describeBytes(MAX_BRAND_LOGO_BYTES)}, because every saved version of this configuration carries a copy`,
+      image: null,
+      problem: `\`${spec.key}\` is ${describeBytes(bytes.length)}; the limit is ${describeBytes(spec.maxBytes)}`,
     };
   }
 
   const sniffed = sniffMediaType(bytes);
   if (sniffed !== mediaType) {
     return {
-      logo: null,
+      image: null,
       problem: sniffed
-        ? `\`brand.logo\` says ${mediaType} but the bytes are ${sniffed}`
-        : `\`brand.logo\` says ${mediaType} but the bytes are not a PNG, a WebP or an SVG`,
+        ? `\`${spec.key}\` says ${mediaType} but the bytes are ${sniffed}`
+        : `\`${spec.key}\` says ${mediaType} but the bytes are not a PNG, a WebP or an SVG`,
     };
   }
 
@@ -136,16 +171,73 @@ export function parseBrandLogo(value: string): BrandLogoResult {
     const svg = bytes.toString('utf8');
     for (const { test, why } of SVG_REFUSALS) {
       if (test(svg)) {
-        return { logo: null, problem: `\`brand.logo\`: the SVG ${why}, which is refused` };
+        return { image: null, problem: `\`${spec.key}\`: the SVG ${why}, which is not allowed` };
       }
     }
   }
 
+  if (spec.square === true) {
+    const problem = checkSquare(bytes, mediaType, spec.key);
+    if (problem) return { image: null, problem };
+  }
+
   const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-  return { logo: { mediaType, bytes, file: `${hash}.${extension}` }, problem: null };
+  return { image: { mediaType, bytes, file: `${hash}.${extension}` }, problem: null };
 }
 
-/** Detect a logo's real format from its bytes, not its claimed config type */
+function checkSquare(bytes: Buffer, mediaType: string, key: string): string | null {
+  const size = mediaType === 'image/png' ? pngSize(bytes) : svgSize(bytes.toString('utf8'));
+
+  if (!size) return null;
+
+  const { width, height } = size;
+
+  if (Math.abs(width - height) > Math.max(width, height) / 10) {
+    return `\`${key}\` is ${width}×${height}; it has to be a square`;
+  }
+  if (mediaType === 'image/png' && Math.min(width, height) < MIN_BRAND_ICON_PIXELS) {
+    return (
+      `\`${key}\` is ${width}×${height}; a favicon needs to be at least ` +
+      `${MIN_BRAND_ICON_PIXELS}×${MIN_BRAND_ICON_PIXELS}`
+    );
+  }
+  return null;
+}
+
+interface ImageSize {
+  width: number;
+  height: number;
+}
+
+function pngSize(bytes: Buffer): ImageSize | null {
+  if (bytes.length < 24 || bytes.subarray(12, 16).toString('latin1') !== 'IHDR') return null;
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+/** SVG proportions: `viewBox`, else `width` and `height` */
+function svgSize(svg: string): ImageSize | null {
+  const head = svg.slice(0, 1024);
+
+  const viewBox =
+    /viewBox\s*=\s*["']\s*([-\d.eE+]+)[,\s]+([-\d.eE+]+)[,\s]+([-\d.eE+]+)[,\s]+([-\d.eE+]+)/.exec(
+      head,
+    );
+  if (viewBox) {
+    const width = Number(viewBox[3]);
+    const height = Number(viewBox[4]);
+    if (width > 0 && height > 0) return { width, height };
+  }
+
+  const length = (attribute: string): number => {
+    const found = new RegExp(`\\s${attribute}\\s*=\\s*["']\\s*([\\d.]+)`).exec(head);
+    return found ? Number(found[1]) : 0;
+  };
+  const width = length('width');
+  const height = length('height');
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+/** Detect an image's real format from its bytes, not its claimed config type */
 export function sniffMediaType(bytes: Buffer): string | null {
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(PNG_MAGIC)) return 'image/png';
   if (

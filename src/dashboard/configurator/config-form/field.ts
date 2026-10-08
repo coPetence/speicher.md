@@ -46,6 +46,8 @@ export interface FieldOptions {
   label?: string;
   stored?: string;
   storedFile?: string;
+  // Media types a file picker offers; see `Field.accept`
+  accept?: string;
   // Sub-fields attached after this one
   attached?: Field[];
   // True when the field is irrelevant to the current context
@@ -144,6 +146,7 @@ export function field(
     fallback: options.fallback,
     stored: options.stored ?? '',
     storedFile: options.storedFile ?? '',
+    accept: options.accept ?? '',
     attached: options.attached ?? [],
     inapplicable,
     startsRow: options.startsRow === true,

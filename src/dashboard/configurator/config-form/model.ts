@@ -83,6 +83,8 @@ export interface Field {
   stored: string;
   // Override for the file name from a file upload
   storedFile: string;
+
+  accept: string;
   // Whether this field starts a new row in the form layout
   startsRow: boolean;
   // Whether the field is advanced-mode only (shown collapsed in the config pages)

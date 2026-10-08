@@ -260,7 +260,7 @@ describe('the overview', () => {
     expect(page.text).not.toContain('Resolution hash');
     expect(page.text).not.toContain(harness.config.resolutionHash);
 
-    for (const child of ['branding/appearance']) {
+    for (const child of ['branding/logos', 'branding/appearance']) {
       expect(page.text).not.toContain(`href="/-/config/${child}"`);
     }
   });
@@ -524,7 +524,7 @@ describe('the branding section', () => {
     const form = html.slice(html.indexOf('<form class="spr-config"'));
     expect(form).toContain('class="spr-info-mark"');
     expect(form).toContain('aria-describedby="help-theme-template"');
-    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(4);
+    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(3);
     expect([...form.matchAll(/<p class="spr-help">/g)]).toHaveLength(0);
   });
 
@@ -540,14 +540,14 @@ describe('the branding section', () => {
     expect(html.slice(wide)).toContain('spr-field-template');
     const first = html.slice(paired, wide);
     expect(first).toContain('name="brand.name"');
-    expect(first).toContain('spr-field-file');
+    expect(first).toContain('name="attribution"');
     expect(first).not.toContain('spr-field-template');
   });
 
   it('nests the name switch inside the name field, not beside it', async () => {
     const { html } = await open('branding');
     const box =
-      /<div\s+class="spr-field spr-field-text"\s*>([\s\S]*?)<\/div>\s*<div\s+class="spr-field spr-field-file"/.exec(
+      /<div\s+class="spr-field spr-field-text"\s*>([\s\S]*?)<\/div>\s*<div\s+class="spr-field spr-field-boolean"/.exec(
         html,
       )?.[1];
     expect(box).toBeDefined();
@@ -2377,7 +2377,7 @@ describe('picking a different asset driver', () => {
   });
 });
 
-describe('the header logo', () => {
+describe('the logos page', () => {
   const PNG = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
     'base64',
@@ -2386,8 +2386,34 @@ describe('the header logo', () => {
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
   );
 
+  function pngSized(width: number, height: number): Buffer {
+    const resized = Buffer.from(PNG);
+    resized.writeUInt32BE(width, 16);
+    resized.writeUInt32BE(height, 20);
+    return resized;
+  }
+
+  const WEBP = Buffer.concat([
+    Buffer.from('RIFF'),
+    Buffer.from([0x1a, 0, 0, 0]),
+    Buffer.from('WEBPVP8 '),
+    Buffer.alloc(10),
+  ]);
+
+  const PICKERS = ['brand.logo', 'brand.logo_dark', 'brand.icon'];
+
+  function submitFiles(body: FormBody, files: Record<string, { bytes: Buffer; name: string }>) {
+    let req = request(app.getHttpServer()).post('/-/config/branding/logos').set('cookie', ops);
+    for (const [name, value] of Object.entries(body)) {
+      if (PICKERS.includes(name)) continue;
+      for (const one of Array.isArray(value) ? value : [value]) req = req.field(name, one);
+    }
+    for (const [name, file] of Object.entries(files)) req = req.attach(name, file.bytes, file.name);
+    return req;
+  }
+
   function submit(body: FormBody, file: { bytes: Buffer; name: string } | null) {
-    let req = request(app.getHttpServer()).post('/-/config/branding').set('cookie', ops);
+    let req = request(app.getHttpServer()).post('/-/config/branding/logos').set('cookie', ops);
     for (const [name, value] of Object.entries(body)) {
       if (name === 'brand.logo') continue;
       for (const one of Array.isArray(value) ? value : [value]) req = req.field(name, one);
@@ -2397,7 +2423,7 @@ describe('the header logo', () => {
   }
 
   it('takes an uploaded file into the document, and serves it from this instance', async () => {
-    const { body } = await open('branding');
+    const { body } = await open('branding/logos');
     const posted = await submit(
       { ...body, intent: 'apply' },
       {
@@ -2405,13 +2431,13 @@ describe('the header logo', () => {
         name: 'logo.png',
       },
     ).expect(303);
-    const page = await landing('branding', posted);
+    const page = await landing('branding/logos', posted);
     expect(page.text).toContain('spr-toast');
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).toContain('logo: data:image/png;base64,');
 
-    const src = /<img src="(\/-\/brand\/[^"]+)"/.exec(page.text)?.[1] as string;
+    const src = /<img[^>]*src="(\/-\/brand\/[^"]+)"/.exec(page.text)?.[1] as string;
     expect(src).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
 
     const served = await request(app.getHttpServer()).get(src).expect(200);
@@ -2422,7 +2448,7 @@ describe('the header logo', () => {
   });
 
   it('serves it to a caller who is not signed in', async () => {
-    const { body } = await open('branding');
+    const { body } = await open('branding/logos');
     const posted = await submit(
       { ...body, intent: 'apply' },
       {
@@ -2430,8 +2456,8 @@ describe('the header logo', () => {
         name: 'logo.svg',
       },
     ).expect(303);
-    const page = await landing('branding', posted);
-    const src = /<img src="(\/-\/brand\/[^"]+)"/.exec(page.text)?.[1] as string;
+    const page = await landing('branding/logos', posted);
+    const src = /<img[^>]*src="(\/-\/brand\/[^"]+)"/.exec(page.text)?.[1] as string;
 
     const served = await request(app.getHttpServer()).get(src).expect(200);
     expect(served.headers['content-type']).toContain('image/svg+xml');
@@ -2445,10 +2471,10 @@ describe('the header logo', () => {
   });
 
   it('keeps the stored logo when the picker is left alone', async () => {
-    const first = await open('branding');
+    const first = await open('branding/logos');
     await submit({ ...first.body, intent: 'apply' }, { bytes: PNG, name: 'logo.png' }).expect(303);
 
-    const second = await open('branding');
+    const second = await open('branding/logos');
     await submit({ ...second.body, intent: 'apply' }, null).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
       'logo: data:image/png',
@@ -2456,22 +2482,22 @@ describe('the header logo', () => {
   });
 
   it('shows what is stored, with the picture the instance is actually serving', async () => {
-    const first = await open('branding');
+    const first = await open('branding/logos');
     await submit({ ...first.body, intent: 'apply' }, { bytes: PNG, name: 'logo.png' }).expect(303);
 
-    const { html } = await open('branding');
+    const { html } = await open('branding/logos');
     const form = html.slice(html.indexOf('<form class="spr-config"'));
     expect(form).toContain('class="spr-stored"');
     expect(form).toContain('PNG, 70 bytes');
     expect(form).toMatch(
       /class="spr-stored-pick"\s+for="f-brand\.logo"[\s\S]*?class="spr-file spr-file-tucked"\s+id="f-brand\.logo"\s+name="brand\.logo"[\s\S]*?name="remove:brand\.logo"/,
     );
-    const header = /<img src="(\/-\/brand\/[^"]+)"/.exec(html)?.[1] as string;
+    const header = /<img[^>]*src="(\/-\/brand\/[^"]+)"/.exec(html)?.[1] as string;
     expect(form).toContain(`src="${header}"`);
   });
 
   it('leaves the picker whole while there is nothing stored to describe', async () => {
-    const { html } = await open('branding');
+    const { html } = await open('branding/logos');
     const form = html.slice(html.indexOf('<form class="spr-config"'));
     expect(form).toMatch(/class="spr-file"\s+id="f-brand\.logo"/);
     expect(form).not.toContain('spr-file-tucked');
@@ -2480,10 +2506,10 @@ describe('the header logo', () => {
   });
 
   it('says what is stored without drawing it when the two are not the same bytes', async () => {
-    const first = await open('branding');
+    const first = await open('branding/logos');
     await submit({ ...first.body, intent: 'apply' }, { bytes: PNG, name: 'logo.png' }).expect(303);
 
-    const second = await open('branding');
+    const second = await open('branding/logos');
     const checked = await submit(
       { ...second.body, intent: 'check' },
       {
@@ -2498,10 +2524,10 @@ describe('the header logo', () => {
   });
 
   it('removes it on the box beside it, on the same save', async () => {
-    const first = await open('branding');
+    const first = await open('branding/logos');
     await submit({ ...first.body, intent: 'apply' }, { bytes: PNG, name: 'logo.png' }).expect(303);
 
-    const second = await open('branding');
+    const second = await open('branding/logos');
     expect(second.html).toContain('name="remove:brand.logo"');
     await submit({ ...second.body, 'remove:brand.logo': 'on', intent: 'apply' }, null).expect(303);
 
@@ -2510,20 +2536,20 @@ describe('the header logo', () => {
     expect(await versionCount()).toBe(3);
   });
 
-  it('refuses a file that is not one of the three types, and keeps the edits', async () => {
-    const { body } = await open('branding');
+  it('refuses a file that is not one of the three types, and saves nothing', async () => {
+    const { body } = await open('branding/logos');
     const page = await submit(
-      { ...body, 'theme.template': 'editorial', intent: 'apply' },
+      { ...body, intent: 'apply' },
       { bytes: Buffer.from('GIF89a...'), name: 'logo.gif' },
     ).expect(400);
 
     expect(page.text).toContain('not a PNG, a WebP or an SVG');
+    expect(page.text).toContain('<form class="spr-config"');
     expect(await versionCount()).toBe(1);
-    expect(formBody(page.text)['theme.template']).toBe('editorial');
   });
 
   it('refuses an SVG that points at another host', async () => {
-    const { body } = await open('branding');
+    const { body } = await open('branding/logos');
     const page = await submit(
       { ...body, intent: 'apply' },
       {
@@ -2537,8 +2563,125 @@ describe('the header logo', () => {
     expect(page.text).toContain('outside itself');
     expect(await versionCount()).toBe(1);
   });
-});
 
+  it('offers one picker per image, and no other control', async () => {
+    const { html, body } = await open('branding/logos');
+    const form = html.slice(html.indexOf('<form class="spr-config"'));
+
+    for (const picker of PICKERS) expect(form).toContain(`id="f-${picker}"`);
+    expect((form.match(/type="file"/g) ?? []).length).toBe(3);
+    // The name and the theme stay on the page above; this one is the images
+    expect(Object.keys(body)).not.toContain('brand.name');
+    expect(Object.keys(body)).not.toContain('theme.template');
+  });
+
+  it('offers each picker only what that image may be', async () => {
+    const { html } = await open('branding/logos');
+    const accept = (picker: string) =>
+      new RegExp(`id="f-${picker.replace('.', '\\.')}"[\\s\\S]*?accept="([^"]+)"`).exec(html)?.[1];
+
+    expect(accept('brand.logo')).toBe('image/svg+xml,image/png,image/webp');
+    expect(accept('brand.logo_dark')).toBe('image/svg+xml,image/png,image/webp');
+    expect(accept('brand.icon')).toBe('image/svg+xml,image/png');
+  });
+
+  it('takes a logo for each scheme and sends the header both', async () => {
+    const { body } = await open('branding/logos');
+    const posted = await submitFiles(
+      { ...body, intent: 'apply' },
+      {
+        'brand.logo': { bytes: PNG, name: 'logo.png' },
+        'brand.logo_dark': { bytes: SVG, name: 'logo-dark.svg' },
+      },
+    ).expect(303);
+    const page = await landing('branding/logos', posted);
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toContain('logo: data:image/png;base64,');
+    expect(yaml).toContain('logo_dark: data:image/svg+xml;base64,');
+
+    const light = /<img class="spr-brand-logo spr-brand-logo-light" src="([^"]+)"/.exec(page.text);
+    const dark = /<img class="spr-brand-logo spr-brand-logo-dark" src="([^"]+)"/.exec(page.text);
+    expect(light?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
+    expect(dark?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.svg$/);
+
+    for (const src of [light?.[1] as string, dark?.[1] as string]) {
+      await request(app.getHttpServer()).get(src).expect(200);
+    }
+  });
+
+  it('takes a tab icon, names it in the head and serves it forever', async () => {
+    const { body } = await open('branding/logos');
+    const posted = await submitFiles(
+      { ...body, intent: 'apply' },
+      { 'brand.icon': { bytes: pngSized(64, 64), name: 'icon.png' } },
+    ).expect(303);
+    const page = await landing('branding/logos', posted);
+
+    const href = /<link rel="icon" href="([^"]+)" type="image\/png"/.exec(page.text)?.[1] as string;
+    expect(href).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
+
+    const served = await request(app.getHttpServer()).get(href).expect(200);
+    expect(served.headers['cache-control']).toContain('immutable');
+    expect(served.headers['content-type']).toContain('image/png');
+  });
+
+  it('refuses a tab icon that is not square, and says which field it means', async () => {
+    const { body } = await open('branding/logos');
+    const page = await submitFiles(
+      { ...body, intent: 'apply' },
+      { 'brand.icon': { bytes: pngSized(400, 80), name: 'wordmark.png' } },
+    ).expect(400);
+
+    expect(page.text).toContain('brand.icon');
+    expect(page.text).toContain('400×80');
+    expect(await versionCount()).toBe(1);
+  });
+
+  it('refuses a WebP for the tab icon, though a logo may be one', async () => {
+    const { body } = await open('branding/logos');
+    const refused = await submitFiles(
+      { ...body, intent: 'apply' },
+      { 'brand.icon': { bytes: WEBP, name: 'icon.webp' } },
+    ).expect(400);
+    expect(refused.text).toContain('may be an SVG or a PNG');
+
+    const next = await open('branding/logos');
+    await submitFiles(
+      { ...next.body, intent: 'apply' },
+      { 'brand.logo': { bytes: WEBP, name: 'logo.webp' } },
+    ).expect(303);
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
+      'logo: data:image/webp;base64,',
+    );
+  });
+
+  describe('/favicon.ico', () => {
+    it('answers with the default mark before an icon is configured', async () => {
+      const served = await request(app.getHttpServer()).get('/favicon.ico').expect(200);
+      expect(served.headers['content-type']).toContain('image/svg+xml');
+      expect(served.headers['cache-control']).toContain('max-age=3600');
+      // An SVG arrives as bytes rather than as text, being neither JSON nor HTML
+      const svg = Buffer.from(served.body).toString('utf8');
+      expect(svg).toContain('<svg');
+      expect(svg).not.toMatch(/<script/i);
+    });
+
+    it('answers with the configured icon once there is one', async () => {
+      const { body } = await open('branding/logos');
+      await submitFiles(
+        { ...body, intent: 'apply' },
+        { 'brand.icon': { bytes: pngSized(64, 64), name: 'icon.png' } },
+      ).expect(303);
+
+      const served = await request(app.getHttpServer()).get('/favicon.ico').expect(200);
+      expect(served.headers['content-type']).toContain('image/png');
+      expect(Buffer.from(served.body).equals(pngSized(64, 64))).toBe(true);
+      // Not immutable: the same path answers with other bytes after the next upload
+      expect(served.headers['cache-control']).not.toContain('immutable');
+    });
+  });
+});
 describe('advanced settings', () => {
   it('draws the block at the foot of the form, with the questions above it', async () => {
     const { html } = await open('sources/gh');

@@ -13,6 +13,10 @@
     <meta name="robots" content="noindex, nofollow" />
     <% } %>
     
+    <% if (it.faviconUrl) { %>
+    <link rel="icon" href="<%= it.faviconUrl %>"<% if (it.faviconType) { %> type="<%= it.faviconType %>"<% } %> />
+    <% } %>
+    
     <% if (it.stylesheet) { %>
     <link rel="stylesheet" href="<%= it.stylesheet %>" />
     <% } %>
@@ -33,7 +37,14 @@
         
         <a class="spr-brand" href="/">
           <% if (it.brandLogo) { %>
-          <img src="<%= it.brandLogo %>" alt="<%= it.brandNameShown ? '' : it.brand %>" />
+          
+          <%
+            const logoAlt = it.brandNameShown ? '' : it.brand
+          %>
+          <img class="spr-brand-logo<%= it.brandLogoDark ? ' spr-brand-logo-light' : '' %>" src="<%= it.brandLogo %>" alt="<%= logoAlt %>" />
+          <% if (it.brandLogoDark) { %>
+          <img class="spr-brand-logo spr-brand-logo-dark" src="<%= it.brandLogoDark %>" alt="<%= logoAlt %>" />
+          <% } %>
           <% } else { %>
           <%~ it.brandMark || '' %>
           <% } %>

@@ -1,5 +1,14 @@
 import { ConfigError } from '../../src/common/errors';
-import { MAX_BRAND_LOGO_BYTES, parseBrandLogo, sniffMediaType } from '../../src/config/brand';
+import {
+  BRAND_ICON,
+  describeBytes,
+  MAX_BRAND_ICON_BYTES,
+  MAX_BRAND_LOGO_BYTES,
+  MIN_BRAND_ICON_PIXELS,
+  parseBrandImage,
+  parseBrandLogo,
+  sniffMediaType,
+} from '../../src/config/brand';
 import { ConfigService } from '../../src/config/config.service';
 import { loadInstanceConfig } from '../../src/config/parser';
 
@@ -39,9 +48,30 @@ function svg(inner: string, attrs = ''): string {
 }
 
 function refusal(value: string): string {
-  const { logo, problem } = parseBrandLogo(value);
-  expect(logo).toBeNull();
+  const { image, problem } = parseBrandLogo(value);
+  expect(image).toBeNull();
   return problem ?? '';
+}
+
+function pngSized(width: number, height: number): Buffer {
+  const resized = Buffer.from(PNG);
+  resized.writeUInt32BE(width, 16);
+  resized.writeUInt32BE(height, 20);
+  return resized;
+}
+
+function sizedSvg(attrs: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" ${attrs}><rect /></svg>`;
+}
+
+function iconRefusal(value: string): string {
+  const { image, problem } = parseBrandImage(value, BRAND_ICON);
+  expect(image).toBeNull();
+  return problem ?? '';
+}
+
+function icon(value: string): string | null {
+  return parseBrandImage(value, BRAND_ICON).problem;
 }
 
 describe('what a logo may be', () => {
@@ -52,18 +82,18 @@ describe('what a logo may be', () => {
       Buffer.from('WEBPVP8 '),
       Buffer.alloc(10),
     ]);
-    expect(parseBrandLogo(dataUri('image/png', PNG)).logo?.mediaType).toBe('image/png');
-    expect(parseBrandLogo(dataUri('image/webp', webp)).logo?.mediaType).toBe('image/webp');
+    expect(parseBrandLogo(dataUri('image/png', PNG)).image?.mediaType).toBe('image/png');
+    expect(parseBrandLogo(dataUri('image/webp', webp)).image?.mediaType).toBe('image/webp');
     expect(
-      parseBrandLogo(dataUri('image/svg+xml', svg('<circle cx="5" cy="5" r="4" />'))).logo
+      parseBrandLogo(dataUri('image/svg+xml', svg('<circle cx="5" cy="5" r="4" />'))).image
         ?.mediaType,
     ).toBe('image/svg+xml');
   });
 
   it('names the file after its own bytes', () => {
-    const one = parseBrandLogo(dataUri('image/png', PNG)).logo;
-    const again = parseBrandLogo(dataUri('image/png', PNG)).logo;
-    const other = parseBrandLogo(dataUri('image/svg+xml', svg('<rect />'))).logo;
+    const one = parseBrandLogo(dataUri('image/png', PNG)).image;
+    const again = parseBrandLogo(dataUri('image/png', PNG)).image;
+    const other = parseBrandLogo(dataUri('image/svg+xml', svg('<rect />'))).image;
     expect(one?.file).toBe(again?.file);
     expect(one?.file).toMatch(/^[0-9a-f]{16}\.png$/);
     expect(other?.file).toMatch(/^[0-9a-f]{16}\.svg$/);
@@ -83,9 +113,11 @@ describe('what a logo may be', () => {
     expect(refusal(dataUri('image/png', 'not an image at all'))).toMatch(/not a PNG, a WebP or/);
   });
 
-  it('refuses a logo larger than the cap, and says why the cap exists', () => {
+  it('refuses a logo larger than the cap, and names the cap it broke', () => {
     const huge = Buffer.concat([PNG, Buffer.alloc(MAX_BRAND_LOGO_BYTES)]);
-    expect(refusal(dataUri('image/png', huge))).toMatch(/limit is 64 KB.*carries a copy/);
+    const problem = refusal(dataUri('image/png', huge));
+    expect(problem).toContain('`brand.logo`');
+    expect(problem).toContain(describeBytes(MAX_BRAND_LOGO_BYTES));
   });
 
   it('refuses base64 that does not decode to what it claims', () => {
@@ -176,6 +208,80 @@ describe('what an SVG may not contain', () => {
   });
 });
 
+describe('what a favicon may be', () => {
+  it('accepts a square PNG and a square SVG', () => {
+    expect(icon(dataUri('image/png', pngSized(64, 64)))).toBeNull();
+    expect(icon(dataUri('image/svg+xml', svg('<circle cx="5" cy="5" r="4" />')))).toBeNull();
+  });
+
+  it('refuses a WebP, which a logo may be and a tab icon may not', () => {
+    const webp = Buffer.concat([
+      Buffer.from('RIFF'),
+      Buffer.from([0x1a, 0, 0, 0]),
+      Buffer.from('WEBPVP8 '),
+      Buffer.alloc(10),
+    ]);
+    expect(iconRefusal(dataUri('image/webp', webp))).toBe(
+      '`brand.icon` is image/webp; it must be one of image/svg+xml, image/png',
+    );
+  });
+
+  it('refuses a wordmark, because nothing here can crop one into a square', () => {
+    const png = iconRefusal(dataUri('image/png', pngSized(400, 80)));
+    expect(png).toContain('`brand.icon`');
+    expect(png).toContain('400×80');
+    expect(iconRefusal(dataUri('image/svg+xml', sizedSvg('viewBox="0 0 120 24"')))).toContain(
+      '120×24',
+    );
+  });
+
+  it('refuses one too small for the display most readers have', () => {
+    expect(iconRefusal(dataUri('image/png', PNG))).toMatch(
+      /is 1×1; a favicon needs to be at least/,
+    );
+    expect(iconRefusal(dataUri('image/png', pngSized(16, 16)))).toMatch(
+      new RegExp(`at least ${MIN_BRAND_ICON_PIXELS}×${MIN_BRAND_ICON_PIXELS}`),
+    );
+    expect(
+      icon(dataUri('image/png', pngSized(MIN_BRAND_ICON_PIXELS, MIN_BRAND_ICON_PIXELS))),
+    ).toBeNull();
+  });
+
+  it('tolerates the rounding an exporter chose and the operator did not', () => {
+    expect(icon(dataUri('image/png', pngSized(32, 33)))).toBeNull();
+    expect(iconRefusal(dataUri('image/png', pngSized(32, 48)))).toContain('32×48');
+  });
+
+  it('measures an SVG by its viewBox, and by its width and height when it has none', () => {
+    expect(icon(dataUri('image/svg+xml', sizedSvg('viewBox="0 0 48 48"')))).toBeNull();
+    expect(icon(dataUri('image/svg+xml', sizedSvg('width="48px" height="48px"')))).toBeNull();
+    expect(iconRefusal(dataUri('image/svg+xml', sizedSvg('width="200" height="40"')))).toMatch(
+      /is 200×40/,
+    );
+  });
+
+  it('lets an SVG that declares no size at all through, since it scales into the square', () => {
+    expect(icon(dataUri('image/svg+xml', sizedSvg('')))).toBeNull();
+  });
+
+  it('is capped lower than a logo, and the message names its own cap', () => {
+    const square = pngSized(64, 64);
+    const huge = Buffer.concat([square, Buffer.alloc(MAX_BRAND_ICON_BYTES)]);
+    expect(iconRefusal(dataUri('image/png', huge))).toMatch(/limit is 32 KB/);
+    expect(MAX_BRAND_ICON_BYTES).toBeLessThan(MAX_BRAND_LOGO_BYTES);
+  });
+
+  it('refuses the same SVG a logo refuses, and names itself when it does', () => {
+    expect(iconRefusal(dataUri('image/svg+xml', svg('<script>alert(1)</script>')))).toMatch(
+      /^`brand.icon`: the SVG contains a <script>/,
+    );
+  });
+
+  it('is the only one of the three that has a shape; a logo may be any', () => {
+    expect(parseBrandLogo(dataUri('image/png', pngSized(400, 80))).problem).toBeNull();
+  });
+});
+
 describe('the loader and the running config', () => {
   const withLogo = (uri: string) =>
     MINIMAL.replace('version: 1', `version: 1\nbrand:\n  name: Acme\n  logo: ${uri}`);
@@ -211,5 +317,59 @@ describe('the loader and the running config', () => {
     const config = new ConfigService(loadInstanceConfig(MINIMAL));
     expect(config.brandLogo).toBeNull();
     expect(config.brandLogoUrl).toBeNull();
+  });
+
+  const withBrand = (lines: string[]) =>
+    MINIMAL.replace('version: 1', ['version: 1', 'brand:', '  name: Acme', ...lines].join('\n'));
+
+  it('keeps the two logos apart, and serves each under its own name', () => {
+    const config = new ConfigService(
+      loadInstanceConfig(
+        withBrand([
+          `  logo: ${dataUri('image/png', PNG)}`,
+          `  logo_dark: ${dataUri('image/svg+xml', svg('<rect />'))}`,
+        ]),
+      ),
+    );
+
+    expect(config.brandLogoUrl).toMatch(/\.png$/);
+    expect(config.brandLogoDarkUrl).toMatch(/\.svg$/);
+    expect(config.brandLogoUrl).not.toBe(config.brandLogoDarkUrl);
+    expect(config.brandImages.map((image) => image.file)).toEqual([
+      config.brandLogo?.file,
+      config.brandLogoDark?.file,
+    ]);
+  });
+
+  it('has no dark logo to fall back on, which is the stylesheet’s job and not this one’s', () => {
+    const config = new ConfigService(
+      loadInstanceConfig(withBrand([`  logo: ${dataUri('image/png', PNG)}`])),
+    );
+    expect(config.brandLogoDark).toBeNull();
+    expect(config.brandLogoDarkUrl).toBeNull();
+    expect(config.brandImages).toHaveLength(1);
+  });
+
+  it('points the tab at the configured icon, under the name of its own bytes', () => {
+    const config = new ConfigService(
+      loadInstanceConfig(withBrand([`  icon: ${dataUri('image/png', pngSized(64, 64))}`])),
+    );
+
+    expect(config.faviconUrl).toBe(`/-/brand/${config.brandIcon?.file}`);
+    expect(config.faviconType).toBe('image/png');
+    expect(config.brandIcon).toBe(config.brandIcon);
+  });
+
+  it('points it at the un-hashed route when there is no icon, since the default can change', () => {
+    const config = new ConfigService(loadInstanceConfig(MINIMAL));
+    expect(config.brandIcon).toBeNull();
+    expect(config.faviconUrl).toBe('/favicon.ico');
+    expect(config.faviconType).toBe('image/svg+xml');
+  });
+
+  it('refuses to load a configuration whose icon is not square', () => {
+    expect(() =>
+      loadInstanceConfig(withBrand([`  icon: ${dataUri('image/png', pngSized(400, 80))}`])),
+    ).toThrow(ConfigError);
   });
 });

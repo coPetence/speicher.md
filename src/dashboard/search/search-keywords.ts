@@ -78,6 +78,11 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
     'semantic search, vector, vectors, embeddings, rag, ai, openai, azure openai, ollama, ' +
     'model, dimensions, pgvector, ann, hnsw, similarity, re-embed',
 
+  'section:branding/logos':
+    'logo, logos, favicon, tab icon, browser tab, bookmark icon, image, picture, svg, ' +
+    'png, webp, upload, header logo, dark mode logo, dark theme logo, white logo, ' +
+    'inverted logo, wordmark, brand mark, square icon',
+
   'section:branding/appearance':
     'colours, colors, colour scheme, palette, brand colour, accent, background, ' +
     'text colour, dark mode, light mode, font, typeface, typography, serif, ' +
@@ -109,6 +114,8 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'field:forges.<key>.repos.<index>.slug': 'url, path, rename, redirect',
 
   'field:brand.logo': 'image, picture, svg, png, header logo',
+  'field:brand.logo_dark': 'dark mode logo, dark theme, night, inverted, white logo',
+  'field:brand.icon': 'favicon, tab icon, browser tab, bookmark, shortcut icon, ico',
   'field:theme.template': 'skin, style, appearance, stylesheet',
   'field:attribution': 'credit, footer, published with, white label',
 

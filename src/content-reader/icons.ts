@@ -169,6 +169,19 @@ export function symbolsFor(names: Iterable<string>): string {
     .join('');
 }
 
+export const DEFAULT_BRAND_ICON = 'library';
+
+export function renderIconDocument(name: string): string {
+  const shapes = shapesFor(name);
+  if (shapes === null) return '';
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ` +
+    `stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `<style>@media (prefers-color-scheme: dark){:root{stroke:#a1a1aa}}</style>` +
+    `${shapes}</svg>`
+  );
+}
+
 /** Standalone <svg> of an icon, stroked in the surrounding text colour */
 export function renderInlineIcon(name: string, className: string): string {
   const shapes = shapesFor(name);

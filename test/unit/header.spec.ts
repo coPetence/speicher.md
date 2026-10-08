@@ -34,6 +34,9 @@ const CHROME = {
   themeOverridesFor: () => null,
   brand: 'Acme Engineering Docs',
   brandLogoUrl: null,
+  brandLogoDarkUrl: null,
+  faviconUrl: '/favicon.ico',
+  faviconType: 'image/svg+xml',
   brandShowName: true,
   attribution: true,
   hasContentSource: true,
@@ -398,6 +401,50 @@ describe('the brand in the header', () => {
     expect(anchor).toContain('>Acme Engineering Docs<');
   });
 
+  it('sends both logos when there are two, for the sheet to choose between', () => {
+    const anchor = brandAnchor(
+      renderPage('<h1>A page</h1>', {
+        title: 'A page',
+        nonce: 'test-nonce',
+        ...pageChrome(request('/handbook/introduction', undefined), {
+          ...CHROME,
+          brandLogoUrl: '/-/brand/abc123.svg',
+          brandLogoDarkUrl: '/-/brand/def456.svg',
+        }),
+      }),
+    );
+
+    expect(anchor).toContain('class="spr-brand-logo spr-brand-logo-light"');
+    expect(anchor).toContain('src="/-/brand/abc123.svg"');
+    expect(anchor).toContain('class="spr-brand-logo spr-brand-logo-dark"');
+    expect(anchor).toContain('src="/-/brand/def456.svg"');
+    expect((anchor.match(/<img/g) ?? []).length).toBe(2);
+  });
+
+  it('marks neither when there is one, so nothing can hide the only logo there is', () => {
+    const anchor = withLogo(true);
+    expect(anchor).toContain('class="spr-brand-logo"');
+    expect(anchor).not.toContain('spr-brand-logo-light');
+    expect(anchor).not.toContain('spr-brand-logo-dark');
+    expect((anchor.match(/<img/g) ?? []).length).toBe(1);
+  });
+
+  it('gives both pictures the same alt, since only the drawn one is announced', () => {
+    const anchor = brandAnchor(
+      renderPage('<h1>A page</h1>', {
+        title: 'A page',
+        nonce: 'test-nonce',
+        ...pageChrome(request('/handbook/introduction', undefined), {
+          ...CHROME,
+          brandLogoUrl: '/-/brand/abc123.svg',
+          brandLogoDarkUrl: '/-/brand/def456.svg',
+          brandShowName: false,
+        }),
+      }),
+    );
+    expect((anchor.match(/alt="Acme Engineering Docs"/g) ?? []).length).toBe(2);
+  });
+
   it('never points the logo at another host', () => {
     const html = renderPage('<h1>A page</h1>', {
       title: 'A page',
@@ -465,5 +512,32 @@ describe('the sign-in flow itself', () => {
     });
     const html = renderPage('<h1>Sign in</h1>', { title: 'Sign in', nonce: 'n', ...chrome });
     expect(html).toContain('spr-avatar');
+  });
+});
+
+describe('the icon in the browser tab', () => {
+  const head = (over: Partial<typeof CHROME>): string => {
+    const html = renderPage('<h1>A page</h1>', {
+      title: 'A page',
+      nonce: 'test-nonce',
+      ...pageChrome(request('/handbook/introduction', undefined), { ...CHROME, ...over }),
+    });
+    return html.slice(0, html.indexOf('</head>'));
+  };
+
+  it('is named on every page, so a browser needs no request to find it', () => {
+    expect(head({})).toMatch(/<link rel="icon" href="\/favicon\.ico" type="image\/svg\+xml"/);
+  });
+
+  it('is the configured one under the name of its bytes, where there is one', () => {
+    expect(head({ faviconUrl: '/-/brand/abc123.png', faviconType: 'image/png' })).toMatch(
+      /<link rel="icon" href="\/-\/brand\/abc123\.png" type="image\/png"/,
+    );
+  });
+
+  it('is never fetched from another host, as nothing on this page is', () => {
+    const links = [...head({}).matchAll(/<link[^>]+href="([^"]+)"/g)].map((match) => match[1]);
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.filter((href) => !href.startsWith('/'))).toEqual([]);
   });
 });

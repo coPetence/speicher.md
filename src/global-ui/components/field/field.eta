@@ -135,7 +135,7 @@
     <% } else if (f.kind === 'file') { %>
     <% if (f.stored) { %>
     <div class="spr-stored">
-      <% if (f.storedFile && f.storedFile === it.servedLogo) { %>
+      <% if (f.storedFile && (it.servedLogos || []).includes(f.storedFile)) { %>
       <img
         class="spr-stored-thumb"
         src="/-/brand/<%= f.storedFile %>"
@@ -162,7 +162,7 @@
         id="f-<%= f.path %>"
         name="<%= f.path %>"
         type="file"
-        accept="image/png,image/webp,image/svg+xml"
+        <% if (f.accept) { %>accept="<%= f.accept %>"<% } %>
         <%= editable ? '' : 'disabled' %>
       >
       <input
@@ -181,7 +181,7 @@
       id="f-<%= f.path %>"
       name="<%= f.path %>"
       type="file"
-      accept="image/png,image/webp,image/svg+xml"
+      <% if (f.accept) { %>accept="<%= f.accept %>"<% } %>
       <%= editable ? '' : 'disabled' %>
     >
     <% } %>

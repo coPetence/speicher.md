@@ -240,7 +240,19 @@
           "type": "string",
           "maxLength": 90000,
           "pattern": "^data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}$",
-          "description": "The logo, as a base64 `data:` URI of at most 64 KB decoded — PNG, WebP or SVG. The bytes live in this document because it is the only store a tenant editing through the admin form can write, and because a logo beside the configuration rather than in it would not roll back with it. It is served from this instance under a content-hashed URL, never referenced from another host: a picture fetched from elsewhere onto an authenticated page reports when each reader is reading, and `img-src 'self'` refuses it in any case. An SVG that carries script, an event handler, a doctype or a reference to anything outside itself is refused rather than sanitised."
+          "description": "Logo as a base64 data URI (max 64 KB PNG, WebP or SVG)"
+        },
+        "logo_dark": {
+          "type": "string",
+          "maxLength": 90000,
+          "pattern": "^data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}$",
+          "description": "Logo for dark mode as base64 data URI (max 64 KB PNG, WebP or SVG)"
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 45000,
+          "pattern": "^data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}$",
+          "description": "Square Favicon as base64 data URI (max 32 KB PNG, WebP or SVG at least 32x32)"
         }
       }
     },

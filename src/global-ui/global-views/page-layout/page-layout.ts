@@ -84,7 +84,13 @@ export interface PageChrome {
 
   brandLogo?: string | null;
 
+  brandLogoDark?: string | null;
+
   brandMark?: string | null;
+
+  faviconUrl?: string | null;
+
+  faviconType?: string | null;
 
   searchIcon?: string | null;
 

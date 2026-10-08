@@ -1,19 +1,15 @@
 import { PUBLIC_GROUP_NAME } from '../../common/principals';
 import { isKnownTimeZone } from '../../dashboard/analytics/buckets';
-import { parseBrandLogo } from '../brand';
+import { BRAND_IMAGES, parseBrandImage } from '../brand';
 import { InstanceConfig } from '../types';
 
-/**
- * checkBrandLogo checks that the configured logo is an acceptable image.
- *
- * @param config the loaded instance config
- * @param problems the list that problems are added to
- */
 export function checkBrandLogo(config: InstanceConfig, problems: string[]): void {
-  const logo = config.brand?.logo;
-  if (logo === undefined) return;
-  const { problem } = parseBrandLogo(logo);
-  if (problem) problems.push(problem);
+  for (const spec of BRAND_IMAGES) {
+    const stored = config.brand?.[spec.field];
+    if (stored === undefined) continue;
+    const { problem } = parseBrandImage(stored, spec);
+    if (problem) problems.push(problem);
+  }
 }
 
 /**

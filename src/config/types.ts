@@ -1,12 +1,3 @@
-/**
- * Core configuration types for the Speicher documentation system
- *
- * Every config interface here maps to a section in config.yaml or config.database
- * All optional fields have defaults applied at load, not in the type
- *
- * Principals (admins, maintainers, subscribers) are groups, users, or both
- */
-
 import { Granularity } from '../dashboard/analytics/buckets';
 import type { PaletteKey } from './palette';
 
@@ -226,8 +217,12 @@ export interface AnalyticsConfig {
 
 export interface BrandConfig {
   name?: string;
-  // Path to logo image, served from assets driver
+  // Logo for light mode
   logo?: string;
+  // Logo for dark mode
+  logo_dark?: string;
+  // Favicon: square, PNG or SVG
+  icon?: string;
   // Whether to show the brand name next to the logo in the header
   show_name?: boolean;
 }

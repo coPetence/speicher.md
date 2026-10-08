@@ -22,6 +22,7 @@ export const CONFIG_SECTIONS: SectionIndexEntry[] = [
   { id: 'public', title: 'Public access', icon: 'globe' },
   { id: 'sources', title: 'Content sources', icon: 'folder-git-2' },
   { id: 'branding', title: 'Branding', icon: 'paintbrush' },
+  { id: 'branding/logos', title: 'Logos', icon: 'image', parent: 'branding' },
   // Colour palette and typeface overrides
   { id: 'branding/appearance', title: 'Colours and type', icon: 'palette', parent: 'branding' },
   { id: 'reading', title: 'Reading experience', icon: 'book-open' },

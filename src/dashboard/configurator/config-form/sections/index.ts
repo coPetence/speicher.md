@@ -18,7 +18,7 @@ import type { FormSection } from '../model';
 import { forgeIds, groupNames, groupProviders, providerIds, type KindHint } from '../members';
 
 import { adminUserSection, adminsSection } from './admins';
-import { appearanceSection, brandingSection } from './branding';
+import { appearanceSection, brandingSection, logosSection } from './branding';
 import { groupSection } from './groups/group';
 import { groupsSection } from './groups/list';
 import { groupProviderSection } from './groups/sources';
@@ -59,6 +59,7 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
     // One section per forge
     ...forgeIds(root).map((id) => forgeSection(root, id)),
     brandingSection(root),
+    logosSection(root),
     // Subsection for colour and typeface overrides
     appearanceSection(root),
     readingSection(root),
