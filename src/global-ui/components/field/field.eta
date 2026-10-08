@@ -7,9 +7,10 @@
     value=""
   >
   <% } else { %>
-  <% const info = Boolean(f.help) %>
+  <% const info = Boolean(f.help), pickable = Boolean(f.upload && editable) %>
   <div
     class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %>"
+    <% if (pickable) { %>data-spr-drop-zone<% } %>
     <% if (f.shownWith) { %>data-spr-shown-with="<%= f.shownWith %>"<% } %>
     <% if (f.copiedFrom) { %>data-spr-copy-from="<%= f.copiedFrom %>"<% } %>
   >
@@ -224,6 +225,7 @@
       }) %>
     </span>
     <% } else { %>
+    <% if (pickable) { %><span class="spr-pickable"><% } %>
     <input
       id="f-<%= f.path %>"
       name="<%= f.path %>"
@@ -237,6 +239,36 @@
       autocomplete="off"
       <%= editable ? '' : 'disabled' %>
     >
+    <% if (pickable) { %>
+      <span class="spr-pickable-chip">
+        <span
+          class="spr-pickable-name"
+          data-spr-picked
+          hidden
+        ></span>
+        <button
+          class="spr-pickable-clear"
+          type="button"
+          data-spr-unpick
+          aria-label="Use the box instead of the chosen file"
+          title="Use the box instead of the chosen file"
+        ></button>
+      </span>
+      <label
+        class="spr-pickable-pick"
+        for="u-<%= f.path %>"
+      >
+        <%= f.upload.label %>
+      </label>
+      <input
+        class="spr-file spr-file-tucked"
+        id="u-<%= f.path %>"
+        name="file:<%= f.path %>"
+        type="file"
+        accept="<%= f.upload.accept %>"
+      >
+    </span>
+    <% } %>
     <% } %>
     <% if (f.widthInto) { %>
     
@@ -250,23 +282,45 @@
       Configured. Type to replace it; blank keeps it.
     </p>
     <% } %>
+    <% const originPath = Boolean(f.copy && f.copy.startsWith('/')) %>
+    <% const pathFact = originPath && f.factForPathHtml !== '' %>
     <% if (f.factHtml) { %>
-    <p class="spr-help">
+    <p
+      class="spr-help"
+      <% if (pathFact) { %>data-spr-origin-fact hidden<% } %>
+    >
       <%~ f.factHtml %>
     </p>
     <% } %>
-    <% if (f.upload && editable) { %>
-    <span class="spr-upload">
-      <label for="u-<%= f.path %>">
-        <%= f.upload.label %>
-      </label>
-      <input
-        class="spr-file"
-        id="u-<%= f.path %>"
-        name="file:<%= f.path %>"
-        type="file"
-        accept="<%= f.upload.accept %>"
-      >
+    <% if (pathFact) { %>
+    <p
+      class="spr-help"
+      data-spr-path-fact
+    >
+      <%~ f.factForPathHtml %>
+    </p>
+    <% } %>
+    <% if (f.copy) { %>
+    <span
+      class="spr-copyable"
+      <% if (originPath) { %>data-spr-origin-path<% } %>
+    >
+      <code><%= f.copy %></code>
+      <%~ include('@copy', {
+        text: f.copy,
+        label: 'Copy to clipboard',
+        copyIcon: (it.badgeIcons || {})['copy'] || '',
+        copiedIcon: (it.badgeIcons || {})['check'] || '',
+      }) %>
+    </span>
+    <p class="spr-copy-status" role="status" data-spr-copy-status></p>
+    <% } %>
+    <% if (pickable) { %>
+    <span
+      class="spr-drop"
+      aria-hidden="true"
+    >
+      <%= f.upload.dropLabel %>
     </span>
     <% } %>
     <% if (f.status) { %>

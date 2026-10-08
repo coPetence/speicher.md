@@ -1,4 +1,4 @@
-/** Shows the chosen file's name beside a stored file, since a file input cannot report its own value. */
+/** Shows the chosen file's name beside a stored file or in a box it fills, since a file input cannot report its own value. */
 import { configForm } from './config-form-handle';
 
 export function mountPickedFileNames(): void {
@@ -8,7 +8,9 @@ export function mountPickedFileNames(): void {
   form.addEventListener('change', (event) => {
     const picker = event.target as HTMLInputElement;
     if (picker.type !== 'file') return;
-    const named = picker.closest('.spr-stored')?.querySelector<HTMLElement>('[data-spr-picked]');
+    const named = picker
+      .closest('.spr-stored, .spr-pickable')
+      ?.querySelector<HTMLElement>('[data-spr-picked]');
     if (!named) return;
     const chosen = picker.files?.[0]?.name ?? '';
     named.textContent = chosen;

@@ -79,7 +79,9 @@ describe('the front door of an instance nobody has configured', () => {
 
   it('offers Copy as an upgrade, so a page with no clipboard loses nothing', async () => {
     const { text } = await browser().get('/').expect(200);
-    const buttons = [...text.matchAll(/<button[^>]*data-spr-copy="[^"]*"[^>]*>/g)].map((m) => m[0]);
+    const buttons = [...text.matchAll(/<button[^>]*data-spr-clipboard="[^"]*"[^>]*>/g)].map(
+      (m) => m[0],
+    );
     expect(buttons).toHaveLength(2);
     for (const button of buttons) expect(button).toMatch(/\shidden\b/);
     expect(buttons[0]).toContain('aria-label="Copy command"');
@@ -87,8 +89,8 @@ describe('the front door of an instance nobody has configured', () => {
     const command = /<pre class="spr-claim-command"><code>([^<]*)<\/code><\/pre>/.exec(text)?.[1];
     const code = /<dt>Code<\/dt>\s*<dd>\s*<code>([^<]*)<\/code>/.exec(text)?.[1];
     expect(command).toMatch(/^docker compose exec web speicher claim /);
-    expect(buttons[0]).toContain(`data-spr-copy="${command}"`);
-    expect(buttons[1]).toContain(`data-spr-copy="${code}"`);
+    expect(buttons[0]).toContain(`data-spr-clipboard="${command}"`);
+    expect(buttons[1]).toContain(`data-spr-clipboard="${code}"`);
     expect(text).toMatch(/<p class="spr-copy-status" role="status"[^>]*><\/p>/);
   });
 

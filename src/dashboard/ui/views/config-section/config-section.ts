@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 
-import { dashboardSectionTitle } from '../../../dashboard-sections';
+import { sectionEmptyArt } from '../../../../content-reader/empty-state';
+import { renderInlineIcon } from '../../../../content-reader/icons';
+import { renderTemplate } from '../../../../content-reader/views';
 import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
 import { renderHelp } from '../../../configurator/config-form/help';
 import {
@@ -12,11 +14,9 @@ import {
 } from '../../../configurator/config-form/members';
 import { allFields } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
-import { markSprite, renderInlineMark } from '../../provider-marks';
+import { dashboardSectionTitle } from '../../../dashboard-sections';
 import { DashboardResponder } from '../../../respond';
-import { sectionEmptyArt } from '../../../../content-reader/empty-state';
-import { renderInlineIcon } from '../../../../content-reader/icons';
-import { renderTemplate } from '../../../../content-reader/views';
+import { markSprite, renderInlineMark } from '../../provider-marks';
 
 /**
  * Sends one section's page.
@@ -98,6 +98,9 @@ export function sendConfigSection(
             // the island picks, so neither may be missing from here.
             ...(payload.section ? allFields([payload.section]) : []).flatMap((field) =>
               field.status ? [field.status.icon] : field.checkHref ? ['check', 'circle-alert'] : [],
+            ),
+            ...(payload.section ? allFields([payload.section]) : []).flatMap((field) =>
+              field.copy ? ['copy', 'check'] : [],
             ),
             // And the section's own, drawn at the foot of the page. Both marks
             // when the check has not been made: the page draws the two answers

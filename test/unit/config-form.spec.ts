@@ -1594,11 +1594,14 @@ describe('help text markup', () => {
     expect(renderHelp('**<b>x</b>**')).toBe('<strong>&lt;b&gt;x&lt;/b&gt;</strong>');
   });
 
-  it('renders the four things it offers and nothing else', () => {
+  it('renders the six things it offers and nothing else', () => {
     expect(renderHelp('a `key`')).toBe('a <code>key</code>');
     expect(renderHelp('a **strong** word')).toBe('a <strong>strong</strong> word');
     expect(renderHelp('an _underlined_ word')).toBe('an <u>underlined</u> word');
-    expect(renderHelp('# not a heading\n- not a list')).toBe('# not a heading\n- not a list');
+    expect(renderHelp('a ==highlighted== word')).toBe('a <mark>highlighted</mark> word');
+    expect(renderHelp('a == b, and c == d')).toBe('a == b, and c == d');
+    expect(renderHelp('one line\n\nanother')).toBe('one line<br><br>another');
+    expect(renderHelp('# not a heading\n- not a list')).toBe('# not a heading<br>- not a list');
   });
 
   it('does not underline the middle of a variable name', () => {
@@ -1643,7 +1646,7 @@ describe('help text markup', () => {
     }
   });
 
-  it('emits nothing but its five elements, over every help string the form has', () => {
+  it('emits nothing but its seven elements, over every help string the form has', () => {
     const html = allFields(buildSections(loadDocument(FULL)))
       .map((f) => f.helpHtml)
       .join('\n');
@@ -1660,7 +1663,9 @@ describe('help text markup', () => {
       'rect',
     ];
     expect(
-      [...new Set(tags)].filter((t) => !['code', 'strong', 'u', 'a', ...mark].includes(t)),
+      [...new Set(tags)].filter(
+        (t) => !['code', 'strong', 'u', 'a', 'br', 'mark', ...mark].includes(t),
+      ),
     ).toEqual([]);
   });
 });
@@ -1729,15 +1734,17 @@ describe("a GitHub source's webhook URL", () => {
     return allFields([section]).find((f) => f.path === 'forges.gh.webhook_secret')!;
   };
 
-  it('states the absolute URL, from the declared public URL and the forge id', () => {
-    const html = withPublicUrl('https://docs.acme.example/', () => secretField().factHtml);
-    expect(html).toContain('<code>https://docs.acme.example/-/hooks/gh</code>');
+  it('offers the absolute URL to copy, from the declared public URL and the forge id', () => {
+    const field = withPublicUrl('https://docs.acme.example/', secretField);
+    expect(field.copy).toBe('https://docs.acme.example/-/hooks/gh');
+    expect(field.factHtml).toContain('<strong>Webhook URL</strong>');
   });
 
-  it('states the path and names the variable when no public URL is declared', () => {
-    const html = withPublicUrl(undefined, () => secretField().factHtml);
-    expect(html).toContain('<code>/-/hooks/gh</code>');
-    expect(html).toContain('SPEICHER_PUBLIC_URL');
+  it('offers the path to copy when no public URL is declared, for the browser to complete', () => {
+    const field = withPublicUrl(undefined, secretField);
+    expect(field.copy).toBe('/-/hooks/gh');
+    expect(field.factHtml).toContain('<strong>Webhook URL</strong>');
+    expect(field.factForPathHtml).toContain('Enter this path after the address of this instance');
   });
 
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {

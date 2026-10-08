@@ -64,6 +64,9 @@ export interface FieldOptions {
   link?: string;
   // Markdown for an informational fact below the field
   fact?: string;
+  // Content to copy to the clpboard
+  copy?: string;
+  factForPath?: string;
   // Form rebuilds when changed
   reshapes?: boolean;
   // Upload config for secrets
@@ -164,13 +167,15 @@ export function field(
     copiedStored: options.copiedStored,
     linkHtml: renderHelp(options.link ?? ''),
     factHtml: renderHelp(options.fact ?? ''),
+    copy: options.copy,
+    factForPathHtml: renderHelp(options.factForPath ?? ''),
     upload: options.upload,
   };
 }
 
 export const SECRET_HELP =
   'The secret can be entered directly, which stores it in the database, or as a ' +
-  'reference to an environment variable such as `${MY_SECRET}`.' +
+  'reference to an environment variable such as `${MY_SECRET}.`' +
   'On a self-hosted instance, set the variable where Speicher runs, for example ' +
   'under `environment:` in `docker-compose.yml`, and restart Speicher. The name must ' +
   'not start with `SPEICHER_`. Learn more about ' +

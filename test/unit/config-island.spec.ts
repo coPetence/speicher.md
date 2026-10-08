@@ -412,6 +412,103 @@ describe('the save bar', () => {
     expect(picked.hidden).toBe(true);
   });
 
+  it('puts the page origin in front of a path offered to copy, and leaves a full URL alone', () => {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/gh" data-spr-config="sources/gh">
+          <div class="spr-field">
+            <p class="spr-help" data-spr-origin-fact hidden>Enter this as the Webhook URL.</p>
+            <p class="spr-help" data-spr-path-fact>Enter this path after the address.</p>
+            <span class="spr-copyable" data-spr-origin-path>
+              <code>/-/hooks/gh</code>
+              <button type="button" class="spr-copy" data-spr-clipboard="/-/hooks/gh" hidden></button>
+            </span>
+          </div>
+          <span class="spr-copyable">
+            <code>https://docs.acme.example/-/hooks/other</code>
+            <button type="button" class="spr-copy" data-spr-clipboard="https://docs.acme.example/-/hooks/other" hidden></button>
+          </span>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    run();
+
+    const [path, full] = Array.from(form().querySelectorAll('.spr-copyable'));
+    expect(path.querySelector('code')?.textContent).toBe(`${location.origin}/-/hooks/gh`);
+    expect((path.querySelector('button') as HTMLElement).dataset.sprClipboard).toBe(
+      `${location.origin}/-/hooks/gh`,
+    );
+    expect(full.querySelector('code')?.textContent).toBe('https://docs.acme.example/-/hooks/other');
+
+    // The sentence for a bare path gives way to the one for a full URL
+    expect((form().querySelector('[data-spr-path-fact]') as HTMLElement).hidden).toBe(true);
+    expect((form().querySelector('[data-spr-origin-fact]') as HTMLElement).hidden).toBe(false);
+  });
+
+  it('shows a rectangle to drop into while a file is dragged, and clears a picked file back to the box', () => {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/gh" data-spr-config="sources/gh">
+          <div class="spr-field" data-spr-drop-zone>
+            <span class="spr-pickable">
+              <input type="password" name="forges.gh.private_key" id="f-forges.gh.private_key">
+              <span class="spr-pickable-chip">
+                <span class="spr-pickable-name" data-spr-picked hidden></span>
+                <button type="button" data-spr-unpick></button>
+              </span>
+              <input type="file" class="spr-file spr-file-tucked" name="file:forges.gh.private_key">
+            </span>
+            <span class="spr-drop" aria-hidden="true">Drop the App’s .pem file here</span>
+          </div>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    run();
+
+    const zone = form().querySelector('[data-spr-drop-zone]') as HTMLElement;
+    const drag = (kind: string, target: Element, types: string[]): void => {
+      const event = new Event(kind, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'dataTransfer', { value: { types, files: [] } });
+      target.dispatchEvent(event);
+    };
+
+    // Dragged text is not a file, so no rectangle appears for it
+    drag('dragenter', document.body, ['text/plain']);
+    expect(zone.hasAttribute('data-spr-dragging')).toBe(false);
+
+    drag('dragenter', document.body, ['Files']);
+    expect(zone.hasAttribute('data-spr-dragging')).toBe(true);
+    expect(zone.hasAttribute('data-spr-drop-over')).toBe(false);
+
+    drag('dragenter', zone, ['Files']);
+    expect(zone.hasAttribute('data-spr-drop-over')).toBe(true);
+
+    // Leaving the field but not the page keeps the rectangle; leaving the page hides it
+    drag('dragleave', zone, ['Files']);
+    expect(zone.hasAttribute('data-spr-dragging')).toBe(true);
+    drag('dragleave', document.body, ['Files']);
+    expect(zone.hasAttribute('data-spr-dragging')).toBe(false);
+
+    const picker = form().querySelector('input[type="file"]') as HTMLInputElement;
+    const picked = form().querySelector('[data-spr-picked]') as HTMLElement;
+    Object.defineProperty(picker, 'files', {
+      value: [{ name: 'app.pem', size: 1700 }],
+      configurable: true,
+    });
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(picked.textContent).toBe('app.pem');
+    expect(picked.hidden).toBe(false);
+
+    Object.defineProperty(picker, 'files', { value: [], configurable: true });
+    (form().querySelector('[data-spr-unpick]') as HTMLButtonElement).click();
+    expect(picked.hidden).toBe(true);
+    expect(document.activeElement).toBe(form().querySelector('input[type="password"]'));
+  });
+
   it('leaves an ordinary control to the check, and submits nothing', async () => {
     const submitted: unknown[] = [];
     renderReshaping();
