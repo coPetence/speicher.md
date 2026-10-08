@@ -260,6 +260,20 @@
     max-width: var(--spr-brand-logo-max-width);
   }
 
+  .spr-brand img.spr-brand-logo-dark {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .spr-brand img.spr-brand-logo-light {
+      display: none;
+    }
+
+    .spr-brand img.spr-brand-logo-dark {
+      display: block;
+    }
+  }
+
   .spr-search {
     margin-left: auto;
     display: flex;

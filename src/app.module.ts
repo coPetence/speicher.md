@@ -54,7 +54,11 @@ import { JobsModule } from './jobs/jobs.module';
 import { McpController } from './mcp/mcp.controller';
 import { McpTools } from './mcp/tools';
 import { AppearanceController } from './content-reader/appearance.controller';
-import { BrandController, StaticController } from './content-reader/assets.controller';
+import {
+  BrandController,
+  FaviconController,
+  StaticController,
+} from './content-reader/assets.controller';
 import { CrawlerController } from './content-reader/crawlers.controller';
 import { ReadController } from './content-reader/read.controller';
 import { RoutingService } from './content-reader/routing';
@@ -89,6 +93,7 @@ import { SearchService } from './content-reader/search/search.service';
     StaticController,
     BrandController,
     // Branded static assets
+    FaviconController,
     CrawlerController,
     // Crawler user-agent management
     OauthMetadataController,

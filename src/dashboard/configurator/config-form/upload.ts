@@ -11,7 +11,7 @@ import type { Field } from './model';
 /**
  * Uploaded files for the config form
  *
- * Multipart fields become stored values: the logo as a base64 `data:` URI,
+ * Multipart fields become stored values: a brand image as a base64 `data:` URI,
  * the GitHub App key (field named with the `file:` prefix) as its PEM text
  *
  * The request is capped up front, but what is accepted is still sniffed,
@@ -21,9 +21,6 @@ import type { Field } from './model';
  * never as a thrown error, so the rest of their edits survive
  */
 
-/** Brand logo field, stored in the configuration as a `data:` URI */
-export const LOGO_FIELD = 'brand.logo';
-
 /** Prefix marking a field whose upload is stored as literal bytes, not a `data:` URI */
 export const UPLOAD_PREFIX = 'file:';
 
@@ -32,8 +29,13 @@ export const UPLOAD_PREFIX = 'file:';
  * file inputs
  */
 const parse = multer({
-  // fileSize is the brand logo cap; four files let a logo and keys share a post
-  limits: { fileSize: MAX_BRAND_LOGO_BYTES, files: 4, fieldNameSize: 256 },
+  /*
+    fileSize is the largest cap any one field has, which is the logo's — a field
+    with a smaller one of its own refuses on the way into the document, where the
+    refusal can say which field and what its limit is. Six files let all three
+    brand images and the keys share a post.
+  */
+  limits: { fileSize: MAX_BRAND_LOGO_BYTES, files: 6, fieldNameSize: 256 },
 }).any();
 
 /** Uploaded files from a config submission, and why reading them was refused */
@@ -97,7 +99,15 @@ export function fillUploads(
       // Sniff the bytes so a claim about the type can catch a file with a lying name
       const mediaType = sniffMediaType(bytes);
       if (!mediaType) {
-        return 'That file is not a PNG, a WebP or an SVG — those are the three a logo may be.';
+        return 'That file is not a PNG, a WebP or an SVG';
+      }
+      // What this particular field accepts, which is not what every one of them does
+      const accepted = field.accept === '' ? [] : field.accept.split(',');
+      if (accepted.length > 0 && !accepted.includes(mediaType)) {
+        return (
+          `That file is ${nameOfType(mediaType)}, and the ${field.label.toLowerCase()} may be ` +
+          `${listTypes(accepted)}.`
+        );
       }
       body[field.path] = `data:${mediaType};base64,${bytes.toString('base64')}`;
       continue;
@@ -109,6 +119,22 @@ export function fillUploads(
     body[field.path] = read.value;
   }
   return null;
+}
+
+function nameOfType(mediaType: string): string {
+  const names: Record<string, string> = {
+    'image/png': 'a PNG',
+    'image/webp': 'a WebP',
+    'image/svg+xml': 'an SVG',
+  };
+  return names[mediaType] ?? mediaType;
+}
+
+/** "a PNG or an SVG" */
+function listTypes(mediaTypes: string[]): string {
+  const names = mediaTypes.map(nameOfType);
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
 }
 
 /** True when bytes hold a NUL or replacement character, which marks binary content */

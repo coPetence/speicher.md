@@ -1,18 +1,11 @@
-/**
- * Branding, and the palette
- *
- * The template is picked by looking at one — a radio group whose labels are
- * iframes. The palette is the safe half of tenant styling: a closed vocabulary
- * of tokens, so nothing an operator supplies can name a selector. Its prose is a
- * total function of `PALETTE_GROUPS`, so a colour added to the sheet fails to
- * compile until somebody says what it does
- */
-
+import type { BrandImageSpec } from '../../../../config/brand';
 import {
-  BRAND_LOGO_TYPES,
-  MAX_BRAND_LOGO_BYTES,
+  BRAND_ICON,
+  BRAND_LOGO,
+  BRAND_LOGO_DARK,
+  acceptFor,
   describeBytes,
-  parseBrandLogo,
+  parseBrandImage,
 } from '../../../../config/brand';
 import type { PaletteGroupId, PaletteKey } from '../../../../config/palette';
 import { PALETTE_GROUPS } from '../../../../config/palette';
@@ -26,15 +19,26 @@ import type { Card, Field, Option } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead, subsectionEntry } from './registry';
 
-function storedLogo(raw: unknown): { stored: string; storedFile: string } {
+/**
+ * Says what file is already stored if there is one
+ */
+function storedImage(raw: unknown, spec: BrandImageSpec): { stored: string; storedFile: string } {
   if (typeof raw !== 'string') return { stored: '', storedFile: '' };
-  const { logo, problem } = parseBrandLogo(raw);
-  if (!logo) return { stored: problem ?? '', storedFile: '' };
-  const type = (BRAND_LOGO_TYPES[logo.mediaType] ?? '').toUpperCase();
+  const { image, problem } = parseBrandImage(raw, spec);
+  if (!image) return { stored: problem ?? '', storedFile: '' };
+  const type = (spec.types[image.mediaType] ?? '').toUpperCase();
   return {
-    stored: `${type}, ${describeBytes(logo.bytes.length)}`,
-    storedFile: logo.file,
+    stored: `${type}, ${describeBytes(image.bytes.length)}`,
+    storedFile: image.file,
   };
+}
+
+function imageField(root: Obj, spec: BrandImageSpec, label: string, help: string): Field {
+  return field(root, ['brand', spec.field], spec.key, label, 'file', {
+    ...storedImage(at(root, ['brand', spec.field]), spec),
+    accept: acceptFor(spec),
+    help,
+  });
 }
 
 function templateOptions(stored: unknown): Option[] {
@@ -57,7 +61,8 @@ function titleCase(name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// Read twice: as the appearance tile's subtitle, and as that page's own blurb
+const LOGOS_BLURB = 'Set a custom logo for the page header and the icon for the browser tab.';
+
 const APPEARANCE_BLURB =
   'Configure custom colours and typefaces. Find out more in our [documentation](https://docs.speicher.md/themes/tokens)';
 
@@ -66,7 +71,10 @@ export function brandingSection(root: Obj): SectionSource {
     ...sectionHead('branding'),
     blurb:
       'Personalize the look of your instance. Find out more in our [documentation](https://docs.speicher.md/themes)',
-    entries: [subsectionEntry('branding/appearance', APPEARANCE_BLURB)],
+    entries: [
+      subsectionEntry('branding/logos', LOGOS_BLURB),
+      subsectionEntry('branding/appearance', APPEARANCE_BLURB),
+    ],
     layout: 'tiles',
     entriesArePages: true,
     fields: [
@@ -88,10 +96,6 @@ export function brandingSection(root: Obj): SectionSource {
           ),
         ],
       }),
-      field(root, ['brand', 'logo'], 'brand.logo', 'Header logo', 'file', {
-        ...storedLogo(at(root, ['brand', 'logo'])),
-        help: 'PNG, WebP or SVG (max. ' + describeBytes(MAX_BRAND_LOGO_BYTES) + ')',
-      }),
       field(root, ['theme', 'template'], 'theme.template', 'Theme', 'template', {
         fallback: DEFAULT_TEMPLATE,
         placeholder: DEFAULT_TEMPLATE,
@@ -101,6 +105,36 @@ export function brandingSection(root: Obj): SectionSource {
       field(root, ['attribution'], 'attribution', 'Show "Published with speicher.md"', 'boolean', {
         fallback: true,
       }),
+    ],
+    cards: [],
+    addOps: [],
+  };
+}
+
+export function logosSection(root: Obj): SectionSource {
+  return {
+    ...sectionHead('branding/logos'),
+    blurb: LOGOS_BLURB,
+    fields: [
+      imageField(
+        root,
+        BRAND_LOGO,
+        'Header logo',
+        `PNG, WebP or SVG (max. ${describeBytes(BRAND_LOGO.maxBytes)}). Shown at the top of ` +
+          'every page, and on dark pages too unless you add one below.',
+      ),
+      imageField(
+        root,
+        BRAND_LOGO_DARK,
+        'Header logo for dark pages',
+        `PNG, WebP or SVG (max. ${describeBytes(BRAND_LOGO_DARK.maxBytes)}). Shown to a reader with dark mode`,
+      ),
+      imageField(
+        root,
+        BRAND_ICON,
+        'Favicon (Browser Tab)',
+        `Square PNG or SVG (max. ${describeBytes(BRAND_ICON.maxBytes)})`,
+      ),
     ],
     cards: [],
     addOps: [],

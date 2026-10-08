@@ -762,6 +762,90 @@ describe('the colour-scheme variants', () => {
     expect(read(`theme-dark-${name}`)).toMatch(/@media all\{[^}]*--spr-color-scheme:\s*dark/);
   });
 
+  const inScheme = (css: string, scheme: 'light' | 'dark'): string => {
+    const QUERY = /@media\s*(\(prefers-color-scheme:\s*dark\)|not all|all)\s*\{/;
+    let out = '';
+    let rest = css;
+    for (;;) {
+      const found = QUERY.exec(rest);
+      if (!found) return out + rest;
+
+      out += rest.slice(0, found.index);
+      const opens = found.index + found[0].length;
+      let depth = 1;
+      let index = opens;
+      while (index < rest.length && depth > 0) {
+        if (rest[index] === '{') depth += 1;
+        else if (rest[index] === '}') depth -= 1;
+        index += 1;
+      }
+
+      const on = found[1] === 'all' || (found[1] !== 'not all' && scheme === 'dark');
+      out += on ? rest.slice(opens, index - 1) : '';
+      rest = rest.slice(index);
+    }
+  };
+
+  const weightAgainst = (selector: string, variant: string): number | null => {
+    const parts = selector.trim().split(/\s+/);
+    if (parts.length > 2) return null;
+    if (parts.length === 2 && parts[0] !== '.spr-brand') return null;
+
+    const own = new Set(['img', '.spr-brand-logo', `.spr-brand-logo-${variant}`]);
+    const pieces = parts[parts.length - 1].split(/(?=\.)/).filter(Boolean);
+    if (!pieces.every((piece) => own.has(piece))) return null;
+
+    const classes = pieces.filter((piece) => piece.startsWith('.')).length + (parts.length - 1);
+    return classes * 10 + pieces.filter((piece) => !piece.startsWith('.')).length;
+  };
+
+  const displayOf = (css: string, variant: string, scheme: 'light' | 'dark'): string => {
+    let best = { weight: -1, order: -1, value: 'inline' };
+    let order = 0;
+
+    for (const [, selectors, body] of inScheme(css, scheme).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      order += 1;
+      const display = /(?:^|;)\s*display\s*:\s*([^;]+)/.exec(body)?.[1]?.trim();
+      if (display === undefined) continue;
+
+      for (const selector of selectors.split(',')) {
+        const weight = weightAgainst(selector, variant);
+        if (weight === null) continue;
+        if (weight > best.weight || (weight === best.weight && order > best.order)) {
+          best = { weight, order, value: display };
+        }
+      }
+    }
+    return best.value;
+  };
+
+  it.each(templates)('draws one of two logos in %s, never both', (name) => {
+    const manifest = built();
+    const read = (key: string) => readFileSync(join(dir, manifest[key]), 'utf8');
+
+    const drawn = (key: string, scheme: 'light' | 'dark') => ({
+      light: displayOf(read(key), 'light', scheme),
+      dark: displayOf(read(key), 'dark', scheme),
+    });
+
+    expect(drawn(`theme-${name}`, 'light')).toEqual({ light: 'block', dark: 'none' });
+    expect(drawn(`theme-${name}`, 'dark')).toEqual({ light: 'none', dark: 'block' });
+
+    for (const scheme of ['light', 'dark'] as const) {
+      expect(drawn(`theme-light-${name}`, scheme)).toEqual({ light: 'block', dark: 'none' });
+      expect(drawn(`theme-dark-${name}`, scheme)).toEqual({ light: 'none', dark: 'block' });
+    }
+  });
+
+  it.each(templates)('leaves the only logo there is alone in %s', (name) => {
+    const manifest = built();
+    const css = readFileSync(join(dir, manifest[`theme-${name}`]), 'utf8');
+
+    for (const scheme of ['light', 'dark'] as const) {
+      expect(displayOf(css, 'neither', scheme)).toBe('block');
+    }
+  });
+
   it('keeps the scheme out of the templates an operator is offered', () => {
     expect(templateNames().sort()).toEqual(templates.sort());
     const build = readFileSync(join(__dirname, '../../scripts/build-client.ts'), 'utf8');

@@ -1,5 +1,5 @@
 /**
- * Client build artifacts and the brand logo: URL helpers and the routes that serve them
+ * Client build artifacts and the brand images: URL helpers and the routes that serve them
  *
  * Islands and stylesheets build into `dist/client` with content-hashed filenames,
  * mapped by manifest.json from artifact name to file
@@ -19,6 +19,7 @@ import { isProduction } from '../common/env';
 import { Logger, rootLogger } from '../common/logger';
 import { ConfigService } from '../config/config.service';
 import type { ColourScheme } from '../config/palette';
+import { DEFAULT_BRAND_ICON, renderIconDocument } from './icons';
 
 /** First existing client build: the compiled server's sibling, else repo-root dist */
 export function clientDir(): string | undefined {
@@ -150,30 +151,51 @@ export class StaticController {
   }
 }
 
-/** Serves the instance's configured brand logo at `/-/brand` */
+function sendBrandImage(res: Response, mediaType: string, bytes: Buffer, cache: string): void {
+  res.setHeader('Content-Type', mediaType);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+  );
+
+  res.setHeader('Cache-Control', cache);
+  res.status(200).send(bytes);
+}
+
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+
 @Controller('-/brand')
 export class BrandController {
   constructor(private readonly config: ConfigService) {}
 
   @Get(':file')
   serve(@Param('file') file: string, @Res() res: Response): void {
-    const logo = this.config.brandLogo;
-    // Only the exact hashed filename serves; the name is the sha256 of the bytes
-    if (!logo || logo.file !== file) {
+    const image = this.config.brandImages.find((each) => each.file === file);
+    if (!image) {
       res.status(404).end();
       return;
     }
 
-    res.setHeader('Content-Type', logo.mediaType);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    // Sandboxed so a logo opened by URL cannot script or load anything
-    // Inline styles stay allowed
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'none'; style-src 'unsafe-inline'; sandbox",
-    );
+    sendBrandImage(res, image.mediaType, image.bytes, IMMUTABLE);
+  }
+}
 
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    res.status(200).send(logo.bytes);
+let defaultIcon: Buffer | undefined;
+
+@Controller()
+export class FaviconController {
+  constructor(private readonly config: ConfigService) {}
+
+  @Get('favicon.ico')
+  serve(@Res() res: Response): void {
+    const icon = this.config.brandIcon;
+    if (icon) {
+      sendBrandImage(res, icon.mediaType, icon.bytes, 'public, max-age=3600');
+      return;
+    }
+
+    defaultIcon ??= Buffer.from(renderIconDocument(DEFAULT_BRAND_ICON), 'utf8');
+    sendBrandImage(res, 'image/svg+xml', defaultIcon, 'public, max-age=3600');
   }
 }

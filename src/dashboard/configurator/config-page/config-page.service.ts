@@ -95,7 +95,7 @@ export class ConfigPageService {
         waiting_consequences: this.waitingConsequences(editingVersion, yaml),
         unreadable,
         unparseable,
-        served_logo: this.config.brandLogo?.file ?? null,
+        served_logos: this.config.brandImages.map((image) => image.file),
       },
     };
   }
