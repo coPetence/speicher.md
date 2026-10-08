@@ -1,7 +1,7 @@
 /**
  * Copy-to-clipboard buttons as a progressive enhancement
  *
- * Buttons with `data-spr-copy` are hidden by default and shown when the Clipboard API is available
+ * Buttons with `data-spr-clipboard` are hidden by default and shown when the Clipboard API is available
  * Clicking writes the attribute value to the clipboard and sets `data-spr-state` on the button
  * A shared `data-spr-copy-status` element announces the result to screen readers
  * On failure the status becomes visible so the user can read the manual instruction
@@ -19,7 +19,7 @@ const FAILED_MS = 8_000;
 export function mountCopy(): void {
   if (!navigator.clipboard) return;
 
-  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-spr-copy]');
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-spr-clipboard]');
   const status = document.querySelector<HTMLElement>('[data-spr-copy-status]');
   let reset = 0;
 
@@ -51,7 +51,7 @@ export function mountCopy(): void {
   for (const button of buttons) {
     button.hidden = false;
     button.addEventListener('click', () => {
-      void navigator.clipboard.writeText(button.dataset.sprCopy ?? '').then(
+      void navigator.clipboard.writeText(button.dataset.sprClipboard ?? '').then(
         () => show(button, true),
         () => show(button, false),
       );

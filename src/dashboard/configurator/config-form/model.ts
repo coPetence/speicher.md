@@ -55,6 +55,8 @@ export interface FieldUpload {
   content: 'rsa-private-key'; // only one option so far;
   // Button label for the upload control
   label: string;
+  // Text shown in the drop rectangle when a file is dragged over it
+  dropLabel: string;
 }
 
 export interface Field {
@@ -137,6 +139,10 @@ export interface Field {
   linkHtml: string;
   // Rendered fact shown below the field
   factHtml: string;
+  // A value shown below the fact with a button that copies it. One starting with `/`
+  // is a path on this instance, and the browser puts its own origin in front
+  copy?: string;
+  factForPathHtml: string;
   // Used when a value can be filled by a file upload (e.g. uploading a pem file to fill a string field) TODO: Rename to fillFromUpload
   upload?: FieldUpload;
 }

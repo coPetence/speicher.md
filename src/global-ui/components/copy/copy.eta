@@ -1,5 +1,5 @@
 
-<button type="button" class="spr-copy" aria-label="<%= it.label %>" title="<%= it.label %>" data-spr-copy="<%= it.text %>"<% if (!it.visible) { %> hidden<% } %>>
+<button type="button" class="spr-copy" aria-label="<%= it.label %>" title="<%= it.label %>" data-spr-clipboard="<%= it.text %>"<% if (!it.visible) { %> hidden<% } %>>
   <span class="spr-copy-idle"><%~ it.copyIcon %></span>
   <span class="spr-copy-done"><%~ it.copiedIcon %></span>
 </button>

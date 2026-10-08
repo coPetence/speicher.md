@@ -1245,18 +1245,38 @@ describe('the content sources section', () => {
     expect(kinds.git).toContain('#DE4C36');
   });
 
-  it("prints the App's webhook URL on the source it belongs to", async () => {
+  it("offers the App's webhook URL to copy on the source it belongs to", async () => {
     const before = process.env.SPEICHER_PUBLIC_URL;
     process.env.SPEICHER_PUBLIC_URL = 'https://docs.acme.example/';
     try {
       const { html } = await open('sources/gh');
-      expect(html).toContain('<code>https://docs.acme.example/-/hooks/gh</code>');
       expect(html).toMatch(
-        /<p class="spr-help">\s*Deliveries arrive at <code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>/,
+        /<p\s+class="spr-help"\s*>\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\.\s*<\/p>\s*<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>/,
       );
+      expect(html).toContain('data-spr-clipboard="https://docs.acme.example/-/hooks/gh"');
+      expect(html).toContain('data-spr-copy-status');
+      expect(html).not.toContain('data-spr-origin-path');
+      expect(html).not.toContain('data-spr-path-fact');
     } finally {
       if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
       else process.env.SPEICHER_PUBLIC_URL = before;
+    }
+  });
+
+  it('offers the webhook path to copy when the public URL is unset, with a sentence that works without JavaScript', async () => {
+    const before = process.env.SPEICHER_PUBLIC_URL;
+    delete process.env.SPEICHER_PUBLIC_URL;
+    try {
+      const { html } = await open('sources/gh');
+      expect(html).toMatch(/class="spr-copyable"\s*data-spr-origin-path/);
+      expect(html).toContain('data-spr-clipboard="/-/hooks/gh"');
+      // The path's sentence is shown; the full URL's waits for the browser to add the origin
+      expect(html).toMatch(
+        /data-spr-path-fact\s*>\s*Enter this path after the address of this instance/,
+      );
+      expect(html).toMatch(/data-spr-origin-fact hidden\s*>\s*Enter this as the/);
+    } finally {
+      if (before !== undefined) process.env.SPEICHER_PUBLIC_URL = before;
     }
   });
 
@@ -2625,13 +2645,16 @@ describe('the GitHub App private key', () => {
     return (block?.[1] ?? '').replace(/^\s+/gm, '');
   }
 
-  it('renders a picker under the box, named for the field and never as it', async () => {
+  it('renders a picker beside the box, named for the field and never as it', async () => {
     const { html } = await open('sources/gh');
     const form = html.slice(html.indexOf('<form class="spr-config"'));
 
     expect(form).toMatch(
-      new RegExp(`name="${KEY_FIELD}"[\\s\\S]*?class="spr-upload"[\\s\\S]*?name="${PICKER}"`),
+      new RegExp(
+        `class="spr-pickable"[\\s\\S]*?name="${KEY_FIELD}"[\\s\\S]*?name="${PICKER}"[\\s\\S]*?</span>`,
+      ),
     );
+    expect(form).toContain('data-spr-drop-zone');
     expect(form).toContain(`name="${PICKER}"`);
     expect(form).not.toContain('name="file:forges.gh.webhook_secret"');
   });

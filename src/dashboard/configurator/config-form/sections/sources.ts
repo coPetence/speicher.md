@@ -10,9 +10,8 @@
 import { webhookPath, webhookUrl } from '../../../../forge/webhook-url';
 
 import { scalarString } from '../document';
-import { SECRET_HELP, at, field } from '../field';
 import type { Obj } from '../field';
-import type { Card, EntryLine, Field, SectionEntry } from '../model';
+import { SECRET_HELP, at, field } from '../field';
 import {
   FORGE_TYPES,
   SHORT_ID,
@@ -25,8 +24,9 @@ import {
   memberSectionId,
   nounOf,
 } from '../members';
-import { sectionHead } from './registry';
+import type { Card, EntryLine, Field, SectionEntry } from '../model';
 import type { SectionSource } from './registry';
+import { sectionHead } from './registry';
 
 const REPO_ID_PATTERN = '[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}';
 const REPO_ID_HINT =
@@ -102,16 +102,6 @@ function forgeEntry(root: Obj, id: string): SectionEntry {
   };
 }
 
-function webhookFact(id: string): string {
-  const url = webhookUrl(id);
-  if (url) return `Deliveries arrive at \`${url}\` — the **Webhook URL** the App asks for.`;
-  return (
-    `Deliveries arrive at \`${webhookPath(id)}\` on this instance. ` +
-    'The absolute URL the App asks for is this path under `SPEICHER_PUBLIC_URL`, ' +
-    'which is unset: the origin is never taken from the request.'
-  );
-}
-
 function forgeBlurb(type: string): string {
   if (type === 'git') {
     return (
@@ -122,10 +112,8 @@ function forgeBlurb(type: string): string {
     );
   }
   if (type === 'github') {
-    return (
-      'A GitHub App. Repositories are discovered through it, and a webhook is what ' +
-      'makes a push visible here without waiting for a poll.'
-    );
+    // TODO: the linked page does not exist yet; replace the placeholder once it is written
+    return 'Before you can fill in this page, you need to ==create a GitHub App==. To find out how to create it and which Webhook URL to enter, read [Creating a GitHub App](https://docs.speicher.md/placeholder/github-app).';
   }
   return (
     'No driver is built for this kind yet. A plain git remote serves the same ' +
@@ -196,7 +184,8 @@ function appCard(root: Obj, id: string): Card {
   const p = (key: string) => `forges.<key>.${key}`;
   return {
     title: 'GitHub App',
-    subtitle: 'The values from the settings page of the GitHub App.',
+    subtitle:
+      'You can find these values in the settings of your GitHub App, under Developer settings → GitHub Apps.',
     removeOp: null,
     notes: [],
     cards: [],
@@ -204,21 +193,21 @@ function appCard(root: Obj, id: string): Card {
     fields: [
       field(root, [...base, 'app_id'], p('app_id'), 'App id', 'text'),
       field(root, [...base, 'private_key'], p('private_key'), 'Private key', 'secret', {
-        help:
-          SECRET_HELP +
-          ' The App’s `.pem` can be chosen below instead, and then the key itself is ' +
-          'what is stored — every version of this configuration keeps a copy of it, ' +
-          'so ${VARIABLE_NAME} is still the better answer where there is an ' +
-          'environment to hold one.',
+        help: `${SECRET_HELP}\n\nThe App's .pem file can also be chosen with the button or dropped onto the field.`,
         upload: {
           accept: '.pem,application/x-pem-file',
           content: 'rsa-private-key',
-          label: '… or choose the App’s .pem file',
+          label: 'Choose .pem…',
+          dropLabel: "Drop the App's .pem file here",
         },
       }),
       field(root, [...base, 'webhook_secret'], p('webhook_secret'), 'Webhook secret', 'secret', {
         help: SECRET_HELP,
-        fact: webhookFact(id),
+        fact: 'Enter this as the **Webhook URL** in the settings of your GitHub App.',
+        // Without SPEICHER_PUBLIC_URL only the path is known; if js is enabled, the browser can complete it with its own origin.
+        copy: webhookUrl(id) ?? webhookPath(id),
+        factForPath:
+          'Enter this path after the address of this instance as the **Webhook URL** in the settings of your GitHub App.',
         startsRow: true,
       }),
     ],

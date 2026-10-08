@@ -8,10 +8,12 @@
  * is loaded before or after DOMContentLoaded
  */
 
+import { mountCopy } from './copy';
 import { mountFilter } from './filter';
 import { mountNavFolds } from './slide';
 import { mountConfigBar } from './configurator/unsaved-changes-bar';
 import { mountPickedFileNames } from './configurator/picked-file-name';
+import { mountFileDrops } from './configurator/drop-in-field';
 import { mountReshapeSubmits } from './configurator/reshape-submits-form';
 import { mountModals } from './configurator/modal-focus-and-escape';
 import { mountDropdowns } from './configurator/picture-dropdown';
@@ -19,6 +21,7 @@ import { mountBlockedAnswers } from './configurator/unavailable-choice-blocker';
 import { mountSuggestions } from './configurator/suggested-name-fill';
 import { mountReveals } from './configurator/dependent-field-visibility';
 import { mountCopies } from './configurator/copy-from-sibling-field';
+import { mountOriginPaths } from './configurator/origin-before-path';
 import { mountSwatches } from './configurator/colour-swatch-picker';
 import { mountGrowingTables } from './configurator/growing-source-tables';
 import { mountChecks } from './configurator/live-connection-check';
@@ -30,6 +33,7 @@ function mount(): void {
   mountConfigBar();
 
   mountPickedFileNames();
+  mountFileDrops();
   mountReshapeSubmits();
   mountChecks();
 
@@ -40,6 +44,8 @@ function mount(): void {
   mountSuggestions();
   mountReveals();
   mountCopies();
+  mountOriginPaths();
+  mountCopy();
   mountWidths();
   mountSwatches();
   mountGrowingTables();
