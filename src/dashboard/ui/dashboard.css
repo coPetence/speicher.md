@@ -44,7 +44,6 @@
 
   .spr-config-toc {
     position: sticky;
-    top: 0;
     z-index: 1;
     padding: var(--spr-space-3) 0;
     margin-bottom: var(--spr-space-6);
@@ -93,7 +92,11 @@
 
   .spr-fields > .spr-field-boolean,
   .spr-fields > .spr-field-membership {
-    align-self: center;
+    align-self: end;
+    justify-content: center;
+    min-block-size: calc(
+      var(--spr-line-height) * 1em + 2 * var(--spr-space-2) + 2 * var(--spr-border)
+    );
   }
 
   .spr-fields.spr-fields-wide {
@@ -701,10 +704,8 @@
     flex-wrap: wrap;
     inset-inline: var(--spr-gutter);
     bottom: var(--spr-space-5);
-    max-inline-size: var(--spr-measure-wide);
-    margin-inline: auto;
     padding: var(--spr-space-4) var(--spr-space-5);
-    background: var(--spr-surface);
+    background: var(--spr-bar-bg);
     border: var(--spr-border) solid var(--spr-line);
     border-radius: var(--spr-radius-lg);
     z-index: 1;
@@ -713,12 +714,6 @@
 
   .spr-config[data-spr-live][data-spr-pending] {
     padding-block-end: 6rem;
-  }
-
-  @media (min-width: 48rem) {
-    .spr-config[data-spr-live][data-spr-pending] .spr-config-actions {
-      inset-inline-start: calc(var(--spr-nav-width) + var(--spr-gutter));
-    }
   }
 
   @keyframes spr-config-bar-in {

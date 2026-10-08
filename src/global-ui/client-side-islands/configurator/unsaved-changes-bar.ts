@@ -8,6 +8,10 @@
  * Server-rendered `data-spr-pending` carries over if the session has unsaved changes
  * `data-spr-holds-work` warns that navigating away would lose server-side changes
  *
+ * A problem is held back until Save is first pressed, so a page reached by Add does
+ * not open on an error; from then on it is shown as it changes. Server-rendered
+ * `data-spr-attempted` marks a page that came back from a refused submission
+ *
  * Not checked on every keystroke: debounced at 400ms
  */
 
@@ -19,6 +23,7 @@ const PENDING = 'data-spr-pending'; // Form has unsaved changes
 const HOLDS_WORK = 'data-spr-holds-work'; // Server-side changes would be lost on navigate
 const LIVE = 'data-spr-live'; // JS is attached to this form
 const STATE = 'data-spr-check'; // Status state for CSS: pending, invalid, checking, ready
+const ATTEMPTED = 'data-spr-attempted'; // A submission was refused, so problems are shown
 const DEBOUNCE_MS = 400; // Delay before checking after input stops
 const SLOW_CHECK_MS = 100; // Show "Checking…" if server takes longer than this
 
@@ -32,6 +37,17 @@ export function mountConfigBar(): void {
 
   form.setAttribute(LIVE, '');
 
+  // The bar floats at the foot of the window but lines up with the form, whose
+  // edges only the browser can measure, reaching past them by --spr-bar-reach
+  const align = (): void => {
+    const box = form.getBoundingClientRect();
+    actions.style.left = `calc(${box.left}px - var(--spr-bar-reach))`;
+    actions.style.width = `calc(${box.width}px + 2 * var(--spr-bar-reach))`;
+  };
+  align();
+  addEventListener('resize', align);
+  if ('ResizeObserver' in window) new ResizeObserver(align).observe(form);
+
   const status = document.createElement('p');
   status.className = 'spr-config-state';
   status.setAttribute('role', 'status');
@@ -44,7 +60,8 @@ export function mountConfigBar(): void {
   let inFlight: AbortController | undefined;
   let submitting = false;
 
-  let touched = false; // Don't show validation errors before the user has interacted
+  let attempted = form.hasAttribute(ATTEMPTED); // Save has been pressed, so problems are shown
+  let problem: string | null = null; // What the latest check found wrong, shown or not
 
   const isPending = (): boolean => serverPending || snapshot(form) !== baseline;
 
@@ -55,16 +72,22 @@ export function mountConfigBar(): void {
     status.textContent = text;
   };
 
+  const refuse = (text: string): void => {
+    problem = text;
+    if (!attempted) {
+      save.disabled = false;
+      say('pending', UNSAVED);
+      return;
+    }
+    save.disabled = true;
+    say('invalid', text);
+  };
+
   const check = async (): Promise<void> => {
     inFlight?.abort();
 
     if (!form.checkValidity()) {
-      if (!touched) {
-        say('pending', UNSAVED);
-        return;
-      }
-      save.disabled = true;
-      say('invalid', constraintProblem(form));
+      refuse(constraintProblem(form));
       return;
     }
 
@@ -94,19 +117,20 @@ export function mountConfigBar(): void {
       const payload = (await response.json()) as CheckAnswer;
 
       if (!response.ok) {
-        save.disabled = true;
         const detail = plain(payload.problems?.[0]);
         const headline = payload.error ?? 'This configuration would not load.';
-        say('invalid', detail ? `${headline} — ${detail}` : headline);
+        refuse(detail ? `${headline}: ${detail}` : headline);
         return;
       }
 
+      problem = null;
       save.disabled = false;
       say('ready', describe(payload.verdict));
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
       if (controller !== inFlight) return;
 
+      problem = null;
       save.disabled = false;
       say('ready', `${UNSAVED} Could not check them from here — Save will.`);
     } finally {
@@ -136,12 +160,26 @@ export function mountConfigBar(): void {
   };
 
   const touch = (): void => {
-    touched = true;
+    // What the last check found may just have been fixed; the next check says
+    problem = null;
     update();
   };
 
   form.addEventListener('input', touch);
   form.addEventListener('change', touch);
+
+  // The first press of Save shows what is held back. A known problem stops the save;
+  save.addEventListener('click', (event) => {
+    if (attempted) return;
+    attempted = true;
+    if (!form.checkValidity()) {
+      refuse(constraintProblem(form));
+      return;
+    }
+    if (problem === null) return;
+    event.preventDefault();
+    refuse(problem);
+  });
 
   form.addEventListener('submit', () => {
     submitting = true;

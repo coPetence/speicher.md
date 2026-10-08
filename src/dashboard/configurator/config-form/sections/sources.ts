@@ -130,7 +130,7 @@ export function forgeSection(root: Obj, id: string): SectionSource {
   const fields: Field[] = [
     field(root, [...base, 'base_url'], p('base_url'), 'Base URL', 'text', {
       placeholder: 'https://github.example.com',
-      help: 'Self-hosted installations only.',
+      help: 'The base URL is the address of your own GitHub Enterprise Server, for example `https://github.example.com`. Leave it empty if you use GitHub.com.',
       advanced: true,
     }),
   ];
@@ -225,7 +225,7 @@ function urlCard(root: Obj, id: string): Card {
   const p = (key: string) => `forges.<key>.${key}`;
   return {
     title: 'URLs',
-    subtitle: 'How the repositories of this source appear in the URLs of this instance.',
+    subtitle: 'Defines if the repositories of this source appear in the URLs of this instance.',
     removeOp: null,
     notes: [],
     cards: [],
@@ -244,9 +244,7 @@ function urlCard(root: Obj, id: string): Card {
       ),
       field(root, [...base, 'primary'], p('primary'), 'Primary', 'boolean', {
         fallback: false,
-        help:
-          'The primary source contributes no URL segment. Exactly one, and changing ' +
-          'which moves every URL on this instance.',
+        help: 'If true, the repositorie name is left out of the URL in the reader, so the source is served at `/` instead of `/<source>`. There can be only one primary source.',
       }),
     ],
   };

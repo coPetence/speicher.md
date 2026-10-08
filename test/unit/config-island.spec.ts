@@ -84,6 +84,20 @@ const save = () => document.querySelector('.spr-config-save') as HTMLButtonEleme
 const status = () => document.querySelector('.spr-config-state') as HTMLParagraphElement | null;
 const pending = () => form().hasAttribute('data-spr-pending');
 
+// Presses Save, and says whether a submission got through. One that does is stopped
+// here, since jsdom cannot navigate
+function pressSave(): boolean {
+  let submitted = false;
+  const stop = (event: Event): void => {
+    submitted = true;
+    event.preventDefault();
+  };
+  form().addEventListener('submit', stop);
+  save().click();
+  form().removeEventListener('submit', stop);
+  return submitted;
+}
+
 function type(name: string, value: string): void {
   const control = form().querySelector(`[name="${name}"]`) as HTMLInputElement;
   control.value = value;
@@ -658,7 +672,7 @@ describe('the save bar', () => {
     expect(status()?.textContent).toContain('Takes effect on restart');
   });
 
-  it('disables Save while the loader is refusing the document', async () => {
+  it('disables Save while the loader is refusing the document, once Save has been pressed', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       json: async () => ({ error: 'schema validation failed: issuer is required', verdict: null }),
@@ -668,6 +682,11 @@ describe('the save bar', () => {
     type('brand.name', 'Docs and more');
     await settle();
 
+    // Held back until the operator asks to save
+    expect(save().disabled).toBe(false);
+    expect(status()?.textContent).toBe('Unsaved changes.');
+
+    expect(pressSave()).toBe(false);
     expect(save().disabled).toBe(true);
     expect(status()?.textContent).toContain('schema validation failed');
     expect(form().getAttribute('data-spr-check')).toBe('invalid');
@@ -690,9 +709,10 @@ describe('the save bar', () => {
 
     type('brand.name', 'Handbook');
     await settle();
+    pressSave();
 
     expect(status()?.textContent).toBe(
-      'instance config failed schema validation — auth.providers.link.token_ttl: must match pattern "^[0-9]+(s|m|h|d)$"',
+      'instance config failed schema validation: auth.providers.link.token_ttl: must match pattern "^[0-9]+(s|m|h|d)$"',
     );
     expect(status()?.textContent).not.toContain('`');
     expect(status()?.textContent).not.toContain('session_ttl');
@@ -716,6 +736,7 @@ describe('the save bar', () => {
 
     type('brand.name', 'Handbook');
     await settle();
+    pressSave();
 
     expect(status()?.textContent).toContain('Configure it under Mail transport, then');
     expect(status()?.textContent).not.toContain('/-/config/mail');
@@ -731,6 +752,7 @@ describe('the save bar', () => {
     run();
     type('brand.name', '');
     await settle();
+    pressSave();
     expect(save().disabled).toBe(true);
 
     type('brand.name', 'Docs and more');
@@ -806,12 +828,16 @@ describe('the save bar', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('says what is wrong once the operator has typed, in the two cases that differ', async () => {
+  it('says what is wrong once Save is pressed, in the two cases that differ', async () => {
     renderDraft();
     run();
 
     type('auth.providers.test.issuer', '!!');
     await settle();
+    expect(status()?.textContent).toBe('Unsaved changes.');
+    expect(save().disabled).toBe(false);
+
+    expect(pressSave()).toBe(false);
     expect(save().disabled).toBe(true);
     expect(status()?.textContent).toBe(
       'Unsaved changes. Something here is not in a shape its control accepts.',
@@ -824,6 +850,61 @@ describe('the save bar', () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('opens a page reached by Add without an error, and shows it only when Save is pressed', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'instance config failed schema validation', verdict: null }),
+    });
+    render(true);
+    run();
+    await settle();
+
+    // Checked on arrival, and nothing said of it yet
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(status()?.textContent).toBe('Unsaved changes.');
+    expect(save().disabled).toBe(false);
+
+    expect(pressSave()).toBe(false);
+    expect(status()?.textContent).toBe('instance config failed schema validation');
+    expect(save().disabled).toBe(true);
+
+    // From here on the check answers live, and a fix takes the error away
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        error: null,
+        verdict: { changed: [], rebuild: false, effect: 'hot', hotReloadAvailable: true },
+      }),
+    });
+    type('brand.name', 'Fixed');
+    await settle();
+    expect(status()?.textContent).toBe('Unsaved changes.');
+    expect(save().disabled).toBe(false);
+  });
+
+  it('lets Save through when nothing was found wrong', async () => {
+    render();
+    run();
+    type('brand.name', 'Docs and more');
+    await settle();
+
+    expect(pressSave()).toBe(true);
+  });
+
+  it('shows problems straight away on a page that came back from a refused save', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'instance config failed schema validation', verdict: null }),
+    });
+    render(true);
+    form().setAttribute('data-spr-attempted', '');
+    run();
+    await settle();
+
+    expect(status()?.textContent).toBe('instance config failed schema validation');
+    expect(save().disabled).toBe(true);
   });
 
   it('checks with the server as soon as the controls are satisfied', async () => {

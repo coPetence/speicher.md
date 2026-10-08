@@ -267,8 +267,7 @@
   }
   .spr-pickable-clear {
     flex: none;
-    display: grid;
-    place-items: center;
+    position: relative;
     inline-size: 1.75em;
     block-size: 1.75em;
     margin-inline-start: auto;
@@ -281,10 +280,29 @@
     cursor: pointer;
   }
 
-  .spr-pickable-clear::before {
-    content: '\00d7';
-    font-size: 1.25em;
-    line-height: 1;
+  .spr-pickable-clear::before,
+  .spr-pickable-clear::after {
+    content: '';
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 0.875em;
+    block-size: 1.5px;
+    border-radius: 1px;
+    background: currentColor;
+    translate: -50% -50%;
+    rotate: 45deg;
+  }
+
+  .spr-pickable-clear::after {
+    rotate: -45deg;
+  }
+
+  @media (forced-colors: active) {
+    .spr-pickable-clear::before,
+    .spr-pickable-clear::after {
+      background: ButtonText;
+    }
   }
 
   .spr-pickable-clear:hover {
