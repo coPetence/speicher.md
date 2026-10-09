@@ -1,0 +1,3 @@
+    <%~ include('@config-fields/label', it) %>
+    <%~ include('@config-fields/text-box', it) %>
+    <%~ include('@config-fields/copied-from', it) %>

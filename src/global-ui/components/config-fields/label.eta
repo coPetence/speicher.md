@@ -1,0 +1,6 @@
+<% const f = it.field %>
+    <% if (f.help) { %><div class="spr-field-head"><% } %>
+    <label for="f-<%= f.path %>">
+      <%= f.label %>
+    </label>
+    <% if (f.help) { %><%~ include('@info', { field: f }) %></div><% } %>

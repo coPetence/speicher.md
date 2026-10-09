@@ -6,7 +6,7 @@ import multer, { MulterError } from 'multer';
 import { MAX_BRAND_LOGO_BYTES, describeBytes, sniffMediaType } from '../../../config/brand';
 import { normalizePem } from '../../../forge/github/tokens';
 
-import type { Field } from './model';
+import type { Field } from './config-fields';
 
 /**
  * Uploaded files for the config form
@@ -106,7 +106,7 @@ export function fillUploads(
       continue;
     }
 
-    if (!field.upload) continue;
+    if (field.kind !== 'secret' || !field.upload) continue;
     const read = readPrivateKey(bytes);
     if (read.refusal !== null) return read.refusal;
     body[field.path] = read.value;

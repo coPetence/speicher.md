@@ -1,0 +1,2 @@
+    <%/* The same switch as a boolean; only what saving it does to the list differs */%>
+    <%~ include('@config-fields/boolean', it) %>

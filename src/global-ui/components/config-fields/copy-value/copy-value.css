@@ -1,0 +1,18 @@
+@layer speicher.base {
+  .spr-copyable {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    max-inline-size: 28rem;
+  }
+
+  .spr-copyable > code {
+    flex: 1;
+    min-width: 0;
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+    overflow-wrap: anywhere;
+  }
+}

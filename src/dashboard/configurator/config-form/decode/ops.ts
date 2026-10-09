@@ -2,7 +2,7 @@ import { Document } from 'yaml';
 
 import { addTarget } from '../collections';
 import { appendSeqItem, dottedPath, removeAt, setNodeAt, writeAt } from '../document';
-import { Obj } from '../field';
+import type { Obj } from '../config-fields';
 import { FormSection, allFields, allOps } from '../model';
 import { seedForge, sourcePositions } from '../members';
 import { FormBody, submitted, submittedList } from './body';

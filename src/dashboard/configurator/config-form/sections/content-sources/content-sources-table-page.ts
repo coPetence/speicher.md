@@ -3,8 +3,8 @@
  */
 
 import { scalarString } from '../../document';
-import type { Obj } from '../../field';
-import { at } from '../../field';
+import type { Obj } from '../../config-fields';
+import { at } from '../../config-fields';
 import {
   FORGE_TYPES,
   SHORT_ID,

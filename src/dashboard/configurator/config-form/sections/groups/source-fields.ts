@@ -1,9 +1,9 @@
 import { entraPortalGroupUrl } from '../../../../../auth/directory/graph';
 
 import { scalarString } from '../../document';
-import { at, field } from '../../field';
-import type { Obj } from '../../field';
-import type { EntryLine, Field } from '../../model';
+import { at, textField } from '../../config-fields';
+import type { Field, Obj } from '../../config-fields';
+import type { EntryLine } from '../../model';
 import { providerFormKind, providerType } from '../../members';
 
 /**
@@ -59,13 +59,13 @@ export function matchFields(root: Obj, name: string, index: number, provider: st
   const magicLink = providerType(root, provider) === 'magic-link';
   return [
     // Group id field, not applicable for magic-link providers
-    field(root, [...base, 'id'], p('id'), 'Provider group id', 'text', {
+    textField(root, [...base, 'id'], p('id'), 'Provider group id', {
       placeholder: matchPlaceholder(root, provider),
       inapplicable: magicLink,
       // Link to Entra portal for this group
       link: portalLinkFor(root, provider, scalarString(at(root, [...base, 'id']))),
     }),
-    field(root, [...base, 'domain'], p('domain'), 'Email domain', 'text', {
+    textField(root, [...base, 'domain'], p('domain'), 'Email domain', {
       // Domain matching only applies to magic-link providers
       placeholder: 'example.com',
       inapplicable: !magicLink,
@@ -79,13 +79,11 @@ export function matchFields(root: Obj, name: string, index: number, provider: st
 export function trailingCarry(root: Obj, name: string, index: number, trailing: boolean): Field[] {
   if (trailing) return [];
   return [
-    field(
+    textField(
       root,
       ['groups', name, index, 'provider'],
       'groups.<key>.<index>.provider',
       'Provider',
-      'text',
-      {},
     ),
   ];
 }
@@ -97,10 +95,10 @@ export function personFields(root: Obj, name: string, index: number): Field[] {
 
   return [
     // Subject field shown when a subject is already stored
-    field(root, [...base, 'subject'], p('subject'), 'Directory subject', 'text', {
+    textField(root, [...base, 'subject'], p('subject'), 'Directory subject', {
       inapplicable: !bySubject,
     }),
-    field(root, [...base, 'email'], p('email'), 'Email address', 'text', {
+    textField(root, [...base, 'email'], p('email'), 'Email address', {
       placeholder: 'alice@example.com',
       inapplicable: bySubject,
     }),
@@ -112,10 +110,10 @@ export function sourceNoteFields(root: Obj, name: string, index: number, person:
   const p = (key: string) => `groups.<key>.<index>.${key}`;
   // Note and expiry fields shared by both group and person sources
   return [
-    field(root, [...base, 'note'], p('note'), 'Note', 'text', {
+    textField(root, [...base, 'note'], p('note'), 'Note', {
       placeholder: person ? 'optional note' : 'optional note',
     }),
-    field(root, [...base, 'until'], p('until'), 'Expire by', 'text', {
+    textField(root, [...base, 'until'], p('until'), 'Expire by', {
       placeholder: 'YYYY-MM-DD',
       pattern: '\\d{4}-\\d{2}-\\d{2}',
       patternHint: 'A date written YYYY-MM-DD.',

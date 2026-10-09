@@ -17,6 +17,7 @@ import type { Request, Response } from 'express';
 import { reflectsCallerInput } from '../app-setup';
 import { env, isProduction } from '../common/env';
 import type { ColourScheme } from '../config/palette';
+import { renderHelp } from '../global-ui/help-markup';
 
 // Views live beside the surface that sends them — `content-reader/views`, `dashboard/ui/views`,
 // `auth/views` and `global-ui/global-views` — so a view's name is its folder's path from the
@@ -28,7 +29,13 @@ const eta = new Eta({
   cache: isProduction(),
   autoEscape: true,
   autoTrim: false,
+  // Every template and partial gets `md()`, which renders a help text's markup
+  functionHeader: 'const md = this.config.md;',
 });
+
+// Called through a closure, since help-markup imports this module for escapeHtml and may
+// not have finished loading when this line runs
+Object.assign(eta.config, { md: (text: string | undefined) => renderHelp(text ?? '') });
 
 /** Every view is a folder holding `<name>.eta`, so `dashboard/ui/views/sync-status/logs` is `src/dashboard/ui/views/sync-status/logs/logs.eta` */
 function templateSource(name: string): string {
@@ -46,21 +53,35 @@ const COMPONENT_DIR = join(__dirname, '../global-ui/components');
   Each component is a folder holding `<name>.eta` and, where it has styles of its
   own, `<name>.css`. The template is registered as a named template (`@field`)
   rather than resolved as a file: Eta's `include` refuses a path outside `views`,
-  and `renderTemplate` compiles from a string, so a relative include has no file
-  to be relative to. Outside production they are re-read on every render, as
-  views are.
+  and `renderTemplate` compiles from a string. A folder may group further components, each in a folder of
+  its own or as a lone `.eta` beside them: `config-fields/secret/secret.eta` is
+  `@config-fields/secret`, and `config-fields/label.eta` is `@config-fields/label`.
+  Outside production they are re-read on every render.
 */
 let componentsLoaded = false;
+
+// Registers every template under `dir`, named by its path below the components folder
+function loadComponents(dir: string, name: string): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      loadComponents(path, name === '' ? entry.name : `${name}/${entry.name}`);
+      continue;
+    }
+    if (!entry.name.endsWith('.eta')) continue;
+    // `<folder>/<folder>.eta` is the folder's own template, named after the folder
+    const part = basename(entry.name, '.eta');
+    eta.loadTemplate(
+      part === basename(dir) ? `@${name}` : `@${name}/${part}`,
+      readFileSync(path, 'utf8'),
+    );
+  }
+}
 
 /** Renders an .eta template: HTML-escaped, auto-trim disabled */
 export function renderTemplate(name: string, data: Record<string, unknown>): string {
   if (!componentsLoaded || !isProduction()) {
-    for (const component of readdirSync(COMPONENT_DIR)) {
-      eta.loadTemplate(
-        `@${component}`,
-        readFileSync(join(COMPONENT_DIR, component, `${component}.eta`), 'utf8'),
-      );
-    }
+    loadComponents(COMPONENT_DIR, '');
     componentsLoaded = true;
   }
   return eta.renderString(templateSource(name), data);

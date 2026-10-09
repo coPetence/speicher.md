@@ -1,0 +1,20 @@
+<% const f = it.field %>
+    <fieldset class="spr-choices">
+      <legend>
+        <%= f.label %><% if (f.help) { %><%~ include('@info', { field: f }) %><% } %>
+      </legend>
+      <% f.options.forEach(function (option) { %>
+      <label>
+        <input
+          type="checkbox"
+          name="<%= f.path %>"
+          value="<%= option.value %>"
+          <%= f.values.indexOf(option.value) >= 0 ? 'checked' : '' %>
+          <%= it.editable ? '' : 'disabled' %>
+        >
+        <span>
+          <%= option.label %>
+        </span>
+      </label>
+      <% }) %>
+    </fieldset>

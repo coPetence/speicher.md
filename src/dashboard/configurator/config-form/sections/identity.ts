@@ -8,8 +8,19 @@
  */
 
 import { scalarString } from '../document';
-import type { Obj } from '../field';
-import { SECRET_HELP, at, field, isEnvPlaceholder, unavailableOption } from '../field';
+import type { Field, Obj } from '../config-fields';
+import {
+  SECRET_HELP,
+  at,
+  booleanField,
+  durationField,
+  entraTenantField,
+  isEnvPlaceholder,
+  linesField,
+  secretField,
+  selectField,
+  textField,
+} from '../config-fields';
 import {
   ENTRA_TENANT_HINT,
   ENTRA_TENANT_PATTERN,
@@ -24,7 +35,8 @@ import {
   providerIds,
   type KindHint,
 } from '../members';
-import type { Field, Option, SectionEntry } from '../model';
+import { unavailableOption } from '../model';
+import type { Option, SectionEntry } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
@@ -123,7 +135,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
   const p = (key: string) => `auth.providers.<key>.${key}`;
 
   const fields: Field[] = [
-    field(root, [...base, 'display_name'], p('display_name'), 'Name', 'text', {
+    textField(root, [...base, 'display_name'], p('display_name'), 'Name', {
       placeholder: id,
       help: 'The name is shown to readers signing in',
     }),
@@ -131,7 +143,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
 
   if (kind === 'entra') {
     fields.push(
-      field(root, [...base, 'issuer'], p('issuer'), 'Directory (tenant) id', 'entra-tenant', {
+      entraTenantField(root, [...base, 'issuer'], p('issuer'), 'Directory (tenant) id', {
         placeholder: '00000000-0000-0000-0000-000000000000',
         pattern: ENTRA_TENANT_PATTERN,
         patternHint: ENTRA_TENANT_HINT,
@@ -145,7 +157,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     fields.push(...directoryFields(root, base, 'graph', kind));
   } else if (kind === 'oidc') {
     fields.push(
-      field(root, [...base, 'issuer'], p('issuer'), 'Issuer URL', 'text', {
+      textField(root, [...base, 'issuer'], p('issuer'), 'Issuer URL', {
         placeholder: 'https://auth.example.com/realms/<realm>',
         help:
           'The issuer URL identifies the OpenID Connect server people sign in with, for ' +
@@ -156,13 +168,13 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     fields.push(...directoryFields(root, base, 'graph', kind));
   } else if (kind === 'magic-link') {
     fields.push(
-      field(root, [...base, 'token_ttl'], p('token_ttl'), 'Link lifetime', 'duration', {
+      durationField(root, [...base, 'token_ttl'], p('token_ttl'), 'Link lifetime', {
         fallback: '15m',
       }),
-      field(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', 'duration', {
+      durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
         fallback: '30d',
       }),
-      field(root, [...base, 'same_browser'], p('same_browser'), 'Same browser only', 'boolean', {
+      booleanField(root, [...base, 'same_browser'], p('same_browser'), 'Same browser only', {
         fallback: true,
         help:
           'The link only completes in the browser that asked for it. Off means a ' +
@@ -171,52 +183,38 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     );
   } else {
     fields.push(
-      field(root, [...base, 'client_id'], p('client_id'), 'Client id', 'text'),
-      field(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', 'secret', {
+      textField(root, [...base, 'client_id'], p('client_id'), 'Client id'),
+      secretField(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', {
         help: SECRET_HELP,
       }),
       // GitHub Enterprise base URL, only relevant for self-hosted installations
-      field(root, [...base, 'base_url'], p('base_url'), 'Base URL', 'text', {
+      textField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
         placeholder: 'https://github.example.com',
         help: 'GitHub Enterprise only. Leave blank for github.com.',
         advanced: true,
       }),
-      field(
-        root,
-        [...base, 'team_cache_ttl'],
-        p('team_cache_ttl'),
-        'Team cache lifetime',
-        'duration',
-        {
-          fallback: '15m',
-          help:
-            'How long a team membership read from GitHub is trusted before it is ' +
-            'asked for again. Shorter costs requests; longer leaves somebody in a ' +
-            'group they have been taken out of.',
-          advanced: true,
-        },
-      ),
+      durationField(root, [...base, 'team_cache_ttl'], p('team_cache_ttl'), 'Team cache lifetime', {
+        fallback: '15m',
+        help:
+          'How long a team membership read from GitHub is trusted before it is ' +
+          'asked for again. Shorter costs requests; longer leaves somebody in a ' +
+          'group they have been taken out of.',
+        advanced: true,
+      }),
     );
     fields.push(...directoryFields(root, base, 'github', kind));
   }
 
   fields.push(
     // Boolean field using the provider id as trueValue
-    field(
-      root,
-      ['auth', 'default_provider'],
-      'auth.default_provider',
-      'Default provider',
-      'boolean',
-      {
-        trueValue: id,
-        help:
-          'The default provider is used for grants that name a person without naming a ' +
-          'provider, for example `{ email: example@copetence.de }` under ' +
-          "`access.users` in a repository's `.speicher.yaml`. If only one provider is " +
-          'configured, this provider will be automatically set as the default.',
-      },
-    ),
+    booleanField(root, ['auth', 'default_provider'], 'auth.default_provider', 'Default provider', {
+      trueValue: id,
+      help:
+        'The default provider is used for grants that name a person without naming a ' +
+        'provider, for example `{ email: example@copetence.de }` under ' +
+        "`access.users` in a repository's `.speicher.yaml`. If only one provider is " +
+        'configured, this provider will be automatically set as the default.',
+    }),
   );
 
   return {
@@ -246,20 +244,20 @@ function oidcFields(
 ): Field[] {
   const entra = kind === 'entra';
   return [
-    field(root, [...base, 'client_id'], p('client_id'), 'Client id', 'text', {
+    textField(root, [...base, 'client_id'], p('client_id'), 'Client id', {
       help: entra
         ? 'The application (client) id of the app registration. You can find it in the Azure portal under **Microsoft Entra ID** → **App registrations** → your app → **Overview**.'
         : '',
     }),
-    field(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', 'secret', {
+    secretField(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', {
       help: SECRET_HELP,
     }),
-    field(root, [...base, 'subject_claim'], p('subject_claim'), 'Subject claim', 'text', {
+    textField(root, [...base, 'subject_claim'], p('subject_claim'), 'Subject claim', {
       fallback: 'sub',
       placeholder: 'sub',
       help: "The subject claim is the field in the sign-in token that holds the id of the person signing in. Most providers send it as `sub`, so this probably doesn't need to be changed. When using Microsoft Entra ID, the subject claim is `oid`.",
     }),
-    field(root, [...base, 'groups_claim'], p('groups_claim'), 'Groups claim', 'text', {
+    textField(root, [...base, 'groups_claim'], p('groups_claim'), 'Groups claim', {
       fallback: 'groups',
       placeholder: 'groups',
       help:
@@ -274,7 +272,7 @@ function oidcFields(
         // defined in Speicher itself that names its people.
         '[groups](https://docs.speicher.md/access/groups).',
     }),
-    field(root, [...base, 'email_claim'], p('email_claim'), 'Email claim', 'text', {
+    textField(root, [...base, 'email_claim'], p('email_claim'), 'Email claim', {
       fallback: 'email',
       placeholder: 'email',
       help:
@@ -285,11 +283,11 @@ function oidcFields(
         'under **App registrations** → your app → **Token configuration** → **Add optional ' +
         'claim**, and set this to `email`.',
     }),
-    field(root, [...base, 'domains'], p('domains'), 'Email domains', 'lines', {
+    linesField(root, [...base, 'domains'], p('domains'), 'Email domains', {
       help: 'The email domains are used for home-realm discovery: when several providers are configured, they decide which one signs in people with an address at these domains. For example, with `copetence.de` listed here, `example@copetence.de` is sent straight to this provider, even if another provider could sign in the same person. Please enter each domain on its own line.',
       rows: 3,
     }),
-    field(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', 'duration', {
+    durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
       fallback: '8h',
       help:
         'The session lifetime is how long a sign-in stays valid before the person has to ' +
@@ -316,7 +314,7 @@ function directoryFields(
   const secretHidden = secret !== undefined && !isEnvPlaceholder(secret);
 
   return [
-    field(root, [...d, 'type'], p('type'), 'Directory lookup', 'select', {
+    selectField(root, [...d, 'type'], p('type'), 'Directory lookup', {
       options: [
         { value: '', label: 'Not configured' },
         { value: type, label: type === 'graph' ? 'Microsoft Graph' : 'GitHub' },
@@ -328,26 +326,26 @@ function directoryFields(
         'the sign-in name differs from the address, to show how many people a group reaches, and ' +
         'to drop grants for people whose account has been disabled or deleted.',
     }),
-    field(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', 'text', {
+    textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {
       shownWith,
-      copiedFrom: kind === 'entra' ? from('issuer') : undefined,
+      sourceToCopyFrom: kind === 'entra' ? from('issuer') : undefined,
     }),
-    field(root, [...d, 'client_id'], p('client_id'), 'Directory client id', 'text', {
+    textField(root, [...d, 'client_id'], p('client_id'), 'Directory client id', {
       shownWith,
-      copiedFrom: from('client_id'),
+      sourceToCopyFrom: from('client_id'),
       help:
         'The directory client id is the application (client) id Speicher uses to look up ' +
         'users and groups in Microsoft Graph. The app registration needs the application ' +
         'permission `User.Read.All`.',
     }),
-    field(root, [...d, 'client_secret'], p('client_secret'), 'Directory client secret', 'secret', {
+    secretField(root, [...d, 'client_secret'], p('client_secret'), 'Directory client secret', {
       shownWith,
-      copiedFrom: from('client_secret'),
+      sourceToCopyFrom: from('client_secret'),
       // When the provider secret is a stored literal, indicate the directory secret is the same
-      copiedStored: copyable && secretHidden,
+      sourceToCopyFromOnSave: copyable && secretHidden,
       help: SECRET_HELP,
     }),
-    field(root, [...d, 'cache_ttl'], p('cache_ttl'), 'Directory cache lifetime', 'duration', {
+    durationField(root, [...d, 'cache_ttl'], p('cache_ttl'), 'Directory cache lifetime', {
       shownWith,
       fallback: '1h',
     }),

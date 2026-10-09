@@ -1,7 +1,7 @@
 import { Document, isMap, isSeq } from 'yaml';
 
 import { appendSeqItem, renameMapKey, setNodeAt, writeAt } from './document';
-import { Obj } from './field';
+import type { Obj } from './config-fields';
 import { MemberRef, memberPath, seedMember, sourcePositions } from './members';
 
 /**

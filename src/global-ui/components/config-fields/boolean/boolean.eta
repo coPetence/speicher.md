@@ -1,0 +1,15 @@
+<% const f = it.field %>
+    <% if (f.help) { %><div class="spr-field-head"><% } %>
+    <label class="spr-switch">
+      <input
+        type="checkbox"
+        name="<%= f.path %>"
+        value="on"
+        <%= f.checked ? 'checked' : '' %>
+        <%= it.editable ? '' : 'disabled' %>
+      >
+      <span>
+        <%= f.label %>
+      </span>
+    </label>
+    <% if (f.help) { %><%~ include('@info', { field: f }) %></div><% } %>

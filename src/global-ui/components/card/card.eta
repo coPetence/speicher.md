@@ -30,7 +30,10 @@
     </p>
     <% }) %>
     <div class="spr-fields">
-      <% card.fields.forEach(function (f) { %><%~ include('@field', { ...it, field: f }) %><% }) %>
+      <% card.items.forEach(function (item) { %>
+        <% if (item.kind === 'copy-value') { %><%~ include('@config-fields/copy-value', { ...it, item: item }) %>
+        <% } else { %><%~ include('@field', { ...it, field: item }) %><% } %>
+      <% }) %>
     </div>
     <% card.cards.forEach(function (child) { %><%~ include('@card', { ...it, card: child, depth: it.depth + 1 }) %><% }) %>
     <% if (editable) { card.addOps.forEach(function (add) { %><%~ include('@add', { add: add }) %><% }) } %>

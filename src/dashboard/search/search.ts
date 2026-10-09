@@ -16,7 +16,8 @@ import {
   visibleDashboardSections,
 } from '../dashboard-sections';
 import { CONFIG_SECTIONS } from '../configurator/config-form/fields';
-import { Field, FormSection, SectionEntry, allFields } from '../configurator/config-form/model';
+import type { Field } from '../configurator/config-form/config-fields';
+import { FormSection, SectionEntry, allFields } from '../configurator/config-form/model';
 import { SEARCHABLE_VALUES, SEARCH_KEYWORDS } from './search-keywords';
 
 /** A searchable item type */
@@ -138,7 +139,7 @@ export function dashboardIndex(
 
 /** Index a form field as a setting hit */
 function fieldRow(field: Field, section: FormSection, context: string): Indexed {
-  const value = SEARCHABLE.has(field.schemaPath) ? field.value : '';
+  const value = SEARCHABLE.has(field.schemaPath) && 'value' in field ? field.value : '';
   return {
     // Value in key differentiates repeated fields (e.g. multiple repos)
     key: `${`/-/config/${section.id}`}|${field.label}|${value}`,

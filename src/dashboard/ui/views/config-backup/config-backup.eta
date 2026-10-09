@@ -5,7 +5,7 @@
 <h1>Backup</h1>
 
 
-<p class="spr-section-blurb"><%~ it.blurb_html %></p>
+<p class="spr-section-blurb"><%~ md(it.blurb) %></p>
 
 <% if (it.unreadable) { %>
 <p class="spr-note spr-note-fail">

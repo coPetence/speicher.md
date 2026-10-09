@@ -1,0 +1,54 @@
+<% const f = it.field, editable = it.editable %>
+    <%~ include('@config-fields/label', it) %>
+    <% if (f.stored) { %>
+    <div class="spr-stored">
+      <% if (f.storedFile && (it.servedLogos || []).includes(f.storedFile)) { %>
+      <img
+        class="spr-stored-thumb"
+        src="/-/brand/<%= f.storedFile %>"
+        alt=""
+      >
+      <% } %>
+      <span class="spr-stored-what">
+        <%= f.stored %>
+      </span>
+      <span
+        class="spr-stored-picked"
+        data-spr-picked
+        hidden
+      ></span>
+      <label
+        class="spr-stored-pick"
+        for="f-<%= f.path %>"
+        aria-hidden="true"
+      >
+        Browse…
+      </label>
+      <input
+        class="spr-file spr-file-tucked"
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        type="file"
+        <% if (f.accept) { %>accept="<%= f.accept %>"<% } %>
+        <%= editable ? '' : 'disabled' %>
+      >
+      <input
+        class="spr-stored-drop"
+        type="checkbox"
+        name="remove:<%= f.path %>"
+        value="on"
+        aria-label="Remove the stored <%= f.label.toLowerCase() %>"
+        title="Remove the stored <%= f.label.toLowerCase() %>"
+        <%= editable ? '' : 'disabled' %>
+      >
+    </div>
+    <% } else { %>
+    <input
+      class="spr-file"
+      id="f-<%= f.path %>"
+      name="<%= f.path %>"
+      type="file"
+      <% if (f.accept) { %>accept="<%= f.accept %>"<% } %>
+      <%= editable ? '' : 'disabled' %>
+    >
+    <% } %>

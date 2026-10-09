@@ -62,7 +62,7 @@ export function sectionHead(id: string): Pick<FormSection, 'id' | 'title' | 'par
   };
 }
 
-export type SectionSource = Omit<FormSection, 'blurbHtml'>;
+export type SectionSource = FormSection;
 
 // The blurb is passed in rather than looked up: it is read twice — as this tile's
 // subtitle and as the blurb on the page itself — and both readers are the section

@@ -12,9 +12,18 @@ import { NEUTRAL_BRAND } from '../../../../config/types';
 import { DEFAULT_TEMPLATE, templateNames } from '../../../../content-reader/assets.controller';
 import { templatePalette } from '../../../../content-reader/template-palette';
 
-import type { Obj } from '../field';
-import { at, field } from '../field';
-import type { Card, Field, Option } from '../model';
+import type { CardItem, Field, Obj } from '../config-fields';
+import {
+  at,
+  booleanField,
+  colorField,
+  fileField,
+  selectField,
+  templateField,
+  textField,
+} from '../config-fields';
+import type { Card, Option } from '../model';
+import { fieldsOf } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead, subsectionEntry } from './registry';
 
@@ -33,7 +42,7 @@ function storedImage(raw: unknown, spec: BrandImageSpec): { stored: string; stor
 }
 
 function imageField(root: Obj, spec: BrandImageSpec, label: string, help: string): Field {
-  return field(root, ['brand', spec.field], spec.key, label, 'file', {
+  return fileField(['brand', spec.field], spec.key, label, {
     ...storedImage(at(root, ['brand', spec.field]), spec),
     accept: Object.keys(spec.types).join(','),
     help,
@@ -77,17 +86,16 @@ export function brandingSection(root: Obj): SectionSource {
     layout: 'tiles',
     entriesArePages: true,
     fields: [
-      field(root, ['brand', 'name'], 'brand.name', 'Header name', 'text', {
+      textField(root, ['brand', 'name'], 'brand.name', 'Header name', {
         placeholder: NEUTRAL_BRAND,
         help: 'The title at the top of every page, linking home. Fallback: host of SPEICHER_PUBLIC_URL',
         // Show-name checkbox attached below the header name field
         attached: [
-          field(
+          booleanField(
             root,
             ['brand', 'show_name'],
             'brand.show_name',
             'Show the name beside the logo',
-            'boolean',
             {
               fallback: true,
               help: 'Turn on to show logo _and_ header name',
@@ -95,13 +103,12 @@ export function brandingSection(root: Obj): SectionSource {
           ),
         ],
       }),
-      field(root, ['theme', 'template'], 'theme.template', 'Theme', 'template', {
+      templateField(root, ['theme', 'template'], 'theme.template', 'Theme', {
         fallback: DEFAULT_TEMPLATE,
-        placeholder: DEFAULT_TEMPLATE,
         options: templateOptions(at(root, ['theme', 'template'])),
         help: 'Select one of the standard themes or create your own. Find out more in our [documentation](https://docs.speicher.md/themes)',
       }),
-      field(root, ['attribution'], 'attribution', 'Show "Published with speicher.md"', 'boolean', {
+      booleanField(root, ['attribution'], 'attribution', 'Show "Published with speicher.md"', {
         fallback: true,
       }),
     ],
@@ -144,7 +151,7 @@ export const APPEARANCE_RESET_OP = 'reset:branding/appearance';
 
 export function appearanceSection(root: Obj): SectionSource {
   const fields = [
-    field(root, ['theme', 'font'], 'theme.font', 'Body typeface', 'select', {
+    selectField(root, ['theme', 'font'], 'theme.font', 'Body typeface', {
       fallback: 'system',
       options: FONT_OPTIONS,
       help: 'Currently only those fonts are supported. Web Fonts are not used for security reasons.',
@@ -173,10 +180,10 @@ export function appearanceSection(root: Obj): SectionSource {
 }
 
 /** Whether anything on the page has a stored value behind it. */
-function answered(fields: Field[], cards: Card[]): boolean {
+function answered(items: CardItem[], cards: Card[]): boolean {
   return (
-    fields.some((each) => each.value !== '') ||
-    cards.some((card) => answered(card.fields, card.cards))
+    fieldsOf(items).some((each) => 'value' in each && each.value !== '') ||
+    cards.some((card) => answered(card.items, card.cards))
   );
 }
 
@@ -320,19 +327,12 @@ function paletteCard(root: Obj, scheme: 'light' | 'dark'): Card {
   );
 
   const colour = (key: PaletteKey): Field =>
-    field(
-      root,
-      [...base, key],
-      `theme.palette.${scheme}.${key}`,
-      PALETTE_HELP[key].label,
-      'color',
-      {
-        help: PALETTE_HELP[key].help,
-        pattern: HEX_PATTERN,
-        patternHint: HEX_HINT,
-        placeholder: defaults[key] ?? '',
-      },
-    );
+    colorField(root, [...base, key], `theme.palette.${scheme}.${key}`, PALETTE_HELP[key].label, {
+      help: PALETTE_HELP[key].help,
+      pattern: HEX_PATTERN,
+      patternHint: HEX_HINT,
+      placeholder: defaults[key] ?? '',
+    });
 
   const groups = PALETTE_GROUPS.map((group) => ({ group, head: PALETTE_GROUP_HEADS[group.id] }));
 
@@ -343,7 +343,7 @@ function paletteCard(root: Obj, scheme: 'light' | 'dark'): Card {
         ? 'What a reader sees unless their system asks for a dark page.'
         : "What a reader whose system asks for a dark page sees. Leave it empty and the template's own dark scheme stands, which is the safe answer.",
     removeOp: null,
-    fields: groups.flatMap(({ group, head }) =>
+    items: groups.flatMap(({ group, head }) =>
       head === null ? group.keys.map((key) => colour(key)) : [],
     ),
     cards: groups.flatMap(({ group, head }) =>
@@ -354,7 +354,7 @@ function paletteCard(root: Obj, scheme: 'light' | 'dark'): Card {
               title: head.title,
               subtitle: head.subtitle,
               removeOp: null,
-              fields: group.keys.map((key) => colour(key)),
+              items: group.keys.map((key) => colour(key)),
               cards: [],
               addOps: [],
               notes: [],

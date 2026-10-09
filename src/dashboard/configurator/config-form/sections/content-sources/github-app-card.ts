@@ -5,8 +5,8 @@
 
 import { webhookPath, webhookUrl } from '../../../../../forge/webhook-url';
 
-import type { Obj } from '../../field';
-import { SECRET_HELP, field } from '../../field';
+import type { Obj } from '../../config-fields';
+import { SECRET_HELP, copyValue, secretField, textField } from '../../config-fields';
 import type { Card } from '../../model';
 
 /**
@@ -26,9 +26,9 @@ export function appCard(root: Obj, id: string): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(root, [...base, 'app_id'], p('app_id'), 'App id', 'text'),
-      field(root, [...base, 'private_key'], p('private_key'), 'Private key', 'secret', {
+    items: [
+      textField(root, [...base, 'app_id'], p('app_id'), 'App id'),
+      secretField(root, [...base, 'private_key'], p('private_key'), 'Private key', {
         help: `${SECRET_HELP}\n\nThe App's .pem file can also be chosen with the button or dropped onto the field.`,
         upload: {
           accept: '.pem,application/x-pem-file',
@@ -37,13 +37,16 @@ export function appCard(root: Obj, id: string): Card {
           dropLabel: "Drop the App's .pem file here",
         },
       }),
-      field(root, [...base, 'webhook_secret'], p('webhook_secret'), 'Webhook secret', 'secret', {
+      secretField(root, [...base, 'webhook_secret'], p('webhook_secret'), 'Webhook secret', {
         help: SECRET_HELP,
-        // Without SPEICHER_PUBLIC_URL only the path is known; if js is enabled, the browser can complete it with its own origin.
-        fact: 'Enter this as the **Webhook URL** in the settings of your GitHub App. If only a path without a host is shown, put the address of this instance in front of it.',
-        copy: webhookUrl(id) ?? webhookPath(id),
         startsRow: true,
       }),
+      // Without SPEICHER_PUBLIC_URL only the path is known; if js is enabled, the browser can complete it with its own origin.
+      copyValue(
+        'Webhook URL',
+        webhookUrl(id) ?? webhookPath(id),
+        'Enter this as the **Webhook URL** in the settings of your GitHub App. If only a path without a host is shown, put the address of this instance in front of it.',
+      ),
     ],
   };
 }

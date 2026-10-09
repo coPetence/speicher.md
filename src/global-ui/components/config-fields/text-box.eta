@@ -1,0 +1,17 @@
+<%
+  const f = it.field, editable = it.editable;
+  const placeholder = it.placeholder !== undefined ? it.placeholder : f.placeholder;
+%>
+    <input
+      id="f-<%= f.path %>"
+      name="<%= f.path %>"
+      type="<%= it.type || 'text' %>"
+      value="<%= f.value %>"
+      <% if (placeholder) { %>placeholder="<%= placeholder %>"<% } %>
+      <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+      <% if (it.required) { %>required<% } %>
+      <% if (it.dimensionsPath) { %>data-spr-width-into="<%= it.dimensionsPath %>"<% } %>
+      spellcheck="false"
+      autocomplete="off"
+      <%= editable ? '' : 'disabled' %>
+    >

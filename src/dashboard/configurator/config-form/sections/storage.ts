@@ -9,10 +9,21 @@
 
 import { isProduction } from '../../../../common/env';
 
+import type { Field, Obj } from '../config-fields';
+import {
+  SECRET_HELP,
+  at,
+  booleanField,
+  bytesField,
+  durationField,
+  embeddingModelField,
+  numberField,
+  secretField,
+  selectField,
+  textField,
+} from '../config-fields';
 import { scalarString } from '../document';
-import { SECRET_HELP, at, field } from '../field';
-import type { Obj } from '../field';
-import type { Field, Option } from '../model';
+import type { Option } from '../model';
 import { sectionHead } from './registry';
 import type { SectionSource } from './registry';
 
@@ -41,7 +52,7 @@ const ASSET_DRIVERS: Option[] = [
 export function storageSection(root: Obj): SectionSource {
   const driver = scalarString(at(root, ['assets', 'driver'])) || 'filesystem';
   const fields: Field[] = [
-    field(root, ['assets', 'driver'], 'assets.driver', 'Asset storage', 'select', {
+    selectField(root, ['assets', 'driver'], 'assets.driver', 'Asset storage', {
       options: ASSET_DRIVERS,
       fallback: 'filesystem',
       // Changing the driver rebuilds the entire form section
@@ -52,18 +63,17 @@ export function storageSection(root: Obj): SectionSource {
 
   if (driver === 's3') {
     fields.push(
-      field(root, ['assets', 'bucket'], 'assets.bucket', 'Bucket', 'text'),
-      field(root, ['assets', 'endpoint'], 'assets.endpoint', 'Endpoint', 'text', {
+      textField(root, ['assets', 'bucket'], 'assets.bucket', 'Bucket'),
+      textField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Endpoint', {
         help: 'For non-AWS providers such as Hetzner Object Storage or MinIO.',
       }),
-      field(root, ['assets', 'region'], 'assets.region', 'Region', 'text'),
-      field(root, ['assets', 'access_key_id'], 'assets.access_key_id', 'Access key id', 'text'),
-      field(
+      textField(root, ['assets', 'region'], 'assets.region', 'Region'),
+      textField(root, ['assets', 'access_key_id'], 'assets.access_key_id', 'Access key id'),
+      secretField(
         root,
         ['assets', 'secret_access_key'],
         'assets.secret_access_key',
         'Secret access key',
-        'secret',
         {
           help: SECRET_HELP,
         },
@@ -72,13 +82,13 @@ export function storageSection(root: Obj): SectionSource {
   } else if (driver === 'azure') {
     const auth = scalarString(at(root, ['assets', 'auth'])) || AZURE_AUTH_DEFAULT;
     fields.push(
-      field(root, ['assets', 'account'], 'assets.account', 'Storage account', 'text'),
-      field(root, ['assets', 'container'], 'assets.container', 'Container', 'text', {
+      textField(root, ['assets', 'account'], 'assets.account', 'Storage account'),
+      textField(root, ['assets', 'container'], 'assets.container', 'Container', {
         help:
           'This instance never creates it. A data-plane role cannot, so the ' +
           'container is made once, by whoever owns the account.',
       }),
-      field(root, ['assets', 'auth'], 'assets.auth', 'How to authenticate', 'select', {
+      selectField(root, ['assets', 'auth'], 'assets.auth', 'How to authenticate', {
         options: azureAuthOptions(scalarString(at(root, ['assets', 'auth']))),
         fallback: AZURE_AUTH_DEFAULT,
         // Changing the auth method rebuilds the form
@@ -92,12 +102,11 @@ export function storageSection(root: Obj): SectionSource {
 
     if (auth === 'connection_string') {
       fields.push(
-        field(
+        secretField(
           root,
           ['assets', 'connection_string'],
           'assets.connection_string',
           'Connection string',
-          'secret',
           {
             help: SECRET_HELP,
           },
@@ -105,7 +114,7 @@ export function storageSection(root: Obj): SectionSource {
       );
     } else if (auth === 'key') {
       fields.push(
-        field(root, ['assets', 'account_key'], 'assets.account_key', 'Account key', 'secret', {
+        secretField(root, ['assets', 'account_key'], 'assets.account_key', 'Account key', {
           help:
             'A shared secret granting the whole account. A managed identity grants ' +
             'a role on one container instead, and cannot be copied out of the ' +
@@ -115,7 +124,7 @@ export function storageSection(root: Obj): SectionSource {
       );
     } else {
       fields.push(
-        field(root, ['assets', 'client_id'], 'assets.client_id', 'Identity client id', 'text', {
+        textField(root, ['assets', 'client_id'], 'assets.client_id', 'Identity client id', {
           help:
             'The user-assigned identity. Blank uses the system-assigned one — and ' +
             'under workload identity, whatever the cluster injected.',
@@ -123,22 +132,15 @@ export function storageSection(root: Obj): SectionSource {
       );
       if (auth === 'workload_identity') {
         fields.push(
-          field(
-            root,
-            ['assets', 'tenant_id'],
-            'assets.tenant_id',
-            'Directory (tenant) id',
-            'text',
-            {
-              help: "Only needed when the pod's environment does not already say.",
-            },
-          ),
+          textField(root, ['assets', 'tenant_id'], 'assets.tenant_id', 'Directory (tenant) id', {
+            help: "Only needed when the pod's environment does not already say.",
+          }),
         );
       }
     }
 
     fields.push(
-      field(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', 'text', {
+      textField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', {
         help:
           'Only for a sovereign cloud or a local emulator. The account URL, not the ' +
           "container's — the container is appended.",
@@ -146,7 +148,7 @@ export function storageSection(root: Obj): SectionSource {
     );
   } else {
     fields.push(
-      field(root, ['assets', 'path'], 'assets.path', 'Volume path', 'text', {
+      textField(root, ['assets', 'path'], 'assets.path', 'Volume path', {
         placeholder: './var/assets',
         help: 'A single replica, or a volume every replica can write.',
       }),
@@ -154,26 +156,24 @@ export function storageSection(root: Obj): SectionSource {
   }
 
   fields.push(
-    field(root, ['assets', 'max_asset_bytes'], 'assets.max_asset_bytes', 'Largest asset', 'bytes', {
+    bytesField(root, ['assets', 'max_asset_bytes'], 'assets.max_asset_bytes', 'Largest asset', {
       fallback: 10000000,
       help: 'Anything larger is reported to the author as a finding, and not stored.',
     }),
-    field(
+    bytesField(
       root,
       ['assets', 'presign_over_bytes'],
       'assets.presign_over_bytes',
       'Pre-sign above',
-      'bytes',
       {
         help: 'Zero proxies everything. Above this size the store is asked for a short-lived URL.',
       },
     ),
-    field(
+    durationField(
       root,
       ['assets', 'presign_ttl'],
       'assets.presign_ttl',
       'Pre-signed URL lifetime',
-      'duration',
       {
         fallback: '60s',
       },
@@ -199,39 +199,37 @@ export function embeddingSection(root: Obj): SectionSource {
       '/v1/embeddings endpoint. No completion model is ever called — agents write ' +
       'answers, this returns the chunks a caller is allowed to see.',
     fields: [
-      field(root, ['embedding', 'base_url'], 'embedding.base_url', 'Endpoint', 'text', {
+      textField(root, ['embedding', 'base_url'], 'embedding.base_url', 'Endpoint', {
         placeholder: 'https://api.openai.com/v1',
       }),
-      field(root, ['embedding', 'api_key'], 'embedding.api_key', 'API key', 'secret', {
+      secretField(root, ['embedding', 'api_key'], 'embedding.api_key', 'API key', {
         help: SECRET_HELP,
       }),
-      field(root, ['embedding', 'model'], 'embedding.model', 'Model', 'text', {
-        widthInto: 'embedding.dimensions',
+      embeddingModelField(root, ['embedding', 'model'], 'embedding.model', 'Model', {
+        dimensionsPath: 'embedding.dimensions',
       }),
-      field(root, ['embedding', 'dimensions'], 'embedding.dimensions', 'Dimensions', 'number', {
+      numberField(root, ['embedding', 'dimensions'], 'embedding.dimensions', 'Dimensions', {
         help:
           'Must match the pgvector column width. Checked by a probe at startup. Filled in ' +
           'from the endpoint when the model is entered, while this box is empty.',
       }),
-      field(root, ['embedding', 'batch_size'], 'embedding.batch_size', 'Batch size', 'number', {
+      numberField(root, ['embedding', 'batch_size'], 'embedding.batch_size', 'Batch size', {
         fallback: 96,
       }),
-      field(
+      numberField(
         root,
         ['embedding', 'max_concurrency'],
         'embedding.max_concurrency',
         'Concurrent requests',
-        'number',
         {
           fallback: 4,
         },
       ),
-      field(
+      booleanField(
         root,
         ['embedding', 'send_dimensions'],
         'embedding.send_dimensions',
         'Send the dimensions parameter',
-        'boolean',
         {
           fallback: true,
           help: 'Matryoshka-capable models accept it; others reject the request.',

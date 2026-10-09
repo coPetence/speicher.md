@@ -11,10 +11,9 @@
  */
 
 import { scalarString } from '../../document';
-import { at } from '../../field';
-import type { Obj } from '../../field';
+import { at } from '../../config-fields';
+import type { Obj } from '../../config-fields';
 import type { SectionEntry } from '../../model';
-import { renderHelp } from '../../help';
 import {
   GROUP_ID_HELP,
   GROUP_NAME,
@@ -54,7 +53,7 @@ export function groupsSection(root: Obj): SectionSource {
         op: 'add:groups',
         label: 'Add a group',
         nameLabel: 'Short id',
-        nameHelpHtml: renderHelp(GROUP_ID_HELP),
+        nameHelp: GROUP_ID_HELP,
         namePattern: GROUP_NAME.source.slice(1, -1),
         nameHint: GROUP_NAME_HINT,
         // Groups have no type selection

@@ -1,5 +1,5 @@
-import type { Obj } from '../../field';
-import { field } from '../../field';
+import type { Obj } from '../../config-fields';
+import { booleanField, textField } from '../../config-fields';
 import type { Card } from '../../model';
 
 /**
@@ -18,19 +18,18 @@ export function urlCard(root: Obj, id: string): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(
+    items: [
+      textField(
         root,
         [...base, 'default_repository_owner'],
         p('default_repository_owner'),
         'Default repository owner',
-        'text',
         {
           placeholder: 'acme',
           help: 'The user or organization whose name should be left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Leave it empty to put the owner in every URL.',
         },
       ),
-      field(root, [...base, 'primary'], p('primary'), 'Primary', 'boolean', {
+      booleanField(root, [...base, 'primary'], p('primary'), 'Primary', {
         fallback: false,
         help: 'The primary source leaves its short id out of the URL, so its repositories are served at `/<owner>/<repo>` instead of `/<source>/<owner>/<repo>`. Only one source can be primary.',
       }),

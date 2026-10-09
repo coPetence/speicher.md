@@ -9,7 +9,6 @@
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { renderHelp } from '../configurator/config-form/help';
 import { FORGE_TYPES, PROVIDER_KINDS } from '../configurator/config-form/members';
 import { DashboardResponder } from '../respond';
 import { callerOf } from '../../auth/caller.middleware';
@@ -121,7 +120,6 @@ export class SetupWizardController {
     const steps = setupSteps(this.config).map((step) => ({
       ...step,
       ...STEP_PROSE[step.id],
-      blurbHtml: renderHelp(STEP_PROSE[step.id].blurb),
       action: step.done ? STEP_PROSE[step.id].reviewAction : STEP_PROSE[step.id].action,
     }));
 

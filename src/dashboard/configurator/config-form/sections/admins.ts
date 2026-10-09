@@ -9,9 +9,9 @@
  */
 
 import { scalarString } from '../document';
-import { at, field } from '../field';
-import type { Obj } from '../field';
-import type { EntryLine, Field, SectionEntry } from '../model';
+import { at, selectField, textField } from '../config-fields';
+import type { Field, Obj } from '../config-fields';
+import type { EntryLine, SectionEntry } from '../model';
 import { memberSectionId, providerIds, providerMark } from '../members';
 import { sectionHead } from './registry';
 import type { SectionSource } from './registry';
@@ -99,24 +99,24 @@ function adminUserFields(root: Obj, index: number, ids: string[]): Field[] {
   const base = ['admins', 'users', index];
   const p = (key: string) => `admins.users.<index>.${key}`;
   return [
-    field(root, [...base, 'provider'], p('provider'), 'Provider', 'select', {
+    selectField(root, [...base, 'provider'], p('provider'), 'Provider', {
       options: [{ value: '', label: 'Default provider' }].concat(
         ids.map((id) => ({ value: id, label: id })),
       ),
     }),
-    field(root, [...base, 'subject'], p('subject'), 'Subject', 'text', {
+    textField(root, [...base, 'subject'], p('subject'), 'Subject', {
       help:
         'The provider’s stable id for this person, and the better of the two: an ' +
         'address can be reassigned. Fill in this **or** the address, never both — ' +
         'a grant naming two identities does not say which one it trusts.',
     }),
-    field(root, [...base, 'email'], p('email'), 'Email', 'text', {
+    textField(root, [...base, 'email'], p('email'), 'Email', {
       help: 'Used instead of a subject. Matched on the provider’s email claim.',
     }),
-    field(root, [...base, 'note'], p('note'), 'Note', 'text', {
+    textField(root, [...base, 'note'], p('note'), 'Note', {
       help: 'Why this person is here. Read by whoever reviews this list next.',
     }),
-    field(root, [...base, 'until'], p('until'), 'Expires', 'text', {
+    textField(root, [...base, 'until'], p('until'), 'Expires', {
       placeholder: 'YYYY-MM-DD',
       help: 'Optional. An access review date rather than an enforcement mechanism.',
     }),

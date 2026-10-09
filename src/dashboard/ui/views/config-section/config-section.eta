@@ -57,7 +57,7 @@
   <% } %>
 </div>
 <% if (it.section && it.section.blurb) { %>
-<p class="spr-section-blurb"><%~ it.section.blurbHtml %></p>
+<p class="spr-section-blurb"><%~ md(it.section.blurb) %></p>
 <% } %>
 
 <% if (it.unreadable) { %>
@@ -107,8 +107,8 @@
   startup. Every other change in that version waits with
   <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
 </p>
-<% it.waiting_consequences_html.forEach(function (line) { %>
-<p class="spr-note spr-note-warn"><%~ line %></p>
+<% it.waiting_consequences.forEach(function (line) { %>
+<p class="spr-note spr-note-warn"><%~ md(line) %></p>
 <% }) %>
 <% } else { %>
 <p class="spr-note spr-note-idle">
@@ -267,7 +267,7 @@
       <tr>
         <th scope="col" class="spr-select-col"><span class="spr-clipped">Select</span></th>
         <% table.columns.forEach(function (col) { %>
-        <th scope="col"><%= col.label %><% if (col.help) { %><%~ include('@info', { field: { path: it.section_id + '-' + col.label, label: col.label, helpHtml: col.helpHtml } }) %><% } %></th>
+        <th scope="col"><%= col.label %><% if (col.help) { %><%~ include('@info', { field: { path: it.section_id + '-' + col.label, label: col.label, help: col.help } }) %><% } %></th>
         <% }) %>
       </tr>
     </thead>
@@ -295,7 +295,7 @@
                  <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
                  <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
                  spellcheck="false" autocomplete="off" <%= it.editable ? '' : 'disabled' %>>
-          <% if (f.linkHtml) { %><p class="spr-help"><%~ f.linkHtml %></p><% } %>
+          <% if (f.link) { %><p class="spr-help"><%~ md(f.link) %></p><% } %>
         </td>
         <% }) %>
       </tr>
@@ -407,8 +407,8 @@
           <a href="<%= entry.href %>"><%= entry.title %></a>
           <%~ include('@tile-badges', { badges: entry.badges, badgeIcons: it.badge_icons }) %>
         </h4>
-        <% if (entry.subtitleHtml) { %>
-        <p class="spr-card-sub"><%~ entry.subtitleHtml %></p>
+        <% if (entry.subtitleIsProse) { %>
+        <p class="spr-card-sub"><%~ md(entry.subtitle) %></p>
         <% } else { %>
         <p class="spr-card-sub"><%= entry.subtitle %></p>
         <% } %>
@@ -447,7 +447,7 @@
   <div class="spr-field spr-field-text">
     <div class="spr-field-head">
       <label for="f-member-id">Short id</label>
-      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', helpHtml: it.member_id_help_html } }) %>
+      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', help: it.member_id_help } }) %>
     </div>
     <input
       id="f-member-id"

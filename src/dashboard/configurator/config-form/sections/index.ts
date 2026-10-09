@@ -11,9 +11,8 @@
 
 import { Document } from 'yaml';
 
-import { at } from '../field';
-import type { Obj } from '../field';
-import { renderHelp } from '../help';
+import { at } from '../config-fields';
+import type { Obj } from '../config-fields';
 import type { FormSection } from '../model';
 import { forgeIds, groupNames, groupProviders, providerIds, type KindHint } from '../members';
 
@@ -72,20 +71,14 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
     embeddingSection(root),
   ].map((section) => ({
     ...section,
-    blurbHtml: renderHelp(section.blurb),
     // A page index's tiles carry the blurb of the page each one opens — the same
-    // prose, read twice — so it is formatted here exactly as the blurb above it is.
+    // prose, read twice — so it is formatted exactly as the blurb above it is.
     // `entriesArePages` is the one field that says which kind of tile a section
     // draws, and it decides the subtitle's face for the same reason it decides the
     // title's: a member's subtitle is a value, and a value is shown as it is
     entries: section.entriesArePages
-      ? section.entries.map((entry) => ({ ...entry, subtitleHtml: renderHelp(entry.subtitle) }))
+      ? section.entries.map((entry) => ({ ...entry, subtitleIsProse: true }))
       : section.entries,
-    // Render help text for each table column
-    tables: section.tables?.map((table) => ({
-      ...table,
-      columns: table.columns.map((column) => ({ ...column, helpHtml: renderHelp(column.help) })),
-    })),
   }));
 }
 

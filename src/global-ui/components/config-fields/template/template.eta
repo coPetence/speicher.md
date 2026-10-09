@@ -1,0 +1,43 @@
+<% const f = it.field %>
+    <% if (f.options.length) { %>
+    <fieldset class="spr-choices spr-templates">
+      <legend>
+        <%= f.label %><% if (f.help) { %><%~ include('@info', { field: f }) %><% } %>
+      </legend>
+      <% f.options.forEach(function (option) { %>
+      <label class="spr-template">
+        <% if (option.previewHref) { %>
+        <span class="spr-template-frame">
+          <iframe
+            src="<%= option.previewHref %>"
+            loading="lazy"
+            inert
+            tabindex="-1"
+            scrolling="no"
+            title="A page in the <%= option.label %> template"
+          ></iframe>
+        </span>
+        <% } else { %>
+        <span class="spr-template-frame spr-template-missing">
+          Nothing to show
+        </span>
+        <% } %>
+        <span class="spr-template-pick">
+          <input
+            type="radio"
+            name="<%= f.path %>"
+            value="<%= option.value %>"
+            <%= String(f.value || f.fallback) === String(option.value) ? 'checked' : '' %>
+            <%= it.editable ? '' : 'disabled' %>
+          >
+          <span>
+            <%= option.label %>
+          </span>
+        </span>
+      </label>
+      <% }) %>
+    </fieldset>
+    <% } else { %>
+    <%~ include('@config-fields/label', it) %>
+    <%~ include('@config-fields/text-box', it) %>
+    <% } %>

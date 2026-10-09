@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 
-import { renderHelp } from '../../../configurator/config-form/help';
 import { ConfigOverviewPayload } from '../../../configurator/config-page/payloads';
 import { DashboardResponder } from '../../../respond';
 import { renderInlineIcon } from '../../../../content-reader/icons';
@@ -22,10 +21,6 @@ export function sendConfig(
     page: (data) =>
       renderTemplate('dashboard/ui/views/config-overview', {
         ...(data as unknown as Record<string, unknown>),
-        // Markup, so it belongs to the rendering rather than the payload — the
-        // rule `blurbHtml` follows. Every explanatory sentence on this surface
-        // goes through `renderHelp`, and there is exactly one of it.
-        waiting_consequences_html: data.waiting_consequences.map(renderHelp),
         /*
           The symbols the cards draw, by name — inline, for the reason a
           section page's tiles draw theirs inline: the page's sprite is

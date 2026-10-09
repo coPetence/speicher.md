@@ -40,7 +40,7 @@
         <span class="spr-hit-title"><%= hit.title %></span>
         <% if (hit.help) { %>
         
-        <span class="spr-hit-help"><%~ hit.help_html %></span>
+        <span class="spr-hit-help"><%~ md(hit.help) %></span>
         <% } %>
       </span>
       

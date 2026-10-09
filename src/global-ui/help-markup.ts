@@ -12,8 +12,8 @@
  * rendering block elements in a single-line context
  */
 
-import { renderInlineIcon } from '../../../content-reader/icons';
-import { escapeHtml } from '../../../content-reader/views';
+import { renderInlineIcon } from '../content-reader/icons';
+import { escapeHtml } from '../content-reader/views';
 
 // Group 1: code  | Group 2-3: link text, URL  | Group 4: bold  | Group 5: underline  | Group 6: highlight
 const INLINE =

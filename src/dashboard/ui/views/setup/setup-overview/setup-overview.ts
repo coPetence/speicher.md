@@ -8,8 +8,7 @@ import { renderTemplate } from '../../../../../content-reader/views';
 
 /** A step as the overview renders it: SetupStep plus the prose copy from PROSE */
 export interface WizardStep extends SetupStep {
-  /** Copy and card label; blurbHtml is the blurb rendered by renderHelp */
-  blurbHtml: string;
+  /** Copy and card label; the blurb is help markup */
   blurb: string;
   /** Card heading; action is the label, "Review..." once the step is done */
   heading: string;

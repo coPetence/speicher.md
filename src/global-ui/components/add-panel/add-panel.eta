@@ -28,7 +28,7 @@
       <% } %>
     <% add.typeOptions.filter(function (option) { return option.unavailable }).forEach(function (option) { %>
     <p class="spr-note spr-note-warn spr-choice-note">
-      <%~ option.unavailableHtml %>
+      <%~ md(option.unavailable) %>
     </p>
     <% }) %>
     </fieldset>
@@ -37,8 +37,8 @@
       <label for="add-name">
         <%= add.nameLabel %>
       </label>
-      <% if (add.nameHelpHtml) { %>
-      <%~ include('@info', { field: { path: 'add-name', label: add.nameLabel, helpHtml: add.nameHelpHtml } }) %>
+      <% if (add.nameHelp) { %>
+      <%~ include('@info', { field: { path: 'add-name', label: add.nameLabel, help: add.nameHelp } }) %>
       <% } %>
     </div>
     <% if (add.nameOptions && add.nameOptions.some(function (option) { return option.mark; })) { %>

@@ -9,8 +9,8 @@
  * SMTP password
  */
 
-import { field } from '../field';
-import type { Obj } from '../field';
+import { checkboxesField, durationField } from '../config-fields';
+import type { Obj } from '../config-fields';
 import type { Card, Option } from '../model';
 import { sectionHead } from './registry';
 import type { SectionSource } from './registry';
@@ -46,13 +46,12 @@ function syncFailureCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(
+    items: [
+      checkboxesField(
         root,
         ['notify', 'sync_failure'],
         'notify.sync_failure',
         'Notify about a failed sync',
-        'checkboxes',
         {
           options: NOTIFY_TARGETS,
           help:
@@ -75,13 +74,12 @@ function staleCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(
+    items: [
+      checkboxesField(
         root,
         ['notify', 'stale'],
         'notify.stale',
         'Tell about a repository that stopped syncing',
-        'checkboxes',
         {
           options: STANDING_TARGETS,
           help:
@@ -89,7 +87,7 @@ function staleCard(root: Obj): Card {
             'so there is nobody whose commit it was.',
         },
       ),
-      field(root, ['notify', 'stale_after'], 'notify.stale_after', 'Stale after', 'duration', {
+      durationField(root, ['notify', 'stale_after'], 'notify.stale_after', 'Stale after', {
         fallback: '6h',
         startsRow: true,
         help:
@@ -110,13 +108,12 @@ function grantExpiryCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(
+    items: [
+      checkboxesField(
         root,
         ['notify', 'grant_expiry'],
         'notify.grant_expiry',
         'Tell about an expiring grant',
-        'checkboxes',
         {
           options: STANDING_TARGETS,
           help:
@@ -124,12 +121,11 @@ function grantExpiryCard(root: Obj): Card {
             'somebody pushed.',
         },
       ),
-      field(
+      durationField(
         root,
         ['notify', 'expiry_warning'],
         'notify.expiry_warning',
         'Warn before a grant expires',
-        'duration',
         {
           fallback: '14d',
           startsRow: true,
