@@ -92,3 +92,27 @@ export function isoOf(value: Date | string | null): string {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
+
+/**
+ * Full-jitter exponential backoff for the nth attempt, in milliseconds
+ */
+export function backoffMs(attempt: number, base: number, cap: number): number {
+  const ceiling = Math.min(base * 2 ** (attempt - 1), cap);
+  return Math.round(Math.random() * ceiling);
+}
+
+/**
+ * `Retry-After` HTTP header to milliseconds
+ */
+export function retryAfterHeaderToMs(header: string | null): number | null {
+  if (!header) return null;
+
+  const stated = header.trim();
+  if (stated === '') return null;
+
+  const seconds = Number(stated);
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds * 1000 : null;
+
+  const at = Date.parse(stated);
+  return Number.isNaN(at) ? null : Math.max(0, at - Date.now());
+}

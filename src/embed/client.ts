@@ -8,6 +8,7 @@
  * embedding.dimensions fails the boot instead of part-way through an embed run
  */
 import { Logger, rootLogger } from '../common/logger';
+import { backoffMs, retryAfterHeaderToMs } from '../common/time';
 
 /** Attempts per batch request: one original plus up to three retries */
 const MAX_ATTEMPTS = 4;
@@ -192,7 +193,7 @@ export class EmbeddingClient {
       lastError = outcome.error;
       if (!outcome.error.retryable || attempt === MAX_ATTEMPTS) break;
 
-      const wait = outcome.retryAfterMs ?? backoffFor(attempt);
+      const wait = outcome.retryAfterMs ?? backoffMs(attempt, BASE_BACKOFF_MS, MAX_BACKOFF_MS);
       this.log.warn('embedding request failed; retrying', {
         attempt,
         of: MAX_ATTEMPTS,
@@ -247,7 +248,7 @@ export class EmbeddingClient {
           response.status,
           isRetryable(response.status),
         ),
-        retryAfterMs: retryAfterMs(response.headers.get('retry-after')),
+        retryAfterMs: retryAfterHeaderToMs(response.headers.get('retry-after')),
       };
     }
 
@@ -323,22 +324,6 @@ async function safeText(response: { text(): Promise<string> }): Promise<string> 
 /** True for the statuses (429, 5xx) a retry can plausibly fix */
 function isRetryable(status: number): boolean {
   return status === 429 || status >= 500;
-}
-
-/** Parse Retry-After, given as whole seconds or an HTTP-date, into ms to wait */
-function retryAfterMs(header: string | null): number | null {
-  if (!header) return null;
-  const seconds = Number(header);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-  const at = Date.parse(header);
-  return Number.isNaN(at) ? null : Math.max(0, at - Date.now());
-}
-
-/** Exponential schedule with full jitter, capped at MAX_BACKOFF_MS */
-function backoffFor(attempt: number): number {
-  const exponential = Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
-  // Full jitter: pick uniformly in [0, exponential]
-  return Math.round(Math.random() * exponential);
 }
 
 /** Split items into consecutive non-overlapping slices of at most size */

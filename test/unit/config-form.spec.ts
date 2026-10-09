@@ -222,7 +222,7 @@ describe('advanced settings', () => {
   it('is a rendering and not a second list, so decoding still reaches it', () => {
     const paths = fieldsFor(FULL).map((f) => f.path);
     expect(paths).toContain('forges.gh.base_url');
-    expect(paths).toContain('auth.providers.hub.team_cache_ttl');
+    expect(paths).toContain('auth.providers.hub.base_url');
   });
 });
 
@@ -323,7 +323,7 @@ describe('coverage of the schema', () => {
     const paths = fieldsFor(FULL).map((f) => f.path);
     expect(paths).toContain('auth.providers.entra.issuer');
     expect(paths).toContain('auth.providers.letter.token_ttl');
-    expect(paths).toContain('auth.providers.hub.team_cache_ttl');
+    expect(paths).toContain('auth.providers.hub.base_url');
     expect(paths).toContain('forges.gh.app_id');
     expect(paths).toContain('forges.onprem.repos.0.deploy_key');
     expect(paths).toContain('forges.onprem.repos.1.token');

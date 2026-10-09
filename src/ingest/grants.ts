@@ -28,8 +28,13 @@ export interface DirectoryLookup {
   /** Whether a directory is configured for this provider */
   covers(provider: string): boolean;
 
-  /** Resolve an email to a subject identifier, or null if not found */
-  resolveEmail(provider: string, email: string): Promise<string | null>;
+  /**
+   * Resolve an email to a subject identifier
+   *
+   * `null` -> definitively absent -> drops the grant
+   * `undefined` -> directory cannot answer (e.g. GitHub Directory doesnt support this)
+   */
+  resolveEmail(provider: string, email: string): Promise<string | null | undefined>;
 
   /** Whether a subject still exists in the directory */
   subjectExists(provider: string, subject: string): Promise<boolean>;

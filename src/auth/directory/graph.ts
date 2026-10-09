@@ -6,7 +6,7 @@
  * Uses OAuth client-credentials flow with configurable tenant and app registration
  * Results cache with a configurable TTL to reduce API calls
  */
-import { parseDurationWithFallback } from '../../common/time';
+import { backoffMs, parseDurationWithFallback, retryAfterHeaderToMs } from '../../common/time';
 import { Logger, rootLogger } from '../../common/logger';
 import { DirectoryUnavailableError } from '../../ingest/grants';
 import { DirectoryConfig } from '../../config/types';
@@ -220,7 +220,7 @@ export class GraphDirectory {
       } catch (err) {
         if (attempt < MAX_ATTEMPTS) {
           // Network errors are retried with exponential backoff
-          await this.sleep(backoffFor(attempt));
+          await this.sleep(backoffMs(attempt, BASE_BACKOFF_MS, MAX_BACKOFF_MS));
           continue;
         }
         throw this.unavailable('directory unreachable', (err as Error).message);
@@ -243,7 +243,10 @@ export class GraphDirectory {
 
       if ((response.status === 429 || response.status >= 500) && attempt < MAX_ATTEMPTS) {
         // Respect Retry-After header; fall back to exponential backoff
-        await this.sleep(retryAfterMs(response) ?? backoffFor(attempt));
+        await this.sleep(
+          retryAfterHeaderToMs(response.headers.get('retry-after')) ??
+            backoffMs(attempt, BASE_BACKOFF_MS, MAX_BACKOFF_MS),
+        );
         continue;
       }
 
@@ -326,18 +329,4 @@ export function entraPortalGroupUrl(groupId: string): string {
 function idOf(user: unknown): string | null {
   const id = (user as { id?: unknown } | null)?.id;
   return typeof id === 'string' && id !== '' ? id : null;
-}
-
-/** Exponential backoff with jitter, capped at MAX_BACKOFF_MS */
-function backoffFor(attempt: number): number {
-  const ceiling = Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
-  return Math.random() * ceiling;
-}
-
-/** Parse the Retry-After header in milliseconds, or null if absent or unparseable */
-function retryAfterMs(response: Response): number | null {
-  const header = response.headers.get('retry-after');
-  if (!header) return null;
-  const seconds = Number(header.trim());
-  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null;
 }

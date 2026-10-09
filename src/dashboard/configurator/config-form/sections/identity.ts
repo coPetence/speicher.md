@@ -193,13 +193,12 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
         help: 'GitHub Enterprise only. Leave blank for github.com.',
         advanced: true,
       }),
-      durationField(root, [...base, 'team_cache_ttl'], p('team_cache_ttl'), 'Team cache lifetime', {
-        fallback: '15m',
+      durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
+        fallback: '8h',
         help:
-          'How long a team membership read from GitHub is trusted before it is ' +
-          'asked for again. Shorter costs requests; longer leaves somebody in a ' +
-          'group they have been taken out of.',
-        advanced: true,
+          'How long a sign-in stays valid before the person has ' +
+          'to sign in again. If you remove someone from a team it needs a new session ' +
+          'to take effect. If you need fast team removal times, keep this low.',
       }),
     );
     fields.push(...directoryFields(root, base, 'github', kind));
@@ -313,6 +312,56 @@ function directoryFields(
   const secret = at(root, [...base, 'client_secret']);
   const secretHidden = secret !== undefined && !isEnvPlaceholder(secret);
 
+  const credentials: Field[] =
+    type === 'github'
+      ? [
+          textField(root, [...d, 'app_id'], p('app_id'), 'Directory App id', {
+            shownWith,
+            help:
+              "The App id of the directory's GitHub App. You can find it under: " +
+              '**Developer settings** → **GitHub Apps**. It needs the organisation ' +
+              'permission **Members: Read-only** and must be installed on every ' +
+              'organisation that you want to use.',
+          }),
+          secretField(root, [...d, 'private_key'], p('private_key'), 'Directory private key', {
+            shownWith,
+            help: `${SECRET_HELP}\n\nThe App's secret key .pem file.`,
+            upload: {
+              accept: '.pem,application/x-pem-file',
+              content: 'rsa-private-key',
+              label: 'Choose .pem…',
+              dropLabel: "Drop the App's .pem file here",
+            },
+          }),
+        ]
+      : [
+          textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {
+            shownWith,
+            sourceToCopyFrom: kind === 'entra' ? from('issuer') : undefined,
+          }),
+          textField(root, [...d, 'client_id'], p('client_id'), 'Directory client id', {
+            shownWith,
+            sourceToCopyFrom: from('client_id'),
+            help:
+              'The directory client id is the application (client) id Speicher uses to look up ' +
+              'users and groups in Microsoft Graph. The app registration needs the application ' +
+              'permission `User.Read.All`.',
+          }),
+          secretField(
+            root,
+            [...d, 'client_secret'],
+            p('client_secret'),
+            'Directory client secret',
+            {
+              shownWith,
+              sourceToCopyFrom: from('client_secret'),
+              // When the provider secret is a stored literal, indicate the directory secret is the same
+              sourceToCopyFromOnSave: copyable && secretHidden,
+              help: SECRET_HELP,
+            },
+          ),
+        ];
+
   return [
     selectField(root, [...d, 'type'], p('type'), 'Directory lookup', {
       options: [
@@ -326,25 +375,7 @@ function directoryFields(
         'the sign-in name differs from the address, to show how many people a group reaches, and ' +
         'to drop grants for people whose account has been disabled or deleted.',
     }),
-    textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {
-      shownWith,
-      sourceToCopyFrom: kind === 'entra' ? from('issuer') : undefined,
-    }),
-    textField(root, [...d, 'client_id'], p('client_id'), 'Directory client id', {
-      shownWith,
-      sourceToCopyFrom: from('client_id'),
-      help:
-        'The directory client id is the application (client) id Speicher uses to look up ' +
-        'users and groups in Microsoft Graph. The app registration needs the application ' +
-        'permission `User.Read.All`.',
-    }),
-    secretField(root, [...d, 'client_secret'], p('client_secret'), 'Directory client secret', {
-      shownWith,
-      sourceToCopyFrom: from('client_secret'),
-      // When the provider secret is a stored literal, indicate the directory secret is the same
-      sourceToCopyFromOnSave: copyable && secretHidden,
-      help: SECRET_HELP,
-    }),
+    ...credentials,
     durationField(root, [...d, 'cache_ttl'], p('cache_ttl'), 'Directory cache lifetime', {
       shownWith,
       fallback: '1h',

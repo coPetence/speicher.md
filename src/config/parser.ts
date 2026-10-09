@@ -14,6 +14,7 @@ import { checkGitForges } from './checks/git-forges';
 import { checkGroups } from './checks/groups';
 import { checkProviders } from './checks/providers';
 import { interpolateEnv } from './env-interpolation';
+import { dropRetiredKeys } from './retired-keys';
 import { computeResolutionHash } from './resolution-hash';
 import { formatAjvErrors, validateInstanceSchema } from './schemas';
 import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
@@ -51,8 +52,9 @@ export function loadInstanceConfigFromFile(path: string): LoadedInstanceConfig {
 }
 
 /**
- * loadInstanceConfig parses YAML, fills in `${VAR}` references, validates the result
- * against the schema and runs every check the schema cannot express. Throws a `ConfigError` if any of these steps fail.
+ * loadInstanceConfig parses YAML, fills in `${VAR}` references, drops keys the schema
+ * has retired, validates the result against the schema and runs every check the schema
+ * cannot express. Throws a `ConfigError` if any of these steps fail.
  *
  * @param yaml the instance config as YAML text
  */
@@ -64,6 +66,7 @@ export function loadInstanceConfig(yaml: string): LoadedInstanceConfig {
     throw new ConfigError(`instance config is not valid YAML: ${(err as Error).message}`);
   }
   const config = interpolateEnv(parsed.value);
+  dropRetiredKeys(config);
 
   if (!validateInstanceSchema(config)) {
     throw new ConfigError(

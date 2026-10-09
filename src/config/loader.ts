@@ -271,6 +271,15 @@ function unreadablePrivateKeys(config: InstanceConfig): string[] {
     const problem = privateKeyProblem(forge.private_key);
     if (problem) problems.push(`\`forges.${key}.private_key\`: ${problem}`);
   }
+  for (const [key, provider] of Object.entries(config.auth?.providers ?? {})) {
+    const directory = 'directory' in provider ? provider.directory : undefined;
+    if (directory?.type !== 'github' || directory.private_key === undefined) continue;
+
+    const problem = privateKeyProblem(directory.private_key);
+    if (problem) {
+      problems.push(`\`auth.providers.${key}.directory.private_key\`: ${problem}`);
+    }
+  }
   return problems;
 }
 

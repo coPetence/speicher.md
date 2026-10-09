@@ -20,14 +20,19 @@ export interface MailConfig {
 
 export interface DirectoryConfig {
   type: 'graph' | 'github';
+  // graph
   tenant_id?: string;
   client_id?: string;
   client_secret?: string;
+  // github
+  app_id?: string;
+  private_key?: string;
   cache_ttl?: string;
 }
 
 export interface OidcProviderConfig {
   type?: 'oidc';
+  display_name?: string;
   issuer: string;
   client_id: string;
   client_secret?: string;
@@ -41,6 +46,7 @@ export interface OidcProviderConfig {
 
 export interface MagicLinkProviderConfig {
   type: 'magic-link';
+  display_name?: string;
   token_ttl?: string;
   session_ttl?: string;
   same_browser?: boolean;
@@ -48,10 +54,11 @@ export interface MagicLinkProviderConfig {
 
 export interface GithubProviderConfig {
   type: 'github';
+  display_name?: string;
   client_id: string;
   client_secret?: string;
   base_url?: string;
-  team_cache_ttl?: string;
+  session_ttl?: string;
   directory?: DirectoryConfig;
 }
 

@@ -922,3 +922,120 @@ describe('a provider’s display name', () => {
     );
   });
 });
+
+describe('a key the schema has retired', () => {
+  const WITH_RETIRED = MINIMAL.replace(
+    '      client_id: abc',
+    '      client_id: abc\n      team_cache_ttl: 15m',
+  );
+
+  it('loads anyway, rather than failing a document that used to be valid', () => {
+    expect(() => load(WITH_RETIRED)).not.toThrow();
+  });
+
+  it('is gone from the loaded config, not carried as a setting that does nothing', () => {
+    const config = new ConfigService(load(WITH_RETIRED));
+
+    expect(config.provider('entra')).not.toHaveProperty('team_cache_ttl');
+  });
+
+  it('leaves a key that is still real alone', () => {
+    const config = new ConfigService(
+      load(MINIMAL.replace('      client_id: abc', '      client_id: abc\n      session_ttl: 30m')),
+    );
+
+    expect(config.provider('entra')).toHaveProperty('session_ttl', '30m');
+  });
+
+  it('reaches the key under every provider the `*` stands for', () => {
+    const twoProviders = MINIMAL.replace(
+      '      client_id: abc',
+      [
+        '      client_id: abc',
+        '      team_cache_ttl: 15m',
+        '    hub:',
+        '      type: github',
+        '      client_id: def',
+        '      team_cache_ttl: 1h',
+      ].join('\n'),
+    );
+    const config = new ConfigService(load(twoProviders));
+
+    expect(config.provider('entra')).not.toHaveProperty('team_cache_ttl');
+    expect(config.provider('hub')).not.toHaveProperty('team_cache_ttl');
+  });
+});
+
+describe('a GitHub directory', () => {
+  const GITHUB = `
+version: 1
+auth:
+  providers:
+    hub:
+      type: github
+      client_id: abc
+      directory:
+        type: github
+        app_id: "2"
+        private_key: a-pem
+groups:
+  engineering:
+    - { provider: hub, id: acme/platform }
+admins:
+  groups: [engineering]
+forges:
+  gh:
+    type: github
+    app_id: "1"
+    private_key: k
+    webhook_secret: s
+`;
+
+  it('loads with its own App', () => {
+    expect(() => load(GITHUB)).not.toThrow();
+  });
+
+  it('refuses one with no App of its own to read an organisation through', () => {
+    // Borrowing a content source's App would mean granting *that* credential
+    // Members: Read-only, so the directory is made to name its own
+    expect(() => load(GITHUB.replace('        app_id: "2"\n', ''))).toThrow(
+      /directory\.app_id is required/,
+    );
+    expect(() => load(GITHUB.replace('        private_key: a-pem\n', ''))).toThrow(
+      /directory\.private_key is required/,
+    );
+  });
+
+  it('does not take a content source standing in for one', () => {
+    // A github forge is configured in GITHUB, and is still not enough
+    const noCredentials = GITHUB.replace('        app_id: "2"\n', '').replace(
+      '        private_key: a-pem\n',
+      '',
+    );
+
+    expect(() => load(noCredentials)).toThrow(/directory\.app_id is required/);
+  });
+
+  it('refuses Graph credentials, which do nothing here', () => {
+    expect(() =>
+      load(GITHUB.replace('        type: github', '        type: github\n        client_id: c')),
+    ).toThrow(/directory\.client_id belongs to a Microsoft Graph directory/);
+    expect(() =>
+      load(GITHUB.replace('        type: github', '        type: github\n        tenant_id: t')),
+    ).toThrow(/directory\.tenant_id belongs to a Microsoft Graph directory/);
+  });
+
+  it('refuses a Graph directory on a github provider', () => {
+    expect(() => load(GITHUB.replace('        type: github\n', '        type: graph\n'))).toThrow(
+      /directory\.type must be "github" for a github provider/,
+    );
+  });
+
+  it('says nothing about an App on a github provider with no directory', () => {
+    const noDirectory = GITHUB.replace(
+      '      directory:\n        type: github\n        app_id: "2"\n        private_key: a-pem\n',
+      '',
+    );
+    expect(() => load(noDirectory)).not.toThrow();
+  });
+});
