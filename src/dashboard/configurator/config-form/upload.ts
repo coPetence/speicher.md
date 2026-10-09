@@ -126,7 +126,8 @@ export async function fillUploads(
     }
 
     if (field.kind !== 'secret' || !field.upload) continue;
-    const read = readPrivateKey(bytes);
+    const read =
+      field.upload.content === 'ssh-private-key' ? readSshPrivateKey(bytes) : readPrivateKey(bytes);
     if (read.refusal !== null) return read.refusal;
     body[field.path] = read.value;
   }
@@ -152,6 +153,69 @@ function listTypes(mediaTypes: string[]): string {
 /** True when bytes hold a NUL or replacement character, which marks binary content */
 function isBinary(text: string): boolean {
   return text.includes('\u0000') || text.includes('\uFFFD');
+}
+
+const OPENSSH_KEY =
+  /-----BEGIN OPENSSH PRIVATE KEY-----([\s\S]*?)-----END OPENSSH PRIVATE KEY-----/;
+
+const SSH_PASSPHRASE_REFUSAL =
+  'That key is protected by a passphrase, and Speicher can only use keys without passphrases. To remove the passphrase, run `ssh-keygen -p -f <file>` and leave the new passphrase empty.';
+
+/**
+ * Reads a private SSH key, such as a deploy key created with `ssh-keygen`, refusing
+ * a public key, a key protected by a passphrase and anything that is no key
+ *
+ * @param bytes the uploaded file
+ */
+function readSshPrivateKey(bytes: Buffer): { value: string; refusal: null } | { refusal: string } {
+  const text = bytes.toString('utf8');
+
+  if (isBinary(text)) {
+    return {
+      refusal:
+        'The chosen file is not a private SSH key, because it is not a text file. Choose the private key file that `ssh-keygen` created, for example `speicher-deploy-key`.',
+    };
+  }
+
+  if (/^\s*(ssh|ecdsa|sk)-\S+\s+AAAA/.test(text)) {
+    return {
+      refusal:
+        'The chosen file is a public key, but the deploy key field needs the private key. Choose the file with the same name without `.pub`, for example `speicher-deploy-key` instead of `speicher-deploy-key.pub`.',
+    };
+  }
+
+  // The OpenSSH format names the cipher that protects the key after a fixed magic
+  // string; `none` means there is no passphrase
+  const openssh = OPENSSH_KEY.exec(text);
+  if (openssh) {
+    const blob = Buffer.from(openssh[1].replace(/\s+/g, ''), 'base64');
+    const magic = 'openssh-key-v1\0';
+    if (
+      blob.subarray(0, magic.length).toString('latin1') !== magic ||
+      blob.length < magic.length + 4
+    ) {
+      return {
+        refusal:
+          'The chosen file starts like a private SSH key, but its content is damaged, so Speicher cannot read it. Choose the original file that `ssh-keygen` created, or create a new key.',
+      };
+    }
+    const length = blob.readUInt32BE(magic.length);
+    const cipher = blob.subarray(magic.length + 4, magic.length + 4 + length).toString('latin1');
+    if (cipher !== 'none') return { refusal: SSH_PASSPHRASE_REFUSAL };
+    return { value: text, refusal: null };
+  }
+
+  // Older keys are PEM files, which ssh reads as well
+  if (text.includes('ENCRYPTED')) return { refusal: SSH_PASSPHRASE_REFUSAL };
+  try {
+    createPrivateKey(normalizePem(text));
+  } catch {
+    return {
+      refusal:
+        'The chosen file is not a private SSH key. Choose the private key file that `ssh-keygen` created, for example `speicher-deploy-key`. Its first line is “-----BEGIN OPENSSH PRIVATE KEY-----”.',
+    };
+  }
+  return { value: text, refusal: null };
 }
 
 /** Reads a GitHub App's PEM private key, refusing anything not an unencrypted RSA key */

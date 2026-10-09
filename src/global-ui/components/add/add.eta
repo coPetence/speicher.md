@@ -1,6 +1,7 @@
 
 <% const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1) %>
-  <div class="spr-add">
+  <% /* The page lands on the Add button after the last entry of its list is removed */ %>
+  <div class="spr-add" <%= it.landing && it.landing === target ? 'id="spr-landing"' : '' %>>
     <% if (add.nameLabel) { %>
     <label for="n-<%= add.op %>">
       <%= add.nameLabel %>

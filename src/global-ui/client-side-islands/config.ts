@@ -21,6 +21,7 @@ import { mountDropdowns } from './configurator/picture-dropdown';
 import { mountBlockedAnswers } from './configurator/unavailable-choice-blocker';
 import { mountSuggestions } from './configurator/suggested-name-fill';
 import { mountReveals } from './configurator/dependent-field-visibility';
+import { mountChoices } from './configurator/choice-switch';
 import { mountCopies } from './configurator/copy-from-sibling-field';
 import { mountOriginPaths } from './configurator/origin-before-path';
 import { mountSwatches } from './configurator/colour-swatch-picker';
@@ -28,6 +29,8 @@ import { mountGrowingTables } from './configurator/growing-source-tables';
 import { mountChecks } from './configurator/live-connection-check';
 import { mountWidths } from './configurator/embedding-width-lookup';
 import { mountFragments } from './configurator/open-folded-on-fragment';
+import { mountKnownHostsTables } from './configurator/known-hosts-table';
+import { mountLanding } from './configurator/land-on-changed-entry';
 
 function mount(): void {
   mountNavFolds();
@@ -45,6 +48,7 @@ function mount(): void {
   mountBlockedAnswers();
   mountSuggestions();
   mountReveals();
+  mountChoices();
   mountCopies();
   mountOriginPaths();
   mountCopy();
@@ -52,6 +56,8 @@ function mount(): void {
   mountSwatches();
   mountGrowingTables();
   mountFragments();
+  mountKnownHostsTables();
+  mountLanding();
 }
 
 if (document.readyState === 'loading') {

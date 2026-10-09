@@ -77,6 +77,15 @@
       max-inline-size: none;
     }
   }
+  .spr-field-wide input:not([type='checkbox'], [type='radio'], [type='file'], [type='color']) {
+    max-inline-size: none;
+  }
+
+  @container (width >= 38rem) {
+    .spr-field-wide {
+      grid-column-end: span 2;
+    }
+  }
 
   .spr-field textarea {
     font-family: var(--spr-font-mono);

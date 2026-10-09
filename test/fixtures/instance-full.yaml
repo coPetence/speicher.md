@@ -155,13 +155,12 @@ forges:
     poll_interval: 1h
     known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly
     repos:
-      # An ssh remote: deploy key and a pinned host key.
+      # An ssh remote
       - id: runbooks
         url: ssh://git@example.test/internal/runbooks.git
         slug: runbooks
         branch: main
         deploy_key: ${TEST_GH_PRIVATE_KEY}
-        known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly
         poll_interval: 30m
       # An https remote: token and username instead.
       - id: playbooks

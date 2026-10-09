@@ -101,4 +101,8 @@ export interface ConfigSectionPayload extends ConfigCommon {
   problems: string[];
   // True when the section is in a draft state awaiting save
   pending: boolean;
+  // Where the page scrolls to after a round trip added or removed an entry: the path
+  // of an entry, e.g. `forges.git.repos.2`, or of a list. `focus` also focuses the
+  // entry's first field
+  landing?: { path: string; focus: boolean };
 }

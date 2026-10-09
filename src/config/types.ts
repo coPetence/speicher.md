@@ -85,7 +85,6 @@ export interface GitRepoConfig {
   slug?: string;
   branch?: string;
   deploy_key?: string;
-  known_hosts?: string;
   token?: string;
   username?: string;
   poll_interval?: string;

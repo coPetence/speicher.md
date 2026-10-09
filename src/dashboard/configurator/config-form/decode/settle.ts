@@ -1,9 +1,9 @@
 import { Document, isMap, isSeq } from 'yaml';
 
 import type { SelectField } from '../config-fields';
-import { writeAt } from '../document';
-import { FormSection, allFields } from '../model';
+import { dottedPath, writeAt } from '../document';
 import { MemberRef, memberPath } from '../members';
+import { FormSection, allFields, cardItems, fieldsOf } from '../model';
 import { FormBody } from './body';
 
 /**
@@ -153,4 +153,34 @@ export function settleAssetDriver(doc: Document, body: FormBody, section: FormSe
   if (doc.hasIn(['assets', 'driver'])) return false;
 
   return writeAt(doc, control.path.split('.'), driver);
+}
+
+/**
+ * Removes the values of the options that were not chosen in each choice on the
+ * page, e.g. the access token of a git remote switched to SSH.
+ */
+export function settleChoices(doc: Document, body: FormBody, section: FormSection): boolean {
+  let changed = false;
+  for (const item of cardItems([section])) {
+    if (item.kind !== 'choice') continue;
+
+    const submitted = body[item.name];
+    const value = doc.getIn(dottedPath(item.follows.path));
+    const chosen =
+      typeof submitted === 'string'
+        ? item.options.find((option) => option.value === submitted)
+        : item.options.find(
+            (option) =>
+              option.prefix && typeof value === 'string' && value.trim().startsWith(option.prefix),
+          );
+    if (!chosen) continue;
+
+    for (const option of item.options) {
+      if (option === chosen) continue;
+      for (const field of fieldsOf(option.items)) {
+        if (writeAt(doc, dottedPath(field.path), undefined)) changed = true;
+      }
+    }
+  }
+  return changed;
 }

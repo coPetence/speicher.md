@@ -1,3 +1,5 @@
+import { Document, isSeq } from 'yaml';
+
 import { carryProviderRows } from '../../../auth/provider-rename';
 import { ResolvedCaller } from '../../../authz/caller';
 import { ConfigError, ConfigReadOnlyError } from '../../../common/errors';
@@ -9,18 +11,20 @@ import { compareConfigs } from '../../../config/classification';
 import { ConfigService } from '../../../config/config.service';
 import { SaveActor, saveInstanceConfig, validateForSave } from '../../../config/loader';
 import { ConfigWatcher } from '../../../config/watcher';
+import { nextSetupPage, setupStateOf } from '../../setup/steps';
 import { applyForm } from '../config-form/apply';
 import { reshaped, shapeControls } from '../config-form/collections';
-import { loadDocument, serialise } from '../config-form/document';
+import type { KnownHostsField } from '../config-form/config-fields';
+import { FETCH_HOST_KEYS_OP } from '../config-form/config-fields';
+import { dottedPath, loadDocument, serialise } from '../config-form/document';
 import { memberExists, renameMember, seedMemberInto } from '../config-form/member-edits';
 import { canCreateMember, isMemberId, memberOf, memberSectionId } from '../config-form/members';
 import { allFields } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { Uploads, fillUploads } from '../config-form/upload';
-import { ConfigPageService } from './config-page.service';
 import { stampUsage } from '../member-usage';
-import { nextSetupPage, setupStateOf } from '../../setup/steps';
-import { SectionChecks } from './checks';
+import { SectionChecks, stampUnsavedHostKeys } from './checks';
+import { ConfigPageService } from './config-page.service';
 import { stampEntryOrigins } from './origins';
 import { ConfigSectionPayload } from './payloads';
 
@@ -54,6 +58,60 @@ export interface SaveRequest {
 
 function pageOf(sectionId: string, payload: ConfigSectionPayload, status?: number): SaveOutcome {
   return { kind: 'page', sectionId, payload, status };
+}
+
+/**
+ * Hands every secret of the page that the edited document holds and the stored one
+ * does not back to the page, which carries it in a hidden input.
+ *
+ * @param payload the page that is sent back
+ * @param edited the document the page is drawn from
+ * @param storedYaml the stored document
+ */
+function carryUnsavedSecrets(
+  payload: ConfigSectionPayload,
+  edited: Document,
+  storedYaml: string,
+): void {
+  if (!payload.section) return;
+  const stored = loadDocument(storedYaml);
+  for (const field of allFields([payload.section])) {
+    if (field.kind !== 'secret' || !field.secretHidden) continue;
+    const path = dottedPath(field.path);
+    const value = edited.getIn(path);
+    if (typeof value === 'string' && value !== stored.getIn(path)) field.unsaved = value;
+  }
+}
+
+/**
+ * Where the page lands after an op added an entry to a list, removed one from it or
+ * fetched host keys, or null for any other op. After `add:` it is the new entry, e.g.
+ * `forges.git.repos.2`, and its first field is focused. After `remove:` it is the entry
+ * that took the removed one's place, else the one before it, else the list itself,
+ * whose Add button is there. After Fetch host keys it is the known hosts field, whose
+ * card the page opens at
+ *
+ * @param doc the document the op was applied to
+ * @param op the submitted op
+ */
+function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] {
+  if (typeof op !== 'string') return undefined;
+  if (op.startsWith(FETCH_HOST_KEYS_OP)) {
+    return { path: op.slice(FETCH_HOST_KEYS_OP.length), focus: false };
+  }
+  if (op.startsWith('add:')) {
+    const target = op.slice('add:'.length);
+    const list = doc.getIn(dottedPath(target));
+    if (!isSeq(list) || list.items.length === 0) return undefined;
+    return { path: `${target}.${list.items.length - 1}`, focus: true };
+  }
+  const removed = /^remove:(.+)\.(\d+)$/.exec(op);
+  if (!removed) return undefined;
+  const [, target, index] = removed;
+  const list = doc.getIn(dottedPath(target));
+  if (!isSeq(list)) return undefined;
+  const at = Math.min(Number(index), list.items.length - 1);
+  return { path: at >= 0 ? `${target}.${at}` : target, focus: false };
 }
 
 /**
@@ -285,6 +343,9 @@ export class ConfigSaveService {
     // *value* for a checkbox, so decoding the whole model against one section's
     // submission would turn off every switch on the other seven — see `applyForm`.
     const { structural, changed: edited_ } = applyForm(doc, body, sectionId, hint);
+    // The Fetch host keys button: a round trip like Add, which writes the fetched keys
+    // into the edited document and stores nothing. See `SectionChecks.fetchHostKeys`
+    const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);
 
     /*
       The id a member being created is stored under.
@@ -314,7 +375,7 @@ export class ConfigSaveService {
     const renamesTo = member && wantedId !== '' && wantedId !== member.id ? wantedId : null;
     const idTaken =
       renamesTo !== null && member !== null && memberExists(doc, { ...member, id: renamesTo });
-    const changed = edited_ || created;
+    const changed = edited_ || created || hostKeys?.changed === true;
     // Only re-serialise when a value actually moved. Rendering an untouched
     // document back out would normalise its formatting, so opening the form and
     // pressing Save would append a version that differs by whitespace alone.
@@ -327,6 +388,16 @@ export class ConfigSaveService {
     await stampEntryOrigins(caller.tenantId, payload);
     await this.checks.stampDirectoryStatus(payload, false);
     await this.checks.stampSectionCheck(payload, edited, false);
+    const fetchedInto =
+      hostKeys && payload.section
+        ? allFields([payload.section]).find(
+            (field): field is KnownHostsField =>
+              field.kind === 'known-hosts' && field.path === hostKeys.path,
+          )
+        : undefined;
+    if (hostKeys && fetchedInto) fetchedInto.fetchNote = hostKeys.status;
+    stampUnsavedHostKeys(payload, state.storedYaml);
+    carryUnsavedSecrets(payload, doc, state.storedYaml);
 
     payload.pending = edited !== state.storedYaml || payload.creating;
     payload.shape = payload.section ? shapeControls(doc, payload.section) : [];
@@ -372,7 +443,10 @@ export class ConfigSaveService {
 
     // Adding or removing an entry is a round trip, not a save: the operator has
     // asked for somewhere to type, and an empty provider does not validate yet.
-    if (structural) return pageOf(sectionId, payload);
+    if (structural || hostKeys) {
+      payload.landing = landingOf(doc, body.op);
+      return pageOf(sectionId, payload);
+    }
 
     /*
       And so is moving a control that decides which controls exist.

@@ -814,7 +814,7 @@
         },
         "known_hosts": {
           "type": "string",
-          "description": "git: `known_hosts` lines pinning the host keys of every ssh remote below, as a default for every repo. Required for ssh — there is no trust-on-first-use mode, because an unattended poller accepting a new host key is a machine-in-the-middle window with nobody watching."
+          "description": "git: The known hosts are the SSH host keys of the servers the `ssh://` repositories below are fetched from, as `known_hosts` lines, for example `github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl`. They are required as soon as one repository uses an `ssh://` URL, and they must hold a key for each of its servers. Speicher connects only to a server whose key is listed here."
         },
         "repos": {
           "type": "array",
@@ -889,10 +889,6 @@
         "deploy_key": {
           "type": "string",
           "description": "OpenSSH private key, read-only on the remote. Written to a mode-0600 file for the length of one fetch and never into `.git/config`, which would persist it."
-        },
-        "known_hosts": {
-          "type": "string",
-          "description": "Overrides the forge-level `known_hosts` for this remote."
         },
         "token": {
           "type": "string",

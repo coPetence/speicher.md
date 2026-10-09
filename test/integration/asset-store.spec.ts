@@ -75,8 +75,7 @@ describe('the store check on the storage page', () => {
     expect(text).toContain('data-spr-check="/-/config/storage?check=1"');
     expect(text).toContain('Check the connection');
     expect(text).not.toContain(DIRECTORY_OK_LABEL);
-    expect(text).toContain('data-spr-check-mark="ok"');
-    expect(text).toContain('data-spr-check-mark="fail"');
+    expect(text).toContain('spr-note spr-note-idle spr-section-status');
   });
 
   it('says the volume is writable, at the foot of the page', async () => {

@@ -2,6 +2,7 @@
 <% const card = it.card, editable = it.editable %>
   <section
     class="spr-card spr-card-<%= it.depth %><%= card.titleIsKey ? ' spr-card-key' : '' %>"
+    <% if (it.landing && (card.removeOp === 'remove:' + it.landing || card.items.some(function (item) { return item.path === it.landing }))) { %>id="spr-landing"<% } %>
     <% if (card.shownWith) { %>data-spr-shown-with="<%= card.shownWith %>"<% } %>
   >
     <header>
@@ -30,11 +31,8 @@
     </p>
     <% }) %>
     <div class="spr-fields">
-      <% card.items.forEach(function (item) { %>
-        <% if (item.kind === 'copy-value') { %><%~ include('@config-fields/copy-value', { ...it, item: item }) %>
-        <% } else { %><%~ include('@field', { ...it, field: item }) %><% } %>
-      <% }) %>
+      <% card.items.forEach(function (item) { %><%~ include('@config-fields/item', { ...it, item: item }) %><% }) %>
     </div>
     <% card.cards.forEach(function (child) { %><%~ include('@card', { ...it, card: child, depth: it.depth + 1 }) %><% }) %>
-    <% if (editable) { card.addOps.forEach(function (add) { %><%~ include('@add', { add: add }) %><% }) } %>
+    <% if (editable) { card.addOps.forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing }) %><% }) } %>
   </section>

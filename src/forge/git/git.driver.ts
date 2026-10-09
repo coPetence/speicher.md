@@ -4,7 +4,7 @@
  * Works against a plain git remote over ssh or https
  * No webhooks: the caller must poll or trigger manually
  * No installations: repos are statically configured in the forge config
- * Credentials are per-repo deploy keys or tokens, with optional known_hosts
+ * Credentials are per-repo deploy keys or tokens
  */
 
 import { join } from 'node:path';
@@ -123,12 +123,11 @@ export class GitDriver implements ForgeDriver {
     return (this.config.repos ?? []).find((repo) => repo.id === forgeRepoId);
   }
 
-  /** Merge per-repo credentials, inheriting knownHosts from the forge config */
+  /** The repo's own credentials, with the host keys of the forge config */
   private credentialFor(entry: GitRepoConfig): GitCredential {
     return {
       deployKey: entry.deploy_key,
-      // known_hosts inherits from forge config if not set per repo
-      knownHosts: entry.known_hosts ?? this.config.known_hosts,
+      knownHosts: this.config.known_hosts,
       token: entry.token,
       username: entry.username,
     };

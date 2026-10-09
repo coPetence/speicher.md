@@ -7,6 +7,7 @@ import type { CopyValueItem } from './copy-value';
 import type { EmbeddingModelField } from './embedding-model';
 import type { EntraTenantField } from './entra-tenant';
 import type { FileField } from './file';
+import type { KnownHostsField } from './known-hosts';
 import type { LinesField } from './lines';
 import type { MembershipField } from './membership';
 import type { MultilineField } from './multiline';
@@ -31,6 +32,7 @@ export type Field =
   | TemplateField
   | CheckboxesField
   | MultilineField
+  | KnownHostsField
   | LinesField
   | FileField
   | AmountField;
@@ -55,6 +57,7 @@ export * from './copy-value';
 export * from './embedding-model';
 export * from './entra-tenant';
 export * from './file';
+export * from './known-hosts';
 export * from './lines';
 export * from './membership';
 export * from './multiline';
