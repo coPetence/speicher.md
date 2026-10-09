@@ -4,7 +4,11 @@ import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
-import { stylesheetUrl, templateNames } from '../../src/content-reader/assets.controller';
+import {
+  dashboardStylesheetUrl,
+  stylesheetUrl,
+  templateNames,
+} from '../../src/content-reader/assets.controller';
 
 import { closeSequelize } from '../../src/db/sequelize';
 import { Harness, PrincipalName, createHarness } from '../helpers/harness';
@@ -184,6 +188,20 @@ describe('theme templates', () => {
     expect(css.status).toBe(200);
     expect(css.headers['content-type']).toContain('text/css');
     expect(css.headers['cache-control']).toContain('immutable');
+  });
+
+  it('serves the icons the dashboard sheet names, beside the sheet', async () => {
+    const sheet = dashboardStylesheetUrl();
+    expect(sheet).not.toBeNull();
+    const css = (await request(app.getHttpServer()).get(sheet as string)).text;
+    const icons = [...css.matchAll(/url\("?\.\/([^")]+\.svg)"?\)/g)].map((m) => m[1]);
+    expect(icons.length).toBeGreaterThanOrEqual(4);
+
+    for (const icon of icons) {
+      const svg = await request(app.getHttpServer()).get(`/-/static/${icon}`);
+      expect(svg.status).toBe(200);
+      expect(svg.headers['content-type']).toContain('image/svg+xml');
+    }
   });
 
   it('carries the layer order, so a template never needs a specificity hack', async () => {

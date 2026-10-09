@@ -88,24 +88,9 @@ export function sendConfigSection(
             ...(payload.section?.entries ?? []).flatMap((entry) =>
               entry.badges.map((badge) => badge.icon),
             ),
-            // A field's live check draws its mark from the same map, for the same
-            // reason: inline, never out of the page's sprite, which is assembled
-            // from what the left column names. Both marks while the check has only
-            // been offered, as below — the field draws the two answers hidden and
-            // the island picks, so neither may be missing from here.
-            ...(payload.section ? allFields([payload.section]) : []).flatMap((field) =>
-              field.status ? [field.status.icon] : field.checkHref ? ['check', 'circle-alert'] : [],
-            ),
             ...(payload.section ? cardItems([payload.section]) : []).flatMap((item) =>
               item.kind === 'copy-value' ? ['copy', 'check'] : [],
             ),
-            // And the section's own, drawn at the foot of the page. Both marks
-            // when the check has not been made: the page draws the two answers
-            // hidden and the island picks — see the note in the template.
-            payload.section?.status?.icon ?? '',
-            ...(payload.section?.checkHref && !payload.section.status
-              ? ['check', 'circle-alert']
-              : []),
           ]
             .filter((icon) => icon !== '')
             .map((icon) => [icon, renderInlineIcon(icon, 'spr-icon')]),
@@ -179,13 +164,6 @@ export function sendConfigSection(
         // have one. Asked of the id and not of the entries: the island shows and
         // hides the block as a filter is typed, so it is on the page either way.
         empty_art: sectionEmptyArt(sectionId),
-        // The marks on the rename modal's notes. A note says what a rename
-        // reaches, and the two answers are not the same weight: one is a
-        // consequence to read before pressing the button, the other is the
-        // absence of one. Colour alone does not say which — the whole reason
-        // `spr-badge` carries its word — so the level is drawn as well as tinted.
-        warn_icon: renderInlineIcon('triangle-alert', 'spr-icon'),
-        ok_icon: renderInlineIcon('circle-check', 'spr-icon'),
         // And the bin in front of every Remove. One icon for the three places a
         // removal is offered from — a card's header, a row's action cell, and the
         // foot of a member's own page — because they are one act on three shapes

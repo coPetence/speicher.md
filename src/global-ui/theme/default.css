@@ -2157,18 +2157,6 @@
     padding-top: 0;
   }
 
-  .spr-note {
-    margin: 0;
-    padding: var(--spr-space-4) var(--spr-space-5);
-    border: var(--spr-border-medium) solid var(--spr-status-accent);
-    border-radius: var(--spr-radius-xl);
-    background: color-mix(
-      in oklab,
-      var(--spr-status-accent) var(--spr-callout-tint),
-      var(--spr-bg)
-    );
-  }
-
   .spr-details > summary {
     cursor: pointer;
     color: var(--spr-muted);

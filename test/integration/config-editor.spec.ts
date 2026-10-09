@@ -1652,9 +1652,12 @@ describe('the groups section', () => {
   });
 
   it('draws the level of each note the rename modal asks with, and not only its tint', () => {
-    const admin = readFileSync(join(__dirname, '../../src/dashboard/ui/dashboard.css'), 'utf8');
-    expect(admin).toMatch(/\.spr-note \.spr-icon[^{]*\{[^}]*inline-size/);
-    expect(admin).toMatch(/\.spr-note \.spr-icon[^{]*\{[^}]*color:\s*var\(--spr-status-accent\)/);
+    const note = readFileSync(
+      join(__dirname, '../../src/global-ui/components/note/note.css'),
+      'utf8',
+    );
+    expect(note).toMatch(/\.spr-note\.spr-note-warn::before\s*\{[^}]*triangle-alert\.svg/);
+    expect(note).toMatch(/\.spr-note\.spr-note-ok::before\s*\{[^}]*circle-check\.svg/);
   });
 
   it('marks the warning notes on the rename modal, and the reassuring one', async () => {
@@ -1663,15 +1666,12 @@ describe('the groups section', () => {
       warned.html.indexOf('spr-modal-panel'),
       warned.html.indexOf('spr-modal-actions'),
     );
-    const notes = [
-      ...warnModal.matchAll(/<p class="spr-note spr-note-(warn|ok)">([\s\S]*?)<\/p>/g),
-    ];
-    expect(notes.length).toBeGreaterThan(0);
-    for (const [, , body] of notes) expect(body).toContain('class="spr-icon"');
+    expect(warnModal).toMatch(/<p class="spr-note spr-note-warn">\s*Renaming will enqueue/);
 
     const quiet = await open('groups/platform-ops');
-    const okNote = /<p class="spr-note spr-note-ok">([\s\S]*?)<\/p>/.exec(quiet.html)?.[1];
-    expect(okNote).toContain('class="spr-icon"');
+    expect(quiet.html).toMatch(
+      /<p class="spr-note spr-note-ok">\s*No <code>\.speicher\.yaml<\/code>/,
+    );
   });
 
   it('says outright when a name reaches nothing, rather than showing an empty list', async () => {
@@ -3065,7 +3065,7 @@ describe('adding and removing entries', () => {
     await addEntry('identity', 'okta', 'oidc');
     const draft = await open('identity/okta?kind=oidc');
 
-    expect(draft.html).toContain('action="/-/config/identity/okta?kind=oidc"');
+    expect(draft.html).toContain('action="/-/config/identity/okta?kind=oidc#spr-landing"');
 
     await post('identity/okta?kind=oidc', {
       ...draft.body,
@@ -3448,6 +3448,83 @@ describe('the transport and the notices', () => {
     const source = await open('sources/onprem');
     expect(source.html).toContain('spr-card-key');
     expect(source.html).toContain('runbooks');
+    // The Add button follows the last repository, not the security card after it
+    const added = source.html.indexOf('Add a repository');
+    expect(added).toBeGreaterThan(source.html.indexOf('remove:forges.onprem.repos.0'));
+    expect(added).toBeLessThan(source.html.indexOf('Known hosts'));
+  });
+
+  it('keeps a secret typed before a round trip, and saves it with the next save', async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml: FIXTURE_YAML.replace(
+        'forges:\n',
+        'forges:\n' +
+          '  onprem:\n' +
+          '    type: git\n' +
+          '    repos:\n' +
+          '      - id: runbooks\n' +
+          '        url: https://example.test/internal/runbooks.git\n',
+      ),
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
+    const token = 'forges.onprem.repos.0.token';
+
+    const { body } = await open('sources/onprem');
+    const added = await post('sources/onprem', {
+      ...body,
+      [token]: 'typed-token',
+      // Check changes is a round trip too, and unlike Add it leaves a document that saves
+      intent: 'check',
+    }).expect(200);
+    expect(added.text).toContain(`name="unsaved:${token}" value="typed-token"`);
+    expect(added.text).toContain('Not saved yet');
+    expect(added.text).not.toMatch(new RegExp(`name="${token}"[^>]*value="typed-token"`));
+
+    const next = formBody(added.text);
+    expect(next[token]).toBe('');
+    await post('sources/onprem', { ...next, intent: 'apply' }).expect(303);
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain('token: typed-token');
+  });
+
+  it("fetches the host keys of a git source's ssh server as a round trip that stores nothing", async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml: FIXTURE_YAML.replace(
+        'forges:\n',
+        'forges:\n' +
+          '  onprem:\n' +
+          '    type: git\n' +
+          '    known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly\n' +
+          '    repos:\n' +
+          '      - id: runbooks\n' +
+          '        url: ssh://git@example.test/internal/runbooks.git\n' +
+          '        slug: runbooks\n' +
+          '        branch: main\n' +
+          '        deploy_key: ${TEST_GH_PRIVATE_KEY}\n',
+      ),
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
+    const op = 'fetch-host-keys:forges.onprem.known_hosts';
+
+    const { html, body } = await open('sources/onprem');
+    expect(html).toContain(`value="${op}"`);
+    expect(html).toMatch(/<td><code>example\.test<\/code><\/td>\s*<td>ssh-ed25519<\/td>/);
+    expect(html).toContain('<summary>Edit manually</summary>');
+
+    // example.test never answers, so the page comes back saying so, with nothing stored
+    const before = await versionCount();
+    const answer = await post('sources/onprem', { ...body, op }).expect(200);
+    expect(answer.text).toContain('No keys fetched');
+    expect(answer.text).toContain(`value="${op}"`);
+    expect(await versionCount()).toBe(before);
+    // The page opens at the card holding the known hosts, and only there
+    expect(html).not.toContain('id="spr-landing"');
+    expect(answer.text.match(/id="spr-landing"/g)).toHaveLength(1);
+    const card = answer.text.slice(answer.text.indexOf('id="spr-landing"'));
+    expect(card.indexOf('Known hosts')).toBeLessThan(card.indexOf('</section>'));
   });
 
   it('saves one notice without touching the ones beside it', async () => {

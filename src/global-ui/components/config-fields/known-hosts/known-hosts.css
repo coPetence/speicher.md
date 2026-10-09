@@ -1,0 +1,53 @@
+@layer speicher.base {
+  .spr-field-known-hosts {
+    grid-column: 1 / -1;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-host-keys-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spr-space-3);
+  }
+  .spr-host-keys-head > button {
+    padding: var(--spr-space-1) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+    font-size: var(--spr-font-size-small);
+    cursor: pointer;
+  }
+  .spr-host-keys-head > button:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-host-keys {
+    background: var(--spr-bg);
+  }
+  .spr-host-keys code {
+    overflow-wrap: anywhere;
+  }
+  .spr-host-keys-empty {
+    margin: 0;
+    padding: var(--spr-space-4);
+    border: var(--spr-border) dashed var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+    text-align: center;
+  }
+
+  .spr-host-keys-manual > summary {
+    color: var(--spr-accent);
+    font-size: var(--spr-font-size-small);
+    cursor: pointer;
+  }
+  .spr-host-keys-manual > textarea {
+    inline-size: 100%;
+    margin-block-start: var(--spr-space-2);
+  }
+}

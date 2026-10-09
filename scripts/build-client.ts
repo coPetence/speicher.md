@@ -105,7 +105,8 @@ export function buildClient(): void {
     outdir,
     bundle: true,
     minify: true,
-    loader: { '.css': 'css' },
+    loader: { '.css': 'css', '.svg': 'file' },
+    assetNames: '[name]-[hash]',
   });
 
   const manifest: Record<string, string> = {};
@@ -141,6 +142,10 @@ export function buildClient(): void {
     process.stdout.write(
       `  ${name.padEnd(22)} ${String(contents.length).padStart(6)} bytes -> ${hashed}\n`,
     );
+  }
+
+  for (const file of readdirSync(outdir).filter((each) => each.endsWith('.svg'))) {
+    claim(`asset-${file.replace(/-[A-Z0-9]+\.svg$/, '')}`, file);
   }
 
   writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

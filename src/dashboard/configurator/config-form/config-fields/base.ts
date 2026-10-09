@@ -32,6 +32,8 @@ export interface FieldBase {
   link: string;
   // Places the field at the start of a new grid row
   startsRow: boolean;
+  // Spans two columns of the grid, e.g. for a URL
+  wide: boolean;
   // Shows the field under the collapsed "Advanced settings" instead of on the page
   advanced: boolean;
   // Renders only a hidden empty input, which clears the stored value on save,
@@ -57,6 +59,7 @@ export interface BaseOptions {
   fact?: string;
   link?: string;
   startsRow?: boolean;
+  wide?: boolean;
   advanced?: boolean;
   inapplicable?: boolean;
   attached?: Field[];
@@ -77,6 +80,7 @@ export function baseField(
     fact: options.fact ?? '',
     link: options.link ?? '',
     startsRow: options.startsRow === true,
+    wide: options.wide === true,
     advanced: options.advanced === true,
     inapplicable: options.inapplicable === true,
     attached: options.attached ?? [],

@@ -22,8 +22,8 @@ export function unavailableOption(option: Option, reason: string): Option {
 }
 
 export interface FieldStatus {
-  level: 'ok' | 'warn' | 'fail';
-  icon: string;
+  // Decides the note's colour and icon, see note.css
+  level: 'info' | 'ok' | 'warn' | 'fail';
   label: string;
   detail: string;
 }
@@ -47,6 +47,9 @@ export interface AddOp {
   opensPage?: boolean;
   // Direct URL instead of computing one from the op
   href?: string;
+  // Index of the section's card the button is drawn before, so that it can follow
+  // the entries it adds to rather than the last card
+  beforeCard?: number;
 }
 
 export interface EntryLine {
@@ -205,7 +208,7 @@ export function cardItems(sections: FormSection[]): CardItem[] {
   const push = (item: CardItem) => {
     out.push(item);
     if (item.kind !== 'choice') return;
-    if (item.follows) push(item.follows);
+    push(item.follows);
     for (const option of item.options) option.items.forEach(push);
   };
   for (const section of sections) section.cards.flatMap(itemsOfCard).forEach(push);
@@ -217,10 +220,7 @@ export function fieldsOf(items: CardItem[]): Field[] {
   return items.flatMap((item): Field[] => {
     if (item.kind === 'copy-value') return [];
     if (item.kind === 'choice') {
-      return [
-        ...(item.follows ? [item.follows] : []),
-        ...item.options.flatMap((option) => fieldsOf(option.items)),
-      ];
+      return [item.follows, ...item.options.flatMap((option) => fieldsOf(option.items))];
     }
     return [item];
   });

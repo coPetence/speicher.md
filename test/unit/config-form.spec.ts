@@ -29,6 +29,7 @@ import {
   Card,
   Field,
   SectionEntry,
+  ChoiceItem,
   CopyValueItem,
   allFields,
   allOps,
@@ -1611,7 +1612,9 @@ describe('the round trip', () => {
     const out = serialise(doc);
 
     expect(out).toContain('# One of everything.');
-    expect(out).toContain('# An ssh remote: deploy key and a pinned host key.');
+    expect(out).toContain(
+      "# An ssh remote: a deploy key, checked against the forge's known_hosts.",
+    );
 
     const before = FULL.split('\n');
     const after = out.split('\n');
@@ -1908,6 +1911,66 @@ describe("a GitHub provider's addresses", () => {
     const values = withPublicUrl('https://docs.acme.example', () => copyValues('identity/entra'));
 
     expect(values).toEqual([]);
+  });
+});
+
+describe("a git remote's transport", () => {
+  const SOURCE = 'sources/onprem';
+  const repo = (index: number) => ['forges', 'onprem', 'repos', index];
+
+  const choices = (doc: Document): ChoiceItem[] =>
+    cardItems([buildSections(doc).find((s) => s.id === SOURCE)!]).filter(
+      (item): item is ChoiceItem => item.kind === 'choice',
+    );
+
+  // The body of the page as drawn, with each switch on the option it shows
+  const pageBody = (doc: Document): Record<string, unknown> => {
+    const section = buildSections(doc).find((s) => s.id === SOURCE)!;
+    const body = untouchedBody(allFields([section]));
+    for (const item of choices(doc)) body[item.name] = item.selected;
+    return body;
+  };
+
+  it('shows the option the stored URL belongs to', () => {
+    const [ssh, https] = choices(loadDocument(FULL));
+    expect(ssh.name).toBe('choice:forges.onprem.repos.0.url');
+    expect(ssh.selected).toBe('ssh');
+    expect(ssh.follows.path).toBe('forges.onprem.repos.0.url');
+    expect(https.selected).toBe('https');
+  });
+
+  it('changes nothing on a save nobody touched', () => {
+    const doc = loadDocument(FULL);
+    const before = serialise(doc);
+    expect(applyForm(doc, pageBody(doc), SOURCE).changed).toBe(false);
+    expect(serialise(doc)).toBe(before);
+  });
+
+  it('removes the values of HTTPS when SSH is chosen, and keeps its own', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        ...pageBody(doc),
+        'choice:forges.onprem.repos.1.url': 'ssh',
+        'forges.onprem.repos.1.url': 'ssh://git@example.test/internal/playbooks.git',
+        'forges.onprem.repos.1.deploy_key': '${TEST_GH_PRIVATE_KEY}',
+      },
+      SOURCE,
+    );
+    expect(doc.getIn([...repo(1), 'token'])).toBeUndefined();
+    expect(doc.getIn([...repo(1), 'username'])).toBeUndefined();
+    expect(doc.getIn([...repo(1), 'deploy_key'])).toBe('${TEST_GH_PRIVATE_KEY}');
+    expect(doc.getIn([...repo(0), 'deploy_key'])).toBe('${TEST_GH_PRIVATE_KEY}');
+  });
+
+  it('follows the URL when the body names no option', () => {
+    const doc = loadDocument(FULL);
+    const body = pageBody(doc);
+    delete body['choice:forges.onprem.repos.0.url'];
+    body['forges.onprem.repos.0.url'] = 'https://example.test/internal/runbooks.git';
+    applyForm(doc, body, SOURCE);
+    expect(doc.getIn([...repo(0), 'deploy_key'])).toBeUndefined();
   });
 });
 

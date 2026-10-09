@@ -46,12 +46,9 @@ export function mountChecks(): void {
       .trim();
     const at = note.dataset.sprCheckAt ?? '';
 
-    // Sets the level class and shows only the matching mark icon
+    // Sets the level class; the stylesheet draws the level's icon
     const level = (name: string): void => {
       note.className = `${base} spr-note-${name}`;
-      for (const mark of note.querySelectorAll<HTMLElement>('[data-spr-check-mark]')) {
-        mark.hidden = mark.dataset.sprCheckMark !== name;
-      }
     };
 
     text.textContent = 'Checking…';

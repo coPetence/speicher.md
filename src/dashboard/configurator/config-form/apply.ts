@@ -17,7 +17,12 @@ import { sectionOf } from './sections';
 import { FormBody } from './decode/body';
 import { applyField } from './decode/fields';
 import { applyOp } from './decode/ops';
-import { settleAssetDriver, settleDirectory, settleGroupSources } from './decode/settle';
+import {
+  settleAssetDriver,
+  settleChoices,
+  settleDirectory,
+  settleGroupSources,
+} from './decode/settle';
 import { reconcileStructure } from './decode/shape';
 
 export type { FormBody } from './decode/body';
@@ -57,6 +62,8 @@ export function applyForm(
   if (member && !member.entry && settleDirectory(doc, member)) changed = true;
 
   if (settleAssetDriver(doc, body, section)) changed = true;
+
+  if (settleChoices(doc, body, section)) changed = true;
 
   const op = typeof body.op === 'string' ? body.op : '';
   if (op === '') return { structural: false, changed };

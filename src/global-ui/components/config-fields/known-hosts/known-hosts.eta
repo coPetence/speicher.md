@@ -1,0 +1,71 @@
+<%
+  const f = it.field;
+%>
+    <div class="spr-host-keys-head">
+      <%~ include('@config-fields/label', it) %>
+      <% if (it.editable) { %>
+      <button
+        type="submit"
+        name="op"
+        value="<%= f.fetchOp %>"
+        formnovalidate
+      >
+        Fetch host keys
+      </button>
+      <% } %>
+    </div>
+    <p class="spr-help">
+      Speicher only connects to the servers listed here. After you fetch their keys, compare each fingerprint with the one the server publishes, and save only if they match. Public Git hosts such as GitHub usually publish their fingerprints in their documentation. To find the fingerprint of your own server, run <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on it, or ask its administrator.
+    </p>
+    <% if (f.fetchNote) { %>
+    <p class="spr-note spr-note-<%= f.fetchNote.level %>" role="status">
+      <%= f.fetchNote.label %><% if (f.fetchNote.detail) { %>: <%= f.fetchNote.detail %><% } %>
+    </p>
+    <% } %>
+    <%
+      // Always drawn, so that known-hosts-table.ts can add the name of the servers while the repository URLs are edited
+      const servers = f.missing.length < 2
+        ? (f.missing[0] || '')
+        : f.missing.slice(0, -1).join(', ') + ' and ' + f.missing[f.missing.length - 1];
+    %>
+    <p class="spr-note spr-note-info" role="status" data-spr-missing-hosts <%= f.missing.length > 0 ? '' : 'hidden' %>>
+      Host keys missing: Speicher has no host key for <%= servers %> yet, so the configuration cannot be saved. To add <%= f.missing.length === 1 ? 'it' : 'them' %>, press Fetch host keys.
+    </p>
+    <%
+      /*
+        The table, the empty message and the warning are always drawn, so that
+        known-hosts-table.ts can show the ones that apply while the lines are edited
+      */
+    %>
+    <table class="spr-table spr-host-keys" <%= f.keys.length > 0 ? '' : 'hidden' %>>
+      <thead>
+        <tr>
+          <th scope="col">Server</th>
+          <th scope="col">Key type</th>
+          <th scope="col">Fingerprint</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% f.keys.forEach(function (key) { %>
+        <tr>
+          <td><code><%= key.host %></code></td>
+          <td><%= key.type %></td>
+          <td><code><%= key.fingerprint %></code></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="spr-host-keys-empty" <%= f.keys.length > 0 ? 'hidden' : '' %>>No host key is trusted yet.</p>
+    <p class="spr-note spr-note-warn" data-spr-unreadable <%= f.unreadable > 0 ? '' : 'hidden' %>>
+      <%= f.unreadable === 1 ? 'One line is not a host key.' : f.unreadable + ' lines are not host keys.' %> To see them, open Edit manually.
+    </p>
+    <details class="spr-host-keys-manual" <%= f.unreadable > 0 ? 'open' : '' %>>
+      <summary>Edit manually</summary>
+      <textarea
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        rows="<%= f.rows %>"
+        spellcheck="false"
+        <%= it.editable ? '' : 'disabled' %>
+      ><%= f.value %></textarea>
+    </details>

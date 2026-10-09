@@ -27,8 +27,9 @@ export function isEnvPlaceholder(value: unknown): boolean {
 export interface SecretUpload {
   // Media types and extensions the file picker offers, e.g. `.pem,application/x-pem-file`
   accept: string;
-  // What the file must contain
-  content: 'rsa-private-key';
+  // What the file must contain: a GitHub App's RSA key in PEM, or a private SSH key
+  // without a passphrase
+  content: 'rsa-private-key' | 'ssh-private-key';
   // Text of the button that opens the file picker
   label: string;
   // Text shown in the rectangle while a file is dragged over the page
@@ -41,6 +42,7 @@ export interface SecretField extends FieldBase {
   placeholder: string;
   secretHidden: boolean;
   upload?: SecretUpload;
+  unsaved?: string;
   // Path of a field on the same page whose value a button copies into this one
   sourceToCopyFrom?: string;
   // True when that field holds a stored secret the page does not show, so the copy

@@ -493,7 +493,6 @@ describe('a live check beside a control', () => {
     renderTemplate('dashboard/ui/views/config-section', {
       section_id: 'identity/entra',
       section_title: 'entra',
-      badge_icons: { check: '<svg class="spr-icon" data-icon="check"></svg>' },
       section: {
         id: 'identity/entra',
         title: 'entra',
@@ -551,28 +550,24 @@ describe('a live check beside a control', () => {
       verdict: null,
     });
 
-  it('draws the mark and keeps the word beside it', () => {
+  it('draws the answer in a note of its level, which picks the icon', () => {
     const html = page({
       level: 'ok',
-      icon: 'check',
       label: 'Connected',
       detail: '',
     });
     expect(html).toContain('class="spr-note spr-note-ok"');
-    expect(html).toContain('data-icon="check"');
     expect(html).toContain('Connected');
   });
 
   it('says why it failed, because the reason names the screen to go to', () => {
     const html = page({
       level: 'fail',
-      icon: 'circle-alert',
       label: 'Not connected',
       detail: 'status 403: the app registration needs admin consent',
     });
     expect(html).toContain('class="spr-note spr-note-fail"');
     expect(html).toContain('Not connected: status 403: the app registration needs admin consent');
-    expect(html).not.toContain('data-icon');
   });
 
   it('draws nothing where nothing was checked', () => {
@@ -588,13 +583,12 @@ describe('a live check beside a control', () => {
     expect(html).toContain('data-spr-check="/-/config/identity/entra?check=1"');
     expect(html).toContain('<a href="/-/config/identity/entra?check=1">Check the connection</a>');
     expect(html).toContain('data-spr-check-at="auth.providers.entra.directory.type"');
-    expect(html).toContain('data-spr-check-mark="ok" hidden');
-    expect(html).toContain('data-spr-check-mark="fail" hidden');
+    expect(html).toContain('class="spr-note spr-note-idle"');
   });
 
   it('draws the answer instead of the offer once there is one', () => {
     const html = page(
-      { level: 'ok', icon: 'check', label: 'Connected', detail: '' },
+      { level: 'ok', label: 'Connected', detail: '' },
       '/-/config/identity/entra?check=1',
     );
 

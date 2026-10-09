@@ -1,6 +1,5 @@
 import { Document, isSeq } from 'yaml';
 
-import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
 import type {
   AmountField,
   BooleanField,
@@ -20,6 +19,7 @@ import type {
   TextField,
   UrlField,
 } from '../config-fields';
+import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
 import { FormBody, submitted, submittedList } from './body';
 
@@ -225,6 +225,11 @@ const decodeSecret: Decoder<SecretField> = (doc, body, field, path) => {
     if (typeof value === 'string' && value !== '') return writeAt(doc, path, value);
   }
 
+  const unsaved = submitted(body, `unsaved:${field.path}`);
+  if (raw.trim() === '' && unsaved !== undefined && unsaved.trim() !== '') {
+    return writeAt(doc, path, unsaved.trim());
+  }
+
   // Blank against a hidden literal means "leave it alone". The form never
   // rendered the value, so a blank box is what an operator sees when they have
   // not touched it — treating that as a deletion would silently unconfigure a
@@ -268,6 +273,7 @@ const DECODERS: { [K in FieldKind]: Decoder<FieldOf<K>> } = {
   number: decodeNumber,
   boolean: decodeBoolean,
   multiline: decodeMultiline,
+  'known-hosts': decodeMultiline,
   lines: decodeLines,
   checkboxes: decodeCheckboxes,
   file: decodeFile,

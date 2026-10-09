@@ -1,0 +1,9 @@
+<%
+  /*
+    Draws one item of a card
+  */
+  const item = it.item;
+%>
+<% if (item.kind === 'choice') { %><%~ include('@config-fields/choice', it) %>
+<% } else if (item.kind === 'copy-value') { %><%~ include('@config-fields/copy-value', it) %>
+<% } else { %><%~ include('@field', { ...it, field: item }) %><% } %>

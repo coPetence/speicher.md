@@ -1,0 +1,79 @@
+@layer speicher.base {
+  .spr-choice {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    row-gap: var(--spr-space-5);
+  }
+  .spr-choice > .spr-fields,
+  .spr-choice-panes,
+  .spr-choice-panes > .spr-fields {
+    display: contents;
+    container-type: normal;
+  }
+
+  .spr-choice:has(> .spr-choice-switch > label:nth-child(1) > :checked)
+    > .spr-choice-panes
+    > :not(:nth-child(1)),
+  .spr-choice:has(> .spr-choice-switch > label:nth-child(2) > :checked)
+    > .spr-choice-panes
+    > :not(:nth-child(2)),
+  .spr-choice:has(> .spr-choice-switch > label:nth-child(3) > :checked)
+    > .spr-choice-panes
+    > :not(:nth-child(3)),
+  .spr-choice:has(> .spr-choice-switch > label:nth-child(4) > :checked)
+    > .spr-choice-panes
+    > :not(:nth-child(4)) {
+    display: none;
+  }
+
+  .spr-choice-switch {
+    display: inline-flex;
+    grid-column: 1 / -1;
+    justify-self: start;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-sm);
+    background: var(--spr-surface);
+    overflow: hidden;
+  }
+  .spr-choice-switch > label {
+    position: relative;
+    padding: var(--spr-space-1) var(--spr-space-4);
+    border-inline-start: var(--spr-border) solid var(--spr-line);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+    cursor: pointer;
+  }
+  .spr-choice-switch > label:first-child {
+    border-inline-start: 0;
+  }
+
+  .spr-choice-switch > label > input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+  }
+  .spr-choice-switch > label:hover,
+  .spr-choice-switch > label:has(> :checked) {
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+  }
+  .spr-choice-switch > label:has(> :checked) {
+    font-weight: var(--spr-weight-strong);
+  }
+  .spr-choice-switch > label:has(> :focus-visible) {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: -2px;
+  }
+  .spr-choice-switch > label:has(> :disabled) {
+    cursor: not-allowed;
+  }
+  @media (forced-colors: active) {
+    .spr-choice-switch > label:has(> :checked) {
+      background: Highlight;
+      color: HighlightText;
+    }
+  }
+}

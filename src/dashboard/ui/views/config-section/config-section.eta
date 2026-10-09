@@ -25,12 +25,11 @@
              value="<%= it.section_title %>" pattern="<%= it.section.renamePattern %>" title="<%= it.section.renameHint %>"
              spellcheck="false" autocomplete="off" data-spr-transient>
       <p class="spr-note spr-note-warn">
-        <%~ it.warn_icon || '' %>Renaming will enqueue a full rebuild
+        Renaming will enqueue a full rebuild
       </p>
       <% if (it.usage && it.usage.length > 0) { %>
       <div class="spr-note spr-note-warn">
         <p>
-          <%~ it.warn_icon || '' %>
           <% if (it.section.noun === 'group') { %>
           Renaming will break <%= it.section.noun %> references in <code>.speicher.yaml</code> files across these repositories:
           <% } else { %>
@@ -46,7 +45,7 @@
       </div>
       <% } else { %>
       <p class="spr-note spr-note-ok">
-        <%~ it.ok_icon || '' %>No <code>.speicher.yaml</code> references this <%= it.section.noun || 'entry' %>. You do not need to manually update it anywhere
+        No <code>.speicher.yaml</code> references this <%= it.section.noun || 'entry' %>. You do not need to manually update it anywhere
       </p>
       <% } %>
       <div class="spr-modal-actions">
@@ -240,8 +239,9 @@
 <% } %>
 
 <form class="spr-config" id="config-form" method="post" enctype="multipart/form-data"
-      action="/-/config/<%= it.section_id %><%= it.creating_kind ? '?kind=' + it.creating_kind : '' %>"
+      action="/-/config/<%= it.section_id %><%= it.creating_kind ? '?kind=' + it.creating_kind : '' %>#spr-landing"
       data-spr-config="<%= it.section_id %>" <%= it.pending ? 'data-spr-pending' : '' %>
+      <%= it.landing && it.landing.focus ? 'data-spr-landing-focus' : '' %>
       <%= it.holds_work ? 'data-spr-holds-work' : '' %>
       <%= it.error || it.problems.length > 0 ? 'data-spr-attempted' : '' %>>
 
@@ -473,9 +473,19 @@
   <% gallery.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
 </div>
 <% } %>
-<% it.section.cards.forEach(function (card) { %><%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon }) %><% }) %>
+<%
+  // An Add button with `beforeCard` is drawn before that card, every other one after the last card
+  const inlineAdds = it.editable ? it.section.addOps.filter(function (a) { return !a.opensPage }) : [];
+  const addsBefore = function (index) {
+    return inlineAdds.filter(function (a) { return a.beforeCard === index });
+  };
+%>
+<% it.section.cards.forEach(function (card, index) { %>
+<% addsBefore(index).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
+<%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon, landing: it.landing ? it.landing.path : '' }) %>
+<% }) %>
 
-<% if (it.editable) { it.section.addOps.filter(function (a) { return !a.opensPage }).forEach(function (add) { %><%~ include('@add', { add: add }) %><% }) } %>
+<% inlineAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 
 <% if (advanced.length > 0) { %>
 <details class="spr-advanced" <%= it.error ? 'open' : '' %>>
@@ -488,12 +498,10 @@
 
 <% if (it.section.status) { %>
 <p class="spr-note spr-note-<%= it.section.status.level %> spr-section-status">
-  <%~ (it.badge_icons || {})[it.section.status.icon] || '' %><%= it.section.status.label %><% if (it.section.status.detail) { %>: <%= it.section.status.detail %><% } %>
+  <%= it.section.status.label %><% if (it.section.status.detail) { %>: <%= it.section.status.detail %><% } %>
 </p>
 <% } else if (it.section.checkHref) { %>
 <p class="spr-note spr-note-idle spr-section-status" data-spr-check="<%= it.section.checkHref %>">
-  <span data-spr-check-mark="ok" hidden><%~ (it.badge_icons || {})['check'] || '' %></span>
-  <span data-spr-check-mark="fail" hidden><%~ (it.badge_icons || {})['circle-alert'] || '' %></span>
   <span data-spr-check-text><a href="<%= it.section.checkHref %>">Check the connection</a></span>
 </p>
 <% } %>

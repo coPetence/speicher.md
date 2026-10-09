@@ -474,19 +474,8 @@ describe('the base stylesheet', () => {
     );
   });
 
-  it('draws a dashboard notice as the reader draws a callout', () => {
-    const note = declarationsOfBase('.spr-note');
-    const callout = declarationsOfBase('.spr-callout');
-    for (const decl of [
-      /border:\s*var\(--spr-border-medium\) solid/,
-      /border-radius:\s*var\(--spr-radius-xl\)/,
-      /var\(--spr-callout-tint\)/,
-      /padding:\s*var\(--spr-space-4\) var\(--spr-space-5\)/,
-    ]) {
-      expect(callout).toMatch(decl);
-      expect(note).toMatch(decl);
-    }
-    expect(note).not.toMatch(/border-left/);
+  it('leaves the dashboard notice to the note component', () => {
+    expect(declarationsOfBase('.spr-note')).toBe('');
   });
 
   it('lays a set of pages to pick from out as cards, the whole of each being the link', () => {
@@ -688,6 +677,35 @@ describe('the claim command', () => {
   });
 });
 
+describe('a dashboard notice', () => {
+  const css = rulesOf(sheetSource('../../src/global-ui/components/note/note.css'));
+  const icon = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
+  };
+
+  it('draws the icon of its level, info when it names none', () => {
+    expect(icon('.spr-note::before')).toMatch(/url\('\.\/icons\/info\.svg'\)/);
+    expect(icon('.spr-note.spr-note-ok::before')).toMatch(/circle-check\.svg/);
+    expect(icon('.spr-note.spr-note-warn::before')).toMatch(/triangle-alert\.svg/);
+    expect(icon('.spr-note.spr-note-fail::before')).toMatch(/circle-x\.svg/);
+  });
+
+  it('names only icons that are there to draw', () => {
+    for (const [, file] of css.matchAll(/url\('\.\/icons\/([a-z-]+\.svg)'\)/g)) {
+      expect(existsSync(join(__dirname, '../../src/global-ui/components/note/icons', file))).toBe(
+        true,
+      );
+    }
+  });
+
+  it('is tinted blue, the info colour, when its level is neutral', () => {
+    expect(icon('.spr-note:not(.spr-note-ok, .spr-note-warn, .spr-note-fail)')).toMatch(
+      /--spr-status-accent:\s*var\(--spr-callout-info\)/,
+    );
+  });
+});
+
 describe.each(EXTRA_SHEETS)('the %s stylesheet', (_name, path) => {
   const css = sheetSource(path);
   const rules = rulesOf(css);
@@ -716,7 +734,9 @@ describe.each(EXTRA_SHEETS)('the %s stylesheet', (_name, path) => {
   });
 
   it('styles only prefixed classes', () => {
-    const classes = [...rules.matchAll(/\.([a-z][a-z0-9-]*)/gi)].map((m) => m[1]);
+    const classes = [...rules.replace(/url\([^)]*\)/g, '').matchAll(/\.([a-z][a-z0-9-]*)/gi)].map(
+      (m) => m[1],
+    );
     expect(new Set(classes).size).toBeGreaterThan(0);
     expect([...new Set(classes)].filter((c) => !c.startsWith('spr-'))).toEqual([]);
   });
@@ -1804,7 +1824,6 @@ describe('the radio', () => {
 describe('the info popover', () => {
   const NOTE = declarationsOf('.spr-info-note');
   const MARKER_HEIGHT = '1.25 * var(--spr-font-size-label)';
-  const MARKER_CENTRE = '0.625 * var(--spr-font-size-label)';
 
   it('sizes the marker the way the rest of the component assumes', () => {
     const marker = declarationsOf('.spr-info-mark');
@@ -1833,7 +1852,7 @@ describe('the info popover', () => {
   });
 
   it('never leaves two cards on screen at once', () => {
-    expect(NOTE).toMatch(/transition:\s*opacity 0s,\s*visibility 0s/);
+    expect(NOTE).toMatch(/transition:\s*opacity 0s,\s*display 0s allow-discrete/);
   });
 
   it('stays up when the pointer moves onto it', () => {
@@ -1846,17 +1865,18 @@ describe('the info popover', () => {
     expect(wrapper).toMatch(/align-items:\s*center/);
   });
 
+  // The caret belongs to the marker, so it stays under the marker wherever the note opens
   it('points the caret back at its marker', () => {
-    const caret = declarationsOf('.spr-info-note::after');
+    const caret = declarationsOf('.spr-info-mark::after');
     expect(caret).toMatch(/content:\s*''/);
     expect(caret).toMatch(/rotate:/);
-    expect(caret).toMatch(/inset-block-start:\s*calc\(-/);
-    expect(caret).toContain(`calc(${MARKER_CENTRE} -`);
+    expect(caret).toMatch(/inset-block-start:\s*calc\(100%/);
+    expect(caret).toMatch(/inset-inline-start:\s*calc\(50% -/);
     expect(caret).not.toMatch(/url\(/);
   });
 
   it('draws the caret in the card’s own colours', () => {
-    const caret = declarationsOf('.spr-info-note::after');
+    const caret = declarationsOf('.spr-info-mark::after');
     expect(/background:\s*([^;]+);/.exec(caret)?.[1]).toBe(
       /background:\s*([^;]+);/.exec(NOTE)?.[1],
     );
@@ -1870,14 +1890,21 @@ describe('the info popover', () => {
     const gap = /inset-block-start:\s*calc\(100% \+ ([^)]+\))\)/.exec(NOTE)?.[1];
     expect(gap).toBeDefined();
     expect(safe).toMatch(/inset-block-end:\s*100%/);
-    expect(safe).toContain(`calc(${gap} + ${MARKER_HEIGHT})`);
-    expect(safe).toMatch(/inset-inline:\s*0/);
+    expect(safe).toContain(`calc(${gap} + var(--spr-border))`);
   });
 
-  it('shapes that area as a funnel', () => {
+  // The note can open to the right of the marker, centred under it or to its left
+  it('spans that area across the whole card, whichever side the card opens to', () => {
     const safe = declarationsOf('.spr-info-note::before');
-    expect(safe).toMatch(/clip-path:\s*polygon\(0 100%, 100% 100%,/);
-    expect(safe).toContain(`calc(${MARKER_CENTRE}) 0)`);
+    expect(safe).toMatch(/inset-inline:\s*0/);
+    expect(safe).not.toMatch(/clip-path/);
+  });
+
+  it('opens to the right, else centred, else to the left, where anchor positioning exists', () => {
+    expect(DASHBOARD_RULES).toMatch(/position-area:\s*block-end span-inline-end/);
+    expect(DASHBOARD_RULES).toMatch(
+      /position-try-fallbacks:\s*block-end,\s*block-end span-inline-start/,
+    );
   });
 
   it('keeps the cursor the marker’s where it covers the marker', () => {
@@ -1887,9 +1914,11 @@ describe('the info popover', () => {
     expect(declarationsOf('.spr-info-note::before')).toContain(`cursor: ${cursor}`);
   });
 
-  it('hides the note rather than removing it', () => {
-    expect(NOTE).toMatch(/visibility:\s*hidden/);
-    expect(NOTE).not.toMatch(/display\s*:/);
+  // A note that is only invisible still counts toward the page's overflow, so a note
+  // beside the right edge would let the page scroll sideways
+  it('removes the hidden note from the layout', () => {
+    expect(NOTE).toMatch(/display:\s*none/);
+    expect(NOTE).not.toMatch(/visibility\s*:/);
   });
 
   it('sheds everything its containers impose on text', () => {
@@ -1898,10 +1927,12 @@ describe('the info popover', () => {
     }
   });
 
+  // Its one pseudo-element is the caret, which draws no text
   it('draws the marker from its own text, not a pseudo-element', () => {
     const rules = rulesNaming('spr-info-mark');
     expect(rules.length).toBeGreaterThan(1);
-    expect(rules.filter(([selector]) => /::(before|after)/.test(selector))).toEqual([]);
+    expect(rules.filter(([selector]) => /::before/.test(selector))).toEqual([]);
+    expect(declarationsOf('.spr-info-mark::after')).toMatch(/content:\s*''/);
   });
 });
 
