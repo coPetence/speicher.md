@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Document } from 'yaml';
 import { readStylesheet } from '../helpers/stylesheet';
 
+import { GITHUB_CALLBACK_PATH } from '../../src/auth/callback-url';
 import { ELIDED, REDACTED, displayYaml } from '../../src/dashboard/configurator/config-form/redact';
 import { applyForm } from '../../src/dashboard/configurator/config-form/apply';
 import { renameMember } from '../../src/dashboard/configurator/config-form/member-edits';
@@ -402,7 +403,9 @@ describe('one section at a time', () => {
       'mail.reply_to',
     ]);
     expect(notifications.fields).toEqual([]);
-    expect(notifications.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath))).toEqual([
+    expect(
+      notifications.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath)),
+    ).toEqual([
       ['notify.sync_failure'],
       ['notify.stale', 'notify.stale_after'],
       ['notify.grant_expiry', 'notify.expiry_warning'],
@@ -713,7 +716,8 @@ describe('a provider’s directory block', () => {
     const fields = allFields([provider(FULL)]);
     const at = (key: string) =>
       fields.find((f) => f.path === `auth.providers.entra.directory.${key}`)!;
-    const sourceToCopyFrom = (field: Field) => ('sourceToCopyFrom' in field ? field.sourceToCopyFrom : undefined);
+    const sourceToCopyFrom = (field: Field) =>
+      'sourceToCopyFrom' in field ? field.sourceToCopyFrom : undefined;
 
     expect(sourceToCopyFrom(at('client_id'))).toBe('auth.providers.entra.client_id');
     expect(sourceToCopyFrom(at('client_secret'))).toBe('auth.providers.entra.client_secret');
@@ -833,7 +837,9 @@ describe('a provider’s directory block', () => {
     expect(
       fields.filter(
         (f) =>
-          f.path.startsWith('auth.providers.hub.directory.') && 'sourceToCopyFrom' in f && f.sourceToCopyFrom,
+          f.path.startsWith('auth.providers.hub.directory.') &&
+          'sourceToCopyFrom' in f &&
+          f.sourceToCopyFrom,
       ),
     ).toEqual([]);
   });
@@ -1799,6 +1805,57 @@ describe('secrets', () => {
   });
 });
 
+describe("a GitHub provider's addresses", () => {
+  const withPublicUrl = <T>(value: string | undefined, run: () => T): T => {
+    const before = process.env.SPEICHER_PUBLIC_URL;
+    if (value === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+    else process.env.SPEICHER_PUBLIC_URL = value;
+    try {
+      return run();
+    } finally {
+      if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+      else process.env.SPEICHER_PUBLIC_URL = before;
+    }
+  };
+
+  const copyValues = (id: string): CopyValueItem[] => {
+    const section = buildSections(loadDocument(FULL)).find((s) => s.id === id)!;
+    return cardItems([section]).filter((item): item is CopyValueItem => item.kind === 'copy-value');
+  };
+
+  it('offers the homepage and the callback to copy, from the declared public URL', () => {
+    const [homepage, callback] = withPublicUrl('https://docs.acme.example/', () =>
+      copyValues('identity/hub'),
+    );
+
+    expect(homepage.text).toBe('https://docs.acme.example');
+    expect(callback.text).toBe('https://docs.acme.example/api/auth/github/callback');
+  });
+
+  it('offers the path when no public URL is declared, for the browser to complete', () => {
+    const [homepage, callback] = withPublicUrl(undefined, () => copyValues('identity/hub'));
+
+    expect(homepage.text).toBe('/');
+    expect(callback.text).toBe('/api/auth/github/callback');
+  });
+
+  it('offers the callback the sign-in actually sends, not a second spelling of it', () => {
+    // The two are the same constant; GitHub refuses a redirect_uri that differs from
+    // the registered one, and says nothing about which address it expected
+    const [, callback] = withPublicUrl('https://docs.acme.example', () =>
+      copyValues('identity/hub'),
+    );
+
+    expect(callback.text.endsWith(GITHUB_CALLBACK_PATH)).toBe(true);
+  });
+
+  it('says nothing of the sort on a provider with no App to register them in', () => {
+    const values = withPublicUrl('https://docs.acme.example', () => copyValues('identity/entra'));
+
+    expect(values).toEqual([]);
+  });
+});
+
 describe("a GitHub source's webhook URL", () => {
   const withPublicUrl = <T>(value: string | undefined, run: () => T): T => {
     const before = process.env.SPEICHER_PUBLIC_URL;
@@ -1814,9 +1871,7 @@ describe("a GitHub source's webhook URL", () => {
 
   const copyValues = (id: string): CopyValueItem[] => {
     const section = buildSections(loadDocument(FULL)).find((s) => s.id === id)!;
-    return cardItems([section]).filter(
-      (item): item is CopyValueItem => item.kind === 'copy-value',
-    );
+    return cardItems([section]).filter((item): item is CopyValueItem => item.kind === 'copy-value');
   };
 
   it('offers the absolute URL to copy, from the declared public URL and the forge id', () => {
