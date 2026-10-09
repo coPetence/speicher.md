@@ -1,0 +1,28 @@
+<%
+  /*
+    A value to copy, e.g. the webhook URL. A value starting with `/` is a path on
+    this instance, and the browser puts its own address in front
+  */
+  const item = it.item;
+%>
+  <div class="spr-field spr-field-copy-value spr-field-break">
+    <span class="spr-field-head"><%= item.label %></span>
+    <span
+      class="spr-copyable"
+      <% if (item.text.startsWith('/')) { %>data-spr-origin-path<% } %>
+    >
+      <code><%= item.text %></code>
+      <%~ include('@copy', {
+        text: item.text,
+        label: 'Copy to clipboard',
+        copyIcon: (it.badgeIcons || {})['copy'] || '',
+        copiedIcon: (it.badgeIcons || {})['check'] || '',
+      }) %>
+    </span>
+    <p class="spr-copy-status" role="status" data-spr-copy-status></p>
+    <% if (item.note) { %>
+    <p class="spr-help">
+      <%~ md(item.note) %>
+    </p>
+    <% } %>
+  </div>

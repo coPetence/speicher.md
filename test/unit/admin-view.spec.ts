@@ -3,7 +3,7 @@ import { nextSetupPage, setupSteps } from '../../src/dashboard/setup/steps';
 import { repoLevel, runLevel, severityLevel } from '../../src/dashboard/ui/levels';
 import { dashboardNav } from '../../src/dashboard/ui/views/nav-tree/nav-tree';
 import { openDashboardFolds } from '../../src/dashboard/dashboard-sections';
-import { renderHelp } from '../../src/dashboard/configurator/config-form/help';
+import { renderHelp } from '../../src/global-ui/help-markup';
 import { renderTemplate } from '../../src/content-reader/views';
 
 describe('the section list', () => {

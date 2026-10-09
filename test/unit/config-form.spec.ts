@@ -28,16 +28,23 @@ import {
   Card,
   Field,
   SectionEntry,
+  CopyValueItem,
   allFields,
   allOps,
   buildSections,
+  cardItems,
   entraIssuerFor,
+  fieldsOf,
   freeMemberId,
   isConfigSection,
   isConfigSubsection,
   seedProvider,
 } from '../../src/dashboard/configurator/config-form/fields';
-import { renderHelp } from '../../src/dashboard/configurator/config-form/help';
+import type {
+  FieldKind,
+  FieldOf,
+} from '../../src/dashboard/configurator/config-form/config-fields';
+import { renderHelp } from '../../src/global-ui/help-markup';
 import { isKnownTimeZone } from '../../src/dashboard/analytics/buckets';
 import { PALETTE_KEYS } from '../../src/config/palette';
 import { loadInstanceConfig } from '../../src/config/parser';
@@ -50,6 +57,35 @@ const FULL = readFileSync(join(__dirname, '../fixtures/instance-full.yaml'), 'ut
 
 function fieldsFor(yaml: string): Field[] {
   return allFields(buildSections(loadDocument(yaml)));
+}
+
+// Checks that `field` is of `kind`, and gives it that kind's type
+function ofKind<K extends FieldKind>(field: Field | undefined, kind: K): FieldOf<K> {
+  expect(field?.kind).toBe(kind);
+  return field as FieldOf<K>;
+}
+
+// What the browser sends for a field left as the page drew it; undefined where it sends nothing
+function rendered(field: Field): string | string[] | undefined {
+  if (field.kind === 'boolean' || field.kind === 'membership') {
+    return field.checked ? 'on' : undefined;
+  }
+  if (field.kind === 'checkboxes') return field.values;
+  if (field.kind === 'file') return undefined;
+  return field.value;
+}
+
+// The same for every field, as the body of a save nobody changed anything on
+function untouchedBody(fields: Field[]): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const field of fields) {
+    const value = rendered(field);
+    if (value !== undefined) body[field.path] = value;
+    if (field.kind === 'duration' || field.kind === 'bytes') {
+      if (field.unit) body[`unit:${field.path}`] = field.unit;
+    }
+  }
+  return body;
 }
 
 function applyAll(doc: Document, body: Record<string, unknown>) {
@@ -170,14 +206,14 @@ describe('advanced settings', () => {
 
   it('never folds away a control that decides which controls exist', () => {
     const folded = fieldsFor(FULL).filter((f) => f.advanced);
-    expect(folded.filter((f) => f.reshapes).map((f) => f.path)).toEqual([]);
+    expect(folded.filter((f) => f.kind === 'select' && f.reshapes).map((f) => f.path)).toEqual([]);
   });
 
   it('marks nothing inside a card, where the block does not reach', () => {
     const inCards: string[] = [];
-    const walk = (card: { fields: Field[]; cards: unknown[] }): void => {
-      for (const field of card.fields) if (field.advanced) inCards.push(field.path);
-      for (const child of card.cards) walk(child as { fields: Field[]; cards: unknown[] });
+    const walk = (card: Card): void => {
+      for (const field of fieldsOf(card.items)) if (field.advanced) inCards.push(field.path);
+      card.cards.forEach(walk);
     };
     for (const section of buildSections(loadDocument(FULL))) section.cards.forEach(walk);
     expect(inCards).toEqual([]);
@@ -206,8 +242,8 @@ describe('a width asked for from a model', () => {
     for (const section of buildSections(loadDocument(FULL))) {
       const own = new Set(allFields([section]).map((f) => f.path));
       for (const field of allFields([section])) {
-        if (field.widthInto && !own.has(field.widthInto)) {
-          dangling.push(`${field.path} -> ${field.widthInto}`);
+        if (field.kind === 'embedding-model' && !own.has(field.dimensionsPath)) {
+          dangling.push(`${field.path} -> ${field.dimensionsPath}`);
         }
       }
     }
@@ -216,10 +252,14 @@ describe('a width asked for from a model', () => {
 
   it('is on the model, where the answer is asked for', () => {
     const fields = fieldsFor(FULL);
-    expect(fields.find((f) => f.path === 'embedding.model')?.widthInto).toBe(
-      'embedding.dimensions',
+    const model = ofKind(
+      fields.find((f) => f.path === 'embedding.model'),
+      'embedding-model',
     );
-    expect(fields.filter((f) => f.widthInto).map((f) => f.path)).toEqual(['embedding.model']);
+    expect(model.dimensionsPath).toBe('embedding.dimensions');
+    expect(fields.filter((f) => f.kind === 'embedding-model').map((f) => f.path)).toEqual([
+      'embedding.model',
+    ]);
   });
 });
 
@@ -362,7 +402,7 @@ describe('one section at a time', () => {
       'mail.reply_to',
     ]);
     expect(notifications.fields).toEqual([]);
-    expect(notifications.cards.map((card) => card.fields.map((f) => f.schemaPath))).toEqual([
+    expect(notifications.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath))).toEqual([
       ['notify.sync_failure'],
       ['notify.stale', 'notify.stale_after'],
       ['notify.grant_expiry', 'notify.expiry_warning'],
@@ -375,7 +415,7 @@ describe('one section at a time', () => {
     const reading = buildSections(loadDocument(FULL)).find((s) => s.id === 'reading')!;
 
     expect(reading.fields.map((f) => f.schemaPath)).toEqual(['graph.enabled']);
-    expect(reading.cards.map((card) => card.fields.map((f) => f.schemaPath))).toEqual([
+    expect(reading.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath))).toEqual([
       ['graph.related', 'graph.related_limit'],
       ['graph.previews', 'graph.terms'],
       ['graph.search_boost'],
@@ -434,7 +474,7 @@ describe('one section at a time', () => {
       const page = built.find((section) => section.id === id)!;
       expect(entry.title).toBe(page.title);
       expect(entry.subtitle).toBe(page.blurb);
-      expect(entry.subtitleHtml).toBe(page.blurbHtml);
+      expect(entry.subtitleIsProse).toBe(true);
       expect(entry.icon).toBe(CONFIG_SECTIONS.find((s) => s.id === id)!.icon);
       expect(entry.mark).toBe('');
       expect(entry.removeOp).toBeNull();
@@ -447,7 +487,7 @@ describe('one section at a time', () => {
     const entries = members.flatMap((section) => section.entries);
 
     expect(entries.length).toBeGreaterThan(0);
-    for (const entry of entries) expect(entry.subtitleHtml).toBeUndefined();
+    for (const entry of entries) expect(entry.subtitleIsProse).toBeUndefined();
   });
 
   it('builds a page for every provider, and a tile on the index for each', () => {
@@ -663,16 +703,7 @@ describe('a provider’s directory block', () => {
   });
 
   it('leaves a page nobody touched exactly as it found it', () => {
-    const body: Record<string, unknown> = {};
-    for (const f of allFields([provider(FULL)])) {
-      if (f.kind === 'boolean') {
-        if (f.checked) body[f.path] = 'on';
-      } else if (f.kind === 'checkboxes') {
-        body[f.path] = f.values;
-      } else {
-        body[f.path] = f.value;
-      }
-    }
+    const body = untouchedBody(allFields([provider(FULL)]));
 
     const doc = loadDocument(FULL);
     expect(applyForm(doc, body, 'identity/entra').changed).toBe(false);
@@ -682,45 +713,58 @@ describe('a provider’s directory block', () => {
     const fields = allFields([provider(FULL)]);
     const at = (key: string) =>
       fields.find((f) => f.path === `auth.providers.entra.directory.${key}`)!;
+    const sourceToCopyFrom = (field: Field) => ('sourceToCopyFrom' in field ? field.sourceToCopyFrom : undefined);
 
-    expect(at('client_id').copiedFrom).toBe('auth.providers.entra.client_id');
-    expect(at('client_secret').copiedFrom).toBe('auth.providers.entra.client_secret');
-    expect(at('cache_ttl').copiedFrom).toBeUndefined();
+    expect(sourceToCopyFrom(at('client_id'))).toBe('auth.providers.entra.client_id');
+    expect(sourceToCopyFrom(at('client_secret'))).toBe('auth.providers.entra.client_secret');
+    expect(sourceToCopyFrom(at('cache_ttl'))).toBeUndefined();
     for (const key of KEYS.slice(1)) {
       expect(at(key).shownWith).toBe('auth.providers.entra.directory.type');
     }
   });
 
   it('copies the tenant only from a control that is holding one', () => {
-    const plain = allFields([provider(FULL)]).find(
-      (f) => f.path === 'auth.providers.entra.directory.tenant_id',
-    )!;
-    expect(plain.copiedFrom).toBeUndefined();
+    const plain = ofKind(
+      allFields([provider(FULL)]).find(
+        (f) => f.path === 'auth.providers.entra.directory.tenant_id',
+      ),
+      'text',
+    );
+    expect(plain.sourceToCopyFrom).toBeUndefined();
 
     const entra = FULL.replace(
       'issuer: https://login.example.test/v2.0',
       `issuer: ${entraIssuerFor('a-tenant-guid')}`,
     );
-    const composed = allFields([provider(entra)]).find(
-      (f) => f.path === 'auth.providers.entra.directory.tenant_id',
-    )!;
-    expect(composed.copiedFrom).toBe('auth.providers.entra.issuer');
+    const composed = ofKind(
+      allFields([provider(entra)]).find(
+        (f) => f.path === 'auth.providers.entra.directory.tenant_id',
+      ),
+      'text',
+    );
+    expect(composed.sourceToCopyFrom).toBe('auth.providers.entra.issuer');
   });
 
   it('marks the one source the page cannot hand over, and copies it at the save', () => {
-    const referenced = allFields([provider(FULL)]).find(
-      (f) => f.path === 'auth.providers.entra.directory.client_secret',
-    )!;
-    expect(referenced.copiedStored).toBe(false);
+    const referenced = ofKind(
+      allFields([provider(FULL)]).find(
+        (f) => f.path === 'auth.providers.entra.directory.client_secret',
+      ),
+      'secret',
+    );
+    expect(referenced.sourceToCopyFromOnSave).toBe(false);
 
     const literal = FULL.replace(
       'client_secret: ${TEST_ENTRA_CLIENT_SECRET}\n      subject_claim',
       'client_secret: a-literal-secret\n      subject_claim',
     );
-    const hidden = allFields([provider(literal)]).find(
-      (f) => f.path === 'auth.providers.entra.directory.client_secret',
-    )!;
-    expect(hidden.copiedStored).toBe(true);
+    const hidden = ofKind(
+      allFields([provider(literal)]).find(
+        (f) => f.path === 'auth.providers.entra.directory.client_secret',
+      ),
+      'secret',
+    );
+    expect(hidden.sourceToCopyFromOnSave).toBe(true);
     expect(JSON.stringify(hidden)).not.toContain('a-literal-secret');
 
     const doc = loadDocument(literal);
@@ -764,11 +808,15 @@ describe('a provider’s directory block', () => {
     const source = buildSections(loadDocument(entra)).find(
       (section) => section.id === 'groups/engineering/entra',
     )!;
-    const mapping = allFields([source]).find((f) => /^groups\.engineering\.\d+\.id$/.test(f.path))!;
+    const mapping = ofKind(
+      allFields([source]).find((f) => /^groups\.engineering\.\d+\.id$/.test(f.path)),
+      'text',
+    );
 
-    expect(mapping.linkHtml).toContain('portal.azure.com');
-    expect(mapping.linkHtml).toContain(`groupId/${mapping.value}`);
-    expect(mapping.linkHtml).toContain('rel="noopener noreferrer nofollow"');
+    const link = renderHelp(mapping.link);
+    expect(link).toContain('portal.azure.com');
+    expect(link).toContain(`groupId/${mapping.value}`);
+    expect(link).toContain('rel="noopener noreferrer nofollow"');
   });
 
   it('links nothing on a provider whose portal this is not', () => {
@@ -776,14 +824,17 @@ describe('a provider’s directory block', () => {
       (section) => section.id === 'groups/engineering/entra',
     )!;
     const mapping = allFields([source]).find((f) => /^groups\.engineering\.\d+\.id$/.test(f.path))!;
-    expect(mapping.linkHtml).toBe('');
+    expect(mapping.link).toBe('');
   });
 
   it('offers nothing to copy on a GitHub directory, which has its own client', () => {
     const hub = buildSections(loadDocument(FULL)).find((s) => s.id === 'identity/hub')!;
     const fields = allFields([hub]);
     expect(
-      fields.filter((f) => f.path.startsWith('auth.providers.hub.directory.') && f.copiedFrom),
+      fields.filter(
+        (f) =>
+          f.path.startsWith('auth.providers.hub.directory.') && 'sourceToCopyFrom' in f && f.sourceToCopyFrom,
+      ),
     ).toEqual([]);
   });
 });
@@ -814,7 +865,7 @@ describe('the default switch', () => {
 describe('durations', () => {
   it('offer exactly the units the loader accepts, and no other', () => {
     const durations = allFields(buildSections(loadDocument(FULL))).filter(
-      (f) => f.kind === 'duration',
+      (f): f is FieldOf<'duration'> => f.kind === 'duration',
     );
     expect(durations.length).toBeGreaterThan(4);
 
@@ -824,9 +875,9 @@ describe('durations', () => {
     const allowed = /\(([a-z|]+)\)\$$/.exec(schema.$defs.duration.pattern)?.[1].split('|');
     expect(allowed).toEqual(['s', 'm', 'h', 'd']);
 
+    // A duration has no pattern of its own: the dropdown offers exactly the schema's units
     for (const field of durations) {
       expect(field.unitOptions.map((option) => option.value)).toEqual(allowed);
-      expect(field.pattern).toBe('');
     }
   });
 
@@ -834,11 +885,7 @@ describe('durations', () => {
     const doc = loadDocument(FULL);
     const before = serialise(doc);
     const section = sectionOf(doc, 'storage')!;
-    const body: Record<string, string> = {};
-    for (const f of allFields([section])) {
-      body[f.path] = f.value;
-      if (f.unit) body[`unit:${f.path}`] = f.unit;
-    }
+    const body = untouchedBody(allFields([section]));
     expect(body['assets.presign_ttl']).toBe('60');
     expect(body['unit:assets.presign_ttl']).toBe('s');
     expect(body['assets.max_asset_bytes']).toBe('10');
@@ -863,8 +910,11 @@ describe('durations', () => {
     );
     expect(serialise(doc)).toContain('max_asset_bytes: 2000000000');
 
-    const field = (yaml: string): Field =>
-      fieldsFor(yaml).find((f) => f.path === 'assets.max_asset_bytes')!;
+    const field = (yaml: string) =>
+      ofKind(
+        fieldsFor(yaml).find((f) => f.path === 'assets.max_asset_bytes'),
+        'bytes',
+      );
     expect(field(FULL.replace('max_asset_bytes: 10000000', 'max_asset_bytes: 1500'))).toMatchObject(
       {
         value: '1500',
@@ -876,7 +926,10 @@ describe('durations', () => {
 
   it('keep a plain box for a value they cannot take apart', () => {
     const yaml = FULL.replace('presign_ttl: 60s', 'presign_ttl: ${ASSET_TTL}');
-    const control = fieldsFor(yaml).find((f) => f.path === 'assets.presign_ttl')!;
+    const control = ofKind(
+      fieldsFor(yaml).find((f) => f.path === 'assets.presign_ttl'),
+      'duration',
+    );
     expect(control.unitOptions).toEqual([]);
     expect(control.value).toBe('${ASSET_TTL}');
 
@@ -887,7 +940,8 @@ describe('durations', () => {
 
   it('are not the only control carrying the loader’s own expression', () => {
     const ids = allFields(buildSections(loadDocument(FULL))).filter(
-      (f) => f.path.endsWith('.id') && f.path.startsWith('forges.'),
+      (f): f is FieldOf<'text'> =>
+        f.kind === 'text' && f.path.endsWith('.id') && f.path.startsWith('forges.'),
     );
     expect(ids.length).toBeGreaterThan(0);
 
@@ -908,7 +962,9 @@ describe('durations', () => {
       if (section.renamePattern) patterns.add(section.renamePattern);
       walk(section);
     }
-    for (const field of allFields(sections)) if (field.pattern) patterns.add(field.pattern);
+    for (const field of allFields(sections)) {
+      if ('pattern' in field && field.pattern) patterns.add(field.pattern);
+    }
 
     expect(patterns.size).toBeGreaterThan(3);
     for (const pattern of patterns) {
@@ -931,8 +987,9 @@ describe('durations', () => {
       if (section.renamePattern && !section.renameHint) missing.push(`rename ${section.id}`);
       walk(section);
     }
-    for (const field of allFields(sections))
-      if (field.pattern && !field.patternHint) missing.push(field.path);
+    for (const field of allFields(sections)) {
+      if ('pattern' in field && field.pattern && !field.patternHint) missing.push(field.path);
+    }
 
     expect(missing).toEqual([]);
   });
@@ -956,9 +1013,10 @@ describe('durations', () => {
 
 describe('how an azure store authenticates', () => {
   const options = (yaml: string): string[] =>
-    fieldsFor(yaml)
-      .find((f) => f.path === 'assets.auth')!
-      .options.map((option) => option.value);
+    ofKind(
+      fieldsFor(yaml).find((f) => f.path === 'assets.auth'),
+      'select',
+    ).options.map((option) => option.value);
 
   const AZURE = FULL.replace(
     'driver: filesystem',
@@ -976,7 +1034,10 @@ describe('how an azure store authenticates', () => {
   };
 
   it('starts on the account key, in the schema and in the list', () => {
-    const field = fieldsFor(AZURE).find((f) => f.path === 'assets.auth')!;
+    const field = ofKind(
+      fieldsFor(AZURE).find((f) => f.path === 'assets.auth'),
+      'select',
+    );
     expect(field.fallback).toBe('key');
     expect(field.options[0].value).toBe('key');
 
@@ -997,13 +1058,22 @@ describe('how an azure store authenticates', () => {
     const using = AZURE.replace('container: assets', 'container: assets\n  auth: default');
     inProduction(() => {
       expect(options(using)).toContain('default');
-      expect(fieldsFor(using).find((f) => f.path === 'assets.auth')!.value).toBe('default');
+      expect(
+        ofKind(
+          fieldsFor(using).find((f) => f.path === 'assets.auth'),
+          'select',
+        ).value,
+      ).toBe('default');
     });
   });
 });
 
 describe('the read-count switches', () => {
-  const switchAt = (path: string): Field => fieldsFor('version: 1').find((f) => f.path === path)!;
+  const switchAt = (path: string) =>
+    ofKind(
+      fieldsFor('version: 1').find((f) => f.path === path),
+      'boolean',
+    );
 
   it('subordinates the two that do nothing while the master is off', () => {
     expect(switchAt('analytics.enabled').checked).toBe(false);
@@ -1016,14 +1086,17 @@ describe('the read-count switches', () => {
 
   it('leaves the boxes on screen, because they are answers and not claims', () => {
     for (const key of ['analytics.timezone', 'analytics.granularity', 'analytics.retention_days']) {
-      expect(switchAt(key).shownWith).toBeUndefined();
+      expect(fieldsFor('version: 1').find((f) => f.path === key)?.shownWith).toBeUndefined();
     }
   });
 });
 
 describe('the time zone', () => {
-  const zoneField = (yaml: string): Field =>
-    fieldsFor(yaml).find((f) => f.path === 'analytics.timezone')!;
+  const zoneField = (yaml: string) =>
+    ofKind(
+      fieldsFor(yaml).find((f) => f.path === 'analytics.timezone'),
+      'select',
+    );
 
   it('offers only names the loader would accept', () => {
     const options = zoneField(FULL).options;
@@ -1067,15 +1140,22 @@ describe('the defaults a new member arrives with', () => {
 
   it('fills the boxes that have one, from the field model rather than a second list', () => {
     const { section } = draft('magic-link');
-    const control = (key: string) => allFields([section]).find((f) => f.path.endsWith(key));
+    const duration = (key: string) =>
+      ofKind(
+        allFields([section]).find((f) => f.path.endsWith(key)),
+        'duration',
+      );
 
-    expect(control('token_ttl')?.value).toBe('15');
-    expect(control('token_ttl')?.unit).toBe('m');
-    expect(control('session_ttl')?.value).toBe('30');
-    expect(control('session_ttl')?.unit).toBe('d');
-    expect(allFields([draft('oidc').section]).find((f) => f.path.endsWith('issuer'))?.value).toBe(
-      '',
-    );
+    expect(duration('token_ttl').value).toBe('15');
+    expect(duration('token_ttl').unit).toBe('m');
+    expect(duration('session_ttl').value).toBe('30');
+    expect(duration('session_ttl').unit).toBe('d');
+    expect(
+      ofKind(
+        allFields([draft('oidc').section]).find((f) => f.path.endsWith('issuer')),
+        'text',
+      ).value,
+    ).toBe('');
   });
 
   const freshBlock = (doc: Document): string => {
@@ -1091,7 +1171,12 @@ describe('the defaults a new member arrives with', () => {
 
   it('writes nothing into the document to fill a box', () => {
     const { doc, section } = draft('magic-link');
-    expect(allFields([section]).find((f) => f.path.endsWith('token_ttl'))?.value).toBe('15');
+    expect(
+      ofKind(
+        allFields([section]).find((f) => f.path.endsWith('token_ttl')),
+        'duration',
+      ).value,
+    ).toBe('15');
     expect(freshBlock(doc)).not.toContain('token_ttl');
     expect(freshBlock(doc)).not.toContain('same_browser');
   });
@@ -1100,11 +1185,8 @@ describe('the defaults a new member arrives with', () => {
     const { section } = draft('magic-link');
     const body: Record<string, unknown> = {};
     for (const f of allFields([section])) {
-      if (f.kind === 'boolean') {
-        if (f.checked) body[f.path] = 'on';
-      } else if (f.value !== '') {
-        body[f.path] = f.value;
-      }
+      const value = rendered(f);
+      if (value !== undefined && value !== '') body[f.path] = value;
     }
 
     const saved = loadDocument(FULL);
@@ -1180,10 +1262,7 @@ describe('a group source', () => {
     expect(serialise(doc)).toContain('left-behind');
 
     const section = buildSections(doc).find((s) => s.id === 'groups/everyone-at-example/letter')!;
-    const body = Object.fromEntries(allFields([section]).map((f) => [f.path, f.value])) as Record<
-      string,
-      string
-    >;
+    const body = Object.fromEntries(allFields([section]).map((f) => [f.path, rendered(f)]));
     applyForm(doc, body, 'groups/everyone-at-example/letter');
 
     expect(serialise(doc)).not.toContain('left-behind');
@@ -1194,7 +1273,10 @@ describe('a group source', () => {
     const doc = twice();
     appendSeqItem(doc, ['groups', 'engineering'], { provider: 'hub', id: 'acme/platform' });
     const placeholderOf = (sectionId: string) =>
-      rowsOf(doc, sectionId)[0].fields.find((f) => !f.inapplicable)!.placeholder;
+      ofKind(
+        rowsOf(doc, sectionId)[0].fields.find((f) => !f.inapplicable),
+        'text',
+      ).placeholder;
 
     expect(placeholderOf('groups/engineering/hub')).toBe('org/team-slug');
     expect(placeholderOf('groups/engineering/entra')).toBe('group identifier');
@@ -1206,7 +1288,10 @@ describe('a group source', () => {
       'https://login.microsoftonline.com/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/v2.0',
     );
     expect(
-      rowsOf(entra, 'groups/engineering/entra')[0].fields.find((f) => !f.inapplicable)!.placeholder,
+      ofKind(
+        rowsOf(entra, 'groups/engineering/entra')[0].fields.find((f) => !f.inapplicable),
+        'text',
+      ).placeholder,
     ).toMatch(/UUID/);
   });
 
@@ -1315,7 +1400,7 @@ describe('a group source', () => {
 
     const person = section.tables![1].columns[0];
     expect(person.help).toContain('`subject`');
-    expect(person.helpHtml).toContain('<code>subject</code>');
+    expect(renderHelp(person.help)).toContain('<code>subject</code>');
     expect(rowsOf(doc, section.id)[0].fields.map((f) => f.path.split('.').pop())).toEqual([
       'id',
       'domain',
@@ -1473,7 +1558,9 @@ describe('a kind whose prerequisite is on another page', () => {
     const options = kindOptions(withoutMail());
     expect(Object.keys(options)).toContain('magic-link');
     expect(options['magic-link'].unavailable).toContain('mail transport');
-    expect(options['magic-link'].unavailableHtml).toMatch(/<a href="\/-\/config\/mail">[^<]+<\/a>/);
+    expect(renderHelp(options['magic-link'].unavailable ?? '')).toMatch(
+      /<a href="\/-\/config\/mail">[^<]+<\/a>/,
+    );
     expect(CONFIG_SECTIONS.map((section) => section.id)).toContain('mail');
     expect(
       Object.entries(options)
@@ -1494,17 +1581,7 @@ describe('a kind whose prerequisite is on another page', () => {
 
 describe('the round trip', () => {
   function untouched(yaml: string): Record<string, unknown> {
-    const body: Record<string, unknown> = {};
-    for (const f of fieldsFor(yaml)) {
-      if (f.kind === 'boolean') {
-        if (f.checked) body[f.path] = 'on';
-      } else if (f.kind === 'checkboxes') {
-        body[f.path] = f.values;
-      } else {
-        body[f.path] = f.value;
-      }
-    }
-    return body;
+    return untouchedBody(fieldsFor(yaml));
   }
 
   it('reports no change for a form nobody edited', () => {
@@ -1648,7 +1725,7 @@ describe('help text markup', () => {
 
   it('emits nothing but its seven elements, over every help string the form has', () => {
     const html = allFields(buildSections(loadDocument(FULL)))
-      .map((f) => f.helpHtml)
+      .map((f) => renderHelp(f.help))
       .join('\n');
     const tags = [...html.matchAll(/<\/?([a-z0-9]+)/gi)].map((m) => m[1].toLowerCase());
     const mark = [
@@ -1672,7 +1749,10 @@ describe('help text markup', () => {
 
 describe('secrets', () => {
   it('renders an environment reference, because it names a secret rather than being one', () => {
-    const field = fieldsFor(FULL).find((f) => f.path === 'auth.providers.entra.client_secret');
+    const field = ofKind(
+      fieldsFor(FULL).find((f) => f.path === 'auth.providers.entra.client_secret'),
+      'secret',
+    );
     expect(field?.secretHidden).toBe(false);
     expect(field?.value).toBe('${TEST_ENTRA_CLIENT_SECRET}');
   });
@@ -1684,7 +1764,10 @@ describe('secrets', () => {
     );
     expect(literal).not.toBe(FULL);
 
-    const field = fieldsFor(literal).find((f) => f.path === 'auth.providers.entra.client_secret');
+    const field = ofKind(
+      fieldsFor(literal).find((f) => f.path === 'auth.providers.entra.client_secret'),
+      'secret',
+    );
     expect(field?.secretHidden).toBe(true);
     expect(field?.value).toBe('');
 
@@ -1729,31 +1812,29 @@ describe("a GitHub source's webhook URL", () => {
     }
   };
 
-  const secretField = (): Field => {
-    const section = buildSections(loadDocument(FULL)).find((s) => s.id === 'sources/gh')!;
-    return allFields([section]).find((f) => f.path === 'forges.gh.webhook_secret')!;
+  const copyValues = (id: string): CopyValueItem[] => {
+    const section = buildSections(loadDocument(FULL)).find((s) => s.id === id)!;
+    return cardItems([section]).filter(
+      (item): item is CopyValueItem => item.kind === 'copy-value',
+    );
   };
 
   it('offers the absolute URL to copy, from the declared public URL and the forge id', () => {
-    const field = withPublicUrl('https://docs.acme.example/', secretField);
-    expect(field.copy).toBe('https://docs.acme.example/-/hooks/gh');
-    expect(field.factHtml).toContain('<strong>Webhook URL</strong>');
+    const [webhook] = withPublicUrl('https://docs.acme.example/', () => copyValues('sources/gh'));
+    expect(webhook.text).toBe('https://docs.acme.example/-/hooks/gh');
+    expect(webhook.note).toContain('**Webhook URL**');
   });
 
   it('offers the path to copy when no public URL is declared, for the browser to complete', () => {
-    const field = withPublicUrl(undefined, secretField);
-    expect(field.copy).toBe('/-/hooks/gh');
+    const [webhook] = withPublicUrl(undefined, () => copyValues('sources/gh'));
+    expect(webhook.text).toBe('/-/hooks/gh');
     // One sentence for both: the browser completes the path, and without it the reader does
-    expect(field.factHtml).toContain('<strong>Webhook URL</strong>');
-    expect(field.factHtml).toContain('If only a path is shown');
+    expect(webhook.note).toContain('**Webhook URL**');
+    expect(webhook.note).toContain('If only a path without a host is shown');
   });
 
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {
-    const section = withPublicUrl(
-      'https://docs.acme.example',
-      () => buildSections(loadDocument(FULL)).find((s) => s.id === 'sources/onprem')!,
-    );
-    const facts = allFields([section]).filter((f) => f.factHtml !== '');
-    expect(facts).toEqual([]);
+    const values = withPublicUrl('https://docs.acme.example', () => copyValues('sources/onprem'));
+    expect(values).toEqual([]);
   });
 });

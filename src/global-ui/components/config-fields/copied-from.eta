@@ -1,0 +1,31 @@
+<%
+  /*
+    This is shown in the IdP configurator when a field can be copied from a different field that is already fileld in. TODO this needs to be handled better when the Microsoft Graph configurator is reworked
+  */
+  const f = it.field;
+%>
+    <% if (f.sourceToCopyFrom && it.editable) { %>
+    <button
+      type="button"
+      data-spr-copy="<%= f.path %>"
+      hidden
+    >
+      Copy from the sign-in app
+    </button>
+    <% if (f.sourceToCopyFromOnSave) { %>
+    <input
+      type="checkbox"
+      name="copy:<%= f.path %>"
+      value="on"
+      data-spr-copy-stored
+      hidden
+    >
+    <p
+      class="spr-help"
+      data-spr-copy-note
+      hidden
+    >
+      Copied from the sign-in app when you save.
+    </p>
+    <% } %>
+    <% } %>

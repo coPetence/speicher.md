@@ -45,9 +45,8 @@ export interface SectionSummary {
   // `CONFIG_SECTIONS` — the one list saying what a page of this surface is drawn
   // with, so the card and the page it opens cannot come to disagree.
   icon: string;
+  // Help markup, which may contain links
   blurb: string;
-  // HTML-rendered version of the blurb (may contain links)
-  blurbHtml: string;
 }
 
 export interface ConfigOverviewPayload extends ConfigCommon {

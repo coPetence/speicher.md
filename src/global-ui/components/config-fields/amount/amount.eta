@@ -1,0 +1,31 @@
+<% const f = it.field, editable = it.editable %>
+    <%~ include('@config-fields/label', it) %>
+    <% if (f.unitOptions.length) { %>
+    <span class="spr-unit">
+      <input
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        type="number"
+        min="0"
+        step="1"
+        value="<%= f.value %>"
+        <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
+        inputmode="numeric"
+        autocomplete="off"
+        <%= editable ? '' : 'disabled' %>
+      >
+      <%~ include('@select', {
+        attributes: {
+          name: 'unit:' + f.path,
+          'aria-label': f.label + ', unit',
+          disabled: !editable,
+        },
+        options: f.unitOptions.map(function (option) {
+          return { value: option.value, label: option.label, selected: f.unit === option.value };
+        }),
+      }) %>
+    </span>
+    <% } else { %>
+    <%/* A stored value that does not split, e.g. ${VAR}, is kept in a plain box */%>
+    <%~ include('@config-fields/text-box', it) %>
+    <% } %>

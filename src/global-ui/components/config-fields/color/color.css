@@ -1,0 +1,21 @@
+@layer speicher.base {
+  .spr-swatch {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--spr-space-3);
+    align-items: center;
+  }
+  .spr-swatch > input[type='color'] {
+    inline-size: var(--spr-space-8);
+    block-size: var(--spr-space-8);
+    padding: 0;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    cursor: pointer;
+  }
+
+  .spr-swatch > input[type='color']:disabled {
+    cursor: default;
+  }
+}

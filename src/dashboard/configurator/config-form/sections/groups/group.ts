@@ -1,7 +1,7 @@
 import { scalarString } from '../../document';
-import { at, field } from '../../field';
-import type { Obj } from '../../field';
-import type { Field, SectionEntry } from '../../model';
+import { at, membershipField, textField } from '../../config-fields';
+import type { Field, Obj } from '../../config-fields';
+import type { SectionEntry } from '../../model';
 import {
   GROUP_NAME,
   GROUP_NAME_HINT,
@@ -33,7 +33,7 @@ export function groupSection(root: Obj, name: string): SectionSource {
       'source takes effect without waiting for anybody to sign in again.',
     fields: [
       // Membership checkbox marking this group as an administrator group
-      field(root, ['admins', 'groups'], 'admins.groups', 'Administrator access', 'membership', {
+      membershipField(root, ['admins', 'groups'], 'admins.groups', 'Administrator access', {
         trueValue: name,
         help:
           'Members of this group may operate the instance: every surface under ' +
@@ -109,7 +109,7 @@ function sourceFields(root: Obj, name: string, index: number, ids: string[]): Fi
   const base = ['groups', name, index];
   const p = (key: string) => `groups.<key>.<index>.${key}`;
   return [
-    field(root, [...base, 'provider'], p('provider'), 'Provider', 'text', {
+    textField(root, [...base, 'provider'], p('provider'), 'Provider', {
       help:
         'Which provider this group is drawn from. It decides what the source can ' +
         'match on: a magic-link provider has no group ids, so it matches an email ' +

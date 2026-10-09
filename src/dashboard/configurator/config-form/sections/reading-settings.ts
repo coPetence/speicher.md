@@ -8,8 +8,15 @@
  */
 
 import { scalarString } from '../document';
-import { at, field } from '../field';
-import type { Obj } from '../field';
+import {
+  at,
+  booleanField,
+  linesField,
+  numberField,
+  selectField,
+  textField,
+} from '../config-fields';
+import type { Obj } from '../config-fields';
 import type { Card, Option } from '../model';
 import { sectionHead } from './registry';
 import type { SectionSource } from './registry';
@@ -37,7 +44,7 @@ export function readingSection(root: Obj): SectionSource {
     blurb:
       'The link graph is a feature, that enables the following features at the cost of higher ingest time: hovering over a link shows the target, backlinks are shown in the sidebar and lists related files to this document',
     fields: [
-      field(root, ['graph', 'enabled'], 'graph.enabled', 'Link graph', 'boolean', {
+      booleanField(root, ['graph', 'enabled'], 'graph.enabled', 'Link graph', {
         fallback: true,
         help: 'Toggles the link graph feature. Action is immediate and does not require reingestion',
       }),
@@ -56,16 +63,15 @@ function relatedCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(root, ['graph', 'related'], 'graph.related', 'Related column', 'boolean', {
+    items: [
+      booleanField(root, ['graph', 'related'], 'graph.related', 'Related column', {
         fallback: true,
       }),
-      field(
+      numberField(
         root,
         ['graph', 'related_limit'],
         'graph.related_limit',
         'Related entries shown',
-        'number',
         {
           fallback: 8,
           shownWith: 'graph.related',
@@ -85,12 +91,12 @@ function marksCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(root, ['graph', 'previews'], 'graph.previews', 'Hover previews', 'boolean', {
+    items: [
+      booleanField(root, ['graph', 'previews'], 'graph.previews', 'Hover previews', {
         fallback: true,
         help: 'Shows the link destination',
       }),
-      field(root, ['graph', 'terms'], 'graph.terms', 'Tags', 'boolean', {
+      booleanField(root, ['graph', 'terms'], 'graph.terms', 'Tags', {
         fallback: true,
         help: "Shows each page's frontmatter tags as chips, and lists every readable page that has one.",
       }),
@@ -107,18 +113,11 @@ function searchCard(root: Obj): Card {
     notes: [],
     cards: [],
     addOps: [],
-    fields: [
-      field(
-        root,
-        ['graph', 'search_boost'],
-        'graph.search_boost',
-        'Link-weighted search',
-        'boolean',
-        {
-          fallback: true,
-          help: 'Ranks results higher when other results link to them.',
-        },
-      ),
+    items: [
+      booleanField(root, ['graph', 'search_boost'], 'graph.search_boost', 'Link-weighted search', {
+        fallback: true,
+        help: 'Ranks results higher when other results link to them.',
+      }),
     ],
   };
 }
@@ -141,16 +140,15 @@ export function analyticsSection(root: Obj): SectionSource {
     blurb:
       'Count how often each page is read, without recording who read what. Find out more in our [documentation](https://docs.speicher.md/operate/read-analytics)',
     fields: [
-      field(root, ['analytics', 'enabled'], 'analytics.enabled', 'Count total reads', 'boolean', {
+      booleanField(root, ['analytics', 'enabled'], 'analytics.enabled', 'Count total reads', {
         fallback: false,
         help: 'Off by default. Turning it off again deletes what has been collected.',
       }),
-      field(
+      booleanField(
         root,
         ['analytics', 'unique_readers'],
         'analytics.unique_readers',
         'Count unique readers',
-        'boolean',
         {
           fallback: true,
           shownWith: 'analytics.enabled',
@@ -161,12 +159,11 @@ export function analyticsSection(root: Obj): SectionSource {
             'into who. Readers who are not signed in never contribute.',
         },
       ),
-      field(
+      booleanField(
         root,
         ['analytics', 'public_beacon'],
         'analytics.public_beacon',
         'Count public pages in the browser',
-        'boolean',
         {
           fallback: true,
           shownWith: 'analytics.enabled',
@@ -179,13 +176,13 @@ export function analyticsSection(root: Obj): SectionSource {
             'server and are unaffected.',
         },
       ),
-      field(root, ['analytics', 'timezone'], 'analytics.timezone', 'Time zone', 'select', {
+      selectField(root, ['analytics', 'timezone'], 'analytics.timezone', 'Time zone', {
         fallback: 'UTC',
         options: timeZoneOptions(at(root, ['analytics', 'timezone'])),
         startsRow: true,
         help: "Decides the timezone to log in. A reader's access time, coming from another timezone, gets converted to the here specified timezone",
       }),
-      field(root, ['analytics', 'granularity'], 'analytics.granularity', 'Detail', 'select', {
+      selectField(root, ['analytics', 'granularity'], 'analytics.granularity', 'Detail', {
         fallback: 'day',
         options: [
           { value: 'day', label: 'Per day' },
@@ -193,22 +190,20 @@ export function analyticsSection(root: Obj): SectionSource {
         ],
         help: "Per day is set to default to comply with privacy for working hours, specified by §87(1)(6) BetrVG in Germany. Changing setting 'per hour' -> 'per day' deletes hourly detail",
       }),
-      field(
+      numberField(
         root,
         ['analytics', 'retention_days'],
         'analytics.retention_days',
         'Keep counts for (days)',
-        'number',
         {
           fallback: 90,
         },
       ),
-      field(
+      numberField(
         root,
         ['analytics', 'search_retention_days'],
         'analytics.search_retention_days',
         'Keep unsuccessful searches for (days)',
-        'number',
         {
           fallback: 30,
           help:
@@ -229,7 +224,7 @@ export function publicSection(root: Obj): SectionSource {
     blurb:
       'You can allow repositories to publish content to anonymous (public) readers. Adding a repository here does not publish the content, it just allows the repo to use the `public` grant in its `.speicher.yaml` files. Find out more in our [documentation](TODO:INSERT_DOCS_LINK)',
     fields: [
-      field(root, ['public', 'repos'], 'public.repos', 'Public repositories', 'lines', {
+      linesField(root, ['public', 'repos'], 'public.repos', 'Public repositories', {
         help:
           'One `namespace/slug` per line, spelled the way the reader\u2019s URL spells it — ' +
           'for example `copetence/speicher-docs`. Renaming a repository unpublishes it ' +
@@ -248,30 +243,28 @@ export function retrievalSection(root: Obj): SectionSource {
     blurb:
       'Specifies what is being included and excluded from the repository. Check out the documentation for a deeper understanding [link]',
     fields: [
-      field(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', 'lines', {
+      linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
         help: 'Globs, one per line. Defaults to every Markdown file.',
         rows: 4,
       }),
-      field(root, ['defaults', 'sync', 'exclude'], 'defaults.sync.exclude', 'Exclude', 'lines', {
+      linesField(root, ['defaults', 'sync', 'exclude'], 'defaults.sync.exclude', 'Exclude', {
         help: 'Globs, one per line. Defaults to every Markdown file.',
         rows: 4,
       }),
-      field(
+      textField(
         root,
         ['defaults', 'display', 'cover'],
         'defaults.display.cover',
         'Default cover image',
-        'text',
         {
           help: 'Cover image to be shown at the top of an article and on listing pages for folders or repositories. Can overwritten per folder. No SVGs allowed for security reasons.',
         },
       ),
-      field(
+      booleanField(
         root,
         ['defaults', 'retrieval', 'indexable'],
         'defaults.retrieval.indexable',
         'Indexable by default',
-        'boolean',
         {
           fallback: true,
           help: 'Whether pages are returned by search and accessible through MCP',

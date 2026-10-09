@@ -40,7 +40,7 @@ export function applyForm(
 
   const before = sectionOf(doc, sectionId, hint);
   for (const field of before ? allFields([before]) : []) {
-    if (field.reshapes && applyField(doc, body, field)) changed = true;
+    if (field.kind === 'select' && field.reshapes && applyField(doc, body, field)) changed = true;
   }
 
   const section = sectionOf(doc, sectionId, hint);

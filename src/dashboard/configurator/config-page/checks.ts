@@ -17,7 +17,7 @@ import { AssetsConfig } from '../../../config/types';
 import { probeMail } from '../../../notify/mailer';
 import { applyForm } from '../config-form/apply';
 import { scalarString } from '../config-form/document';
-import type { Obj } from '../config-form/field';
+import type { Obj } from '../config-form/config-fields';
 import { memberOf } from '../config-form/members';
 import { FieldStatus, allFields } from '../config-form/model';
 import { ConfigSectionPayload } from './payloads';

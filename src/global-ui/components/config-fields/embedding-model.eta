@@ -1,0 +1,3 @@
+    <%~ include('@config-fields/label', it) %>
+    <%~ include('@config-fields/text-box', { ...it, dimensionsPath: it.field.dimensionsPath }) %>
+    <p class="spr-note spr-note-idle" data-spr-width-note hidden></p>

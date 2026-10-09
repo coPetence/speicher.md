@@ -13,7 +13,8 @@
 
 import { Document, isMap, isSeq } from 'yaml';
 
-import { Field, FormSection, allFields, allOps } from './model';
+import type { SelectField } from './config-fields';
+import { FormSection, allFields, allOps } from './model';
 
 export const SHAPE_PREFIX = '__shape:' as const; // Prefix for hidden fields carrying collection shape
 
@@ -175,20 +176,27 @@ export function shapeControls(doc: Document, section: FormSection): ShapeControl
       name: `${SHAPE_PREFIX}${collection.path}`,
       value: shapeValue(collection),
     })),
-    ...allFields([section])
-      .filter((field) => field.reshapes)
-      .map((field) => ({ name: `${RENDERED_PREFIX}${field.path}`, value: showing(field) })),
+    ...reshapingFields(section).map((field) => ({
+      name: `${RENDERED_PREFIX}${field.path}`,
+      value: showing(field),
+    })),
   ];
 }
 
-function showing(field: Field): string {
-  return field.value || String(field.fallback ?? '');
+// The selects whose choice decides which other fields the page has
+function reshapingFields(section: FormSection): SelectField[] {
+  return allFields([section]).filter(
+    (field): field is SelectField => field.kind === 'select' && field.reshapes,
+  );
+}
+
+function showing(field: SelectField): string {
+  return field.value || (field.fallback ?? '');
 }
 
 /** Whether a reshapable field changed since the last render */
 export function reshaped(section: FormSection, body: Record<string, unknown>): boolean {
-  return allFields([section]).some((field) => {
-    if (!field.reshapes) return false;
+  return reshapingFields(section).some((field) => {
     const was = body[`${RENDERED_PREFIX}${field.path}`];
     return typeof was === 'string' && was !== showing(field);
   });

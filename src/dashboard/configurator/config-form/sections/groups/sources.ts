@@ -1,6 +1,7 @@
 import { SOURCE_GROUP, SOURCE_PERSON } from '../../collections';
-import { at, column } from '../../field';
-import type { Obj } from '../../field';
+import { at } from '../../config-fields';
+import type { Obj } from '../../config-fields';
+import { column } from '../../model';
 import type { AddOp, SectionEntry } from '../../model';
 import { memberSectionId, providerMark, providerType, sourcePositions } from '../../members';
 import type { SectionSource } from '../registry';

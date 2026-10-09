@@ -1,0 +1,64 @@
+@layer speicher.base {
+  .spr-field-template {
+    grid-column: 1 / -1;
+  }
+  .spr-choices.spr-templates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+    gap: var(--spr-space-5);
+    align-items: stretch;
+  }
+  .spr-choices.spr-templates > legend {
+    grid-column: 1 / -1;
+    margin-block-end: 0;
+  }
+  .spr-templates .spr-template {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+  }
+  .spr-templates .spr-template:has(input:checked) {
+    border-color: var(--spr-accent);
+    background: var(--spr-surface);
+  }
+  .spr-templates .spr-template:has(input:focus-visible) {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+
+  .spr-template-pick {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+  }
+  .spr-template-frame {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-sm);
+    background: var(--spr-bg);
+  }
+  .spr-template-frame > iframe {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: calc(100% / 0.26);
+    block-size: calc(100% / 0.26);
+    border: 0;
+    transform: scale(0.26);
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  .spr-template-missing {
+    display: grid;
+    place-content: center;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+}

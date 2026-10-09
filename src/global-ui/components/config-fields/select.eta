@@ -1,0 +1,18 @@
+<% const f = it.field %>
+    <%~ include('@config-fields/label', it) %>
+    <%~ include('@select', {
+      attributes: {
+        id: 'f-' + f.path,
+        name: f.path,
+        'data-spr-reshapes': Boolean(f.reshapes),
+        disabled: !it.editable,
+      },
+      options: f.options.map(function (option) {
+        return {
+          value: option.value,
+          label: option.label,
+          selected: String(f.value) === String(option.value),
+          markHtml: (it.optionMarks || {})[option.mark],
+        };
+      }),
+    }) %>

@@ -7,8 +7,8 @@
  * links are the first of them rather than the owner
  */
 
-import { SECRET_HELP, field } from '../field';
-import type { Obj } from '../field';
+import { SECRET_HELP, numberField, secretField, textField } from '../config-fields';
+import type { Obj } from '../config-fields';
 import { sectionHead } from './registry';
 import type { SectionSource } from './registry';
 
@@ -20,18 +20,18 @@ export function mailSection(root: Obj): SectionSource {
       '[Notifications](/-/config/notifications). Find out more in our ' +
       '[documentation](https://docs.speicher.md/operate/mail)',
     fields: [
-      field(root, ['mail', 'host'], 'mail.host', 'SMTP host', 'text'),
-      field(root, ['mail', 'port'], 'mail.port', 'Port', 'number', {
+      textField(root, ['mail', 'host'], 'mail.host', 'SMTP host'),
+      numberField(root, ['mail', 'port'], 'mail.port', 'Port', {
         fallback: 587,
       }),
-      field(root, ['mail', 'username'], 'mail.username', 'Username', 'text'),
-      field(root, ['mail', 'password'], 'mail.password', 'Password', 'secret', {
+      textField(root, ['mail', 'username'], 'mail.username', 'Username'),
+      secretField(root, ['mail', 'password'], 'mail.password', 'Password', {
         help: SECRET_HELP,
       }),
-      field(root, ['mail', 'from'], 'mail.from', 'From', 'text', {
+      textField(root, ['mail', 'from'], 'mail.from', 'From', {
         placeholder: 'Docs <docs@example.com>',
       }),
-      field(root, ['mail', 'reply_to'], 'mail.reply_to', 'Reply-to', 'text'),
+      textField(root, ['mail', 'reply_to'], 'mail.reply_to', 'Reply-to'),
     ],
     cards: [],
     addOps: [],

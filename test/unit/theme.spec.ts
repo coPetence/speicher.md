@@ -1777,7 +1777,10 @@ describe('the radio', () => {
 
   it('reaches a radio that is not its label’s child', () => {
     expect(DASHBOARD_RULES).not.toMatch(/\.spr-choices label > input\[type='radio'\]/);
-    const gallery = readFileSync(join(COMPONENTS, 'field', 'field.eta'), 'utf8');
+    const gallery = readFileSync(
+      join(COMPONENTS, 'config-fields', 'template', 'template.eta'),
+      'utf8',
+    );
     expect(gallery).toMatch(/type="radio"/);
     expect(gallery).toMatch(/class="spr-choices[^"]*"/);
   });
@@ -1912,9 +1915,12 @@ const viewTemplates = (dir: string): string[] =>
       ...viewTemplates(join(dir, entry.name)),
     ])
     .filter((file) => existsSync(file));
+// Every template under the components folder, as the loader registers them
 const DASHBOARD_TEMPLATES = [
   ...viewTemplates(VIEWS),
-  ...readdirSync(COMPONENTS).map((name) => join(COMPONENTS, name, `${name}.eta`)),
+  ...readdirSync(COMPONENTS, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.eta'))
+    .map((file) => join(COMPONENTS, file)),
 ];
 
 describe('the file picker', () => {

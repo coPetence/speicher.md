@@ -4,7 +4,7 @@ import { sectionEmptyArt } from '../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { renderTemplate } from '../../../../content-reader/views';
 import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
-import { renderHelp } from '../../../configurator/config-form/help';
+import { renderHelp } from '../../../../global-ui/help-markup';
 import {
   GROUP_ID_HELP,
   PROVIDER_ID_HELP,
@@ -12,7 +12,7 @@ import {
   memberPosition,
   nounOf,
 } from '../../../configurator/config-form/members';
-import { allFields } from '../../../configurator/config-form/model';
+import { allFields, cardItems } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
 import { dashboardSectionTitle } from '../../../dashboard-sections';
 import { DashboardResponder } from '../../../respond';
@@ -47,11 +47,8 @@ export function sendConfigSection(
     page: (data) =>
       renderTemplate('dashboard/ui/views/config-section', {
         ...(data as unknown as Record<string, unknown>),
-        // See `sendConfig`: markup, through the one renderer.
-        waiting_consequences_html: data.waiting_consequences.map(renderHelp),
-        member_id_help_html: renderHelp(
-          sectionId.startsWith('groups/') ? GROUP_ID_HELP : PROVIDER_ID_HELP,
-        ),
+        // Help markup, rendered by the template's `md()`
+        member_id_help: sectionId.startsWith('groups/') ? GROUP_ID_HELP : PROVIDER_ID_HELP,
         // The logos this page draws, once each. Markup, so it belongs to the
         // rendering and not to the payload — see `provider-marks.ts`.
         marks_sprite: markSprite([
@@ -99,8 +96,8 @@ export function sendConfigSection(
             ...(payload.section ? allFields([payload.section]) : []).flatMap((field) =>
               field.status ? [field.status.icon] : field.checkHref ? ['check', 'circle-alert'] : [],
             ),
-            ...(payload.section ? allFields([payload.section]) : []).flatMap((field) =>
-              field.copy ? ['copy', 'check'] : [],
+            ...(payload.section ? cardItems([payload.section]) : []).flatMap((item) =>
+              item.kind === 'copy-value' ? ['copy', 'check'] : [],
             ),
             // And the section's own, drawn at the foot of the page. Both marks
             // when the check has not been made: the page draws the two answers
@@ -124,7 +121,9 @@ export function sendConfigSection(
         */
         option_marks: Object.fromEntries(
           [
-            ...(payload.section ? allFields([payload.section]) : []).flatMap((f) => f.options),
+            ...(payload.section ? allFields([payload.section]) : []).flatMap((f) =>
+              'options' in f ? f.options : [],
+            ),
             ...(payload.section?.addOps ?? []).flatMap((op) => [
               ...op.typeOptions,
               ...(op.nameOptions ?? []),

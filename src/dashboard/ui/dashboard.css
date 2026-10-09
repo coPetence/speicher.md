@@ -1,4 +1,11 @@
 @import '../../global-ui/components/field/field.css';
+@import '../../global-ui/components/config-fields/boolean/boolean.css';
+@import '../../global-ui/components/config-fields/file/file.css';
+@import '../../global-ui/components/config-fields/secret/secret.css';
+@import '../../global-ui/components/config-fields/amount/amount.css';
+@import '../../global-ui/components/config-fields/color/color.css';
+@import '../../global-ui/components/config-fields/template/template.css';
+@import '../../global-ui/components/config-fields/copy-value/copy-value.css';
 @import '../../global-ui/components/info/info.css';
 @import '../../global-ui/components/select/select.css';
 @import '../../global-ui/components/dropdown/dropdown.css';

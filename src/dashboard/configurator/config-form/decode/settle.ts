@@ -1,5 +1,6 @@
 import { Document, isMap, isSeq } from 'yaml';
 
+import type { SelectField } from '../config-fields';
 import { writeAt } from '../document';
 import { FormSection, allFields } from '../model';
 import { MemberRef, memberPath } from '../members';
@@ -137,12 +138,14 @@ function namesSomebody(item: unknown): boolean {
  * reaches nothing.
  */
 export function settleAssetDriver(doc: Document, body: FormBody, section: FormSection): boolean {
-  const control = allFields([section]).find((each) => each.path === 'assets.driver');
+  const control = allFields([section]).find(
+    (each): each is SelectField => each.kind === 'select' && each.path === 'assets.driver',
+  );
   if (!control) return false;
 
   const submitted = body[control.path];
   const driver =
-    typeof submitted === 'string' && submitted !== '' ? submitted : String(control.fallback ?? '');
+    typeof submitted === 'string' && submitted !== '' ? submitted : (control.fallback ?? '');
   if (driver === '') return false;
 
   const block = doc.getIn(['assets'], true);

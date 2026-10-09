@@ -29,7 +29,7 @@ import {
   PROVIDER_ID_HELP,
   allFields,
 } from '../../src/dashboard/configurator/config-form/fields';
-import { renderHelp } from '../../src/dashboard/configurator/config-form/help';
+import { renderHelp } from '../../src/global-ui/help-markup';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { FormBody, formBody, formNames } from '../helpers/form';
 import { Harness, createHarness } from '../helpers/harness';
@@ -1043,7 +1043,7 @@ describe('the identity section', () => {
       in here: that control sits above this form, and its own test owns it.
     */
     const explained = allFields([payload.section])
-      .filter((field) => field.helpHtml)
+      .filter((field) => field.help)
       .map((field) => `help-${field.path.replace(/[._]/g, '-')}`);
     const drawn = [...form.matchAll(/aria-describedby="(help-[^"]+)"/g)].map((m) => m[1]);
 
@@ -1251,7 +1251,7 @@ describe('the content sources section', () => {
     try {
       const { html } = await open('sources/gh');
       expect(html).toMatch(
-        /<p class="spr-help">\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\.[^<]*<\/p>\s*<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>/,
+        /<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>[\s\S]*?<p class="spr-help">\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\./,
       );
       expect(html).toContain('data-spr-clipboard="https://docs.acme.example/-/hooks/gh"');
       expect(html).toContain('data-spr-copy-status');
@@ -1271,7 +1271,7 @@ describe('the content sources section', () => {
       expect(html).toContain('data-spr-clipboard="/-/hooks/gh"');
       // One sentence that also reads right while only the path is shown
       expect(html).toContain(
-        'If only a path is shown, put the address of this instance in front of it.',
+        'If only a path without a host is shown, put the address of this instance in front of it.',
       );
     } finally {
       if (before !== undefined) process.env.SPEICHER_PUBLIC_URL = before;

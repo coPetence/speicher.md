@@ -1,0 +1,2 @@
+    <%/* The same text area as multiline; only how the value is stored differs */%>
+    <%~ include('@config-fields/multiline', it) %>

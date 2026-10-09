@@ -1,0 +1,65 @@
+@layer speicher.base {
+  .spr-switch {
+    cursor: pointer;
+  }
+  .spr-switch:has(> :disabled) {
+    cursor: not-allowed;
+  }
+
+  .spr-switch > input[type='checkbox'] {
+    appearance: none;
+    position: relative;
+    flex: none;
+    inline-size: 2.25em;
+    block-size: 1.25em;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: 999px;
+    background: var(--spr-surface);
+    cursor: inherit;
+    transition:
+      background-color var(--spr-transition),
+      border-color var(--spr-transition);
+  }
+
+  .spr-switch > input[type='checkbox']::before {
+    content: '';
+    position: absolute;
+    inset-block: 0.125em;
+    inset-inline-start: 0.125em;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--spr-muted);
+    transition:
+      translate var(--spr-transition),
+      background-color var(--spr-transition);
+  }
+  .spr-switch > input[type='checkbox']:checked {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+  }
+
+  .spr-switch > input[type='checkbox']:checked::before {
+    background: var(--spr-bg);
+    translate: 1em 0;
+  }
+  .spr-switch > input[type='checkbox']:focus-visible {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+  .spr-switch > input[type='checkbox']:disabled {
+    opacity: 0.6;
+  }
+  @media (forced-colors: active) {
+    .spr-switch > input[type='checkbox']::before {
+      background: CanvasText;
+    }
+
+    .spr-switch > input[type='checkbox']:checked {
+      background: Highlight;
+    }
+
+    .spr-switch > input[type='checkbox']:checked::before {
+      background: Canvas;
+    }
+  }
+}

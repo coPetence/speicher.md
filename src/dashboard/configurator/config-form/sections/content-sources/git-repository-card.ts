@@ -3,9 +3,16 @@
  */
 
 import { scalarString } from '../../document';
-import type { Obj } from '../../field';
-import { SECRET_HELP, at, field } from '../../field';
-import type { Card, Field } from '../../model';
+import type { Field, Obj } from '../../config-fields';
+import {
+  SECRET_HELP,
+  at,
+  durationField,
+  multilineField,
+  secretField,
+  textField,
+} from '../../config-fields';
+import type { Card } from '../../model';
 
 const REPO_ID_PATTERN = '[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}';
 const REPO_ID_HINT =
@@ -18,7 +25,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
   const ssh = url.startsWith('ssh://');
 
   const fields: Field[] = [
-    field(root, [...base, 'id'], p('id'), 'Repository id', 'text', {
+    textField(root, [...base, 'id'], p('id'), 'Repository id', {
       pattern: REPO_ID_PATTERN,
       patternHint: REPO_ID_HINT,
       help:
@@ -27,34 +34,34 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
         'names this repository’s mirror on disk, so it starts with a letter or a ' +
         'digit; it is not the URL, which is the slug below.',
     }),
-    field(root, [...base, 'url'], p('url'), 'Remote URL', 'text', {
+    textField(root, [...base, 'url'], p('url'), 'Remote URL', {
       placeholder: 'ssh://git@example.com/team/docs.git',
       help: 'ssh:// with a deploy key, or https:// with a token. Nothing else is fetched. The path before the repository name is its owner, for example `team` in `ssh://git@example.com/team/docs.git`.',
     }),
-    field(root, [...base, 'slug'], p('slug'), 'URL slug', 'text', {
+    textField(root, [...base, 'slug'], p('slug'), 'URL slug', {
       help: 'Defaults to the id. Changing it leaves the old path serving a redirect.',
     }),
-    field(root, [...base, 'branch'], p('branch'), 'Branch', 'text', {
+    textField(root, [...base, 'branch'], p('branch'), 'Branch', {
       placeholder: 'main',
     }),
   ];
 
   if (ssh) {
     fields.push(
-      field(root, [...base, 'deploy_key'], p('deploy_key'), 'Deploy key', 'secret', {
+      secretField(root, [...base, 'deploy_key'], p('deploy_key'), 'Deploy key', {
         help: SECRET_HELP,
       }),
-      field(root, [...base, 'known_hosts'], p('known_hosts'), 'Known hosts', 'multiline', {
+      multilineField(root, [...base, 'known_hosts'], p('known_hosts'), 'Known hosts', {
         help: 'Overrides the source-wide pin for this repository.',
         rows: 3,
       }),
     );
   } else {
     fields.push(
-      field(root, [...base, 'token'], p('token'), 'Access token', 'secret', {
+      secretField(root, [...base, 'token'], p('token'), 'Access token', {
         help: SECRET_HELP,
       }),
-      field(root, [...base, 'username'], p('username'), 'Username', 'text', {
+      textField(root, [...base, 'username'], p('username'), 'Username', {
         fallback: 'x-access-token',
         placeholder: 'x-access-token',
       }),
@@ -62,7 +69,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
   }
 
   fields.push(
-    field(root, [...base, 'poll_interval'], p('poll_interval'), 'Poll interval', 'duration', {
+    durationField(root, [...base, 'poll_interval'], p('poll_interval'), 'Poll interval', {
       help: 'Overrides the source-wide interval for this repository.',
     }),
   );
@@ -77,7 +84,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
     titleIsKey: id !== '',
     subtitle: url,
     removeOp: `remove:forges.${forgeId}.repos.${index}`,
-    fields,
+    items: fields,
     cards: [],
     addOps: [],
     notes: [],

@@ -27,7 +27,7 @@
       <span class="spr-step-check"><%~ it.check_icon %><span class="spr-clipped">done</span></span>
       <% } %>
     </h2>
-    <p><%~ step.blurbHtml %></p>
+    <p><%~ md(step.blurb) %></p>
 
     <%
       const kinds =

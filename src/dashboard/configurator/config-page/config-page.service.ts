@@ -117,14 +117,12 @@ export class ConfigPageService {
                 title: section.title,
                 icon: sectionIcon(section.id),
                 blurb: section.blurb,
-                blurbHtml: section.blurbHtml,
               }))
           : CONFIG_NAV_SECTIONS.map((entry) => ({
               id: entry.id,
               title: entry.title,
               icon: entry.icon,
               blurb: '',
-              blurbHtml: '',
             })),
       // What the document may be *shown* as, which is not what it may be carried
       // away as: this one elides the logo for length and says nothing in place of a

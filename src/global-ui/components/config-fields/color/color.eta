@@ -1,0 +1,13 @@
+<% const f = it.field %>
+    <%~ include('@config-fields/label', it) %>
+    <span class="spr-swatch">
+      <input
+        type="color"
+        data-spr-swatch-for="<%= f.path %>"
+        hidden
+        aria-hidden="true"
+        tabindex="-1"
+        <%= it.editable ? '' : 'disabled' %>
+      >
+      <%~ include('@config-fields/text-box', it) %>
+    </span>

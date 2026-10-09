@@ -1,16 +1,24 @@
-const UNIT_MS: Record<string, number> = {
-  s: 1_000,
-  m: 60_000,
-  h: 3_600_000,
-  d: 86_400_000,
-};
+/** The units a configured duration such as `30m` can use, with their length */
+export const DURATION_UNITS = [
+  { unit: 's', label: 'seconds', ms: 1_000 },
+  { unit: 'm', label: 'minutes', ms: 60_000 },
+  { unit: 'h', label: 'hours', ms: 3_600_000 },
+  { unit: 'd', label: 'days', ms: 86_400_000 },
+] as const;
+
+/** Splits a configured duration like `30m` into amount and unit, or null when it is none */
+export function splitDuration(value: string): { amount: number; unit: string } | null {
+  // Matches integer + unit: group 1 is the number, group 2 the unit
+  const match = /^(\d+)(s|m|h|d)$/.exec(value);
+  return match ? { amount: Number(match[1]), unit: match[2] } : null;
+}
 
 /** Parse a configured duration like `30m` into milliseconds */
 export function parseDuration(value: string): number {
-  // Matches integer + unit: group 1 is the number, group 2 the unit
-  const match = /^(\d+)(s|m|h|d)$/.exec(value);
-  if (!match) throw new Error(`invalid duration: ${JSON.stringify(value)}`);
-  return Number(match[1]) * UNIT_MS[match[2]];
+  const split = splitDuration(value);
+  const unit = DURATION_UNITS.find((each) => each.unit === split?.unit);
+  if (!split || !unit) throw new Error(`invalid duration: ${JSON.stringify(value)}`);
+  return split.amount * unit.ms;
 }
 
 export function parseDurationWithFallback(value: string | undefined, fallback: string): number {

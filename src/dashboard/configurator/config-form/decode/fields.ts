@@ -1,8 +1,25 @@
 import { Document, isSeq } from 'yaml';
 
+import { composeUnit, entraIssuerFor } from '../config-fields';
+import type {
+  AmountField,
+  BooleanField,
+  CheckboxesField,
+  ColorField,
+  EmbeddingModelField,
+  Field,
+  FieldBase,
+  FieldKind,
+  FieldOf,
+  FileField,
+  MembershipField,
+  NumberField,
+  SecretField,
+  SelectField,
+  TemplateField,
+  TextField,
+} from '../config-fields';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
-import { composeUnit, entraIssuerFor } from '../field';
-import { Field, FieldKind } from '../model';
 import { FormBody, submitted, submittedList } from './body';
 
 /**
@@ -11,9 +28,14 @@ import { FormBody, submitted, submittedList } from './body';
  * The caller decides *which* fields — that is the field model's gate, and it lives
  * in `applyForm`. This file only says what one control's answer means.
  */
-type Decoder = (doc: Document, body: FormBody, field: Field, path: Path) => boolean;
+type Decoder<F extends FieldBase = FieldBase> = (
+  doc: Document,
+  body: FormBody,
+  field: F,
+  path: Path,
+) => boolean;
 
-const decodeBoolean: Decoder = (doc, body, field, path) => {
+const decodeBoolean: Decoder<BooleanField> = (doc, body, field, path) => {
   // An unticked checkbox sends nothing at all, which is how HTML says false —
   // so absence here is a value rather than "not submitted", and this is the one
   // kind that cannot distinguish the two.
@@ -32,7 +54,7 @@ const decodeBoolean: Decoder = (doc, body, field, path) => {
   return writeAtWithDefault(doc, path, value, field.fallback);
 };
 
-const decodeMembership: Decoder = (doc, body, field, path) => {
+const decodeMembership: Decoder<MembershipField> = (doc, body, field, path) => {
   /*
     A switch over one entry of a list. Ticked puts this name in, unticked takes
     it out, and **neither touches the names beside it** — which is the whole
@@ -72,7 +94,7 @@ const decodeMembership: Decoder = (doc, body, field, path) => {
   return writeAt(doc, path, on ? [member] : []);
 };
 
-const decodeAmount: Decoder = (doc, body, field, path) => {
+const decodeAmount: Decoder<AmountField> = (doc, body, field, path) => {
   /*
     Two controls, one value. The amount arrives under the field's own name and
     the unit under a name derived from it — the same shape the logo's remove
@@ -117,7 +139,7 @@ const decodeTenant: Decoder = (doc, body, field, path) => {
   return writeAt(doc, path, tenant === '' ? undefined : entraIssuerFor(tenant));
 };
 
-const decodeCheckboxes: Decoder = (doc, body, field, path) => {
+const decodeCheckboxes: Decoder<CheckboxesField> = (doc, body, field, path) => {
   const values = submittedList(body, field.path);
   // An empty selection is a real answer — "tell nobody" — and is written as an
   // empty list rather than removed, or it would fall back to the default and
@@ -143,7 +165,7 @@ const decodeLines: Decoder = (doc, body, field, path) => {
   return writeAt(doc, path, values.length > 0 ? values : undefined);
 };
 
-const decodeNumber: Decoder = (doc, body, field, path) => {
+const decodeNumber: Decoder<NumberField> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
   const trimmed = raw.trim();
@@ -154,7 +176,7 @@ const decodeNumber: Decoder = (doc, body, field, path) => {
   return writeAtWithDefault(doc, path, Number.isFinite(value) ? value : trimmed, field.fallback);
 };
 
-const decodeFile: Decoder = (doc, body, field, path) => {
+const decodeFile: Decoder<FileField> = (doc, body, field, path) => {
   // The controller writes the upload in here as a `data:` URI before decoding
   // starts, so a file arrives by the same door as every other value and the
   // rule that only rendered paths can be written still holds. Nothing chosen
@@ -178,7 +200,7 @@ const decodeFile: Decoder = (doc, body, field, path) => {
   return false;
 };
 
-const decodeSecret: Decoder = (doc, body, field, path) => {
+const decodeSecret: Decoder<SecretField> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
 
@@ -189,15 +211,15 @@ const decodeSecret: Decoder = (doc, body, field, path) => {
     screen for the island to take; the tick box says to take it here instead,
     and the value goes from the document into the document without ever
     reaching a page. Which value that is comes from the **field model** —
-    `copiedFrom` is built by the server — so a body cannot name a path of its
+    `sourceToCopyFrom` is built by the server — so a body cannot name a path of its
     own to read, which is the property that matters on the form that writes
     `admins`. The box only exists on a field the model gave a source.
 
     Ahead of the blank check below, because the box is ticked *with* an empty
     control: that is the whole case.
   */
-  if (field.copiedFrom && submitted(body, `copy:${field.path}`) === 'on') {
-    const source = dottedPath(field.copiedFrom);
+  if (field.sourceToCopyFrom && submitted(body, `copy:${field.path}`) === 'on') {
+    const source = dottedPath(field.sourceToCopyFrom);
     const value = doc.getIn(source);
     if (typeof value === 'string' && value !== '') return writeAt(doc, path, value);
   }
@@ -210,7 +232,9 @@ const decodeSecret: Decoder = (doc, body, field, path) => {
   return writeAt(doc, path, raw.trim());
 };
 
-const decodeText: Decoder = (doc, body, field, path) => {
+const decodeText: Decoder<
+  TextField | EmbeddingModelField | SelectField | TemplateField | ColorField
+> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
   return writeAtWithDefault(doc, path, raw.trim(), field.fallback);
@@ -219,13 +243,15 @@ const decodeText: Decoder = (doc, body, field, path) => {
 /**
  * Which decoder reads which kind of control.
  *
- * A `Record` rather than a `switch` with a `default`, so a kind added to
- * `FieldKind` fails to compile until somebody says how it decodes. A `default`
- * reads an unknown kind as a trimmed text box, which for a control whose absence
- * is a value — a switch, a membership — is a silent write.
+ * A map rather than a `switch` with a `default`, so a kind added to `FieldKind`
+ * fails to compile until somebody says how it decodes. A `default` reads an
+ * unknown kind as a trimmed text box, which for a control whose absence is a
+ * value — a switch, a membership — is a silent write. Each decoder receives the
+ * field of its own kind.
  */
-const DECODERS: Record<FieldKind, Decoder> = {
+const DECODERS: { [K in FieldKind]: Decoder<FieldOf<K>> } = {
   text: decodeText,
+  'embedding-model': decodeText,
   select: decodeText,
   template: decodeText,
   color: decodeText,
@@ -244,7 +270,10 @@ const DECODERS: Record<FieldKind, Decoder> = {
 
 /** Apply one field's submitted value; true when the document actually changed. */
 export function applyField(doc: Document, body: FormBody, field: Field): boolean {
-  return DECODERS[field.kind](doc, body, field, dottedPath(field.path));
+  // TypeScript cannot follow that `DECODERS[field.kind]` takes this very field, so the
+  // lookup is widened to take any; the map above is what guarantees the pairing
+  const decode = DECODERS[field.kind] as Decoder<Field>;
+  return decode(doc, body, field, dottedPath(field.path));
 }
 
 /**

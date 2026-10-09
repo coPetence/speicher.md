@@ -14,8 +14,8 @@
  */
 
 import { scalarString } from './document';
-import { at, entraTenantOf } from './field';
-import type { Obj } from './field';
+import { at, entraTenantOf } from './config-fields';
+import type { Obj } from './config-fields';
 import type { Option } from './model';
 
 export interface ProviderKind {

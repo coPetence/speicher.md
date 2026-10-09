@@ -2,10 +2,10 @@
  * Content source configuration page
  */
 
-import type { Obj } from '../../field';
-import { at, field } from '../../field';
+import type { Field, Obj } from '../../config-fields';
+import { at, textField } from '../../config-fields';
 import { forgeMark, forgeType, memberSectionId, nounOf } from '../../members';
-import type { Card, Field } from '../../model';
+import type { Card } from '../../model';
 import type { SectionSource } from '../registry';
 import { urlCard } from './content-source-urls-card';
 import { fetchingCard } from './git-fetching-card';
@@ -30,7 +30,7 @@ export function forgeSection(root: Obj, id: string): SectionSource {
 
   // Advanced fields may not sit in a card, so the base URL stays on the section
   const fields: Field[] = [
-    field(root, [...base, 'base_url'], p('base_url'), 'Base URL', 'text', {
+    textField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
       placeholder: 'https://github.example.com',
       help: 'The base URL is the address of your own GitHub Enterprise Server, for example `https://github.example.com`. Leave it empty if you use GitHub.com.',
       advanced: true,

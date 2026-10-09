@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 
-import { renderHelp } from '../../../configurator/config-form/help';
 import { DashboardResponder } from '../../../respond';
 import { DashboardHit } from '../../../search/search';
 import { renderInlineIcon } from '../../../../content-reader/icons';
@@ -33,11 +32,6 @@ export function sendDashboardSearch(
         ...data,
 
         shown: data.hits.length,
-        hits: data.hits.map((hit) => ({
-          ...hit,
-
-          help_html: renderHelp(hit.help),
-        })),
 
         hit_icons: Object.fromEntries(
           data.hits

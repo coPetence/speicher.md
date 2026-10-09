@@ -82,8 +82,8 @@
   <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
 </p>
 
-<% it.waiting_consequences_html.forEach(function (line) { %>
-<p class="spr-note spr-note-warn"><%~ line %></p>
+<% it.waiting_consequences.forEach(function (line) { %>
+<p class="spr-note spr-note-warn"><%~ md(line) %></p>
 <% }) %>
 <% } else { %>
 <p class="spr-note spr-note-idle">
@@ -103,7 +103,7 @@
         <%~ it.tile_icons[section.icon] || '' %>
         <div>
           <h4><a href="/-/config/<%= section.id %>"><%= section.title %></a></h4>
-          <% if (section.blurb) { %><p class="spr-card-sub"><%~ section.blurbHtml %></p><% } %>
+          <% if (section.blurb) { %><p class="spr-card-sub"><%~ md(section.blurb) %></p><% } %>
         </div>
       </div>
     </section>

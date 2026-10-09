@@ -12,6 +12,6 @@
     <span 
       class="spr-info-note" 
       role="tooltip" 
-      id="<%= id %>"><%~ it.field.helpHtml %>
+      id="<%= id %>"><%~ md(it.field.help) %>
     </span>
   </span>
