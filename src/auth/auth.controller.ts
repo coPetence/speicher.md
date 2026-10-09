@@ -15,6 +15,7 @@ import { SetupService } from '../dashboard/setup/setup.service';
 import { sendMagicLink } from './views/magic-link/magic-link';
 import { sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
+import { GITHUB_CALLBACK_PATH } from './callback-url';
 import { callerOf } from './caller.middleware';
 import { GithubAuthService } from './github.service';
 import { CompletedLogin } from './login-result';
@@ -408,7 +409,7 @@ export class AuthController {
   }
 
   private githubCallbackUri(req: Request): string {
-    return `${originOf(req)}/api/auth/github/callback`;
+    return `${originOf(req)}${GITHUB_CALLBACK_PATH}`;
   }
 
   /**

@@ -7,12 +7,15 @@
  * document rather than reading `type`
  */
 
+import { GITHUB_CALLBACK_PATH, githubCallbackUrl, publicUrl } from '../../../../auth/callback-url';
+
 import { scalarString } from '../document';
 import type { Field, Obj } from '../config-fields';
 import {
   SECRET_HELP,
   at,
   booleanField,
+  copyValue,
   durationField,
   entraTenantField,
   isEnvPlaceholder,
@@ -36,7 +39,7 @@ import {
   type KindHint,
 } from '../members';
 import { unavailableOption } from '../model';
-import type { Option, SectionEntry } from '../model';
+import type { Card, Option, SectionEntry } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
@@ -220,6 +223,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     id: memberSectionId('identity', id),
     title: id,
     parent: 'identity',
+    cards: kind === 'github' ? [githubAppCard()] : [],
     mark: kindOf(kind)?.mark ?? '',
     // The last remaining provider cannot be removed
     removeOp: providerIds(root).length > 1 ? `remove:auth.providers.${id}` : null,
@@ -230,8 +234,30 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     blurb: providerBlurb(kind),
     fields,
     entries: [],
+    addOps: [],
+  };
+}
+
+function githubAppCard(): Card {
+  return {
+    title: `URL's for the GitHub App`,
+    subtitle:
+      'Enter these two addresses when creating the OApp, under Developer settings → ' +
+      'OAuth Apps.',
+    removeOp: null,
+    notes: [],
     cards: [],
     addOps: [],
+    items: [
+      copyValue(
+        'Homepage URL',
+        publicUrl() ?? '/',
+      ),
+      copyValue(
+        'Authorization callback URL',
+        githubCallbackUrl() ?? GITHUB_CALLBACK_PATH,
+      ),
+    ],
   };
 }
 
