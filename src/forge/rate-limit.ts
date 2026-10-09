@@ -11,6 +11,7 @@
  */
 
 import { Logger, rootLogger } from '../common/logger';
+import { retryAfterHeaderToMs } from '../common/time';
 
 export class TokenBucket {
   private tokens: number;
@@ -96,9 +97,10 @@ export class RateLimiter {
       this.bucket(key).blockUntil(reset * 1000);
       this.log.warn('forge rate limit exhausted; pausing until reset', { key, reset });
     }
-    const retryAfter = Number(headers.get('retry-after') ?? NaN);
-    if (Number.isFinite(retryAfter)) {
-      this.bucket(key).blockUntil(Date.now() + retryAfter * 1000);
+
+    const retryAfter = retryAfterHeaderToMs(headers.get('retry-after'));
+    if (retryAfter !== null) {
+      this.bucket(key).blockUntil(Date.now() + retryAfter);
     }
   }
 }

@@ -335,6 +335,16 @@ export class ConfigService {
     return this.instance.groups?.[name] ?? [];
   }
 
+  groupSourceIdsFor(providerId: string): string[] {
+    const out = new Set<string>();
+    for (const sources of Object.values(this.instance.groups ?? {})) {
+      for (const source of sources) {
+        if (source.provider === providerId && source.id !== undefined) out.add(source.id);
+      }
+    }
+    return [...out].sort();
+  }
+
   hasGroup(name: string): boolean {
     return Object.prototype.hasOwnProperty.call(this.instance.groups ?? {}, name);
   }

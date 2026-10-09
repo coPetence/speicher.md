@@ -22,6 +22,7 @@ import { SETUP_PROVIDER } from '../common/principals';
 import { ConfigService } from '../config/config.service';
 import { providerType } from '../config/types';
 import { Session, initModels } from '../db/models';
+import { refreshGroupIds } from './directory/lookup';
 import { hashToken, mintToken } from './tokens';
 
 export const SESSION_COOKIE = 'speicher_session';
@@ -118,9 +119,27 @@ export class SessionService {
         email: row.email,
         displayName: row.display_name,
       },
-      rawGroupIds: row.raw_group_ids ?? [],
+      rawGroupIds: await this.groupsOf(row),
       isSetup: row.is_setup === true,
     };
+  }
+
+  private async groupsOf(row: Session): Promise<string[]> {
+    const held = row.raw_group_ids ?? [];
+
+    const fresh = await refreshGroupIds(
+      this.config,
+      row.provider,
+      row.subject,
+      row.groups_fetched_at,
+    );
+    if (fresh === null) return held;
+
+    await Session.update(
+      { raw_group_ids: fresh, groups_fetched_at: new Date() },
+      { where: { id: row.id } },
+    );
+    return fresh;
   }
 
   async destroy(req: Request, res: Response): Promise<void> {

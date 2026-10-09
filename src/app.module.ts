@@ -38,6 +38,7 @@ import { OauthService } from './auth/oauth/oauth.service';
 import { CIMD_DEPS } from './auth/oauth/cimd';
 import { AuthController } from './auth/auth.controller';
 import { MagicLinkService } from './auth/magic-link.service';
+import { GithubAuthService } from './auth/github.service';
 import { OidcService } from './auth/oidc.service';
 import { CallerMiddleware } from './auth/caller.middleware';
 import { SessionService } from './auth/session.service';
@@ -166,6 +167,11 @@ import { SearchService } from './content-reader/search/search.service';
       provide: OidcService,
       inject: [ConfigService],
       useFactory: (c: ConfigService) => new OidcService(c),
+    },
+    {
+      provide: GithubAuthService,
+      inject: [ConfigService],
+      useFactory: (c: ConfigService) => new GithubAuthService(c),
     },
     {
       provide: MagicLinkService,

@@ -977,7 +977,7 @@
     },
     "githubProvider": {
       "type": "object",
-      "description": "GitHub as an identity provider for readers. Groups map to org teams as \"org/team-slug\". Team membership is resolved by API call at login, not from a token claim. This is a separate OAuth client from the GitHub App used for content; the App only supplies identity directly if \"Request user authorization during installation\" is enabled.",
+      "description": "GitHub as an identity provider for readers. Groups map to org teams as \"org/team-slug\".",
       "required": ["type", "client_id"],
       "additionalProperties": false,
       "properties": {
@@ -987,7 +987,7 @@
         "display_name": {
           "type": "string",
           "maxLength": 60,
-          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\"."
         },
         "client_id": {
           "type": "string"
@@ -1000,10 +1000,10 @@
           "format": "uri",
           "description": "GitHub Enterprise Server only."
         },
-        "team_cache_ttl": {
+        "session_ttl": {
           "$ref": "#/$defs/duration",
-          "default": "15m",
-          "description": "Team membership is an API call; cache it. Shorter means faster revocation, more requests."
+          "default": "8h",
+          "description": "Team memberships are read once, at sign-in, so a team somebody has been taken out of keeps working for them until this expires and they sign in again."
         },
         "directory": {
           "$ref": "#/$defs/directory"
@@ -1018,7 +1018,7 @@
       "properties": {
         "type": {
           "enum": ["graph", "github"],
-          "description": "graph = Microsoft Graph. github = the org API, which the github provider already uses."
+          "description": "graph = Microsoft Graph; github = GitHub organisation API"
         },
         "tenant_id": {
           "type": "string",
@@ -1031,6 +1031,14 @@
         "client_secret": {
           "type": "string",
           "description": "graph"
+        },
+        "app_id": {
+          "type": "string",
+          "description": "github. The App id for the directory GitHub App"
+        },
+        "private_key": {
+          "type": "string",
+          "description": "github. The PEM of the App named"
         },
         "cache_ttl": {
           "$ref": "#/$defs/duration",

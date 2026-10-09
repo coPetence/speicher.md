@@ -16,6 +16,8 @@ import { sendMagicLink } from './views/magic-link/magic-link';
 import { sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
 import { callerOf } from './caller.middleware';
+import { GithubAuthService } from './github.service';
+import { CompletedLogin } from './login-result';
 import { MagicLinkService } from './magic-link.service';
 import { OidcService, safeRedirect } from './oidc.service';
 import { SessionService } from './session.service';
@@ -26,8 +28,8 @@ const BROWSER_BINDING_COOKIE = 'speicher_binding';
 /**
  * Sign-in, sign-out, and identity endpoints
  *
- * Three flows: OIDC, magic-link email, dev-login
- * Handles the first-admin promotion when the first admin signs in
+ * Supported Flows: OIDC, GitHub, magic-link email, dev-login
+ * Also handles first-admin promotion during setup
  *
  * All routes are under `/api/auth`
  */
@@ -39,6 +41,7 @@ export class AuthController {
     private readonly config: ConfigService,
     private readonly sessions: SessionService,
     private readonly oidc: OidcService,
+    private readonly github: GithubAuthService,
     private readonly magic: MagicLinkService,
     private readonly tenancy: TenancyService,
     private readonly setup: SetupService,
@@ -59,16 +62,27 @@ export class AuthController {
     const providers = this.config.providerIds;
 
     const devLoginEnabled = env('SPEICHER_DEV_LOGIN');
-    const chosen =
+    const chosenProvider =
       providerId ?? (providers.length === 1 && !devLoginEnabled ? providers[0] : undefined);
-    if (!chosen || !this.config.provider(chosen)) {
+    if (!chosenProvider || !this.config.provider(chosenProvider)) {
       sendSignIn(req, res, this.config, safeRedirect(redirectTo));
       return;
     }
 
-    const kind = providerType(this.config.provider(chosen)!);
+    const kind = providerType(this.config.provider(chosenProvider)!);
     if (kind === 'magic-link') {
-      sendMagicLink(req, res, this.config, chosen, safeRedirect(redirectTo));
+      sendMagicLink(req, res, this.config, chosenProvider, safeRedirect(redirectTo));
+      return;
+    }
+    if (kind === 'github') {
+      await this.startRedirect(req, res, chosenProvider, redirectTo, () =>
+        this.github.authorizationUrl(
+          tenant.id,
+          chosenProvider,
+          this.githubCallbackUri(req),
+          safeRedirect(redirectTo),
+        ),
+      );
       return;
     }
     if (kind !== 'oidc') {
@@ -76,19 +90,32 @@ export class AuthController {
       return;
     }
 
-    try {
-      const url = await this.oidc.authorizationUrl(
+    await this.startRedirect(req, res, chosenProvider, redirectTo, () =>
+      this.oidc.authorizationUrl(
         tenant.id,
-        chosen,
+        chosenProvider,
         this.callbackUri(req),
         safeRedirect(redirectTo),
-      );
-      res.redirect(302, url);
-    } catch (err) {
-      const provider = this.config.provider(chosen);
-      this.log.error('could not start login', {
-        provider: chosen,
+      ),
+    );
+  }
 
+  /**
+   * Redirect caller to provider
+   */
+  private async startRedirect(
+    req: Request,
+    res: Response,
+    providerId: string,
+    redirectTo: string,
+    build: () => Promise<string>,
+  ): Promise<void> {
+    try {
+      res.redirect(302, await build());
+    } catch (err) {
+      const provider = this.config.provider(providerId);
+      this.log.error('could not start login', {
+        provider: providerId,
         issuer: provider && 'issuer' in provider ? provider.issuer : undefined,
         error: (err as Error).message,
       });
@@ -98,7 +125,7 @@ export class AuthController {
         res,
         this.config,
         safeRedirect(redirectTo),
-        `Could not reach the "${chosen}" sign-in provider.`,
+        `Could not reach the "${providerId}" sign-in provider.`,
       );
     }
   }
@@ -115,6 +142,33 @@ export class AuthController {
     @Query('code') code?: string,
     @Query('state') state?: string,
   ): Promise<void> {
+    await this.completeCallback(req, res, code, state, (tenantId, verified, issued) =>
+      this.oidc.completeLogin(tenantId, verified, issued, this.callbackUri(req)),
+    );
+  }
+
+  /**
+   * Complete a GitHub login
+   */
+  @Get('github/callback')
+  async githubCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('code') code?: string,
+    @Query('state') state?: string,
+  ): Promise<void> {
+    await this.completeCallback(req, res, code, state, (tenantId, verified, issued) =>
+      this.github.completeLogin(tenantId, verified, issued, this.githubCallbackUri(req)),
+    );
+  }
+
+  private async completeCallback(
+    req: Request,
+    res: Response,
+    code: string | undefined,
+    state: string | undefined,
+    complete: (tenantId: string, code: string, state: string) => Promise<CompletedLogin>,
+  ): Promise<void> {
     const tenant = await this.tenancy.resolveTenant(req);
     if (!code || !state) {
       sendSignInMessage(
@@ -122,26 +176,12 @@ export class AuthController {
         res,
         this.config,
         400,
-        'The sign-in provider did not return an authorization code. Try signing in ' + 'again.',
+        'The sign-in provider did not return an authorization code. Try signing in again.',
       );
       return;
     }
     try {
-      const result = await this.oidc.completeLogin(tenant.id, code, state, this.callbackUri(req));
-
-      if (result.namesFirstAdmin) {
-        const written = await nameFirstAdmin(
-          tenant.id,
-          result.identity,
-          this.config.adminPrincipals().length > 0,
-        );
-
-        if (written) await this.watcher.refresh();
-      }
-
-      await this.sessions.create(tenant.id, result.identity, result.rawGroupIds, res);
-      await this.noteAdminLogin(tenant.id, result.identity, result.rawGroupIds);
-      res.redirect(302, result.redirectTo);
+      await this.finishLogin(tenant.id, await complete(tenant.id, code, state), res);
     } catch (err) {
       this.log.warn('login callback failed', { error: (err as Error).message });
       sendSignInMessage(
@@ -152,6 +192,26 @@ export class AuthController {
         'The sign-in could not be completed. Try signing in again.',
       );
     }
+  }
+
+  private async finishLogin(
+    tenantId: string,
+    result: CompletedLogin,
+    res: Response,
+  ): Promise<void> {
+    if (result.namesFirstAdmin) {
+      const written = await nameFirstAdmin(
+        tenantId,
+        result.identity,
+        this.config.adminPrincipals().length > 0,
+      );
+
+      if (written) await this.watcher.refresh();
+    }
+
+    await this.sessions.create(tenantId, result.identity, result.rawGroupIds, res);
+    await this.noteAdminLogin(tenantId, result.identity, result.rawGroupIds);
+    res.redirect(302, result.redirectTo);
   }
 
   /**
@@ -345,6 +405,10 @@ export class AuthController {
 
   private callbackUri(req: Request): string {
     return `${originOf(req)}/api/auth/callback`;
+  }
+
+  private githubCallbackUri(req: Request): string {
+    return `${originOf(req)}/api/auth/github/callback`;
   }
 
   /**

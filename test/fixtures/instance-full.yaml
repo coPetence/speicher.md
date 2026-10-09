@@ -109,12 +109,11 @@ auth:
       client_id: ${TEST_ENTRA_CLIENT_ID}
       client_secret: ${TEST_ENTRA_CLIENT_SECRET}
       base_url: https://github.example.test
-      team_cache_ttl: 15m
+      session_ttl: 8h
       directory:
         type: github
-        tenant_id: unused
-        client_id: a-client
-        client_secret: ${TEST_ENTRA_CLIENT_SECRET}
+        app_id: ${TEST_GH_DIRECTORY_APP_ID}
+        private_key: ${TEST_GH_PRIVATE_KEY}
         cache_ttl: 1h
 
 groups:
