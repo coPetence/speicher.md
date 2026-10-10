@@ -2271,7 +2271,6 @@ describe('a value with a unit', () => {
 
     expect(body['assets.max_asset_bytes']).toBe('10');
     expect(body['unit:assets.max_asset_bytes']).toBe('MB');
-    expect(body['unit:assets.presign_ttl']).toBe('s');
     expect(html).toContain('class="spr-unit"');
     expect(html).toMatch(/aria-label="Largest asset, unit"/);
   });
@@ -2289,14 +2288,11 @@ describe('a value with a unit', () => {
       'assets.path': './var/assets',
       'assets.max_asset_bytes': '2',
       'unit:assets.max_asset_bytes': 'GB',
-      'assets.presign_ttl': '5',
-      'unit:assets.presign_ttl': 'm',
       intent: 'apply',
     }).expect(303);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).toContain('max_asset_bytes: 2000000000');
-    expect(yaml).toContain('presign_ttl: 5m');
   });
 
   it('comes back out in the unit it was stored in', async () => {

@@ -4,6 +4,7 @@ import { reasonOf } from '../common/errors';
 
 import type { TokenCredential } from '@azure/identity';
 import {
+  BlobSASPermissions,
   BlobServiceClient,
   ContainerClient,
   StorageSharedKeyCredential,
@@ -18,7 +19,7 @@ import {
 import { ConfigError } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { AssetsConfig } from '../config/types';
-import { BlobStore, StoreStatus, blobKey } from './blob-store';
+import { BlobStore, PresignRequest, StoreStatus, blobKey } from './blob-store';
 
 export type AzureAuthKind = 'connection_string' | 'key' | AzureCredentialConfig['kind'];
 
@@ -58,6 +59,9 @@ export class AzureBlobStore implements BlobStore {
     private readonly container: ContainerClient,
 
     private readonly description: string,
+
+    /** Whether this container's client holds an account key, so it can sign a SAS */
+    private readonly canSign: boolean,
   ) {}
 
   describe(): string {
@@ -96,9 +100,21 @@ export class AzureBlobStore implements BlobStore {
     return body as Readable;
   }
 
-  /** Not implemented */
-  async presign(): Promise<string | null> {
-    return null;
+  async presign(
+    repoId: string,
+    contentHash: string,
+    request: PresignRequest,
+  ): Promise<string | null> {
+    if (!this.canSign) return null;
+
+    return this.blob(repoId, contentHash).generateSasUrl({
+      permissions: BlobSASPermissions.parse('r'),
+      expiresOn: new Date(Date.now() + request.ttlSeconds * 1000),
+      // Quotes and backslashes would end the header's quoted string early
+      contentDisposition: `inline; filename="${request.filename.replace(/["\\]/g, '')}"`,
+      // Without this the container answers octet-stream, which is how it is stored
+      contentType: request.mime,
+    });
   }
 
   /** Checks the container with a timeout */
@@ -159,9 +175,13 @@ export function createAzureBlobStore(
     `container "${options.container}" on storage account "${options.account}" ` +
     `(${describeAuth(options)})`;
 
-  rootLogger.child('assets').info('azure blob store configured', { store: description });
+  const canSign = options.auth === 'key' || options.auth === 'connection_string';
 
-  return new AzureBlobStore(container, description);
+  rootLogger
+    .child('assets')
+    .info('azure blob store configured', { store: description, presigns: canSign });
+
+  return new AzureBlobStore(container, description, canSign);
 }
 
 function credentialConfigOf(options: AzureBlobStoreOptions): AzureCredentialConfig | null {

@@ -16,7 +16,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigError, reasonOf } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { AssetsConfig } from '../config/types';
-import { BlobStore, StoreStatus, blobKey } from './blob-store';
+import { BlobStore, PresignRequest, StoreStatus, blobKey } from './blob-store';
 
 /** Resolved options for the s3 driver */
 export interface S3BlobStoreOptions {
@@ -145,27 +145,21 @@ export class S3BlobStore implements BlobStore {
 
   /**
    * A short-lived URL the browser can fetch straight from the bucket
-   *
-   * Nothing calls this yet: every asset is proxied through the reader after its
-   * authz check. It is implemented because this is the driver where presigning is
-   * the point, and because MinIO can prove it works
-   *
-   * The signed URL carries no content type -- the stored object is octet-stream --
-   * so whoever wires the read path has to pass the mime through as well
    */
   async presign(
     repoId: string,
     contentHash: string,
-    ttlSeconds: number,
-    filename: string,
+    request: PresignRequest,
   ): Promise<string | null> {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: blobKey(repoId, contentHash),
       // Quotes and backslashes would end the header's quoted string early
-      ResponseContentDisposition: `inline; filename="${filename.replace(/["\\]/g, '')}"`,
+      ResponseContentDisposition: `inline; filename="${request.filename.replace(/["\\]/g, '')}"`,
+      // Without this the bucket answers octet-stream, which is how it is stored
+      ResponseContentType: request.mime,
     });
-    return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
+    return getSignedUrl(this.client, command, { expiresIn: request.ttlSeconds });
   }
 
   /** Checks the bucket with a timeout, telling an absent bucket from a refused one */

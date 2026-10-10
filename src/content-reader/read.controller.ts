@@ -20,9 +20,10 @@ import { SessionService } from '../auth/session.service';
 import { ResolvedCaller } from '../authz/caller';
 import { GraphRepository } from '../authz/content/graph.repository';
 import { PageRepository } from '../authz/content/pages.repository';
-import { ChildRow, RelatedRow, TermRow } from '../authz/content/types';
+import { AssetRow, ChildRow, RelatedRow, TermRow } from '../authz/content/types';
 import { env } from '../common/env';
 import { reasonOf } from '../common/errors';
+import { parseDurationWithFallback } from '../common/time';
 import { Logger, rootLogger } from '../common/logger';
 import { splitPath } from '../common/slug';
 import { ConfigService } from '../config/config.service';
@@ -279,6 +280,50 @@ export class ReadController {
     return true;
   }
 
+  private async redirectToStore(
+    caller: ResolvedCaller,
+    asset: AssetRow,
+    route: ResolvedRoute,
+    res: Response,
+  ): Promise<boolean> {
+    const { presign_over_bytes: over, presign_ttl: ttl } = this.config.assets;
+    if (!over || over <= 0 || asset.size_bytes <= over) return false;
+    if (asset.mime.startsWith('image/')) return false;
+
+    const filename = asset.slug_path.split('/').pop() ?? 'asset';
+    let url: string | null = null;
+    try {
+      url = await this.blobs.presign(route.repoId, asset.content_hash, {
+        ttlSeconds: Math.round(parseDurationWithFallback(ttl, '60s') / 1000),
+        filename,
+        mime: asset.mime,
+      });
+    } catch (err) {
+      // Signing is local arithmetic for both drivers that do it, so a failure
+      // here is a surprise worth saying out loud -- and then proxying anyway
+      this.log.warn('could not presign an asset, serving it instead', {
+        repo_id: route.repoId,
+        slug_path: asset.slug_path,
+        store: this.blobs.kind,
+        reason: reasonOf(err),
+      });
+      return false;
+    }
+    if (url === null) return false;
+
+    this.log.debug('handed an asset to the store', {
+      repo_id: route.repoId,
+      slug_path: asset.slug_path,
+      store: this.blobs.kind,
+      anonymous: caller.identity === null,
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Vary', 'Cookie, Authorization');
+    res.redirect(302, url);
+    return true;
+  }
+
   // Serves a binary asset from the blob store with conditional GET via ETag
   // Public assets get longer cache lifetime
   private async tryAsset(
@@ -297,6 +342,8 @@ export class ReadController {
 
     const ifNoneMatch = req.headers['if-none-match'];
     const revalidated = typeof ifNoneMatch === 'string' && ifNoneMatch.includes(asset.content_hash);
+
+    if (!revalidated && (await this.redirectToStore(caller, asset, route, res))) return true;
 
     let bytes: Buffer | null = null;
     if (!revalidated) {

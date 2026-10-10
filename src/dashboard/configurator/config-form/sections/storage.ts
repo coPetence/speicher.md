@@ -142,8 +142,7 @@ export function storageSection(root: Obj): SectionSource {
     fields.push(
       textField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', {
         help:
-          'Only for a sovereign cloud or a local emulator. The account URL, not the ' +
-          "container's — the container is appended.",
+          'Only for a sovereign cloud or a local emulator',
       }),
     );
   } else {
@@ -158,27 +157,33 @@ export function storageSection(root: Obj): SectionSource {
   fields.push(
     bytesField(root, ['assets', 'max_asset_bytes'], 'assets.max_asset_bytes', 'Largest asset', {
       fallback: 10000000,
-      help: 'Anything larger is reported to the author as a finding, and not stored.',
+      help: 'Larger files are not stored. A finding will be reported to the author.',
     }),
-    bytesField(
-      root,
-      ['assets', 'presign_over_bytes'],
-      'assets.presign_over_bytes',
-      'Pre-sign above',
-      {
-        help: 'Zero proxies everything. Above this size the store is asked for a short-lived URL.',
-      },
-    ),
-    durationField(
-      root,
-      ['assets', 'presign_ttl'],
-      'assets.presign_ttl',
-      'Pre-signed URL lifetime',
-      {
-        fallback: '60s',
-      },
-    ),
   );
+
+  if (driver === 's3' || driver === 'azure') {
+    fields.push(
+      bytesField(
+        root,
+        ['assets', 'presign_over_bytes'],
+        'assets.presign_over_bytes',
+        'Pre-sign above',
+        {
+          help:
+            'Above this size we use a presigned url to serve the image to avoid proxying it through your backend. This does not apply to inline images. Set to zero if you want to proxy everything.',
+        },
+      ),
+      durationField(
+        root,
+        ['assets', 'presign_ttl'],
+        'assets.presign_ttl',
+        'Pre-signed URL lifetime',
+        {
+          fallback: '60s',
+        },
+      ),
+    );
+  }
 
   return {
     ...sectionHead('storage'),

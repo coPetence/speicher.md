@@ -56,6 +56,13 @@ const SCHEMA = JSON.parse(
 
 const FULL = readFileSync(join(__dirname, '../fixtures/instance-full.yaml'), 'utf8');
 
+// The pre-signing fields are only drawn for a store that can hand out a URL, so a
+// duration in the storage section needs a document whose driver is one of those
+const FULL_PRESIGNING = FULL.replace(
+  'driver: filesystem\n  path: ./var/assets',
+  'driver: s3\n  bucket: acmedocs\n  region: eu-central-1',
+);
+
 function fieldsFor(yaml: string): Field[] {
   return allFields(buildSections(loadDocument(yaml)));
 }
@@ -888,7 +895,7 @@ describe('durations', () => {
   });
 
   it('take a value apart and put it back exactly as it was', () => {
-    const doc = loadDocument(FULL);
+    const doc = loadDocument(FULL_PRESIGNING);
     const before = serialise(doc);
     const section = sectionOf(doc, 'storage')!;
     const body = untouchedBody(allFields([section]));
@@ -931,7 +938,7 @@ describe('durations', () => {
   });
 
   it('keep a plain box for a value they cannot take apart', () => {
-    const yaml = FULL.replace('presign_ttl: 60s', 'presign_ttl: ${ASSET_TTL}');
+    const yaml = FULL_PRESIGNING.replace('presign_ttl: 60s', 'presign_ttl: ${ASSET_TTL}');
     const control = ofKind(
       fieldsFor(yaml).find((f) => f.path === 'assets.presign_ttl'),
       'duration',
