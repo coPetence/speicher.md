@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 import { QueryTypes } from 'sequelize';
 
-import { FilesystemBlobStore } from '../src/assets/blob-store';
+import { BlobStore, blobStoreFor } from '../src/assets/blob-store';
 import { ApiKeyService } from '../src/auth/api-key.service';
 import { SESSION_COOKIE } from '../src/auth/session.service';
 import { hashToken, mintToken } from '../src/auth/tokens';
@@ -18,6 +18,9 @@ import { IngestService } from '../src/ingest/ingest.service';
 import { devEnv } from './dev-env';
 
 const FIXTURES = resolve(__dirname, '../test/fixtures');
+
+// At module scope so teardown can release it whatever main() did
+let blobs: BlobStore | undefined;
 
 process.env.SPEICHER_LOG_LEVEL ??= 'error';
 Object.assign(process.env, devEnv());
@@ -102,7 +105,10 @@ async function main(): Promise<void> {
     { dir: 'fieldkit', namespace: 'copetence', slug: 'fieldkit', forgeRepoId: '41775319' },
   ];
 
-  const blobs = new FilesystemBlobStore(process.env.SPEICHER_ASSET_PATH as string);
+  // Whatever the instance reads from: seeding to a hardcoded volume while the
+  // app serves from a bucket leaves every fixture asset unreadable, and no sync
+  // can repair it because these repos have no remote to walk again
+  blobs = blobStoreFor(config);
   const ingest = new IngestService(config, blobs, sequelize);
 
   for (const spec of repos) {
@@ -202,4 +208,7 @@ main()
     process.stderr.write(`${(err as Error).stack ?? (err as Error).message}\n`);
     process.exitCode = 1;
   })
-  .finally(() => closeSequelize());
+  .finally(async () => {
+    await blobs?.close?.();
+    await closeSequelize();
+  });

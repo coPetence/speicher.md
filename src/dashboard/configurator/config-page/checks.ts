@@ -146,8 +146,12 @@ export class SectionChecks {
       return;
     }
 
-    const status = await store.probe();
-    note(status.level, status.label, status.detail);
+    try {
+      const status = await store.probe();
+      note(status.level, status.label, status.detail);
+    } finally {
+      if (!inForce) await store.close?.();
+    }
   }
 
   private async checkMail(

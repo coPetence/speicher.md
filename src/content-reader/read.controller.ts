@@ -22,6 +22,7 @@ import { GraphRepository } from '../authz/content/graph.repository';
 import { PageRepository } from '../authz/content/pages.repository';
 import { ChildRow, RelatedRow, TermRow } from '../authz/content/types';
 import { env } from '../common/env';
+import { reasonOf } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { splitPath } from '../common/slug';
 import { ConfigService } from '../config/config.service';
@@ -305,11 +306,12 @@ export class ReadController {
         try {
           bytes = await this.blobs.get(route.repoId, asset.content_hash);
           this.cache.set(cacheKey, bytes);
-        } catch {
-          // Ingest row exists but blob is missing -- treat as 404
-          this.log.warn('asset row has no blob', {
+        } catch (err) {
+          this.log.warn('asset could not be read from the store', {
             repo_id: route.repoId,
-            content_hash: asset.content_hash,
+            slug_path: asset.slug_path,
+            store: this.blobs.kind,
+            reason: reasonOf(err),
           });
           return false;
         }

@@ -1,7 +1,7 @@
 /**
  * Blob (binary large object) storage abstraction
  *
- * Three drivers: filesystem, S3 (not yet wired), Azure Blob
+ * Three drivers: filesystem, S3, Azure Blob
  * The config lives under `assets.*` in config files
  *
  * Files are stored as `${repoId}/${hash[:2]}/${hash}`, local or in a bucket
@@ -18,6 +18,7 @@ import { Readable } from 'node:stream';
 import { ConfigService } from '../config/config.service';
 import { AssetsConfig } from '../config/types';
 import { createAzureBlobStore } from './azure-blob-store';
+import { createS3BlobStore } from './s3-blob-store';
 import { reasonOf } from '../common/errors';
 
 export interface StoreStatus {
@@ -50,6 +51,7 @@ export interface BlobStore {
     filename: string,
   ): Promise<string | null>;
   purgeRepo(repoId: string): Promise<void>;
+  close?(): Promise<void>;
 }
 
 export function blobKey(repoId: string, contentHash: string): string {
@@ -129,23 +131,12 @@ export class FilesystemBlobStore implements BlobStore {
   }
 }
 
-export class BlobStoreNotAvailableError extends Error {
-  constructor(driver: string, packageName: string) {
-    super(
-      `assets.driver is "${driver}" but ${packageName} is not installed. ` +
-        `Install it (npm install ${packageName}) or set assets.driver to "filesystem".`,
-    );
-    this.name = 'BlobStoreNotAvailableError';
-  }
-}
-
 export function createBlobStore(assets: AssetsConfig): BlobStore {
   switch (assets.driver) {
     case 'filesystem':
       return new FilesystemBlobStore(assets.path ?? './var/assets');
     case 's3':
-      // S3 is in the config schema but no driver is wired yet
-      throw new BlobStoreNotAvailableError('s3', '@aws-sdk/client-s3');
+      return createS3BlobStore(assets);
     case 'azure':
       return createAzureBlobStore(assets);
     default:
