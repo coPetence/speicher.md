@@ -249,14 +249,8 @@ function githubAppCard(): Card {
     cards: [],
     addOps: [],
     items: [
-      copyValue(
-        'Homepage URL',
-        publicUrl() ?? '/',
-      ),
-      copyValue(
-        'Authorization callback URL',
-        githubCallbackUrl() ?? GITHUB_CALLBACK_PATH,
-      ),
+      copyValue('Homepage URL', publicUrl() ?? '/'),
+      copyValue('Authorization callback URL', githubCallbackUrl() ?? GITHUB_CALLBACK_PATH),
     ],
   };
 }

@@ -956,6 +956,7 @@ describe('a key the schema has retired', () => {
         '    hub:',
         '      type: github',
         '      client_id: def',
+        '      client_secret: s',
         '      team_cache_ttl: 1h',
       ].join('\n'),
     );
@@ -963,6 +964,76 @@ describe('a key the schema has retired', () => {
 
     expect(config.provider('entra')).not.toHaveProperty('team_cache_ttl');
     expect(config.provider('hub')).not.toHaveProperty('team_cache_ttl');
+  });
+});
+
+describe("a github group source's id", () => {
+  const withId = (id: string) =>
+    `
+version: 1
+auth:
+  providers:
+    hub:
+      type: github
+      client_id: abc
+      client_secret: s
+groups:
+  engineering:
+    - { provider: hub, id: ${id} }
+admins:
+  groups: [engineering]
+`;
+
+  it('is a team', () => {
+    expect(() => load(withId('acme/platform'))).not.toThrow();
+  });
+
+  it('is refused when it names only an organisation', () => {
+    // Accepted by the schema, reaches nobody, and would otherwise surface much later
+    // as a directory warning during ingest
+    expect(() => load(withId('acme'))).toThrow(/does not name a GitHub team/);
+  });
+
+  it('is refused when the organisation or the slug is missing', () => {
+    expect(() => load(withId("'/platform'"))).toThrow(/does not name a GitHub team/);
+    expect(() => load(withId("'acme/'"))).toThrow(/does not name a GitHub team/);
+  });
+
+  it('is refused when it goes a level deeper than a team', () => {
+    expect(() => load(withId('acme/sub/team'))).toThrow(/does not name a GitHub team/);
+  });
+
+  it("says nothing of the sort about another provider's group ids", () => {
+    expect(() => load(MINIMAL)).not.toThrow();
+  });
+});
+
+describe('a GitHub sign-in provider', () => {
+  const GITHUB_PROVIDER = `
+version: 1
+auth:
+  providers:
+    hub:
+      type: github
+      client_id: abc
+      client_secret: s
+groups:
+  engineering:
+    - { provider: hub, id: acme/platform }
+admins:
+  groups: [engineering]
+`;
+
+  it('loads with a client id and secret', () => {
+    expect(() => load(GITHUB_PROVIDER)).not.toThrow();
+  });
+
+  it('refuses one with no client secret, which would fail only at the token exchange', () => {
+    // Optional in the schema, mandatory in fact: without it GitHub refuses every
+    // code and the reader is told the sign-in could not be completed
+    expect(() => load(GITHUB_PROVIDER.replace('      client_secret: s\n', ''))).toThrow(
+      /client_secret is required/,
+    );
   });
 });
 
@@ -974,6 +1045,7 @@ auth:
     hub:
       type: github
       client_id: abc
+      client_secret: s
       directory:
         type: github
         app_id: "2"

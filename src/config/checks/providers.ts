@@ -1,4 +1,5 @@
 import { githubDirectoryProblems } from '../../auth/directory/github-config';
+import { githubProviderProblems } from '../../auth/github-config';
 import { graphDirectoryProblems } from '../../auth/directory/graph-config';
 import { SETUP_PROVIDER } from '../../common/principals';
 import {
@@ -38,6 +39,7 @@ export function checkProviders(config: InstanceConfig, problems: string[]): void
       problems.push(...graphDirectoryProblems(id, provider as OidcProviderConfig));
     }
     if (providerType(provider) === 'github') {
+      problems.push(...githubProviderProblems(id, provider as GithubProviderConfig));
       problems.push(...githubDirectoryProblems(id, provider as GithubProviderConfig));
     }
   }

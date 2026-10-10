@@ -1,3 +1,4 @@
+import { githubGroupIdProblem } from '../../auth/directory/github-config';
 import { parseUntil } from '../../common/until';
 import { GroupSource, InstanceConfig, ProviderConfig, providerType } from '../types';
 
@@ -25,6 +26,10 @@ export function checkGroups(config: InstanceConfig, problems: string[]): void {
         problems.push(
           `groups.${name}: \`domain\` only works with a magic-link provider, and "${source.provider}" is a provider of type ${type}. To add members from "${source.provider}", use \`id\` with the id of a group from that provider, or name a person with \`subject\` or \`email\`.`,
         );
+      }
+      if (source.id !== undefined && type === 'github') {
+        const problem = githubGroupIdProblem(source.id);
+        if (problem) problems.push(`groups.${name}: ${problem}`);
       }
       if (source.id !== undefined && type === 'magic-link') {
         problems.push(
