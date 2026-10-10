@@ -146,7 +146,11 @@ describe('the s3 blob driver', () => {
     const contentHash = hash('presigned');
     await store.put('repo-a', contentHash, { bytes: Buffer.from('presigned') });
 
-    const url = await store.presign('repo-a', contentHash, 60, 'diagram.png');
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 60,
+      filename: 'diagram.png',
+      mime: 'image/png',
+    });
     expect(url).not.toBeNull();
 
     // Fetched with no Authorization header at all: the signature is the whole claim
@@ -160,7 +164,11 @@ describe('the s3 blob driver', () => {
     const contentHash = hash('quoted');
     await store.put('repo-a', contentHash, { bytes: Buffer.from('quoted') });
 
-    const url = await store.presign('repo-a', contentHash, 60, 'a"; attack="x.png');
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 60,
+      filename: 'a"; attack="x.png',
+      mime: 'image/png',
+    });
     const disposition = new URL(url!).searchParams.get('response-content-disposition');
 
     expect(disposition).toBe('inline; filename="a; attack=x.png"');
@@ -170,7 +178,13 @@ describe('the s3 blob driver', () => {
     const contentHash = hash('expiring');
     await store.put('repo-a', contentHash, { bytes: Buffer.from('expiring') });
 
-    const query = new URL((await store.presign('repo-a', contentHash, 45, 'f.png'))!).searchParams;
+    const query = new URL(
+      (await store.presign('repo-a', contentHash, {
+        ttlSeconds: 45,
+        filename: 'f.png',
+        mime: 'image/png',
+      }))!,
+    ).searchParams;
 
     expect(query.get('X-Amz-Expires')).toBe('45');
     expect(query.get('X-Amz-Signature')).toBeTruthy();
@@ -180,7 +194,11 @@ describe('the s3 blob driver', () => {
     const contentHash = hash('expiring');
     await store.put('repo-a', contentHash, { bytes: Buffer.from('expiring') });
 
-    const url = await store.presign('repo-a', contentHash, 1, 'gone.png');
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 1,
+      filename: 'gone.png',
+      mime: 'image/png',
+    });
     await new Promise((resolve) => setTimeout(resolve, 2_000));
 
     // The short TTL is the whole of the reader's protection once a URL is out:

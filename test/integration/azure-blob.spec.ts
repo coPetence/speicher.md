@@ -121,8 +121,97 @@ describe('the azure blob driver', () => {
     expect(properties.contentType).toBe('application/octet-stream');
   });
 
-  it('never presigns, so every asset stays proxied', async () => {
-    expect(await store.presign()).toBeNull();
+  it('presigns a URL that serves the bytes without any credentials', async () => {
+    const contentHash = hash('presigned');
+    await store.put('repo-a', contentHash, { bytes: Buffer.from('presigned') });
+
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 60,
+      filename: 'diagram.png',
+      mime: 'image/png',
+    });
+    expect(url).not.toBeNull();
+
+    // Fetched with no Authorization header at all: the signature is the whole claim
+    const response = await fetch(url!);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('presigned');
+    expect(response.headers.get('content-disposition')).toContain('diagram.png');
+  });
+
+  it('strips quotes from a filename so the disposition header cannot be escaped', async () => {
+    const contentHash = hash('quoted');
+    await store.put('repo-a', contentHash, { bytes: Buffer.from('quoted') });
+
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 60,
+      filename: 'a"; attack="x.png',
+      mime: 'image/png',
+    });
+
+    expect(new URL(url!).searchParams.get('rscd')).toBe('inline; filename="a; attack=x.png"');
+  });
+
+  it('signs the URL for exactly the lifetime it was asked for', async () => {
+    const contentHash = hash('expiring');
+    await store.put('repo-a', contentHash, { bytes: Buffer.from('expiring') });
+
+    const before = Date.now();
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 45,
+      filename: 'f.png',
+      mime: 'image/png',
+    });
+    const expiry = Date.parse(new URL(url!).searchParams.get('se')!);
+
+    expect(expiry - before).toBeGreaterThanOrEqual(44_000);
+    expect(expiry - before).toBeLessThanOrEqual(46_000);
+  });
+
+  it('refuses a presigned URL once its lifetime is spent', async () => {
+    const contentHash = hash('spent');
+    await store.put('repo-a', contentHash, { bytes: Buffer.from('spent') });
+
+    const url = await store.presign('repo-a', contentHash, {
+      ttlSeconds: 1,
+      filename: 'gone.png',
+      mime: 'image/png',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+
+    // The short TTL is the whole of the reader's protection once a URL is out:
+    // nothing can revoke one, so expiry has to be what stops it
+    expect((await fetch(url!)).status).toBe(403);
+  });
+
+  it('signs with the account key a connection string carries, as well', async () => {
+    const contentHash = hash('either way');
+    const viaConnectionString = createAzureBlobStore(
+      assetsConfig(container, {
+        auth: 'connection_string',
+        connection_string: CONNECTION_STRING,
+        account_key: undefined,
+      }),
+    );
+    await store.put('repo-a', contentHash, { bytes: Buffer.from('either way') });
+
+    const url = await viaConnectionString.presign('repo-a', contentHash, {
+      ttlSeconds: 60,
+      filename: 'f.png',
+      mime: 'image/png',
+    });
+
+    expect((await fetch(url!)).status).toBe(200);
+  });
+
+  it('declines to presign for an identity, which holds no key to sign with', async () => {
+    const byIdentity = createAzureBlobStore(
+      assetsConfig(container, { auth: 'managed_identity', account_key: undefined }),
+      { credentialFor: () => ({ getToken: async () => ({ token: 't', expiresOnTimestamp: 0 }) }) },
+    );
+
+    const request = { ttlSeconds: 60, filename: 'f.png', mime: 'image/png' };
+    expect(await byIdentity.presign('repo-a', hash('nope'), request)).toBeNull();
   });
 
   it('purges one repository and leaves the others alone', async () => {

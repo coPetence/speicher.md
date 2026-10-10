@@ -30,6 +30,17 @@ export interface StoreStatus {
 export const DIRECTORY_OK_LABEL = 'Directory writable';
 export const DIRECTORY_FAIL_LABEL = 'Directory inaccessible';
 
+export interface PresignRequest {
+  ttlSeconds: number;
+
+  // Goes in the store's Content-Disposition, so a download keeps its name
+  filename: string;
+
+  // The type from the asset row. The stored object is octet-stream, and the
+  // store answers with that unless the signature overrides it
+  mime: string;
+}
+
 export interface BlobStore {
   readonly kind: 'filesystem' | 's3' | 'azure';
 
@@ -44,12 +55,7 @@ export interface BlobStore {
   get(repoId: string, contentHash: string): Promise<Buffer>;
   stream(repoId: string, contentHash: string): Promise<Readable>;
 
-  presign(
-    repoId: string,
-    contentHash: string,
-    ttlSeconds: number,
-    filename: string,
-  ): Promise<string | null>;
+  presign(repoId: string, contentHash: string, request: PresignRequest): Promise<string | null>;
   purgeRepo(repoId: string): Promise<void>;
   close?(): Promise<void>;
 }

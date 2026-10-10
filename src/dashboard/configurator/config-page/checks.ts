@@ -149,9 +149,38 @@ export class SectionChecks {
     try {
       const status = await store.probe();
       note(status.level, status.label, status.detail);
+      await this.stampPresigning(payload, shown, store);
     } finally {
       if (!inForce) await store.close?.();
     }
+  }
+
+  private async stampPresigning(
+    payload: ConfigSectionPayload,
+    shown: ConfigService,
+    store: BlobStore,
+  ): Promise<void> {
+    const over = shown.assets.presign_over_bytes ?? 0;
+    if (over <= 0) return;
+
+    const field = allFields([payload.section!]).find(
+      (each) => each.path === 'assets.presign_over_bytes',
+    );
+    if (!field) return;
+
+    const signed = await store
+      .presign('probe', '0'.repeat(64), { ttlSeconds: 60, filename: 'probe', mime: 'text/plain' })
+      .catch(() => null);
+    if (signed !== null) return;
+
+    field.status = {
+      level: 'warn',
+      icon: 'circle-alert',
+      label: 'Pre-signing is not available',
+      detail:
+        `A ${store.kind} store cannot hand the browser a URL of its own here, so ` +
+        'every asset is served through this instance whatever this says.',
+    };
   }
 
   private async checkMail(
