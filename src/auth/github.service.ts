@@ -101,7 +101,13 @@ export class GithubAuthService {
     const rawGroupIds = await this.teams(api, token, providerId);
     if (rawGroupIds.length === 0) {
       this.log.error(
-        'the sign-in carried no team memberships, so this user resolves to no groups. This can also happen if an organisation has OAuth app access restrictions. Approve this OAuth app under the Org Settings -> Third-party Access, and check that `read:org was granted at the consent screen.',
+        'the sign-in carried no team memberships, so this user resolves to no groups. ' +
+          'An organisation answers with an empty list rather than an error when the ' +
+          'app cannot read its members, so check that first: a GitHub App needs the ' +
+          'organisation permission Members: Read-only and an installation on the ' +
+          "organisation; an OAuth app needs approving under the organisation's " +
+          'Settings -> Third-party Access, with `read:org` granted at the consent ' +
+          'screen. Failing that, this person is in none of its teams.',
         { provider: providerId },
       );
     }
@@ -172,7 +178,7 @@ export class GithubAuthService {
     } catch (err) {
       // Reached when `user:email` was refused at consent or revoked since
       this.log.warn(
-        'could not read the email address list. Make sure the user:email scope is permitted.',
+        'could not read the email address list. Make sure the user:email scope is permitted. If its a GitHub App make sure to permit the Account Permission: Email = Read Only',
         { provider: providerId, error: (err as Error).message },
       );
       return null;
@@ -247,7 +253,9 @@ export class GithubAuthService {
 const GITHUB_WEB = 'https://github.com';
 const GITHUB_API = 'https://api.github.com';
 
-/** `read:org` carries team membership, `user:email` the verified address */
+/**
+ * `read:org` carries team membership, `user:email` the verified address
+ */
 const SCOPES = 'read:org user:email';
 
 const FLOW_TTL_MS = 10 * 60_000;

@@ -7,6 +7,7 @@ import { ConfigService } from '../../config/config.service';
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
 import { GithubTokenMinter } from '../../forge/github/tokens';
 import { DirectoryUnavailableError } from '../../ingest/grants';
+import { splitTeam } from './github-config';
 import { DirectoryStatus, FetchLike } from './graph';
 
 const MAX_ATTEMPTS = 3;
@@ -49,7 +50,6 @@ export class GithubDirectory {
   private readonly ttlMs: number;
 
   private readonly cache = new Map<string, CacheEntry>();
-  private readonly access = new Map<string, string | null>();
   private probed: { status: DirectoryStatus; expires: number } | null = null;
   private unavailableUntil = 0;
   private warnedAboutOrgs = false;
@@ -186,6 +186,7 @@ export class GithubDirectory {
   }
 
   private async attemptProbe(): Promise<DirectoryStatus> {
+    this.cache.clear();
     this.unavailableUntil = 0;
 
     if (this.orgs.length === 0) {
@@ -196,8 +197,8 @@ export class GithubDirectory {
       };
     }
 
-    const org = (await this.reachable())[0];
-    if (org === undefined) {
+    const reachable = await this.reachable();
+    if (reachable.length === 0) {
       return {
         level: 'fail',
         label: 'Not connected',
@@ -205,15 +206,34 @@ export class GithubDirectory {
       };
     }
 
+    const probed = this.teamIds
+      .map((id) => splitTeam(id))
+      .find(([org, slug]) => org !== null && slug !== null && reachable.includes(org));
+
+    const [org, slug] = probed ?? [reachable[0], null];
+
     try {
-      const found = await this.get(org, `/orgs/${enc(org)}`, PROBE_TIMEOUT_MS);
-      return found === null
-        ? {
-            level: 'fail',
-            label: 'Not connected',
-            detail: `The app that reaches "${org}" cannot read it.`,
-          }
-        : { level: 'ok', label: 'Connected', detail: '' };
+      const found =
+        slug === null
+          ? await this.get(org as string, `/orgs/${enc(org as string)}`, PROBE_TIMEOUT_MS)
+          : await this.get(
+              org as string,
+              `/orgs/${enc(org as string)}/teams/${enc(slug)}`,
+              PROBE_TIMEOUT_MS,
+            );
+
+      if (found !== null) return { level: 'ok', label: 'Connected', detail: '' };
+
+      return {
+        level: 'fail',
+        label: 'Not connected',
+        detail:
+          slug === null
+            ? `The app cannot read "${org}"`
+            : `the team "${slug}" cannot be found in "${org}". ` +
+              'Either the team does not exist or the App is ' +
+              'missing the organisation permission Members: Read-only.',
+      };
     } catch (err) {
       return {
         level: 'fail',
@@ -284,15 +304,8 @@ export class GithubDirectory {
    */
   private async installationOn(org: string): Promise<string | null> {
     const key = org.toLowerCase();
-    const held = this.access.get(key);
-    if (held !== undefined) return held;
-
-    const found =
-      (await this.installations()).find((each) => each.login.toLowerCase() === key)
-        ?.installationId ?? null;
-
-    this.access.set(key, found);
-    return found;
+    const found = (await this.installations()).find((each) => each.login.toLowerCase() === key);
+    return found?.installationId ?? null;
   }
 
   /**
@@ -409,16 +422,6 @@ function noInstallation(orgs: string): [string, string] {
 function apiBaseOf(provider: GithubProviderConfig | undefined): string {
   const base = provider?.base_url?.replace(/\/+$/, '');
   return base ? `${base}/api/v3` : 'https://api.github.com';
-}
-
-/** Split `org/team-slug` into org and team-slug */
-export function splitTeam(groupId: string): [string | null, string | null] {
-  const cut = groupId.indexOf('/');
-  if (cut <= 0 || cut === groupId.length - 1) return [null, null];
-
-  const org = groupId.slice(0, cut);
-  const slug = groupId.slice(cut + 1);
-  return slug.includes('/') ? [null, null] : [org, slug];
 }
 
 const enc = encodeURIComponent;

@@ -2,7 +2,7 @@ import { Document } from 'yaml';
 
 import { BlobStore, createBlobStore } from '../../../assets/blob-store';
 import { GraphDirectoryDeps } from '../../../auth/directory/graph';
-import { hasGraphDirectory, probeDirectory } from '../../../auth/directory/lookup';
+import { hasDirectory, probeDirectory } from '../../../auth/directory/lookup';
 import { ConfigError } from '../../../common/errors';
 import { ConfigService } from '../../../config/config.service';
 import { interpolateEnv } from '../../../config/env-interpolation';
@@ -81,10 +81,10 @@ export class SectionChecks {
     );
     if (!field) return;
 
-    // Nothing is offered for a provider with no Graph directory: an absent check is
-    // not a failed one. Asked of the config rather than of the probe, which is the
-    // only way to know it without making the request this exists to defer.
-    if (!hasGraphDirectory(this.config, member.id)) return;
+    // Nothing is offered for a provider with no directory: an absent check is not a
+    // failed one. Asked of the config rather than of the probe, which is the only
+    // way to know it without making the request this exists to defer.
+    if (!hasDirectory(this.config, member.id)) return;
 
     if (!asked) {
       field.checkHref = `/-/config/${payload.section.id}?check=1`;

@@ -4,8 +4,13 @@ import { AddressInfo } from 'node:net';
 
 import { exportPKCS8, generateKeyPair } from 'jose';
 
-import { GithubDirectory, splitTeam } from '../../src/auth/directory/github';
-import { createDirectoryLookup } from '../../src/auth/directory/lookup';
+import { GithubDirectory } from '../../src/auth/directory/github';
+import { splitTeam } from '../../src/auth/directory/github-config';
+import {
+  createDirectoryLookup,
+  hasDirectory,
+  probeDirectory,
+} from '../../src/auth/directory/lookup';
 import { ConfigService } from '../../src/config/config.service';
 import { DirectoryConfig } from '../../src/config/types';
 import { loadInstanceConfig } from '../../src/config/parser';
@@ -49,6 +54,7 @@ function instanceYaml(teams = ['acme/platform'], cacheTtl = '1h'): string {
     '    hub:',
     '      type: github',
     '      client_id: a-client',
+    '      client_secret: a-secret',
     // The directory reads the API host from the provider, so one `base_url` points
     // the whole flow at the fake -- and no content source is configured at all,
     // which is the point: the directory holds its own App
@@ -299,6 +305,95 @@ describe('a directory that cannot read the organisation', () => {
   });
 });
 
+describe('the connection check', () => {
+  it('is offered at all, which is what the provider page gates the button on', async () => {
+    const config = configFor();
+
+    // The gate used to ask for a Graph directory, so a GitHub one was quietly
+    // given no check -- and its commonest failure is invisible without one
+    expect(hasDirectory(config, 'hub')).toBe(true);
+    expect(await probeDirectory(config, 'hub', {})).toMatchObject({ level: 'ok' });
+  });
+
+  it('passes when a configured team can be read', async () => {
+    expect(await directoryFor().probe()).toMatchObject({ level: 'ok' });
+  });
+
+  it('fails when the App cannot read members, which reading the org alone would miss', async () => {
+    // `GET /orgs/{org}` needs only Metadata, so a check pointed at it would pass
+    // here and then refuse every question the page asks on the directory's behalf
+    gh.failTeamReads = 403;
+
+    expect(await directoryFor().probe()).toMatchObject({ level: 'fail' });
+    expect(gh.seen).toContain('GET /api/v3/orgs/acme/teams/platform');
+  });
+
+  it('fails when the team named by a group source is not there', async () => {
+    gh.teams = new Map();
+
+    const status = await directoryFor().probe();
+    expect(status.level).toBe('fail');
+    expect(status.detail).toMatch(/the team "platform" cannot be found in "acme"/);
+  });
+
+  it('fails when no App reaches the organisation', async () => {
+    expect(await directoryFor(['nowhere/team']).probe()).toMatchObject({ level: 'fail' });
+  });
+
+  it('says there is nothing to reach when no group source names an organisation', async () => {
+    const config = configFor();
+    const directory = new GithubDirectory('hub', directoryConfig(config), config, []);
+
+    expect(await directory.probe()).toMatchObject({ label: 'Nothing to reach' });
+  });
+});
+
+describe('installing the App while the instance is running', () => {
+  /** A directory whose clock we can move past the probe's own debounce */
+  function withClock(teams: string[] = ['acme/platform']) {
+    let now = Date.now();
+    const config = configFor(teams);
+    const directory = new GithubDirectory('hub', directoryConfig(config), config, teams, {
+      now: () => now,
+    });
+    return { directory, advance: (ms: number) => (now += ms) };
+  }
+
+  it('is noticed by the next check, without a restart', async () => {
+    const { directory, advance } = withClock();
+    gh.installedOn = new Map();
+
+    expect(await directory.probe()).toMatchObject({ level: 'fail' });
+
+    // What the operator does next: install it, then press the check again
+    gh.installedOn = new Map([['acme', 90001]]);
+    advance(31_000);
+
+    expect(await directory.probe()).toMatchObject({ level: 'ok' });
+  });
+
+  it('is noticed by a question asked after that check, not only by the check', async () => {
+    const { directory, advance } = withClock();
+    gh.installedOn = new Map();
+    expect(await directory.groupSize('acme/platform')).toBeNull();
+
+    gh.installedOn = new Map([['acme', 90001]]);
+    advance(31_000);
+    await directory.probe();
+
+    expect(await directory.groupSize('acme/platform')).toBe(7);
+  });
+
+  it('does not re-ask GitHub for the installation list on every question', async () => {
+    const directory = directoryFor(['acme/platform', 'acme/readers']);
+    await directory.groupSize('acme/platform');
+    await directory.groupSize('acme/readers');
+    await directory.subjectExists(ADA);
+
+    expect(gh.seen.filter((call) => call === 'GET /api/v3/app/installations')).toHaveLength(1);
+  });
+});
+
 describe('an installation that is suspended', () => {
   it('is not counted as reaching the organisation', async () => {
     gh.suspended = ['acme'];
@@ -493,6 +588,8 @@ interface FakeGithub {
   teams: Map<string, number>;
   logins: Map<string, string>;
   failOrgReads: number | null;
+  /** Refuses team reads only, as an App without Members: Read-only does */
+  failTeamReads: number | null;
   reset(): void;
   stop(): Promise<void>;
 }
@@ -513,6 +610,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
     teams: new Map(),
     logins: new Map(),
     failOrgReads: null,
+    failTeamReads: null,
     reset() {
       state.seen = [];
       state.appJwts = [];
@@ -527,6 +625,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
       state.teams = new Map([['acme/platform', 7]]);
       state.logins = new Map([[ADA, 'ada']]);
       state.failOrgReads = null;
+      state.failTeamReads = null;
     },
     stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
@@ -584,6 +683,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
 
       const team = /^\/api\/v3\/orgs\/([^/]+)\/teams\/([^/]+)$/.exec(path);
       if (team) {
+        if (state.failTeamReads) return send(res, state.failTeamReads, { message: 'no' });
         const count = state.teams.get(`${team[1]}/${team[2]}`);
         return count === undefined
           ? send(res, 404, {})

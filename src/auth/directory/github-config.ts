@@ -36,3 +36,22 @@ const GRAPH_ONLY: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client
 
 /** The directory's own App, never a content source's */
 const OWN_APP: (keyof DirectoryConfig)[] = ['app_id', 'private_key'];
+
+/**
+ * Split `org/team-slug`
+ */
+export function splitTeam(groupId: string): [string | null, string | null] {
+  const cut = groupId.indexOf('/');
+  if (cut <= 0 || cut === groupId.length - 1) return [null, null];
+
+  const org = groupId.slice(0, cut);
+  const slug = groupId.slice(cut + 1);
+  return slug.includes('/') ? [null, null] : [org, slug];
+}
+
+export function githubGroupIdProblem(id: string): string | null {
+  const [org, slug] = splitTeam(id);
+  if (org !== null && slug !== null) return null;
+
+  return `"${id}" does not name a GitHub team. A team is written \`org/team-slug\``;
+}
