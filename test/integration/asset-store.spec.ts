@@ -128,6 +128,26 @@ describe('a store this process is not running', () => {
     expect(text).not.toContain(DIRECTORY_OK_LABEL);
   });
 
+  it('lists every missing s3 setting at once, rather than the first one', async () => {
+    writeFileSync(
+      path(),
+      `${instanceYaml(volume).replace(/assets:[\s\S]*$/, '')}assets:
+  driver: s3
+  bucket: acmedocs
+  region: eu-central-1
+`,
+      'utf8',
+    );
+
+    const { text } = await checked();
+
+    expect(text).toContain('S3-compatible');
+    expect(text).toContain('access_key_id is required');
+    expect(text).toContain('secret_access_key is required');
+    expect(text).toContain('spr-note-fail');
+    expect(text).toContain(NOT_IN_USE_YET);
+  });
+
   it('reports a store that works before anything has restarted', async () => {
     const second = join(dir, 'other-blobs');
     mkdirSync(second, { recursive: true });
