@@ -23,6 +23,7 @@ import {
   secretField,
   selectField,
   textField,
+  urlField,
 } from '../config-fields';
 import {
   ENTRA_TENANT_HINT,
@@ -191,7 +192,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
         help: SECRET_HELP,
       }),
       // GitHub Enterprise base URL, only relevant for self-hosted installations
-      textField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
+      urlField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
         placeholder: 'https://github.example.com',
         help: 'GitHub Enterprise only. Leave blank for github.com.',
         advanced: true,

@@ -15,9 +15,11 @@ import type { SecretField } from './secret';
 import type { SelectField } from './select';
 import type { TemplateField } from './template';
 import type { TextField } from './text';
+import type { UrlField } from './url';
 
 export type Field =
   | TextField
+  | UrlField
   | EmbeddingModelField
   | ColorField
   | EntraTenantField
@@ -61,3 +63,4 @@ export * from './secret';
 export * from './select';
 export * from './template';
 export * from './text';
+export * from './url';

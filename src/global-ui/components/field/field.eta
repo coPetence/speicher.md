@@ -1,7 +1,8 @@
 
 <%
   const f = it.field, editable = it.editable;
-  const component = f.kind === 'duration' || f.kind === 'bytes' ? 'amount' : f.kind;
+  const component =
+    f.kind === 'duration' || f.kind === 'bytes' ? 'amount' : f.kind === 'url' ? 'text' : f.kind;
 %>
   <% if (f.inapplicable) { %>
   <input

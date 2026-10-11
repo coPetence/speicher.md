@@ -1,6 +1,6 @@
 import { Document, isSeq } from 'yaml';
 
-import { composeUnit, entraIssuerFor } from '../config-fields';
+import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
 import type {
   AmountField,
   BooleanField,
@@ -18,6 +18,7 @@ import type {
   SelectField,
   TemplateField,
   TextField,
+  UrlField,
 } from '../config-fields';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
 import { FormBody, submitted, submittedList } from './body';
@@ -240,6 +241,13 @@ const decodeText: Decoder<
   return writeAtWithDefault(doc, path, raw.trim(), field.fallback);
 };
 
+/** An address keeps the scheme it was given, or is read as meaning https */
+const decodeUrl: Decoder<UrlField> = (doc, body, field, path) => {
+  const raw = submitted(body, field.path);
+  if (raw === undefined) return false;
+  return writeAtWithDefault(doc, path, withHttpsScheme(raw.trim()), field.fallback);
+};
+
 /**
  * Which decoder reads which kind of control.
  *
@@ -251,6 +259,7 @@ const decodeText: Decoder<
  */
 const DECODERS: { [K in FieldKind]: Decoder<FieldOf<K>> } = {
   text: decodeText,
+  url: decodeUrl,
   'embedding-model': decodeText,
   select: decodeText,
   template: decodeText,

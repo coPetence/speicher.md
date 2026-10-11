@@ -40,6 +40,7 @@ import {
   isConfigSection,
   isConfigSubsection,
   seedProvider,
+  withHttpsScheme,
 } from '../../src/dashboard/configurator/config-form/fields';
 import type {
   FieldKind,
@@ -1757,6 +1758,53 @@ describe('help text markup', () => {
         (t) => !['code', 'strong', 'u', 'a', 'br', 'mark', ...mark].includes(t),
       ),
     ).toEqual([]);
+  });
+});
+
+describe('an address typed without a scheme', () => {
+  it('is saved with https in front of it', () => {
+    expect(withHttpsScheme('fsn1.your-objectstorage.com')).toBe(
+      'https://fsn1.your-objectstorage.com',
+    );
+    expect(withHttpsScheme('localhost:9000')).toBe('https://localhost:9000');
+  });
+
+  it('keeps whatever scheme it was given, so a development endpoint survives', () => {
+    expect(withHttpsScheme('http://127.0.0.1:51000')).toBe('http://127.0.0.1:51000');
+    expect(withHttpsScheme('https://fsn1.your-objectstorage.com')).toBe(
+      'https://fsn1.your-objectstorage.com',
+    );
+  });
+
+  it('leaves an empty box empty rather than saving a scheme on its own', () => {
+    expect(withHttpsScheme('')).toBe('');
+  });
+
+  it('reaches the document with the scheme on it, where the schema will take it', () => {
+    const doc = loadDocument(FULL_PRESIGNING);
+    applyForm(doc, { 'assets.endpoint': 'fsn1.your-objectstorage.com' }, 'storage');
+
+    expect(serialise(doc)).toContain('endpoint: https://fsn1.your-objectstorage.com');
+  });
+
+  it('is never assumed for a URL that is compared rather than dialled', () => {
+    // An issuer is matched against the `iss` claim byte for byte, so a scheme
+    // assumed on its behalf would break sign-in with a mismatch
+    // Both documents, because the endpoint is only drawn for an object store
+    const dialled = [...fieldsFor(FULL), ...fieldsFor(FULL_PRESIGNING)]
+      .filter((field) => field.kind === 'url')
+      .map((field) => field.path);
+
+    expect(dialled).toContain('assets.endpoint');
+    expect(dialled).toContain('embedding.base_url');
+    expect(dialled.filter((path) => path.endsWith('issuer'))).toEqual([]);
+  });
+
+  it('leaves an issuer exactly as it was typed', () => {
+    const doc = loadDocument(FULL);
+    applyForm(doc, { 'auth.providers.entra.issuer': 'login.example.test/v2.0' }, 'identity/entra');
+
+    expect(serialise(doc)).toContain('issuer: login.example.test/v2.0');
   });
 });
 

@@ -21,6 +21,7 @@ import {
   secretField,
   selectField,
   textField,
+  urlField,
 } from '../config-fields';
 import { scalarString } from '../document';
 import type { Option } from '../model';
@@ -64,7 +65,7 @@ export function storageSection(root: Obj): SectionSource {
   if (driver === 's3') {
     fields.push(
       textField(root, ['assets', 'bucket'], 'assets.bucket', 'Bucket'),
-      textField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Endpoint', {
+      urlField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Endpoint', {
         help: 'For non-AWS providers such as Hetzner Object Storage or MinIO.',
       }),
       textField(root, ['assets', 'region'], 'assets.region', 'Region'),
@@ -140,9 +141,8 @@ export function storageSection(root: Obj): SectionSource {
     }
 
     fields.push(
-      textField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', {
-        help:
-          'Only for a sovereign cloud or a local emulator',
+      urlField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', {
+        help: 'Only for a sovereign cloud or a local emulator',
       }),
     );
   } else {
@@ -169,8 +169,7 @@ export function storageSection(root: Obj): SectionSource {
         'assets.presign_over_bytes',
         'Pre-sign above',
         {
-          help:
-            'Above this size we use a presigned url to serve the image to avoid proxying it through your backend. This does not apply to inline images. Set to zero if you want to proxy everything.',
+          help: 'Above this size we use a presigned url to serve the image to avoid proxying it through your backend. This does not apply to inline images. Set to zero if you want to proxy everything.',
         },
       ),
       durationField(
@@ -204,7 +203,7 @@ export function embeddingSection(root: Obj): SectionSource {
       '/v1/embeddings endpoint. No completion model is ever called — agents write ' +
       'answers, this returns the chunks a caller is allowed to see.',
     fields: [
-      textField(root, ['embedding', 'base_url'], 'embedding.base_url', 'Endpoint', {
+      urlField(root, ['embedding', 'base_url'], 'embedding.base_url', 'Endpoint', {
         placeholder: 'https://api.openai.com/v1',
       }),
       secretField(root, ['embedding', 'api_key'], 'embedding.api_key', 'API key', {
