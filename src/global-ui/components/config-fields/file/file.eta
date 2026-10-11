@@ -2,10 +2,10 @@
     <%~ include('@config-fields/label', it) %>
     <% if (f.stored) { %>
     <div class="spr-stored">
-      <% if (f.storedFile && (it.servedLogos || []).includes(f.storedFile)) { %>
+      <% if (f.thumbHref) { %>
       <img
         class="spr-stored-thumb"
-        src="/-/brand/<%= f.storedFile %>"
+        src="<%= f.thumbHref %>"
         alt=""
       >
       <% } %>

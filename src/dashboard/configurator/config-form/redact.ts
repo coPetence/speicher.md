@@ -1,3 +1,6 @@
+import type { Document } from 'yaml';
+
+import { brandValueKind } from '../../../config/brand';
 import { dottedPath, loadDocument, serialise } from './document';
 import { allFields } from './model';
 import { buildSections } from './sections';
@@ -6,12 +9,18 @@ import { buildSections } from './sections';
 export const REDACTED = '** not shown **';
 
 /**
- * Shown in place of a logo.
+ * Shown in place of a logo the document carries inline.
  *
  * Not secrecy — it is a picture of the instance's own name, and the header prints
  * it. It is *length*: 64 KB of base64 on one line would bury the document this view
  * exists to make readable, in the one place an operator goes to check what a save
  * will store.
+ *
+ * A saved logo is no longer written inline, so this is reached by what still is:
+ * a `file`-mode document, and every version stored before the images had a table
+ * of their own. A `sha256:` reference is seventy-one characters and is shown as
+ * it is — which is the point of it, and is what makes a logo change legible in a
+ * diff between two versions.
  */
 export const ELIDED = '** the logo, not shown **';
 
@@ -42,11 +51,17 @@ export function displayYaml(yaml: string): string {
   for (const field of allFields(buildSections(doc))) {
     const hidden =
       (field.kind === 'secret' && field.secretHidden) ||
-      (field.kind === 'file' && field.stored !== '');
+      (field.kind === 'file' && inlineImage(doc, field.path));
     if (!hidden) continue;
     doc.setIn(dottedPath(field.path), field.kind === 'file' ? ELIDED : REDACTED);
     redacted = true;
   }
 
   return redacted ? serialise(doc) : yaml;
+}
+
+/** Whether the value at this path is a picture written into the document itself */
+function inlineImage(doc: Document, path: string): boolean {
+  const stored = doc.getIn(dottedPath(path));
+  return typeof stored === 'string' && brandValueKind(stored) === 'data';
 }

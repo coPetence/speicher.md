@@ -3,7 +3,14 @@ import { createPrivateKey } from 'node:crypto';
 import type { Request, Response } from 'express';
 import multer, { MulterError } from 'multer';
 
-import { MAX_BRAND_LOGO_BYTES, describeBytes, sniffMediaType } from '../../../config/brand';
+import type { BrandImage } from '../../../config/brand';
+import {
+  BRAND_IMAGES,
+  MAX_BRAND_LOGO_BYTES,
+  describeBytes,
+  parseBrandImage,
+  sniffMediaType,
+} from '../../../config/brand';
 import { normalizePem } from '../../../forge/github/tokens';
 
 import type { Field } from './config-fields';
@@ -56,7 +63,7 @@ export async function readUploads(req: Request, res: Response): Promise<Uploads>
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
         parts: new Map(),
-        refusal: `That file is larger than ${describeBytes(MAX_BRAND_LOGO_BYTES)}, which is the limit — every saved version of this configuration carries a copy of what is uploaded here.`,
+        refusal: `That file is larger than ${describeBytes(MAX_BRAND_LOGO_BYTES)}, which is the limit for the one image every page of this instance carries.`,
       };
     }
     return { parts: new Map(), refusal: `The upload was refused: ${error.message}.` };
@@ -72,15 +79,26 @@ export async function readUploads(req: Request, res: Response): Promise<Uploads>
   return { parts, refusal: null };
 }
 
+export type InternImage = (image: BrandImage) => Promise<string>;
+
 /**
  * Writes each accepted part into `body` as the stored value for its field,
  * returning the first refusal encountered
+ *
+ * A brand image is stored *beside* the document and entered here as the
+ * `sha256:` reference naming it, which is why this is async: what the document
+ * gets is a name, and the name is only true once the bytes are written. The
+ * write happens before the save is known to succeed, so a refused or abandoned
+ * save leaves a row nothing points at — see the sweep. That is the price of the
+ * form's round trips, and what it buys is a picture the page can show before it
+ * has been saved.
  */
-export function fillUploads(
+export async function fillUploads(
   fields: Field[],
   uploads: Uploads,
   body: Record<string, unknown>,
-): string | null {
+  intern: InternImage,
+): Promise<string | null> {
   for (const [name, bytes] of uploads.parts) {
     // A field named with the prefix stores its file bytes; any other names the logo
     const derived = name.startsWith(UPLOAD_PREFIX);
@@ -102,7 +120,20 @@ export function fillUploads(
           `${listTypes(accepted)}.`
         );
       }
-      body[field.path] = `data:${mediaType};base64,${bytes.toString('base64')}`;
+
+      const value = `data:${mediaType};base64,${bytes.toString('base64')}`;
+      const spec = BRAND_IMAGES.find((each) => each.key === field.path);
+      if (!spec) {
+        // A file field that is not one of the three brand keys: nothing knows
+        // what to check it against, so it is stored as it always was.
+        body[field.path] = value;
+        continue;
+      }
+
+      const { image, problem } = parseBrandImage(value, spec);
+      if (!image) return problem;
+
+      body[field.path] = await intern(image);
       continue;
     }
 

@@ -151,7 +151,12 @@ export class StaticController {
   }
 }
 
-function sendBrandImage(res: Response, mediaType: string, bytes: Buffer, cache: string): void {
+export function sendBrandImage(
+  res: Response,
+  mediaType: string,
+  bytes: Buffer,
+  cache: string,
+): void {
   res.setHeader('Content-Type', mediaType);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader(

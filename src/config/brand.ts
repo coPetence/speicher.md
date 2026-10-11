@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 
-/** Only small logos: everytime an instance config is saved a new version is written to the db (incl. image files) */
 export const MAX_BRAND_LOGO_BYTES = 64 * 1024;
 export const MAX_BRAND_ICON_BYTES = 32 * 1024;
 export const MIN_BRAND_ICON_PIXELS = 32;
@@ -17,10 +16,13 @@ export const BRAND_ICON_TYPES: Record<string, string> = {
   'image/png': 'png',
 };
 
+/** The three keys under `brand` that hold a picture */
+export type BrandField = 'logo' | 'logo_dark' | 'icon';
+
 /** What an image at one of the three keys may be */
 export interface BrandImageSpec {
   /** The key under `brand`, where its stored */
-  field: 'logo' | 'logo_dark' | 'icon';
+  field: BrandField;
   key: string;
   /** Accepted media types */
   types: Record<string, string>;
@@ -56,11 +58,32 @@ export interface BrandImage {
   mediaType: string;
   bytes: Buffer;
 
-  file: string; // Content-addressed: SHA-256 prefix plus extension
+  /** SHA-256 of the bytes, lower hex. The key the `brand_images` row is stored under */
+  hash: string;
+
+  file: string; // Content-addressed: the hash plus the extension of its type
 }
 
 export function brandImageUrl(image: BrandImage): string {
   return `/-/brand/${image.file}`;
+}
+
+export const BRAND_REF_PREFIX = 'sha256:';
+
+export function brandRef(image: BrandImage): string {
+  return `${BRAND_REF_PREFIX}${image.hash}`;
+}
+
+// Matches a stored reference and nothing else: the prefix and 64 lower-hex digits
+const BRAND_REF = /^sha256:([0-9a-f]{64})$/;
+
+export function parseBrandRef(value: string): string | null {
+  return BRAND_REF.exec(value.trim())?.[1] ?? null;
+}
+
+export function brandValueKind(value: string): 'ref' | 'data' | 'unknown' {
+  if (parseBrandRef(value) !== null) return 'ref';
+  return DATA_URI.test(value.trim()) ? 'data' : 'unknown';
 }
 
 // Matches `data:` URIs: media type (Group 1), base64 payload (Group 2)
@@ -137,42 +160,55 @@ export function parseBrandImage(value: string, spec: BrandImageSpec): BrandImage
   if (bytes.toString('base64').replace(/=+$/, '') !== base64.replace(/=+$/, '')) {
     return { image: null, problem: `\`${spec.key}\` is not valid base64` };
   }
-  if (bytes.length === 0) {
-    return { image: null, problem: `\`${spec.key}\` is corrupted` };
-  }
+  const problem = checkBrandBytes(bytes, mediaType, spec);
+  if (problem) return { image: null, problem };
+
+  return { image: brandImageOf(bytes, mediaType, extension), problem: null };
+}
+
+/**
+ * Everything that is true or false about the bytes themselves, said once.
+ *
+ * Shared by the two doors bytes come in through — a `data:` URI in a document,
+ * and a row in `brand_images` — because the rules are about what will be served
+ * from this origin as an image, and that does not depend on where the bytes were
+ * read from. The SVG refusals are the reason this is checked again on the way
+ * *out* of the table rather than trusted: what was written there was validated,
+ * and a row is still the one thing here that something other than this code
+ * could have put in place.
+ */
+export function checkBrandBytes(
+  bytes: Buffer,
+  mediaType: string,
+  spec: BrandImageSpec,
+): string | null {
+  if (bytes.length === 0) return `\`${spec.key}\` is corrupted`;
   if (bytes.length > spec.maxBytes) {
-    return {
-      image: null,
-      problem: `\`${spec.key}\` is ${describeBytes(bytes.length)}; the limit is ${describeBytes(spec.maxBytes)}`,
-    };
+    return `\`${spec.key}\` is ${describeBytes(bytes.length)}; the limit is ${describeBytes(spec.maxBytes)}`;
   }
 
   const sniffed = sniffMediaType(bytes);
   if (sniffed !== mediaType) {
-    return {
-      image: null,
-      problem: sniffed
-        ? `\`${spec.key}\` says ${mediaType} but the bytes are ${sniffed}`
-        : `\`${spec.key}\` says ${mediaType} but the bytes are not a PNG, a WebP or an SVG`,
-    };
+    return sniffed
+      ? `\`${spec.key}\` says ${mediaType} but the bytes are ${sniffed}`
+      : `\`${spec.key}\` says ${mediaType} but the bytes are not a PNG, a WebP or an SVG`;
   }
 
   if (mediaType === 'image/svg+xml') {
     const svg = bytes.toString('utf8');
     for (const { test, why } of SVG_REFUSALS) {
-      if (test(svg)) {
-        return { image: null, problem: `\`${spec.key}\`: the SVG ${why}, which is not allowed` };
-      }
+      if (test(svg)) return `\`${spec.key}\`: the SVG ${why}, which is not allowed`;
     }
   }
 
-  if (spec.square === true) {
-    const problem = checkSquare(bytes, mediaType, spec.key);
-    if (problem) return { image: null, problem };
-  }
+  if (spec.square === true) return checkSquare(bytes, mediaType, spec.key);
+  return null;
+}
 
-  const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-  return { image: { mediaType, bytes, file: `${hash}.${extension}` }, problem: null };
+/** An image from bytes already known to be acceptable, named by their hash */
+export function brandImageOf(bytes: Buffer, mediaType: string, extension: string): BrandImage {
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  return { mediaType, bytes, hash, file: `${hash}.${extension}` };
 }
 
 function checkSquare(bytes: Buffer, mediaType: string, key: string): string | null {

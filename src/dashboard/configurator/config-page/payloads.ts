@@ -11,6 +11,7 @@ import { MemberUsage } from '../member-usage';
 
 export interface ConfigState {
   storedYaml: string;
+  tenantId: string;
   // Parsed YAML document, null when unparseable
   doc: Document | null;
   common: ConfigCommon;
@@ -35,7 +36,6 @@ export interface ConfigCommon {
   unreadable: string | null;
   // Error parsing the YAML, null on success
   unparseable: string | null;
-  served_logos: string[];
 }
 
 export interface SectionSummary {

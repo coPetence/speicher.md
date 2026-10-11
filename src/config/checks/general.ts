@@ -1,14 +1,27 @@
 import { PUBLIC_GROUP_NAME } from '../../common/principals';
 import { isKnownTimeZone } from '../../dashboard/analytics/buckets';
-import { BRAND_IMAGES, parseBrandImage } from '../brand';
+import { BRAND_IMAGES, brandValueKind, parseBrandImage } from '../brand';
 import { InstanceConfig } from '../types';
 
 export function checkBrandLogo(config: InstanceConfig, problems: string[]): void {
   for (const spec of BRAND_IMAGES) {
     const stored = config.brand?.[spec.field];
     if (stored === undefined) continue;
-    const { problem } = parseBrandImage(stored, spec);
-    if (problem) problems.push(problem);
+
+    switch (brandValueKind(stored)) {
+      case 'ref':
+        continue;
+      case 'data': {
+        const { problem } = parseBrandImage(stored, spec);
+        if (problem) problems.push(problem);
+        continue;
+      }
+      default:
+        problems.push(
+          `\`${spec.key}\` must be a base64 \`data:\` URI or a \`sha256:\` reference ` +
+            'to an image this instance has stored',
+        );
+    }
   }
 }
 

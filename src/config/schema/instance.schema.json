@@ -239,19 +239,19 @@
         "logo": {
           "type": "string",
           "maxLength": 90000,
-          "pattern": "^data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}$",
+          "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
           "description": "Logo as a base64 data URI (max 64 KB PNG, WebP or SVG)"
         },
         "logo_dark": {
           "type": "string",
           "maxLength": 90000,
-          "pattern": "^data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}$",
+          "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
           "description": "Logo for dark mode as base64 data URI (max 64 KB PNG, WebP or SVG)"
         },
         "icon": {
           "type": "string",
           "maxLength": 45000,
-          "pattern": "^data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}$",
+          "pattern": "^(data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
           "description": "Square Favicon as base64 data URI (max 32 KB PNG, WebP or SVG at least 32x32)"
         }
       }

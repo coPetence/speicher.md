@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 
 import { getConfigTextForTenant } from '../../config/loader';
+import { inlineBrandImages } from '../../dashboard/configurator/config-form/brand-inline';
 import { exportConfig } from '../../dashboard/configurator/config-form/export';
 import { instanceHost } from '../../common/env';
 import { tenancy } from '../../db/tenancy';
@@ -55,7 +56,8 @@ export const configCommand: Command = {
       return 1;
     }
 
-    const exported = exportConfig(currentConfig.yaml, {
+    const inlined = await inlineBrandImages(tenant.id, currentConfig.yaml);
+    const exported = exportConfig(inlined, {
       withSecrets,
       host: instanceHost(),
       version: currentConfig.version,
