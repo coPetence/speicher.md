@@ -15,6 +15,8 @@ import type { Request, Response } from 'express';
 import { callerOf } from '../../auth/caller.middleware';
 import { ResolvedCaller } from '../../authz/caller';
 import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
+import { BRAND_LOGO, checkBrandBytes } from '../../config/brand';
+import { brandImagesByHash } from '../../config/brand-store';
 import { ConfigService } from '../../config/config.service';
 import {
   ConfigVersion,
@@ -23,6 +25,7 @@ import {
   saveInstanceConfig,
 } from '../../config/loader';
 import { ConfigWatcher } from '../../config/watcher';
+import { sendBrandImage } from '../../content-reader/assets.controller';
 import { sendHtml } from '../../content-reader/views';
 import { sendConfigBackup } from '../ui/views/config-backup/config-backup';
 import { sendConfigEnvironment } from '../ui/views/config-environment/config-environment';
@@ -111,7 +114,7 @@ export class ConfigController {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    this.backupAnswer(req, res, caller, this.page.backupPage(await this.page.state(caller)));
+    this.backupAnswer(req, res, caller, await this.page.backupPage(await this.page.state(caller)));
   }
 
   /** Raw YAML download of the current config */
@@ -120,7 +123,7 @@ export class ConfigController {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    const backup = this.page.backup(await this.page.state(caller));
+    const backup = await this.page.backup(await this.page.state(caller));
 
     res.setHeader('Content-Type', 'application/yaml; charset=utf-8');
     // Forces the browser to download rather than display
@@ -206,6 +209,34 @@ export class ConfigController {
     });
   }
 
+  /**
+   * A stored brand image, for the thumbnail beside its picker
+   */
+  @Get('config/brand/:hash')
+  async configBrandImage(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('hash') hash: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    if (!caller.isAdmin) return this.respond.notFound(req, res);
+    if (!/^[0-9a-f]{64}$/.test(hash)) return this.respond.notFound(req, res);
+
+    const stored = (await brandImagesByHash(caller.tenantId, [hash])).get(hash);
+    const inline = this.config.brandImages.find((image) => image.hash === hash);
+
+    const image = stored
+      ? { mediaType: stored.media_type, bytes: stored.bytes }
+      : inline && { mediaType: inline.mediaType, bytes: inline.bytes };
+    if (!image) return this.respond.notFound(req, res);
+
+    if (checkBrandBytes(image.bytes, image.mediaType, BRAND_LOGO)) {
+      return this.respond.notFound(req, res);
+    }
+
+    sendBrandImage(res, image.mediaType, image.bytes, 'private, no-store');
+  }
+
   /** A single entry within a member (e.g. a group source) */
   @Get('config/:section/:member/:entry')
   async memberEntryPage(
@@ -263,7 +294,7 @@ export class ConfigController {
   ): Promise<void> {
     const state = await this.page.state(caller);
 
-    let payload = this.page.sectionPayload(state, sectionId);
+    let payload = await this.page.sectionPayload(state, sectionId);
     if (!payload.section) {
       const draft = this.page.draftPayload(state, sectionId, kind ?? '');
       if (!draft) return this.respond.notFound(req, res);
@@ -348,7 +379,7 @@ export class ConfigController {
 
     const state = await this.page.state(caller);
     // Pass query and kind to pre-filter the entries and select the creation kind
-    const payload = this.page.sectionPayload(
+    const payload = await this.page.sectionPayload(
       state,
       sectionId,
       typeof q === 'string' ? q : '',

@@ -5,6 +5,7 @@ import {
   BRAND_LOGO_DARK,
   describeBytes,
   parseBrandImage,
+  parseBrandRef,
 } from '../../../../config/brand';
 import type { PaletteGroupId, PaletteKey } from '../../../../config/palette';
 import { PALETTE_GROUPS } from '../../../../config/palette';
@@ -13,6 +14,7 @@ import { DEFAULT_TEMPLATE, templateNames } from '../../../../content-reader/asse
 import { templatePalette } from '../../../../content-reader/template-palette';
 
 import type { CardItem, Field, Obj } from '../config-fields';
+import { STORED_IMAGE } from '../config-fields/file';
 import {
   at,
   booleanField,
@@ -27,17 +29,18 @@ import { fieldsOf } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead, subsectionEntry } from './registry';
 
-/**
- * Says what file is already stored if there is one
- */
-function storedImage(raw: unknown, spec: BrandImageSpec): { stored: string; storedFile: string } {
-  if (typeof raw !== 'string') return { stored: '', storedFile: '' };
+function storedImage(raw: unknown, spec: BrandImageSpec): { stored: string; storedHash: string } {
+  if (typeof raw !== 'string') return { stored: '', storedHash: '' };
+
+  const hash = parseBrandRef(raw);
+  if (hash !== null) return { stored: STORED_IMAGE, storedHash: hash };
+
   const { image, problem } = parseBrandImage(raw, spec);
-  if (!image) return { stored: problem ?? '', storedFile: '' };
+  if (!image) return { stored: problem ?? '', storedHash: '' };
   const type = (spec.types[image.mediaType] ?? '').toUpperCase();
   return {
     stored: `${type}, ${describeBytes(image.bytes.length)}`,
-    storedFile: image.file,
+    storedHash: image.hash,
   };
 }
 

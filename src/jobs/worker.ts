@@ -16,6 +16,7 @@ import { env } from '../common/env';
 import { Logger, rootLogger, runWithLogContext } from '../common/logger';
 import { ConfigService } from '../config/config.service';
 import { stableStringify } from '../config/resolution-hash';
+import { sweepBrandImages } from '../config/brand-store';
 import { purgeAnalytics, sweepAnalytics } from '../dashboard/analytics/retention';
 import { TenancyService } from '../db/tenancy';
 import { EmbedService } from '../embed/embed.service';
@@ -349,6 +350,24 @@ export class Worker {
         return;
       }
 
+      case 'brand-sweep': {
+        /*
+          The images nothing names any more.
+
+          Kept out of the configuration's own history on purpose: a version is
+          never pruned, so a picture a version names is never deletable, and what
+          this collects is the other kind — bytes stored for a save that was then
+          refused or walked away from. What the *running* configuration names is
+          handed in, because in `file` mode no stored version says it.
+        */
+        const collected = await sweepBrandImages(
+          job.tenant_id,
+          this.config.brandImages.map((image) => image.hash),
+        );
+        if (collected > 0) this.log.info('collected unreferenced brand images', { collected });
+        return;
+      }
+
       default:
         this.log.warn('unknown job kind', { kind: job.kind });
     }
@@ -413,6 +432,12 @@ export class Worker {
       tenantId: tenant.id,
       kind: 'analytics-maintenance',
       dedupeKey: 'analytics-maintenance',
+    });
+
+    await this.queue.enqueue({
+      tenantId: tenant.id,
+      kind: 'brand-sweep',
+      dedupeKey: 'brand-sweep',
     });
 
     this.rearmReconcileTimer();

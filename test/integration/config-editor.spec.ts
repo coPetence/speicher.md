@@ -7,6 +7,7 @@ import { QueryTypes } from 'sequelize';
 import request from 'supertest';
 
 import { runCli } from '../../src/cli/cli';
+import { brandImageExists } from '../../src/config/brand-store';
 import { ConfigService } from '../../src/config/config.service';
 import {
   CONFIG_SOURCE_ENV,
@@ -2452,11 +2453,16 @@ describe('the logos page', () => {
     const page = await landing('branding/logos', posted);
     expect(page.text).toContain('spr-toast');
 
+    // The document names the image; the bytes are a row of their own, so a save
+    // of any other key from here on copies a reference and not a picture.
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    expect(yaml).toContain('logo: data:image/png;base64,');
+    const hash = /logo: sha256:([0-9a-f]{64})/.exec(yaml)?.[1] as string;
+    expect(hash).toEqual(expect.any(String));
+    expect(yaml).not.toContain('data:image/png');
+    expect(await brandImageExists(harness.tenantId, hash)).toBe(true);
 
     const src = /<img[^>]*src="(\/-\/brand\/[^"]+)"/.exec(page.text)?.[1] as string;
-    expect(src).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
+    expect(src).toBe(`/-/brand/${hash}.png`);
 
     const served = await request(app.getHttpServer()).get(src).expect(200);
     expect(Buffer.from(served.body).equals(PNG)).toBe(true);
@@ -2494,8 +2500,8 @@ describe('the logos page', () => {
 
     const second = await open('branding/logos');
     await submit({ ...second.body, intent: 'apply' }, null).expect(303);
-    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
-      'logo: data:image/png',
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toMatch(
+      /logo: sha256:[0-9a-f]{64}/,
     );
   });
 
@@ -2510,8 +2516,20 @@ describe('the logos page', () => {
     expect(form).toMatch(
       /class="spr-stored-pick"\s+for="f-brand\.logo"[\s\S]*?class="spr-file spr-file-tucked"\s+id="f-brand\.logo"\s+name="brand\.logo"[\s\S]*?name="remove:brand\.logo"/,
     );
-    const header = /<img[^>]*src="(\/-\/brand\/[^"]+)"/.exec(html)?.[1] as string;
-    expect(form).toContain(`src="${header}"`);
+    /*
+      The same image, reached two ways: the header through the public route,
+      which serves what the running configuration resolved to, and the
+      thumbnail through the admin one, which serves anything stored — including
+      a picture that has been picked and not yet saved.
+    */
+    const header = /<img[^>]*src="\/-\/brand\/([0-9a-f]{64})\.png"/.exec(html)?.[1] as string;
+    expect(form).toContain(`src="/-/config/brand/${header}"`);
+    const thumb = await request(app.getHttpServer())
+      .get(`/-/config/brand/${header}`)
+      .set('cookie', ops)
+      .expect(200);
+    expect(Buffer.from(thumb.body).equals(PNG)).toBe(true);
+    expect(thumb.headers['cache-control']).toContain('no-store');
   });
 
   it('leaves the picker whole while there is nothing stored to describe', async () => {
@@ -2535,9 +2553,23 @@ describe('the logos page', () => {
         name: 'logo.svg',
       },
     ).expect(200);
+    /*
+      And it *is* drawn, which it could not be while the picture lived in the
+      document: the bytes are stored the moment they are accepted, so the page
+      can show what was picked before anybody has pressed Save. Nothing was
+      saved — the version count says so — and the row this left behind is what
+      the sweep collects.
+    */
     const form = checked.text.slice(checked.text.indexOf('<form class="spr-config"'));
     expect(form).toContain('SVG,');
-    expect(form).not.toMatch(/<img\s+class="spr-stored-thumb"/);
+    const thumb = /<img\s+class="spr-stored-thumb"\s+src="\/-\/config\/brand\/([0-9a-f]{64})"/.exec(
+      form,
+    )?.[1] as string;
+    const drawn = await request(app.getHttpServer())
+      .get(`/-/config/brand/${thumb}`)
+      .set('cookie', ops)
+      .expect(200);
+    expect(Buffer.from(drawn.body).equals(SVG)).toBe(true);
     expect(await versionCount()).toBe(2);
   });
 
@@ -2615,13 +2647,14 @@ describe('the logos page', () => {
     const page = await landing('branding/logos', posted);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    expect(yaml).toContain('logo: data:image/png;base64,');
-    expect(yaml).toContain('logo_dark: data:image/svg+xml;base64,');
+    expect(yaml).toMatch(/logo: sha256:[0-9a-f]{64}/);
+    expect(yaml).toMatch(/logo_dark: sha256:[0-9a-f]{64}/);
+    expect(yaml).not.toContain('base64,');
 
     const light = /<img class="spr-brand-logo spr-brand-logo-light" src="([^"]+)"/.exec(page.text);
     const dark = /<img class="spr-brand-logo spr-brand-logo-dark" src="([^"]+)"/.exec(page.text);
-    expect(light?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
-    expect(dark?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.svg$/);
+    expect(light?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.png$/);
+    expect(dark?.[1]).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.svg$/);
 
     for (const src of [light?.[1] as string, dark?.[1] as string]) {
       await request(app.getHttpServer()).get(src).expect(200);
@@ -2637,7 +2670,7 @@ describe('the logos page', () => {
     const page = await landing('branding/logos', posted);
 
     const href = /<link rel="icon" href="([^"]+)" type="image\/png"/.exec(page.text)?.[1] as string;
-    expect(href).toMatch(/^\/-\/brand\/[0-9a-f]{16}\.png$/);
+    expect(href).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.png$/);
 
     const served = await request(app.getHttpServer()).get(href).expect(200);
     expect(served.headers['cache-control']).toContain('immutable');
@@ -2669,9 +2702,9 @@ describe('the logos page', () => {
       { ...next.body, intent: 'apply' },
       { 'brand.logo': { bytes: WEBP, name: 'logo.webp' } },
     ).expect(303);
-    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
-      'logo: data:image/webp;base64,',
-    );
+    const stored = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    const webpHash = /logo: sha256:([0-9a-f]{64})/.exec(stored)?.[1] as string;
+    expect(await brandImageExists(harness.tenantId, webpHash)).toBe(true);
   });
 
   describe('/favicon.ico', () => {

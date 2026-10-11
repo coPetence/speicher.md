@@ -31,6 +31,7 @@ export const JOB_KINDS = [
   'notify',
   'embed',
   'analytics-maintenance',
+  'brand-sweep',
 ] as const;
 
 export type JobKind = (typeof JOB_KINDS)[number];

@@ -12,13 +12,14 @@ import { readFileSync } from 'node:fs';
 import { QueryTypes } from 'sequelize';
 
 import { EnvName, env } from '../common/env';
-import { ConfigError, ConfigReadOnlyError } from '../common/errors';
+import { ConfigError, ConfigReadOnlyError, reasonOf } from '../common/errors';
 import { rootLogger } from '../common/logger';
 import { getSequelize } from '../db/sequelize';
 import { tenancy } from '../db/tenancy';
 
 import { unclaimedInstanceConfig } from '../dashboard/setup/unclaimed';
 import { privateKeyProblem } from '../forge/github/tokens';
+import { namesStoredBrandImage, resolveBrandImagesFor } from './brand-resolve';
 import { adminLockout } from './checks/admins';
 import { LoadedInstanceConfig, loadInstanceConfig, loadInstanceConfigFromFile } from './parser';
 import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
@@ -86,7 +87,10 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
   if (resolveConfigSource() === 'file') {
     const loaded = loadInstanceConfigFromFile(resolveConfigPath());
     announceUnadministrable(loaded);
-    return loaded;
+
+    if (!namesStoredBrandImage(loaded.raw)) return announceBrandProblems(loaded);
+
+    return announceBrandProblems({ ...loaded, ...(await brandImagesFor(loaded)) });
   }
 
   // tenant = instance; in most self hosted deployments the tenant is 'default'
@@ -106,13 +110,16 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
   while (candidate) {
     try {
       // Try to load this version; if it fails skip to the next below
+      const parsed = loadInstanceConfig(candidate.yaml);
       const loaded = {
-        ...loadInstanceConfig(candidate.yaml),
+        ...parsed,
+        ...(await brandImagesFor(parsed)),
         source: 'database' as ConfigSource,
         version: candidate.version,
         skipped,
       };
       if (skipped.length > 0) announceFallback(loaded.version as number, skipped);
+      announceBrandProblems(loaded);
       return loaded;
     } catch (err) {
       // Only ConfigError means a bad version; rethrow unexpected errors
@@ -130,6 +137,34 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
       `${skipped.map((s) => `v${s.version}`).join(', ')})`,
     skipped.flatMap((s) => s.problems.map((p) => `v${s.version}: ${p}`)),
   );
+}
+
+async function brandImagesFor(
+  parsed: LoadedInstanceConfig,
+): Promise<Pick<LoadedInstanceConfig, 'brandImages' | 'brandProblems'>> {
+  try {
+    const tenant = await tenancy.defaultTenant();
+    const resolved = await resolveBrandImagesFor(tenant.id, parsed.raw);
+    return { brandImages: resolved.images, brandProblems: resolved.problems };
+  } catch (err) {
+    return {
+      brandImages: parsed.brandImages,
+      brandProblems: [
+        ...parsed.brandProblems,
+        `the stored brand images could not be read: ${reasonOf(err)}`,
+      ],
+    };
+  }
+}
+
+/** Log every brand image the active configuration names and does not have */
+function announceBrandProblems(loaded: LoadedInstanceConfig): LoadedInstanceConfig {
+  if (loaded.brandProblems.length > 0) {
+    rootLogger.child('config').warn('a brand image this configuration names is not available', {
+      problems: loaded.brandProblems,
+    });
+  }
+  return loaded;
 }
 
 /** Log that an older config version was used because newer versions failed to load */

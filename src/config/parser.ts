@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { ConfigError } from '../common/errors';
 import { parseStrictYaml } from '../common/yaml';
+import type { BrandImages } from './brand-resolve';
+import { resolveBrandImages } from './brand-resolve';
 import { checkAdmins } from './checks/admins';
 import { checkFirstSegments, resolvePrimaryForge } from './checks/forges';
 import {
@@ -21,6 +23,8 @@ import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
 /** The instance config after it has been parsed, interpolated and checked */
 export interface LoadedInstanceConfig {
   raw: InstanceConfig;
+  brandImages: BrandImages;
+  brandProblems: string[];
   /** Whether the config was loaded from a file or from the database */
   source: ConfigSource;
   /** The absolute path the config was read from. Null in `database` mode. */
@@ -89,10 +93,14 @@ export function loadInstanceConfig(yaml: string): LoadedInstanceConfig {
     throw new ConfigError('instance config is not internally consistent', problems);
   }
 
+  const brand = resolveBrandImages(config);
+
   // The caller overwrites source, sourcePath and version, since only it knows where
   // the YAML came from
   return {
     raw: config,
+    brandImages: brand.images,
+    brandProblems: brand.problems,
     source: 'file',
     sourcePath: null,
     version: null,

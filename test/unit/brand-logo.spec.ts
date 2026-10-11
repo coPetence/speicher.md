@@ -100,8 +100,8 @@ describe('what a logo may be', () => {
     const again = parseBrandLogo(dataUri('image/png', PNG)).image;
     const other = parseBrandLogo(dataUri('image/svg+xml', svg('<rect />'))).image;
     expect(one?.file).toBe(again?.file);
-    expect(one?.file).toMatch(/^[0-9a-f]{16}\.png$/);
-    expect(other?.file).toMatch(/^[0-9a-f]{16}\.svg$/);
+    expect(one?.file).toMatch(/^[0-9a-f]{64}\.png$/);
+    expect(other?.file).toMatch(/^[0-9a-f]{64}\.svg$/);
     expect(one?.file).not.toBe(other?.file);
   });
 

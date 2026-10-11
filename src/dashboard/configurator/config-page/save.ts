@@ -2,6 +2,9 @@ import { carryProviderRows } from '../../../auth/provider-rename';
 import { ResolvedCaller } from '../../../authz/caller';
 import { ConfigError, ConfigReadOnlyError } from '../../../common/errors';
 import { rootLogger } from '../../../common/logger';
+import { brandRef } from '../../../config/brand';
+import { internBrandImage } from '../../../config/brand-store';
+import { stampBrandImages } from './brand-stamp';
 import { compareConfigs } from '../../../config/classification';
 import { ConfigService } from '../../../config/config.service';
 import { SaveActor, saveInstanceConfig, validateForSave } from '../../../config/loader';
@@ -168,7 +171,7 @@ export class ConfigSaveService {
       const moved = memberSectionId(from.section, to);
       if (json) {
         const state = await this.page.state(caller);
-        const after = this.page.sectionPayload(state, moved);
+        const after = await this.page.sectionPayload(state, moved);
         after.saved = { version: saved.version, applied_at: saved.applied_at };
         after.waiting_on = refresh.waiting;
         return pageOf(moved, after);
@@ -187,7 +190,7 @@ export class ConfigSaveService {
 
   async save({ caller, sectionId, kind, json, readBody }: SaveRequest): Promise<SaveOutcome> {
     const state = await this.page.state(caller);
-    const payload = this.page.sectionPayload(state, sectionId);
+    const payload = await this.page.sectionPayload(state, sectionId);
     // Every answer below is a submission rendered back, so whatever is in the boxes
     // was typed in a browser and is stored nowhere. That is what the unload guard
     // protects, and it is not the question `pending` answers — see `holds_work`.
@@ -272,7 +275,11 @@ export class ConfigSaveService {
     */
     const offered = sectionOf(doc, sectionId, hint);
     const refusal =
-      uploads.refusal ?? fillUploads(offered ? allFields([offered]) : [], uploads, body);
+      uploads.refusal ??
+      (await fillUploads(offered ? allFields([offered]) : [], uploads, body, async (image) => {
+        await internBrandImage(caller.tenantId, image);
+        return brandRef(image);
+      }));
 
     // Only this section's fields, ops and collections. An absent control is a
     // *value* for a checkbox, so decoding the whole model against one section's
@@ -315,6 +322,16 @@ export class ConfigSaveService {
     // Everything from here describes the *edited* document, so a refused save hands
     // back the operator's own work rather than the version on disk.
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
+    /*
+      And the words for a picture, again — against the *edited* document.
+
+      The payload above was stamped from the stored one, and a request carrying
+      an upload has just put a different image in this section: the file was
+      interned a few lines ago, so the store can already say what it is, and
+      saying "Stored image" instead would describe the picture this save
+      replaced.
+    */
+    await stampBrandImages(caller.tenantId, payload);
     // The round trip that adds or removes an entry re-renders the index, so the
     // provenance columns have to be filled in again — against the *stored*
     // history, which is what they are about: an entry added by this request has

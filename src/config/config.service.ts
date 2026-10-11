@@ -20,7 +20,6 @@ import {
   BrandImage,
   BrandImageSpec,
   brandImageUrl,
-  parseBrandImage,
 } from './brand';
 import { pollIntervalMs } from './checks/git-forges';
 import type { ColourScheme } from './palette';
@@ -55,8 +54,6 @@ export interface RepoRef {
 export class ConfigService {
   private loaded: LoadedInstanceConfig;
 
-  private readonly brandImageSource = new Map<string, string | undefined>();
-  private readonly brandImageCache = new Map<string, BrandImage | null>();
   private themeSource: ThemeConfig | undefined;
   private readonly themeCache = new Map<string, string | null>();
 
@@ -228,13 +225,7 @@ export class ConfigService {
   }
 
   private brandImage(spec: BrandImageSpec): BrandImage | null {
-    const stored = this.instance.brand?.[spec.field];
-    if (stored === undefined) return null;
-    if (this.brandImageSource.get(spec.field) !== stored) {
-      this.brandImageSource.set(spec.field, stored);
-      this.brandImageCache.set(spec.field, parseBrandImage(stored, spec).image);
-    }
-    return this.brandImageCache.get(spec.field) ?? null;
+    return this.loaded.brandImages.get(spec.field) ?? null;
   }
 
   get brandLogo(): BrandImage | null {

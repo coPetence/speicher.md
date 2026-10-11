@@ -195,7 +195,7 @@ export async function truncateAll(): Promise<void> {
              repo_slug_history, repos, installations, forges, webhook_deliveries,
              api_keys, sessions, magic_link_tokens, login_flows, notification_state,
              oauth_grants, oauth_codes,
-             rate_limits, instance_state, instance_configs,
+             rate_limits, instance_state, instance_configs, brand_images,
              page_views, search_misses
       RESTART IDENTITY CASCADE
   `);

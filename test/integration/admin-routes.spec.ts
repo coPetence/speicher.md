@@ -97,6 +97,14 @@ const CONTRACT: Record<string, Contract> = {
       'instance. It is asserted in config-templates.spec.ts instead.',
   },
 
+  'GET /-/config/brand/:hash': {
+    exempt:
+      'An image, not a document: it answers with the bytes of a stored brand ' +
+      'image for the thumbnail beside its picker, and there is no JSON encoding ' +
+      'of a PNG. It is asserted in config-editor.spec.ts, where the page that ' +
+      'draws it is.',
+  },
+
   'POST /-/config/:section/:member/:entry': {
     covered:
       'config-editor.spec.ts, for the reason every save route here is: the request ' +
@@ -260,6 +268,9 @@ describe('the order the config routes are mounted in', () => {
       order.indexOf('GET /-/config/:section'),
     );
     expect(order.indexOf('GET /-/config/preview/:template')).toBeLessThan(
+      order.indexOf('GET /-/config/:section/:member'),
+    );
+    expect(order.indexOf('GET /-/config/brand/:hash')).toBeLessThan(
       order.indexOf('GET /-/config/:section/:member'),
     );
     expect(order.indexOf('GET /-/config/:section/:member/:entry')).toBeLessThan(

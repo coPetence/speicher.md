@@ -19,8 +19,10 @@ import { compareConfigs } from '../../../config/classification';
 import { ConfigService } from '../../../config/config.service';
 import { getNewestConfigVersion } from '../../../config/loader';
 import { loadInstanceConfig } from '../../../config/parser';
+import { stampBrandImages } from './brand-stamp';
 import { shapeControls } from '../config-form/collections';
 import { loadDocument } from '../config-form/document';
+import { inlineBrandImages } from '../config-form/brand-inline';
 import { exportConfig } from '../config-form/export';
 import { CONFIG_NAV_SECTIONS, CONFIG_SECTIONS, buildSections } from '../config-form/fields';
 import { memberExists, seedMemberInto } from '../config-form/member-edits';
@@ -80,6 +82,7 @@ export class ConfigPageService {
     return {
       // The raw YAML as stored; used for draft payloads that need the original
       storedYaml: yaml,
+      tenantId: caller.tenantId,
       doc,
       common: {
         config_source: source,
@@ -95,7 +98,6 @@ export class ConfigPageService {
         waiting_consequences: this.waitingConsequences(editingVersion, yaml),
         unreadable,
         unparseable,
-        served_logos: this.config.brandImages.map((image) => image.file),
       },
     };
   }
@@ -139,8 +141,8 @@ export class ConfigPageService {
    * backupPage returns what the `/-/config/backup` page shows for the given state:
    * the file `backup` produces, together with its size in bytes.
    */
-  backupPage(state: ConfigState): ConfigBackupPayload {
-    const backup = this.backup(state);
+  async backupPage(state: ConfigState): Promise<ConfigBackupPayload> {
+    const backup = await this.backup(state);
     return {
       ...state.common,
       ...backup,
@@ -155,10 +157,10 @@ export class ConfigPageService {
    * download, with every secret replaced by an environment variable
    * reference.
    */
-  backup(state: ConfigState): ConfigBackup {
+  async backup(state: ConfigState): Promise<ConfigBackup> {
     let exported;
     try {
-      exported = exportConfig(state.storedYaml, {
+      exported = exportConfig(await inlineBrandImages(state.tenantId, state.storedYaml), {
         host: instanceHost(),
         version: state.common.editing_version,
       });
@@ -196,18 +198,19 @@ export class ConfigPageService {
     return { environment: envReport() };
   }
 
-  sectionPayload(
+  async sectionPayload(
     state: ConfigState,
     sectionId: string,
     query = '',
     openKind = '',
-  ): ConfigSectionPayload {
+  ): Promise<ConfigSectionPayload> {
     const payload = this.payloadFrom(state, state.doc, sectionId, undefined, query);
     // If the requested openKind is among the add-ops on this section, propagate it
     const offered = payload.section?.addOps.some((op) =>
       op.typeOptions.some((option) => option.value === openKind),
     );
     payload.openKind = offered ? openKind : '';
+    await stampBrandImages(state.tenantId, payload);
     return payload;
   }
 
