@@ -1,0 +1,16 @@
+# publishes `documentation/` to docs.speicher.md
+version: 1
+
+access:
+  groups: [internal]
+
+ingest_root: documentation
+
+maintainers:
+  groups: [speicher-docs-maintainers]
+
+sync:
+  include: ['**/*.md', '**/*.mdx']
+
+display:
+  title: 'Speicher.md Documentation'
