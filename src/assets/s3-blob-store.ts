@@ -174,21 +174,17 @@ export class S3BlobStore implements BlobStore {
   }
 
   /**
-   * Why a probe failed, in the terms the operator can act on
-   *
-   * The three cases need different fixes -- make the bucket, widen the policy, or
-   * look at the endpoint -- and a bare SDK message names none of them
+   * Reasoning why probe failed
    */
   private failureDetail(err: unknown): string {
     const status = statusOf(err);
     if (status === 404) {
       return (
-        `${this.description} is not there. This instance never creates it, and a ` +
-        `provider wanting the other addressing style answers the same way.`
+        `${this.description} does not exist. Make sure to create it before.`
       );
     }
     if (status === 403) {
-      return `${this.description} refused these credentials. They may lack s3:ListBucket on it.`;
+      return `${this.description} refused these credentials. Make sure it has s3:ListBucket permission.`;
     }
     return `${this.description} (${reasonOf(err)})`;
   }
@@ -198,7 +194,7 @@ export class S3BlobStore implements BlobStore {
     this.client.destroy();
   }
 
-  /** Deletes every object under the repo prefix, a page of keys at a time */
+  /** Deletes every object under the repo prefix */
   async purgeRepo(repoId: string): Promise<void> {
     const prefix = `${repoId}/`;
     let continuationToken: string | undefined;
@@ -226,8 +222,6 @@ export class S3BlobStore implements BlobStore {
           }),
         );
 
-        // DeleteObjects answers 200 with per-key failures in the body, so a purge
-        // that silently kept objects would otherwise look like it had worked
         const failures = response.Errors ?? [];
         if (failures.length) {
           throw new Error(
@@ -248,7 +242,6 @@ export class S3BlobStore implements BlobStore {
   }
 }
 
-/** Resolves the assets config, connects, and logs the store's boot line */
 export function createS3BlobStore(assets: AssetsConfig, deps: S3BlobStoreDeps = {}): S3BlobStore {
   const options = resolveS3Options(assets);
   const client = deps.client ?? clientFor(options);
@@ -262,19 +255,7 @@ export function createS3BlobStore(assets: AssetsConfig, deps: S3BlobStoreDeps = 
 }
 
 /**
- * Whether the bucket goes in the path rather than the hostname
- *
- * Derived rather than asked. Virtual-host addressing (`bucket.host/key`) needs the
- * bucket to resolve as a subdomain, which only the public clouds arrange, and AWS
- * now requires it for buckets made after September 2020. Everything reached through
- * an `endpoint` is self-hosted or S3-compatible, where there is no wildcard DNS and
- * no certificate to match, so the bucket goes in the path
- *
- * An AWS endpoint named explicitly -- a VPC, FIPS or regional one -- is still AWS,
- * and still wants the hostname form
- *
- * The SDK separately corrects the two cases where virtual-host cannot work at all:
- * an IP address for a host, and a bucket name containing a dot over HTTPS
+ * Whether the bucket uses path style instead of host style
  */
 export function usesPathStyle(endpoint: string | undefined): boolean {
   if (!endpoint) return false;
@@ -282,27 +263,22 @@ export function usesPathStyle(endpoint: string | undefined): boolean {
     const host = new URL(endpoint).hostname;
     return host !== 'amazonaws.com' && !host.endsWith('.amazonaws.com');
   } catch {
-    // Unparseable: the client constructor rejects it a moment later anyway
+    // Unparseable; will be rejected in next step
     return true;
   }
 }
 
-/** Validates the s3 config, listing every problem in one ConfigError */
+/** Validates the s3 config */
 export function resolveS3Options(assets: AssetsConfig): S3BlobStoreOptions {
   const problems: string[] = [];
   if (!assets.bucket) problems.push('assets.bucket is required for the s3 driver');
-
-  // The SDK has no default region, and guessing one fails as a redirect to the
-  // bucket's real region, which reads like a broken endpoint
   if (!assets.region) problems.push('assets.region is required for the s3 driver');
-
   if (!assets.access_key_id) {
     problems.push('assets.access_key_id is required for the s3 driver');
   }
   if (!assets.secret_access_key) {
     problems.push('assets.secret_access_key is required for the s3 driver');
   }
-
   if (problems.length) throw new ConfigError('the s3 assets driver is misconfigured', problems);
 
   return {
@@ -326,9 +302,7 @@ function clientFor(options: S3BlobStoreOptions): S3Client {
     },
 
     // The SDK otherwise sends a CRC32 checksum with `aws-chunked` encoding on
-    // every upload, which Hetzner Object Storage and older MinIO reject outright.
-    // Both are providers this driver documents support for, so checksums go out
-    // only where the protocol demands them
+    // every upload, which Hetzner Object Storage and older MinIO reject outright
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });

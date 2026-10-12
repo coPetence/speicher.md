@@ -19,7 +19,6 @@ import { devEnv } from './dev-env';
 
 const FIXTURES = resolve(__dirname, '../test/fixtures');
 
-// At module scope so teardown can release it whatever main() did
 let blobs: BlobStore | undefined;
 
 process.env.SPEICHER_LOG_LEVEL ??= 'error';
@@ -105,9 +104,6 @@ async function main(): Promise<void> {
     { dir: 'fieldkit', namespace: 'copetence', slug: 'fieldkit', forgeRepoId: '41775319' },
   ];
 
-  // Whatever the instance reads from: seeding to a hardcoded volume while the
-  // app serves from a bucket leaves every fixture asset unreadable, and no sync
-  // can repair it because these repos have no remote to walk again
   blobs = blobStoreFor(config);
   const ingest = new IngestService(config, blobs, sequelize);
 
