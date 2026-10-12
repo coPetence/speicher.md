@@ -12,7 +12,7 @@ GitHub allows you to create OAuth apps and GitHub Apps, both can be created unde
 | **OAuth App** under **organization**      | <ins>Every GitHub user</ins> can login; you want to share documents with <ins>organization teams</ins> (permission can be assigned to teams and indidual users)         |
 | **GitHub App** under **organization**     | Only <ins>Organization Members</ins> can login; you want to share documents with <ins>organization teams</ins> (permission can be assigned to teams and indidual users) |
 | **OAuth App** under **personal account**  | <ins>Every GitHub user</ins> can login; you want to share documents with individual users (<ins>email address whitelist</ins>)                                          |
-| **GitHub App** under **personal account** | <ins>Only you</ins> can login (kind of defeats the purpose but you really want to, it works)                                                                                                                                           |
+| **GitHub App** under **personal account** | <ins>Only you</ins> can login (kind of defeats the purpose but if you really want to, it works)                                                                         |
 
 ## 1. Create a new Speicher Identity Provider
 
@@ -27,7 +27,7 @@ On the configuration page you will see two URL's that you will need for the next
 
 ## 2. Create GitHub OAuth app
 
-In GitHub go to \*\*Organization Settings → Developer Settings → OAuth Apps and create a new OAuth app.
+In GitHub go to **Organization Settings → Developer Settings → OAuth Apps** and create a new OAuth app.
 
 Give the OAuth app a descriptive Application Name and insert your Homepage URL and Redirect URI that you copied in the [step before](#1-create-a-new-speicher-identity-provider).
 
@@ -64,13 +64,13 @@ This only makes sense on organization accounts!
 
 To configure the GitHub Directory Client select `GitHub` in the directory lookup dropdown.
 
-Create a GitHub App (not OAuth App) under **Organization Settings → Developer Settings → GitHub Apps.
+Create a GitHub App (not OAuth App) under **Organization Settings → Developer Settings → GitHub Apps**.
 
 :::note
 It is highly recommended to create a seperate GitHub app instead of reusing the one you configured for authentication.
 :::
 
-Give the app a descriptive name, paste the Homepage URL from the [first step](#1-create-a-new-speicher-identity-provider), deactivate webhooks and assign the **Members: Read-only\*\* permission (under Organization permissions).
+Give the app a descriptive name, paste the Homepage URL from the [first step](#1-create-a-new-speicher-identity-provider), deactivate webhooks and assign the **Members: Read-only** permission (under Organization permissions).
 
 Create the app and paste the App ID into the Configuration in Speicher. Now create a private key under **Credentials -> Key pairs**:
 
