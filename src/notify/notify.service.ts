@@ -187,7 +187,7 @@ export class NotifyService {
    */
   private async principalHasAddress(repo: Repo, email: string): Promise<boolean> {
     const lower = email.toLowerCase();
-    for (const providerId of this.config.providerIds) {
+    for (const providerId of this.config.providerShortIds) {
       if ((repo.maintainer_principals ?? []).includes(emailPrincipal(providerId, lower)))
         return true;
     }

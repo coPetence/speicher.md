@@ -127,7 +127,7 @@ export class SetupWizardController {
       steps,
       // Cards vanish once their step is done; finished means an administrator exists
       choices:
-        this.config.providerIds.length > 0
+        this.config.providerShortIds.length > 0
           ? []
           : identityProviderChoices(this.config.hasMailTransport),
       sources: this.config.hasContentSource ? [] : forgeChoices(),
@@ -138,7 +138,7 @@ export class SetupWizardController {
 
   /** The configured OIDC providers, the only ones a proving login can use */
   private provable(): ProvableProvider[] {
-    return this.config.providerIds
+    return this.config.providerShortIds
       .filter((id) => {
         const provider = this.config.provider(id);
         return provider !== undefined && providerType(provider) === 'oidc';

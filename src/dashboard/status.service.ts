@@ -165,7 +165,7 @@ export class StatusService {
       config_skipped: this.config.skippedConfigVersions,
       resolution_hash: this.config.resolutionHash,
       forges: this.config.forgeIds,
-      providers: this.config.providerIds,
+      providers: this.config.providerShortIds,
       theme: this.config.themeTemplate,
       stale_after: this.config.notify.stale_after ?? '6h',
       dead_jobs: await this.repo.deadJobCount(caller.tenantId),

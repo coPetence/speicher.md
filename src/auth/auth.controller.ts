@@ -60,7 +60,7 @@ export class AuthController {
     @Query('redirect_to') redirectTo = '/',
   ): Promise<void> {
     const tenant = await this.tenancy.resolveTenant(req);
-    const providers = this.config.providerIds;
+    const providers = this.config.providerShortIds;
 
     const devLoginEnabled = env('SPEICHER_DEV_LOGIN');
     const chosenProvider =
@@ -230,7 +230,7 @@ export class AuthController {
     const tenant = await this.tenancy.resolveTenant(req);
     const providerId =
       body.provider ??
-      this.config.providerIds.find(
+      this.config.providerShortIds.find(
         (id) => providerType(this.config.provider(id)!) === 'magic-link',
       );
 
@@ -349,7 +349,7 @@ export class AuthController {
     }
 
     const tenant = await this.tenancy.resolveTenant(req);
-    const providerId = this.config.defaultProviderId ?? this.config.providerIds[0] ?? 'dev';
+    const providerId = this.config.defaultProviderId ?? this.config.providerShortIds[0] ?? 'dev';
 
     this.log.warn('dev-login issued a session without authentication', { subject });
     const groupIds = groups

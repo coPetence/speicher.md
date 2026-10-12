@@ -21,7 +21,6 @@ import {
 /** Identity of a signed-in user as claimed by the provider */
 export interface CallerIdentity {
   provider: string;
-
   subject: string;
   email: string | null;
   displayName?: string | null;

@@ -64,7 +64,7 @@ export class GraphDirectory {
   private unavailableUntil = 0;
 
   constructor(
-    readonly providerId: string,
+    readonly providerShortId: string,
     private readonly config: DirectoryConfig,
     deps: GraphDirectoryDeps = {},
   ) {
@@ -95,7 +95,7 @@ export class GraphDirectory {
         this.log.warn(
           'address matches more than one directory account; treating it as unresolved',
           {
-            provider: this.providerId,
+            provider: this.providerShortId,
           },
         );
       }
@@ -298,7 +298,7 @@ export class GraphDirectory {
   /** Throw if the directory is in its failure cooldown period */
   private assertAvailable(): void {
     if (this.now() < this.unavailableUntil) {
-      throw new DirectoryUnavailableError(this.providerId, 'still in the failure cooldown');
+      throw new DirectoryUnavailableError(this.providerShortId, 'still in the failure cooldown');
     }
   }
 
@@ -309,11 +309,11 @@ export class GraphDirectory {
     this.token = null;
     if (first) {
       this.log.error(`${message}; grants will resolve as they do without a directory`, {
-        provider: this.providerId,
+        provider: this.providerShortId,
         detail,
       });
     }
-    return new DirectoryUnavailableError(this.providerId, message, detail);
+    return new DirectoryUnavailableError(this.providerShortId, message, detail);
   }
 }
 
