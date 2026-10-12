@@ -19,7 +19,7 @@ import { tenancy } from '../db/tenancy';
 
 import { unclaimedInstanceConfig } from '../dashboard/setup/unclaimed';
 import { privateKeyProblem } from '../forge/github/tokens';
-import { namesStoredBrandImage, resolveBrandImagesFor } from './brand-resolve';
+import { instanceConfigHasBrandImageRefs, resolveBrandImagesForTenantId } from './brand-resolve';
 import { adminLockout } from './checks/admins';
 import { LoadedInstanceConfig, loadInstanceConfig, loadInstanceConfigFromFile } from './parser';
 import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
@@ -88,9 +88,9 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
     const loaded = loadInstanceConfigFromFile(resolveConfigPath());
     announceUnadministrable(loaded);
 
-    if (!namesStoredBrandImage(loaded.raw)) return announceBrandProblems(loaded);
+    if (!instanceConfigHasBrandImageRefs(loaded.raw)) return announceBrandProblems(loaded);
 
-    return announceBrandProblems({ ...loaded, ...(await brandImagesFor(loaded)) });
+    return announceBrandProblems({ ...loaded, ...(await loadBrandImages(loaded)) });
   }
 
   // tenant = instance; in most self hosted deployments the tenant is 'default'
@@ -113,7 +113,7 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
       const parsed = loadInstanceConfig(candidate.yaml);
       const loaded = {
         ...parsed,
-        ...(await brandImagesFor(parsed)),
+        ...(await loadBrandImages(parsed)),
         source: 'database' as ConfigSource,
         version: candidate.version,
         skipped,
@@ -139,12 +139,12 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
   );
 }
 
-async function brandImagesFor(
+async function loadBrandImages(
   parsed: LoadedInstanceConfig,
 ): Promise<Pick<LoadedInstanceConfig, 'brandImages' | 'brandProblems'>> {
   try {
     const tenant = await tenancy.defaultTenant();
-    const resolved = await resolveBrandImagesFor(tenant.id, parsed.raw);
+    const resolved = await resolveBrandImagesForTenantId(tenant.id, parsed.raw);
     return { brandImages: resolved.images, brandProblems: resolved.problems };
   } catch (err) {
     return {

@@ -166,17 +166,6 @@ export function parseBrandImage(value: string, spec: BrandImageSpec): BrandImage
   return { image: brandImageOf(bytes, mediaType, extension), problem: null };
 }
 
-/**
- * Everything that is true or false about the bytes themselves, said once.
- *
- * Shared by the two doors bytes come in through — a `data:` URI in a document,
- * and a row in `brand_images` — because the rules are about what will be served
- * from this origin as an image, and that does not depend on where the bytes were
- * read from. The SVG refusals are the reason this is checked again on the way
- * *out* of the table rather than trusted: what was written there was validated,
- * and a row is still the one thing here that something other than this code
- * could have put in place.
- */
 export function checkBrandBytes(
   bytes: Buffer,
   mediaType: string,

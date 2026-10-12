@@ -1,10 +1,5 @@
 /**
- * What a stored image is, written beside the picker that would replace it
- *
- * The document says `sha256:<hash>` and nothing else, so the type and the size
- * are a question for the store. Asked here rather than in the field model for
- * the reason every stamp on this surface exists: the model is built
- * synchronously, many times per request, and this is one query.
+ * Used to show info about stored brand images next to the logo pickers
  */
 
 import { BRAND_IMAGES, describeBytes } from '../../../config/brand';
@@ -13,13 +8,6 @@ import { STORED_IMAGE } from '../config-form/config-fields/file';
 import { allFields } from '../config-form/model';
 import { ConfigSectionPayload } from './payloads';
 
-/**
- * Fills in the words for every stored image this page shows.
- *
- * A hash the store does not have is said plainly rather than left reading
- * "Stored image", which would describe something that is not there — the one
- * state an operator needs to see, because the repair is to upload it again.
- */
 export async function stampBrandImages(
   tenantId: string,
   payload: ConfigSectionPayload,
@@ -44,8 +32,7 @@ export async function stampBrandImages(
       field.thumbHref = '';
       continue;
     }
-    // Named through the spec for this key, so the word beside a stored image is
-    // the same word an inline one gets — see `storedImage`
+    
     const spec = BRAND_IMAGES.find((each) => each.key === field.path);
     const type = (spec?.types[fact.media_type] ?? '').toUpperCase();
     field.stored = `${type}, ${describeBytes(fact.byte_size)}`;

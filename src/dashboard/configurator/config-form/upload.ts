@@ -63,7 +63,7 @@ export async function readUploads(req: Request, res: Response): Promise<Uploads>
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
         parts: new Map(),
-        refusal: `That file is larger than ${describeBytes(MAX_BRAND_LOGO_BYTES)}, which is the limit for the one image every page of this instance carries.`,
+        refusal: `That file is larger than ${describeBytes(MAX_BRAND_LOGO_BYTES)}. Use a smaller image instead.`,
       };
     }
     return { parts: new Map(), refusal: `The upload was refused: ${error.message}.` };
@@ -82,16 +82,8 @@ export async function readUploads(req: Request, res: Response): Promise<Uploads>
 export type InternImage = (image: BrandImage) => Promise<string>;
 
 /**
- * Writes each accepted part into `body` as the stored value for its field,
- * returning the first refusal encountered
- *
- * A brand image is stored *beside* the document and entered here as the
- * `sha256:` reference naming it, which is why this is async: what the document
- * gets is a name, and the name is only true once the bytes are written. The
- * write happens before the save is known to succeed, so a refused or abandoned
- * save leaves a row nothing points at — see the sweep. That is the price of the
- * form's round trips, and what it buys is a picture the page can show before it
- * has been saved.
+ * Handles the uploaded files
+ * Stores brand images in database
  */
 export async function fillUploads(
   fields: Field[],
@@ -100,7 +92,6 @@ export async function fillUploads(
   intern: InternImage,
 ): Promise<string | null> {
   for (const [name, bytes] of uploads.parts) {
-    // A field named with the prefix stores its file bytes; any other names the logo
     const derived = name.startsWith(UPLOAD_PREFIX);
     const path = derived ? name.slice(UPLOAD_PREFIX.length) : name;
     const field = fields.find((each) => each.path === path);
@@ -108,7 +99,6 @@ export async function fillUploads(
 
     if (!derived) {
       if (field.kind !== 'file') continue;
-      // Sniff the bytes so a claim about the type can catch a file with a lying name
       const mediaType = sniffMediaType(bytes);
       if (!mediaType) {
         return 'That file is not a PNG, a WebP or an SVG';
@@ -124,8 +114,6 @@ export async function fillUploads(
       const value = `data:${mediaType};base64,${bytes.toString('base64')}`;
       const spec = BRAND_IMAGES.find((each) => each.key === field.path);
       if (!spec) {
-        // A file field that is not one of the three brand keys: nothing knows
-        // what to check it against, so it is stored as it always was.
         body[field.path] = value;
         continue;
       }

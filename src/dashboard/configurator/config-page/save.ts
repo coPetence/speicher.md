@@ -322,49 +322,16 @@ export class ConfigSaveService {
     // Everything from here describes the *edited* document, so a refused save hands
     // back the operator's own work rather than the version on disk.
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
-    /*
-      And the words for a picture, again — against the *edited* document.
-
-      The payload above was stamped from the stored one, and a request carrying
-      an upload has just put a different image in this section: the file was
-      interned a few lines ago, so the store can already say what it is, and
-      saying "Stored image" instead would describe the picture this save
-      replaced.
-    */
+    
     await stampBrandImages(caller.tenantId, payload);
-    // The round trip that adds or removes an entry re-renders the index, so the
-    // provenance columns have to be filled in again — against the *stored*
-    // history, which is what they are about: an entry added by this request has
-    // no origin until the save, and says so with a dash.
     await stampEntryOrigins(caller.tenantId, payload);
-    // The checks go back on for the same reason: a round trip re-renders the page,
-    // and an offer that vanished when Add was pressed would read as a check that had
-    // gone away. The offer, never the answer — this route also serves the island's
-    // `intent=check`, so probing here put a token mint and a user list in front of
-    // every background validity check, which is what held Save.
     await this.checks.stampDirectoryStatus(payload, false);
-    // The control that offers the check, put back on a page that is being
-    // re-rendered — never the check itself. A save is not a request to ask a
-    // storage account anything, and the page that comes back carries the same link
-    // it arrived with, which the island then follows exactly as it did on load.
     await this.checks.stampSectionCheck(payload, edited, false);
-    // Work on this page that is not in any stored version — which is what the save
-    // bar exists to be about. The client cannot infer it: add and remove are round
-    // trips, so the page that comes back has the new entry *rendered*, and a
-    // baseline snapshot taken on load would call that unmodified and hide the bar
-    // over unsaved work. The server is the only side that knows, so it says.
-    // `creating` is unsaved work by itself: a provider that exists only because
-    // this page seeded it is not in any stored version, whatever the text compares
-    // to.
+
     payload.pending = edited !== state.storedYaml || payload.creating;
-    // The shape of the form being sent back, so the *next* request knows which
-    // entries this page had rather than inferring it from the stored document.
     payload.shape = payload.section ? shapeControls(doc, payload.section) : [];
 
-    // A refused upload is answered *here* rather than before the form was decoded,
-    // so the page comes back holding everything else the operator had typed. The
-    // early version returned as soon as the file was read and threw the rest of
-    // their edits away, which is a worse outcome than the bad file was.
+
     if (refusal || idTaken) {
       const error = idTaken
         ? `There is already a \`${renamesTo}\` here. Every short id in this ` +
