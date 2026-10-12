@@ -123,12 +123,13 @@ describe('resolving what the document says', () => {
   });
 
   it('reports a reference to an image nobody stored, without throwing', async () => {
-    const missing = `sha256:${'a'.repeat(64)}`;
+    const hash = 'a'.repeat(64);
+    const missing = `sha256:${hash}`;
     const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(missing));
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([
-      '`brand.logo` names an image this instance does not have stored (aaaaaaaaaaaa…)',
+      `\`brand.logo\` names an image this instance does not have stored (${hash})`,
     ]);
   });
 
