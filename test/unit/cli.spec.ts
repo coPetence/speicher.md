@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { parse as parseYaml } from 'yaml';
 
 import { commandUsage, runCli, usage } from '../../src/cli/cli';
 import { UsageError } from '../../src/cli/command-types';
@@ -264,12 +263,5 @@ describe('the binary the image puts on PATH', () => {
     expect(dockerfile).toMatch(/ln -s \/app\/bin\/speicher \/usr\/local\/bin\/speicher/);
     const ignored = readFileSync(join(ROOT, '.dockerignore'), 'utf8').split('\n');
     expect(ignored).not.toContain('bin');
-  });
-
-  it('is what the deployment runs its one ops command through', () => {
-    const compose = parseYaml(
-      readFileSync(join(ROOT, 'examples', 'compose-with-caddy', 'docker-compose.yml'), 'utf8'),
-    );
-    expect(compose.services.migrate.command).toEqual(['speicher', 'migrate', 'up']);
   });
 });

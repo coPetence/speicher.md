@@ -75,7 +75,7 @@ describe('the authorization URL', () => {
     expect(url.searchParams.get('scope')).toBe('read:org user:email');
     expect(url.searchParams.get('client_id')).toBe(CLIENT_ID);
     expect(url.searchParams.get('redirect_uri')).toBe(REDIRECT_URI);
-    expect(url.searchParams.get('allow_signup')).toBe('false');
+    expect(url.searchParams.get('allow_signup')).toBe('true');
   });
 
   it('sends an S256 PKCE challenge, the only method GitHub accepts', async () => {

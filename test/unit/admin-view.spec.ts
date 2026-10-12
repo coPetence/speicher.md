@@ -145,7 +145,11 @@ describe('the section list', () => {
       'provider',
     );
 
-    for (const path of ['/-/logs', '/-/config', '/-/config/groups', '/-/config/sourcesx']) {
+    expect(setupSteps(configured, '/-/config/groups').find((step) => step.current)?.id).toBe(
+      'group',
+    );
+
+    for (const path of ['/-/logs', '/-/config', '/-/config/sourcesx']) {
       expect(setupSteps(configured, path).filter((step) => step.current)).toEqual([]);
     }
 
@@ -164,6 +168,7 @@ describe('the section list', () => {
 
     expect(setupSteps(fresh).map((step) => step.id)).toEqual([
       'provider',
+      'group',
       'content',
       'administrator',
     ]);
@@ -172,6 +177,7 @@ describe('the section list', () => {
     expect(arriving.map((step) => step.id)).toEqual([
       'mail',
       'provider',
+      'group',
       'content',
       'administrator',
     ]);
@@ -188,7 +194,7 @@ describe('the section list', () => {
         providerShortIds: ['links'],
         hasMagicLinkProvider: true,
       }).map((step) => step.id),
-    ).toEqual(['mail', 'provider', 'content', 'administrator']);
+    ).toEqual(['mail', 'provider', 'group', 'content', 'administrator']);
 
     for (const steps of [setupSteps(fresh), arriving, relayed]) {
       expect(steps.filter((step) => step.current)).toHaveLength(1);
@@ -212,7 +218,8 @@ describe('the section list', () => {
 
     expect(nextSetupPage(fresh, fresh, 'identity')).toBeNull();
 
-    expect(nextSetupPage(fresh, withProvider, 'groups')).toBeNull();
+    // `group` is a setup step, and a provider finishes it, so it hands over like any other
+    expect(nextSetupPage(fresh, withProvider, 'groups')).toBe('/-/config/sources');
 
     const withContent = { ...withProvider, hasContentSource: true };
     expect(nextSetupPage(withProvider, withContent, 'sources/docs')).toBe('/-/setup/administrator');

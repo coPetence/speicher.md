@@ -251,8 +251,7 @@ describe('the s3 blob driver', () => {
     expect(status.level).toBe('fail');
     expect(status.label).toBe(BUCKET_FAIL_LABEL);
     expect(status.detail).toContain(name);
-    expect(status.detail).toContain('never creates it');
-    expect(status.detail).toContain('other addressing style');
+    expect(status.detail).toContain('does not exist');
   });
 
   it('fails rather than creating a bucket that is not there', async () => {

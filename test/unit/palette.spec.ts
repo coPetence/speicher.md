@@ -5,6 +5,11 @@ import { OVERRIDDEN_TOKENS, PALETTE_KEYS, themeOverrides } from '../../src/confi
 
 const SHEET = readFileSync(join(__dirname, '../../src/global-ui/theme/default.css'), 'utf8');
 
+// Tokens the sheet defines for the admin UI alone. They live here so they get a dark
+// variant with everything else, but they are deliberately not offered in the palette:
+// an instance themes the pages its readers see, not the configurator.
+const ADMIN_ONLY_TOKENS = new Set(['--spr-bar-bg']);
+
 describe('the theme overrides', () => {
   it('says nothing about an instance that overrides nothing', () => {
     expect(themeOverrides(undefined)).toBeNull();
@@ -128,7 +133,8 @@ describe('the theme overrides', () => {
         (match) => match[1],
       ),
     );
-    expect([...PALETTE_KEYS].map((key) => `--spr-${key}`).sort()).toEqual([...chosen].sort());
+    const themeable = [...chosen].filter((token) => !ADMIN_ONLY_TOKENS.has(token));
+    expect([...PALETTE_KEYS].map((key) => `--spr-${key}`).sort()).toEqual(themeable.sort());
 
     for (const token of chosen) {
       const dark = SHEET.slice(SHEET.indexOf('prefers-color-scheme: dark'));
