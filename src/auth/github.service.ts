@@ -104,7 +104,7 @@ export class GithubAuthService {
     if (rawGroupIds.length === 0) {
       this.log.error(
         'no team memberships were included in the sign-in response. This can happen if the app has no access to team memberships. If you configured a GitHub App check if the organisation permissions `Members: Read-only` is set. If you use an OAuth App make sure access is permitted in the organizations setings under Settings -> Third-party Access, `read:org`' +
-        { provider: providerId },
+          { provider: providerId },
       );
     }
 

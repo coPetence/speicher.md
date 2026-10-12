@@ -78,7 +78,9 @@ export class GithubDirectory {
         teamIds.map((id) => splitTeam(id)[0]).filter((org): org is string => org !== null),
       ),
     ];
-    this.apiBase = apiBaseOf(instance.provider(providerShortId) as GithubProviderConfig | undefined);
+    this.apiBase = apiBaseOf(
+      instance.provider(providerShortId) as GithubProviderConfig | undefined,
+    );
     this.minter = new GithubTokenMinter(
       config.app_id ?? '',
       config.private_key ?? '',
@@ -97,7 +99,7 @@ export class GithubDirectory {
     return undefined;
   }
 
-/**
+  /**
    * Checks if a person is still part of the orgs.
    * GitHub user accounts are independent of orgs, so a user can depart an org and still exist.
    */
@@ -121,7 +123,10 @@ export class GithubDirectory {
       if (login === null) return false;
 
       for (const org of orgs) {
-        const membership = await this.apiGetRequest(org, `/orgs/${encodeURIComponent(org)}/memberships/${encodeURIComponent(login)}`);
+        const membership = await this.apiGetRequest(
+          org,
+          `/orgs/${encodeURIComponent(org)}/memberships/${encodeURIComponent(login)}`,
+        );
         if ((membership as { state?: string } | null)?.state === 'active') return true;
       }
       return false;
@@ -171,7 +176,10 @@ export class GithubDirectory {
 
     try {
       return await this.cached(`team:${groupId}`, async () => {
-        const team = await this.apiGetRequest(org, `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}`);
+        const team = await this.apiGetRequest(
+          org,
+          `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}`,
+        );
         const count = (team as { members_count?: unknown } | null)?.members_count;
         return typeof count === 'number' ? count : null;
       });
@@ -198,7 +206,8 @@ export class GithubDirectory {
       return {
         level: 'fail',
         label: 'Nothing to reach',
-        detail: 'You have no group configured which references a GitHub team; Therefore this configuration has no effect',
+        detail:
+          'You have no group configured which references a GitHub team; Therefore this configuration has no effect',
       };
     }
 
@@ -220,7 +229,11 @@ export class GithubDirectory {
     try {
       const found =
         slug === null
-          ? await this.apiGetRequest(org as string, `/orgs/${encodeURIComponent(org as string)}`, PROBE_TIMEOUT_MS)
+          ? await this.apiGetRequest(
+              org as string,
+              `/orgs/${encodeURIComponent(org as string)}`,
+              PROBE_TIMEOUT_MS,
+            )
           : await this.apiGetRequest(
               org as string,
               `/orgs/${encodeURIComponent(org as string)}/teams/${encodeURIComponent(slug)}`,
@@ -285,7 +298,11 @@ export class GithubDirectory {
   }
 
   /** Perform a GET Request to the GitHub API */
-  private async apiGetRequest(org: string, path: string, timeoutMs?: number): Promise<unknown | null> {
+  private async apiGetRequest(
+    org: string,
+    path: string,
+    timeoutMs?: number,
+  ): Promise<unknown | null> {
     const installationId = await this.installationOn(org);
     if (installationId === null) throw this.unavailable(...noInstallation(org));
 

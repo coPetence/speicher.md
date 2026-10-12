@@ -177,8 +177,7 @@ export class SectionChecks {
       level: 'warn',
       icon: 'circle-alert',
       label: 'Pre-signing is not available',
-      detail:
-        `A ${store.kind} store cannot presign urls, so every asset is served through this instance instead.`
+      detail: `A ${store.kind} store cannot presign urls, so every asset is served through this instance instead.`,
     };
   }
 
