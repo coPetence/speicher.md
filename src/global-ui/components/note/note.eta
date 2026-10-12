@@ -1,0 +1,29 @@
+<%
+  const tag = it.tag || 'p';
+
+  const classes = ['spr-note'];
+  if (it.level) classes.push('spr-note-' + it.level);
+  if (it.className) classes.push(it.className);
+
+  const data = { ...it.data };
+  if (it.check) {
+    data['spr-check'] = it.check.href;
+    if (it.check.at) data['spr-check-at'] = it.check.at;
+  }
+
+  // The attributes after the class, by name; true draws a bare attribute
+  const attributes = {};
+  if (it.role) attributes.role = it.role;
+  for (const name in data) attributes['data-' + name] = data[name];
+  if (it.hidden) attributes.hidden = true;
+%>
+<<%= tag %> class="<%= classes.join(' ') %>"<% for (const name in attributes) { %> <%= name %><% if (attributes[name] !== true) { %>="<%= attributes[name] %>"<% } %><% } %>>
+<%_~ noteIcon(it.level) _%>
+<% if (it.check) { _%>
+  <span data-spr-check-text><a href="<%= it.check.href %>">Check the connection</a></span>
+<%_ } else if (it.html !== undefined) { _%>
+  <%~ it.html _%>
+<%_ } else { _%>
+  <%= it.text || '' %><% if (it.detail) { %>: <%= it.detail %><% } %>
+<%_ } _%>
+</<%= tag %>>

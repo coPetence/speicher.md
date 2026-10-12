@@ -93,8 +93,18 @@ export function sendStatus(
         */
         empty_art: emptyStateArt('sources'),
         instance: data.instance,
-        reembedding: banners.reembedding,
-        discovering: banners.discovering,
+        reembedding_note:
+          banners.reembedding === null
+            ? null
+            : {
+                text: `Re-embedding ${banners.reembedding} chunks. Keyword search answers throughout; semantic results come back as the job drains, and a restart resumes rather than starting over.`,
+              },
+        discovering_note:
+          banners.discovering === null
+            ? null
+            : {
+                text: `Asking ${banners.discovering} content source(s) what they hold. The worker picks it up within a poll; anything new appears in the table below once it has synced.`,
+              },
       }),
   });
 }

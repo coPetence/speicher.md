@@ -2,10 +2,7 @@
 <h1>Set up this instance</h1>
 
 <% if (it.finished) { %>
-<p class="spr-note spr-note-ok">
-  This instance has an administrator and can no longer be claimed. All settings
-  below remain available under <a href="/-/config">Configuration</a>.
-</p>
+<%~ include('@note', { level: 'ok', html: md('This instance has an administrator and can no longer be claimed. All settings below remain available under [Configuration](/-/config).') }) %>
 <% } else { %>
 <p class="spr-empty">
   This instance has no administrator yet. To set up an administrator, follow the steps below.
@@ -13,7 +10,7 @@
 <% } %>
 
 <% if (it.error) { %>
-<p class="spr-note spr-note-fail" role="status"><%= it.error %></p>
+<%~ include('@note', { level: 'fail', text: it.error, role: 'status' }) %>
 <% } %>
 
 <ol class="spr-steps">

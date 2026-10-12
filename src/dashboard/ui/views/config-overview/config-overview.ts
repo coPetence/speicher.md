@@ -3,7 +3,8 @@ import type { Request, Response } from 'express';
 import { ConfigOverviewPayload } from '../../../configurator/config-page/payloads';
 import { DashboardResponder } from '../../../respond';
 import { renderInlineIcon } from '../../../../content-reader/icons';
-import { renderTemplate } from '../../../../content-reader/views';
+import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
+import { loadNotes, versionNotes } from '../../config-notes';
 
 /** Sends the configuration overview */
 export function sendConfig(
@@ -35,6 +36,18 @@ export function sendConfig(
             .filter((icon) => icon !== '')
             .map((icon) => [icon, renderInlineIcon(icon, 'spr-icon')]),
         ),
+        notes: [
+          ...(data.config_source === 'database'
+            ? []
+            : [
+                {
+                  level: 'idle',
+                  html: `This instance takes its configuration from <code>${escapeHtml(data.config_path || 'inline')}</code>. The file is authoritative, so the settings are read-only here.`,
+                },
+              ]),
+          ...loadNotes(data),
+          ...versionNotes(data),
+        ],
       }),
     status,
   });

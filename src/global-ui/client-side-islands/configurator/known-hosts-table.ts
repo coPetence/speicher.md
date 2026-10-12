@@ -2,6 +2,8 @@
  * Redraws the known hosts field while the known_hosts lines or the repository URLs
  * of its source are edited
  */
+import { missingHostKeysText, unreadableLinesText } from '../../known-hosts-notes';
+import { setNoteText } from '../notes';
 import { configForm } from './config-form-handle';
 
 interface HostKey {
@@ -56,11 +58,7 @@ export function mountKnownHostsTables(): void {
 function drawMissing(field: Element, missing: string[]): void {
   const note = field.querySelector<HTMLElement>('[data-spr-missing-hosts]');
   if (!note) return;
-  const servers =
-    missing.length < 2
-      ? (missing[0] ?? '')
-      : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
-  note.textContent = `Host keys missing: Speicher has no host key for ${servers} yet, so the configuration cannot be saved. To add ${missing.length === 1 ? 'it' : 'them'}, press Fetch host keys.`;
+  setNoteText(note, missingHostKeysText(missing));
   note.hidden = missing.length === 0;
 }
 
@@ -152,8 +150,7 @@ function draw(field: Element, keys: HostKey[], unreadable: number): void {
   table.hidden = keys.length === 0;
   empty.hidden = keys.length > 0;
 
-  // Same wording as known-hosts.eta
-  warning.textContent = `${unreadable === 1 ? 'One line is not a host key.' : `${unreadable} lines are not host keys.`} To see them, open Edit manually.`;
+  setNoteText(warning, unreadableLinesText(unreadable));
   warning.hidden = unreadable === 0;
 }
 

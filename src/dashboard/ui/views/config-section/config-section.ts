@@ -2,9 +2,12 @@ import type { Request, Response } from 'express';
 
 import { sectionEmptyArt } from '../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../content-reader/icons';
-import { renderTemplate } from '../../../../content-reader/views';
+import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
 import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
 import { renderHelp } from '../../../../global-ui/help-markup';
+import { missingHostKeysText, unreadableLinesText } from '../../../../global-ui/known-hosts-notes';
+import type { Note } from '../../../../global-ui/note';
+import { loadNotes, versionNotes } from '../../config-notes';
 import {
   GROUP_ID_HELP,
   PROVIDER_ID_HELP,
@@ -14,6 +17,7 @@ import {
 } from '../../../configurator/config-form/members';
 import { allFields, cardItems } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
+import type { SaveVerdict } from '../../../../config/classification';
 import { dashboardSectionTitle } from '../../../dashboard-sections';
 import { DashboardResponder } from '../../../respond';
 import { markSprite, renderInlineMark } from '../../provider-marks';
@@ -187,9 +191,86 @@ export function sendConfigSection(
         // stopped formatting. The payload keeps the source text, which is what a
         // JSON caller and a log line want.
         problems_html: payload.problems.map((problem) => renderHelp(problem)),
+        // The notes whose text is built from values; the fixed ones are in the view
+        load_notes: loadNotes(payload),
+        version_notes: versionNotes(payload),
+        source_note: payload.editable
+          ? null
+          : {
+              level: 'idle',
+              html: `This instance takes its configuration from <code>${escapeHtml(payload.config_path || 'inline')}</code>, which is authoritative. The settings below are shown as they are and cannot be changed from here.`,
+            },
+        rename_note: renameNote(payload),
+        restart_note: restartNote(payload.verdict),
+        empty_text: `No ${payload.section?.entryNoun || 'entry'}s here yet.`,
+        no_match_html: `Nothing here matches <code data-spr-needle>${escapeHtml(payload.query)}</code>. <a href="/-/config/${escapeHtml(sectionId)}">Show all</a>`,
+        host_key_notes: hostKeyNotes(payload),
       }),
     status,
   });
+}
+
+/** Says which repositories a rename would break references in, or that it breaks none */
+function renameNote(payload: ConfigSectionPayload): Note | null {
+  if (!payload.section?.renameOp) return null;
+  const noun = escapeHtml(payload.section.noun || 'entry');
+  if (payload.usage.length === 0) {
+    return {
+      level: 'ok',
+      html: `No <code>.speicher.yaml</code> references this ${noun}. You do not need to manually update it anywhere`,
+    };
+  }
+  const repositories = payload.usage
+    .map(
+      (repo) =>
+        `<li><code>${escapeHtml(repo.namespace)}/${escapeHtml(repo.slug)}</code> (${repo.pages} page${repo.pages === 1 ? '' : 's'})</li>`,
+    )
+    .join('');
+  return {
+    level: 'warn',
+    tag: 'div',
+    html: `<p>Renaming will break ${noun} references in <code>.speicher.yaml</code> files across these repositories:</p><ul class="spr-problems">${repositories}</ul>`,
+  };
+}
+
+/** Says why a change waits for a restart, or null when it applies to the next request */
+function restartNote(verdict: SaveVerdict | null): Note | null {
+  if (!verdict || verdict.effect === 'none') return null;
+  if (!verdict.hotReloadAvailable) {
+    return {
+      level: 'warn',
+      text: 'Takes effect when the instance restarts, because this instance does not reload its configuration while running.',
+    };
+  }
+  const restarting = verdict.changed.filter((change) => change.requiresRestart);
+  if (restarting.length === 0) return null;
+  const keys = restarting.map((change) => `<code>${escapeHtml(change.key)}</code>`).join(', ');
+  return {
+    level: 'warn',
+    html: `Takes effect when the instance restarts, because ${keys} builds objects that only exist at startup. Everything else in this change waits with it — half of one version beside half of another is a combination nothing has validated.`,
+  };
+}
+
+/** The notes of each known-hosts field on the page, by the field's path */
+function hostKeyNotes(
+  payload: ConfigSectionPayload,
+): Record<string, { missing: Note; unreadable: Note }> {
+  const fields = payload.section ? allFields([payload.section]) : [];
+  return Object.fromEntries(
+    fields.flatMap((f) =>
+      f.kind === 'known-hosts'
+        ? [
+            [
+              f.path,
+              {
+                missing: { level: 'info', text: missingHostKeysText(f.missing) },
+                unreadable: { level: 'warn', text: unreadableLinesText(f.unreadable) },
+              },
+            ],
+          ]
+        : [],
+    ),
+  );
 }
 
 /* Short ID Help string */

@@ -548,6 +548,8 @@ describe('a live check beside a control', () => {
       error: null,
       problems: [],
       verdict: null,
+      load_notes: [],
+      version_notes: [],
     });
 
   it('draws the answer in a note of its level, which picks the icon', () => {
@@ -597,6 +599,31 @@ describe('a live check beside a control', () => {
   });
 });
 
+describe('a note', () => {
+  const note = (data: Record<string, unknown>): string =>
+    renderTemplate('global-ui/components/note', data).trim();
+
+  it('draws the icon of its level before its text, out of the page sprite', () => {
+    expect(note({ level: 'warn', text: 'Careful' })).toMatch(
+      /^<p class="spr-note spr-note-warn"><svg class="spr-icon"[^>]*><use href="#i-triangle-alert"\/><\/svg>Careful<\/p>$/,
+    );
+    expect(note({ text: 'Worth knowing' })).toContain('<use href="#i-info"/>');
+  });
+
+  it('escapes its text, and draws markup a view built as it is', () => {
+    expect(note({ text: '<b>' })).toContain('&lt;b&gt;');
+    expect(note({ html: '<code>key</code>' })).toContain('<code>key</code>');
+  });
+
+  it('offers a live check as a link, for a browser that does not run the island', () => {
+    const html = note({ level: 'idle', check: { href: '/-/config/x?check=1', at: 'a.b' } });
+    expect(html).toContain('data-spr-check="/-/config/x?check=1" data-spr-check-at="a.b"');
+    expect(html).toContain(
+      '<span data-spr-check-text><a href="/-/config/x?check=1">Check the connection</a></span>',
+    );
+  });
+});
+
 describe('the head of a section page', () => {
   const page = (blurb: string): string =>
     renderTemplate('dashboard/ui/views/config-section', {
@@ -628,6 +655,8 @@ describe('the head of a section page', () => {
       error: null,
       problems: [],
       verdict: null,
+      load_notes: [],
+      version_notes: [],
     });
 
   it('prints the sentence when there is one', () => {

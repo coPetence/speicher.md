@@ -5,6 +5,8 @@ import { CALLOUT_LEVELS } from '../../src/ingest/callouts';
 import { CODE_TOKENS } from '../../src/ingest/highlight';
 import { CHIP_VARIANTS } from '../../src/ingest/mdx/mdx';
 import { templateNames } from '../../src/content-reader/assets.controller';
+import { iconExists } from '../../src/content-reader/icons';
+import { NOTE_ICON_NAMES, noteIconName } from '../../src/global-ui/note';
 import { navWidthTokens } from '../../src/content-reader/views';
 import { readStylesheet } from '../helpers/stylesheet';
 
@@ -685,18 +687,21 @@ describe('a dashboard notice', () => {
   };
 
   it('draws the icon of its level, info when it names none', () => {
-    expect(icon('.spr-note::before')).toMatch(/url\('\.\/icons\/info\.svg'\)/);
-    expect(icon('.spr-note.spr-note-ok::before')).toMatch(/circle-check\.svg/);
-    expect(icon('.spr-note.spr-note-warn::before')).toMatch(/triangle-alert\.svg/);
-    expect(icon('.spr-note.spr-note-fail::before')).toMatch(/circle-x\.svg/);
+    expect(noteIconName(undefined)).toBe('info');
+    expect(noteIconName('idle')).toBe('info');
+    expect(noteIconName('ok')).toBe('circle-check');
+    expect(noteIconName('warn')).toBe('triangle-alert');
+    expect(noteIconName('fail')).toBe('circle-x');
   });
 
-  it('names only icons that are there to draw', () => {
-    for (const [, file] of css.matchAll(/url\('\.\/icons\/([a-z-]+\.svg)'\)/g)) {
-      expect(existsSync(join(__dirname, '../../src/global-ui/components/note/icons', file))).toBe(
-        true,
-      );
-    }
+  it('names only icons lucide ships', () => {
+    expect(NOTE_ICON_NAMES.filter((name) => !iconExists(name))).toEqual([]);
+  });
+
+  it('colours the icon in the accent of its level', () => {
+    expect(icon('.spr-note > .spr-icon:first-child')).toMatch(
+      /color:\s*var\(--spr-status-accent\)/,
+    );
   });
 
   it('is tinted blue, the info colour, when its level is neutral', () => {

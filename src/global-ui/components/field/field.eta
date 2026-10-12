@@ -25,18 +25,9 @@
     </p>
     <% } %>
     <% if (f.status) { %>
-    <p class="spr-note spr-note-<%= f.status.level %>">
-      <%= f.status.label %><% if (f.status.detail) { %>: <%= f.status.detail %><% } %>
-    </p>
+    <%~ include('@note', { level: f.status.level, text: f.status.label, detail: f.status.detail }) %>
     <% } else if (f.checkHref) { %>
-
-    <p
-      class="spr-note spr-note-idle"
-      data-spr-check="<%= f.checkHref %>"
-      data-spr-check-at="<%= f.path %>"
-    >
-      <span data-spr-check-text><a href="<%= f.checkHref %>">Check the connection</a></span>
-    </p>
+    <%~ include('@note', { level: 'idle', check: { href: f.checkHref, at: f.path } }) %>
     <% } %>
     <% if (f.link) { %>
     <p class="spr-help">

@@ -33,12 +33,8 @@
   <dd><%= it.run.droppedGrants %></dd>
 </dl>
 
-<% if (it.run.failedSubtrees.length) { %>
-
-<p class="spr-note spr-note-fail">
-  Serving the previous version under
-  <% it.run.failedSubtrees.forEach(function (path, i) { %><% if (i) { %>, <% } %><code><%= path || '/' %></code><% }) %>.
-</p>
+<% if (it.failed_subtrees_note) { %>
+<%~ include('@note', it.failed_subtrees_note) %>
 <% } %>
 
 <% if (it.show_findings) { %>
