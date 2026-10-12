@@ -15,16 +15,10 @@
 
 <% if (it.config && it.runs.length) { %>
 <% if (!it.config.hasConfig) { %>
-<p class="spr-note spr-note-warn">
-  No <code>.speicher.yaml</code> (or <code>.speicher.yml</code>) at the repository root, so
-  nothing here is published. A repository publishes itself with that file — and removing it is how
-  a repository is unpublished, so this is the expected state for one that was.
-</p>
+<%~ include('@note', { level: 'warn', html: md('No `.speicher.yaml` at the repository root, so nothing here is published. A repository publishes itself with that file — and removing it is how a repository is unpublished, so this is the expected state for one that was.') }) %>
 <% } else if (it.config.principals === null) { %>
 
-<p class="spr-note spr-note-warn">
-  This repository is not availiable because it never had a successfull sync
-</p>
+<%~ include('@note', { level: 'warn', text: 'This repository is not availiable because it never had a successfull sync' }) %>
 <% } else { %>
 <dl class="spr-defs">
   <dt>Read access</dt>

@@ -30,7 +30,12 @@ export function sendLogs(
     payload,
     page: (data) =>
       renderTemplate('dashboard/ui/views/sync-status/logs', {
-        retriedCount,
+        retried_note:
+          retriedCount === null
+            ? null
+            : {
+                text: `${retriedCount} job(s) put back on the queue. The worker picks them up within a poll; whatever failed has to have been fixed first, or they arrive back here.`,
+              },
         retry_icon: renderInlineIcon(RETRY_ICON, 'spr-icon'),
         retired: data.retired_redirects.map((row) => ({
           oldPath: `/${row.namespace}/${row.old_slug}`,

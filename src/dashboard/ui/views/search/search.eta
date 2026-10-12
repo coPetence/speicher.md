@@ -11,10 +11,7 @@
 </p>
 <% } else if (it.hits.length === 0) { %>
 
-<p class="spr-note spr-note-warn">
-  Nothing here matches <code><%= it.query %></code>. Every word has to match
-  something — try one of them on its own.
-</p>
+<%~ include('@note', it.no_match_note) %>
 <% } else { %>
 
 
@@ -53,9 +50,5 @@
 
 <% if (!it.settings_searchable) { %>
 
-<p class="spr-note spr-note-warn">
-  Only pages are searchable at the moment: this instance’s stored configuration does
-  not parse, so there are no settings to search. <a href="/-/config">Configuration</a>
-  says what is wrong with it.
-</p>
+<%~ include('@note', it.unsearchable_note) %>
 <% } %>

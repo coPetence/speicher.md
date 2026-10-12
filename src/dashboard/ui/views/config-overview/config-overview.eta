@@ -39,60 +39,7 @@
 </section>
 
 
-<% if (it.config_source !== 'database') { %>
-<p class="spr-note spr-note-idle">
-  This instance takes its configuration from
-  <code><%= it.config_path || 'inline' %></code>. The file is authoritative, so
-  the settings are read-only here.
-</p>
-<% } %>
-
-<% if (it.unreadable) { %>
-<p class="spr-note spr-note-fail">
-  The configuration file cannot be read: <%= it.unreadable %>. This instance is
-  running what it loaded at startup.
-</p>
-<% } %>
-
-<% if (it.unparseable) { %>
-<p class="spr-note spr-note-fail">
-  The stored configuration does not parse, so there is nothing to show a form for:
-  <%= it.unparseable %>
-</p>
-<% } %>
-
-<% if (it.running_version !== null && it.editing_version !== null && it.running_version !== it.editing_version) { %>
-
-<% if (it.skipped.length > 0) { %>
-<p class="spr-note spr-note-fail">
-  Editing version <%= it.editing_version %>, the newest saved. This instance is
-  running version <%= it.running_version %>, because the newer one does not load.
-</p>
-<% it.skipped.forEach(function (skip) { %>
-<p class="spr-note spr-note-fail">Version <%= skip.version %>: <%= skip.problems.join('; ') %></p>
-<% }) %>
-<% } else if (it.waiting_on.length > 0) { %>
-
-<p class="spr-note spr-note-warn">
-  Version <%= it.editing_version %> is saved and waits for a restart. This instance
-  is running version <%= it.running_version %>, because
-  <% it.waiting_on.forEach(function (key, i) { %><%= i > 0 ? ', ' : '' %><code><%= key %></code><% }) %>
-  <%= it.waiting_on.length === 1 ? 'builds' : 'build' %> objects that only exist at
-  startup. Every other change in that version waits with
-  <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
-</p>
-
-<% it.waiting_consequences.forEach(function (line) { %>
-<p class="spr-note spr-note-warn"><%~ md(line) %></p>
-<% }) %>
-<% } else { %>
-<p class="spr-note spr-note-idle">
-  Version <%= it.editing_version %> is saved but not yet in force here: this
-  instance is running version <%= it.running_version %> and has not picked the
-  newer one up yet.
-</p>
-<% } %>
-<% } %>
+<% it.notes.forEach(function (note) { %><%~ include('@note', note) %><% }) %>
 
 <section class="spr-section" id="sections">
   <h2>Settings</h2>

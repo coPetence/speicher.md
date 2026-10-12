@@ -14,10 +14,7 @@
 
 <% if (it.result) { %>
 <% if (!it.result.found) { %>
-<p class="spr-note spr-note-warn">
-  Nothing is stored at that path — no page, no folder, no asset. It may never have
-  been ingested, or it may sit under a subtree whose last sync was rejected.
-</p>
+<%~ include('@note', { level: 'warn', text: 'Nothing is stored at that path — no page, no folder, no asset. It may never have been ingested, or it may sit under a subtree whose last sync was rejected.' }) %>
 <% } else { %>
 
 <dl class="spr-defs">
@@ -70,7 +67,7 @@
         <td colspan="3">
           <% level.notes.forEach(function (note) { %>
           
-          <p class="spr-note spr-note-idle"><%= note %></p>
+          <%~ include('@note', { level: 'idle', text: note }) %>
           <% }) %>
         </td>
       </tr>

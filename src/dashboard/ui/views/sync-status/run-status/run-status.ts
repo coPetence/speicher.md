@@ -6,7 +6,8 @@ import { RunRow } from '../../../../dashboard.repository';
 import { RunPayload } from '../../../../status.service';
 import { elapsed, isoOf, relativeTime } from '../../../../../common/time';
 import { renderInlineIcon } from '../../../../../content-reader/icons';
-import { renderTemplate } from '../../../../../content-reader/views';
+import { escapeHtml, renderTemplate } from '../../../../../content-reader/views';
+import type { Note } from '../../../../../global-ui/note';
 
 /**
  * A finding's severity as a mark rather than a word. The badge keeps the word —
@@ -91,6 +92,13 @@ export function runView(namespace: string, slug: string, run: RunRow) {
   };
 }
 
+/** Says which subtrees still serve their previous version, or null when none do */
+function failedSubtreesNote(subtrees: string[]): Note | null {
+  if (subtrees.length === 0) return null;
+  const paths = subtrees.map((path) => `<code>${escapeHtml(path || '/')}</code>`).join(', ');
+  return { level: 'fail', html: `Serving the previous version under ${paths}.` };
+}
+
 /** An instant a person reads and can match against a log line: minutes, in UTC */
 function stamp(value: Date): string {
   const iso = isoOf(value);
@@ -124,6 +132,7 @@ export function sendRun(
         */
         show_findings: isAdmin,
         run: runView(answer.namespace, answer.slug, answer.run),
+        failed_subtrees_note: failedSubtreesNote(answer.run.stats?.failed_subtrees ?? []),
       }),
   });
 }

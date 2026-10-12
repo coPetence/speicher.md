@@ -6,7 +6,7 @@
 </p>
 
 <% if (it.revoked) { %>
-<p class="spr-note">That connection was disconnected. It will stop working on its next request.</p>
+<%~ include('@note', { text: 'That connection was disconnected. It will stop working on its next request.' }) %>
 <% } %>
 
 

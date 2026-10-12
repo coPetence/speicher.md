@@ -13,24 +13,14 @@
     color: color-mix(in oklab, var(--spr-status-accent) 40%, var(--spr-fg));
     font-weight: 500;
   }
-  .spr-note::before {
-    content: '';
+  .spr-note > .spr-icon:first-child {
     position: absolute;
     inset-block-start: calc(var(--spr-space-3) + (1lh - 1.25em) / 2);
     inset-inline-start: var(--spr-space-4);
     inline-size: 1.25em;
     block-size: 1.25em;
-    background: var(--spr-status-accent);
-    mask: url('./icons/info.svg') center / contain no-repeat;
-  }
-  .spr-note.spr-note-ok::before {
-    mask-image: url('./icons/circle-check.svg');
-  }
-  .spr-note.spr-note-warn::before {
-    mask-image: url('./icons/triangle-alert.svg');
-  }
-  .spr-note.spr-note-fail::before {
-    mask-image: url('./icons/circle-x.svg');
+    margin: 0;
+    color: var(--spr-status-accent);
   }
   .spr-note[hidden] {
     display: none;
@@ -39,9 +29,6 @@
   @media (forced-colors: active) {
     .spr-note {
       border: 1px solid CanvasText;
-    }
-    .spr-note::before {
-      background: CanvasText;
     }
   }
 }

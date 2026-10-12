@@ -11,6 +11,8 @@
  * On failure the note reverts to idle with a link to try manually
  */
 
+import { setNoteLevel } from '../notes';
+
 // Depth-first search for a {path, status} node in a nested response
 function statusAt(value: unknown, path: string): CheckStatus | undefined {
   if (value === null || typeof value !== 'object') return undefined;
@@ -38,18 +40,9 @@ export function mountChecks(): void {
     const text = note.querySelector<HTMLElement>('[data-spr-check-text]');
     if (url === '' || !text) continue;
 
-    // Preserve any classes the server drew (e.g. spr-section-status), replacing
-    // only the spr-note-* level class
-    const base = note.className
-      .replace(/\bspr-note-\S+/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
     const at = note.dataset.sprCheckAt ?? '';
 
-    // Sets the level class; the stylesheet draws the level's icon
-    const level = (name: string): void => {
-      note.className = `${base} spr-note-${name}`;
-    };
+    const level = (name: string): void => setNoteLevel(note, name);
 
     text.textContent = 'Checking…';
     void (async () => {

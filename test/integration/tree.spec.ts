@@ -190,18 +190,11 @@ describe('theme templates', () => {
     expect(css.headers['cache-control']).toContain('immutable');
   });
 
-  it('serves the icons the dashboard sheet names, beside the sheet', async () => {
+  it('names no file beside the dashboard sheet, because every icon is markup in the page', async () => {
     const sheet = dashboardStylesheetUrl();
     expect(sheet).not.toBeNull();
     const css = (await request(app.getHttpServer()).get(sheet as string)).text;
-    const icons = [...css.matchAll(/url\("?\.\/([^")]+\.svg)"?\)/g)].map((m) => m[1]);
-    expect(icons.length).toBeGreaterThanOrEqual(4);
-
-    for (const icon of icons) {
-      const svg = await request(app.getHttpServer()).get(`/-/static/${icon}`);
-      expect(svg.status).toBe(200);
-      expect(svg.headers['content-type']).toContain('image/svg+xml');
-    }
+    expect(css).not.toMatch(/url\("?\.\//);
   });
 
   it('carries the layer order, so a template never needs a specificity hack', async () => {

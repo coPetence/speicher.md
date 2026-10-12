@@ -24,30 +24,8 @@
       <input id="<%= renameId %>" name="rename" form="config-form" type="text"
              value="<%= it.section_title %>" pattern="<%= it.section.renamePattern %>" title="<%= it.section.renameHint %>"
              spellcheck="false" autocomplete="off" data-spr-transient>
-      <p class="spr-note spr-note-warn">
-        Renaming will enqueue a full rebuild
-      </p>
-      <% if (it.usage && it.usage.length > 0) { %>
-      <div class="spr-note spr-note-warn">
-        <p>
-          <% if (it.section.noun === 'group') { %>
-          Renaming will break <%= it.section.noun %> references in <code>.speicher.yaml</code> files across these repositories:
-          <% } else { %>
-          Renaming will break <%= it.section.noun || 'entry' %> references in <code>.speicher.yaml</code> files across these repositories:
-          <% } %>
-        </p>
-        <ul class="spr-problems">
-          <% it.usage.forEach(function (repo) { %>
-          <li><code><%= repo.namespace %>/<%= repo.slug %></code> (<%= repo.pages %>
-            page<%= repo.pages === 1 ? '' : 's' %>)</li>
-          <% }) %>
-        </ul>
-      </div>
-      <% } else { %>
-      <p class="spr-note spr-note-ok">
-        No <code>.speicher.yaml</code> references this <%= it.section.noun || 'entry' %>. You do not need to manually update it anywhere
-      </p>
-      <% } %>
+      <%~ include('@note', { level: 'warn', text: 'Renaming will enqueue a full rebuild' }) %>
+      <%~ include('@note', it.rename_note) %>
       <div class="spr-modal-actions">
         <button type="submit" name="op" value="<%= it.section.renameOp %>" form="config-form">Rename</button>
       </div>
@@ -59,26 +37,10 @@
 <p class="spr-section-blurb"><%~ md(it.section.blurb) %></p>
 <% } %>
 
-<% if (it.unreadable) { %>
-<p class="spr-note spr-note-fail">
-  The configuration file cannot be read: <%= it.unreadable %>. This instance is
-  running what it loaded at startup.
-</p>
-<% } %>
+<% it.load_notes.forEach(function (note) { %><%~ include('@note', note) %><% }) %>
 
-<% if (it.unparseable) { %>
-<p class="spr-note spr-note-fail">
-  The stored configuration does not parse, so there is nothing to show a form for:
-  <%= it.unparseable %>
-</p>
-<% } %>
-
-<% if (!it.editable) { %>
-<p class="spr-note spr-note-idle">
-  This instance takes its configuration from <code><%= it.config_path || 'inline' %></code>,
-  which is authoritative. The settings below are shown as they are and cannot be
-  changed from here.
-</p>
+<% if (it.source_note) { %>
+<%~ include('@note', it.source_note) %>
 <% } %>
 
 <% if (it.saved) { %>
@@ -88,38 +50,10 @@
 </div>
 <% } %>
 
-<% if (it.running_version !== null && it.editing_version !== null && it.running_version !== it.editing_version) { %>
-<% if (it.skipped.length > 0) { %>
-<p class="spr-note spr-note-fail">
-  Editing version <%= it.editing_version %>, the newest saved. This instance is
-  running version <%= it.running_version %>, because the newer one does not load.
-</p>
-<% it.skipped.forEach(function (skip) { %>
-<p class="spr-note spr-note-fail">Version <%= skip.version %>: <%= skip.problems.join('; ') %></p>
-<% }) %>
-<% } else if (it.waiting_on.length > 0) { %>
-<p class="spr-note spr-note-warn">
-  Version <%= it.editing_version %> is saved and waits for a restart. This instance
-  is running version <%= it.running_version %>, because
-  <% it.waiting_on.forEach(function (key, i) { %><%= i > 0 ? ', ' : '' %><code><%= key %></code><% }) %>
-  <%= it.waiting_on.length === 1 ? 'builds' : 'build' %> objects that only exist at
-  startup. Every other change in that version waits with
-  <%= it.waiting_on.length === 1 ? 'it' : 'them' %>.
-</p>
-<% it.waiting_consequences.forEach(function (line) { %>
-<p class="spr-note spr-note-warn"><%~ md(line) %></p>
-<% }) %>
-<% } else { %>
-<p class="spr-note spr-note-idle">
-  Version <%= it.editing_version %> is saved but not yet in force here: this
-  instance is running version <%= it.running_version %> and has not picked the
-  newer one up yet.
-</p>
-<% } %>
-<% } %>
+<% it.version_notes.forEach(function (note) { %><%~ include('@note', note) %><% }) %>
 
 <% if (it.error) { %>
-<p class="spr-note spr-note-fail"><%= it.error %></p>
+<%~ include('@note', { level: 'fail', text: it.error }) %>
 <% if (it.problems.length > 0) { %>
 <% const shown = it.problems_html || it.problems; %>
 <%~ include('@problems', { problems: shown, html: true }) %>
@@ -130,37 +64,16 @@
 <section class="spr-verdict">
   <h2>What this change does</h2>
   <% if (it.verdict.effect === 'none') { %>
-  <p class="spr-note spr-note-idle">
-    Nothing differs from the version in force. Saving would append a version that
-    changes nothing.
-  </p>
+  <%~ include('@note', { level: 'idle', text: 'Nothing differs from the version in force. Saving would append a version that changes nothing.' }) %>
   <% } else { %>
-    <% if (it.verdict.hotReloadAvailable && !it.verdict.changed.some(function (c) { return c.requiresRestart })) { %>
-    <p class="spr-note spr-note-ok">
-      Applies to the next request. No restart needed.
-    </p>
+    <% if (it.restart_note) { %>
+    <%~ include('@note', it.restart_note) %>
     <% } else { %>
-    <p class="spr-note spr-note-warn">
-      Takes effect when the instance restarts, because
-      <% if (!it.verdict.hotReloadAvailable) { %>
-      this instance does not reload its configuration while running.
-      <% } else { %>
-      <% it.verdict.changed.filter(function (c) { return c.requiresRestart }).forEach(function (c, i) { %>
-      <%= i > 0 ? ', ' : '' %><code><%= c.key %></code>
-      <% }) %>
-      builds objects that only exist at startup. Everything else in this change
-      waits with it — half of one version beside half of another is a combination
-      nothing has validated.
-      <% } %>
-    </p>
+    <%~ include('@note', { level: 'ok', text: 'Applies to the next request. No restart needed.' }) %>
     <% } %>
 
     <% if (it.verdict.rebuild) { %>
-    <p class="spr-note spr-note-warn">
-      This changes how access resolves, so saving enqueues a <strong>full rebuild</strong>
-      of every repository. The rebuild runs in the background: until it finishes,
-      readers see pages materialised under the old rules.
-    </p>
+    <%~ include('@note', { level: 'warn', html: md('This changes how access resolves, so saving enqueues a **full rebuild** of every repository. The rebuild runs in the background: until it finishes, readers see pages materialised under the old rules.') }) %>
     <% } %>
 
     <div class="spr-scroll">
@@ -252,7 +165,7 @@
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
 <% }) } %>
 
-<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons } %>
+<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes } %>
 
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <div class="spr-table-head">
@@ -306,7 +219,7 @@
     </tbody>
   </table>
 <% } else { %>
-<p class="spr-note spr-note-idle"><%= table.emptyNote %></p>
+<%~ include('@note', { level: 'idle', text: table.emptyNote }) %>
 <% } %>
 <% }) } else if (it.section.layout === 'table') { %>
 <div class="spr-scroll"<%= it.empty_art && it.section.entries.length === 0 ? ' hidden' : '' %>>
@@ -369,30 +282,20 @@
 <div class="spr-empty-state" data-spr-empty="none"
    <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
   <%~ it.empty_art %>
-  <p class="spr-empty">No <%= (it.section.entryNoun || 'entry') %>s here yet.</p>
+  <p class="spr-empty"><%= it.empty_text %></p>
 </div>
 <% } else { %>
-<p class="spr-note spr-note-idle" data-spr-empty="none"
-   <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
-  No <%= (it.section.entryNoun || 'entry') %>s here yet.
-</p>
-<% } %>
-<% function renderNoMatch() { %>
-  Nothing here matches <code data-spr-needle><%= it.query %></code>.
-  <a href="/-/config/<%= it.section_id %>">Show all</a>
+<%~ include('@note', { level: 'idle', text: it.empty_text, data: { 'spr-empty': 'none' }, hidden: it.section.entries.length > 0 || it.query }) %>
 <% } %>
 <% if (it.section.searchable) { %>
 <% if (it.empty_art) { %>
 <div class="spr-empty-state" data-spr-empty="filtered"
    <%= it.section.entries.length > 0 || !it.query ? 'hidden' : '' %>>
   <%~ it.empty_art %>
-  <p class="spr-empty"><% renderNoMatch() %></p>
+  <p class="spr-empty"><%~ it.no_match_html %></p>
 </div>
 <% } else { %>
-<p class="spr-note spr-note-idle" data-spr-empty="filtered"
-   <%= it.section.entries.length > 0 || !it.query ? 'hidden' : '' %>>
-  <% renderNoMatch() %>
-</p>
+<%~ include('@note', { level: 'idle', html: it.no_match_html, data: { 'spr-empty': 'filtered' }, hidden: it.section.entries.length > 0 || !it.query }) %>
 <% } %>
 <% } %>
 <% } else if (it.section.entries.length > 0 || pageAdd) { %>
@@ -497,13 +400,9 @@
 <% } %>
 
 <% if (it.section.status) { %>
-<p class="spr-note spr-note-<%= it.section.status.level %> spr-section-status">
-  <%= it.section.status.label %><% if (it.section.status.detail) { %>: <%= it.section.status.detail %><% } %>
-</p>
+<%~ include('@note', { level: it.section.status.level, text: it.section.status.label, detail: it.section.status.detail, className: 'spr-section-status' }) %>
 <% } else if (it.section.checkHref) { %>
-<p class="spr-note spr-note-idle spr-section-status" data-spr-check="<%= it.section.checkHref %>">
-  <span data-spr-check-text><a href="<%= it.section.checkHref %>">Check the connection</a></span>
-</p>
+<%~ include('@note', { level: 'idle', className: 'spr-section-status', check: { href: it.section.checkHref } }) %>
 <% } %>
 
 <% if (it.editable && it.section && it.section.resetOp) { %>

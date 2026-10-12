@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
 
-import { diffConfigVersions } from '../../../configurator/config-form/diff';
-import { DashboardResponder } from '../../../respond';
 import { relativeTime } from '../../../../common/time';
 import { ConfigVersion } from '../../../../config/loader';
 import { renderInlineIcon } from '../../../../content-reader/icons';
-import { renderTemplate } from '../../../../content-reader/views';
+import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
+import { diffConfigVersions } from '../../../configurator/config-form/diff';
+import { DashboardResponder } from '../../../respond';
 
 /** The version history and, when two are picked, the diff between them */
 export interface HistoryPayload {
@@ -46,6 +46,18 @@ export function sendConfigHistory(
         // The mark on Restore, inline like every mark under `/-/`: the page's
         // sprite is what the left column names.
         restore_icon: renderInlineIcon('rotate-ccw', 'spr-icon'),
+        restored_note: data.restored
+          ? {
+              level: 'ok',
+              text: `Version ${data.restored} restored as a new version.`,
+            }
+          : null,
+        hidden_changes_note: data.diff?.hiddenChanges.length
+          ? {
+              level: 'warn',
+              html: `A stored value changed that is not shown: ${data.diff.hiddenChanges.map((path) => `<code>${escapeHtml(path)}</code>`).join(', ')}.`,
+            }
+          : null,
         // Presentation only: whether the restore buttons are live. The route is
         // what refuses a write, and it refuses one whatever this says.
         editable,

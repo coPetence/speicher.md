@@ -40,12 +40,8 @@
   </form>
   <% } %>
 </div>
-<% if (it.retriedCount !== null) { %>
-<p class="spr-note">
-  <%= it.retriedCount %> job(s) put back on the queue. The worker picks them up
-  within a poll; whatever failed has to have been fixed first, or they arrive back
-  here.
-</p>
+<% if (it.retried_note) { %>
+<%~ include('@note', it.retried_note) %>
 <% } %>
 <% if (it.dead.length === 0) { %>
 <p class="spr-empty">No job has been given up on.</p>

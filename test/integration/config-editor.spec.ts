@@ -1,6 +1,5 @@
 import { createPrivateKey, generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import type { INestApplication } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
@@ -1651,13 +1650,16 @@ describe('the groups section', () => {
     expect(modal).not.toContain('onboarding');
   });
 
-  it('draws the level of each note the rename modal asks with, and not only its tint', () => {
-    const note = readFileSync(
-      join(__dirname, '../../src/global-ui/components/note/note.css'),
-      'utf8',
+  it('draws the level of each note the rename modal asks with, and not only its tint', async () => {
+    const warned = await open('groups/engineering');
+    expect(warned.html).toMatch(
+      /<p class="spr-note spr-note-warn"><svg class="spr-icon"[^>]*><use href="#i-triangle-alert"\/>/,
     );
-    expect(note).toMatch(/\.spr-note\.spr-note-warn::before\s*\{[^}]*triangle-alert\.svg/);
-    expect(note).toMatch(/\.spr-note\.spr-note-ok::before\s*\{[^}]*circle-check\.svg/);
+
+    const quiet = await open('groups/platform-ops');
+    expect(quiet.html).toMatch(
+      /<p class="spr-note spr-note-ok"><svg class="spr-icon"[^>]*><use href="#i-circle-check"\/>/,
+    );
   });
 
   it('marks the warning notes on the rename modal, and the reassuring one', async () => {
@@ -1666,11 +1668,13 @@ describe('the groups section', () => {
       warned.html.indexOf('spr-modal-panel'),
       warned.html.indexOf('spr-modal-actions'),
     );
-    expect(warnModal).toMatch(/<p class="spr-note spr-note-warn">\s*Renaming will enqueue/);
+    expect(warnModal).toMatch(
+      /<p class="spr-note spr-note-warn"><svg.*?<\/svg>Renaming will enqueue/,
+    );
 
     const quiet = await open('groups/platform-ops');
     expect(quiet.html).toMatch(
-      /<p class="spr-note spr-note-ok">\s*No <code>\.speicher\.yaml<\/code>/,
+      /<p class="spr-note spr-note-ok"><svg.*?<\/svg>No <code>\.speicher\.yaml<\/code>/,
     );
   });
 

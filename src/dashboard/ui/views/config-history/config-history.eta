@@ -4,15 +4,12 @@
 
 <h1>Configuration history</h1>
 
-<% if (it.restored) { %>
-<p class="spr-note spr-note-ok">
-  Version <%= it.restored %> restored as a new version. Nothing was removed — the
-  history still holds every version it did.
-</p>
+<% if (it.restored_note) { %>
+<%~ include('@note', it.restored_note) %>
 <% } %>
 
 <% if (it.error) { %>
-<p class="spr-note spr-note-fail"><%= it.error %></p>
+<%~ include('@note', { level: 'fail', text: it.error }) %>
 <% if (it.problems.length > 0) { %>
 
 <%~ include('@problems', { problems: it.problems }) %>
@@ -79,16 +76,12 @@
     </div>
 
     <% if (it.diff) { %>
-    <% if (it.diff.hiddenChanges.length > 0) { %>
-    
-    <p class="spr-note spr-note-warn">
-      A stored value changed that is not shown:
-      <% it.diff.hiddenChanges.forEach(function (path, i) { %><%= i > 0 ? ', ' : '' %><code><%= path %></code><% }) %>.
-    </p>
+    <% if (it.hidden_changes_note) { %>
+    <%~ include('@note', it.hidden_changes_note) %>
     <% } %>
 
     <% if (it.diff.identical) { %>
-    <p class="spr-note spr-note-idle">These two versions are identical.</p>
+    <%~ include('@note', { level: 'idle', text: 'These two versions are identical.' }) %>
     <% } else { %>
     <div class="spr-scroll">
       <table class="spr-diff">

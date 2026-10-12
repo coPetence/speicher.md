@@ -35,11 +35,8 @@
 </div>
 <% } %>
 
-<% if (it.discovering !== null) { %>
-<p class="spr-note">
-  Asking <%= it.discovering %> content source(s) what they hold. The worker picks
-  it up within a poll; anything new appears in the table below once it has synced.
-</p>
+<% if (it.discovering_note) { %>
+<%~ include('@note', it.discovering_note) %>
 <% } %>
 
 
@@ -75,7 +72,7 @@
       <% if (repo.error) { %>
       
       <tr class="spr-row-note">
-        <td colspan="6"><p class="spr-note spr-note-fail"><%= repo.error %></p></td>
+        <td colspan="6"><%~ include('@note', { level: 'fail', text: repo.error }) %></td>
       </tr>
       <% } %>
       <% }) %>
@@ -120,11 +117,7 @@
   <button type="submit">Re-embed <%= it.instance.embedding.stale %> chunks</button>
 </form>
 <% } %>
-<% if (it.reembedding !== null) { %>
-<p class="spr-note">
-  Re-embedding <%= it.reembedding %> chunks. Keyword search answers throughout;
-  semantic results come back as the job drains, and a restart resumes rather
-  than starting over.
-</p>
+<% if (it.reembedding_note) { %>
+<%~ include('@note', it.reembedding_note) %>
 <% } %>
 <% } %>

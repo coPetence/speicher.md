@@ -119,7 +119,9 @@ describe('the width lookup on the embedding page', () => {
 
     const model = /<input[^>]*name="embedding\.model"[^>]*>/.exec(page.text)?.[0] ?? '';
     expect(model).toContain('data-spr-width-into="embedding.dimensions"');
-    expect(page.text).toMatch(/<p class="spr-note spr-note-idle" data-spr-width-note hidden><\/p>/);
+    expect(page.text).toMatch(
+      /<p class="spr-note spr-note-idle" data-spr-width-note hidden><svg.*?<\/svg><\/p>/,
+    );
   });
 
   it('fills in the width the model returns, asking it the model it was given', async () => {

@@ -27,9 +27,7 @@
       }) %>
       <% } %>
     <% add.typeOptions.filter(function (option) { return option.unavailable }).forEach(function (option) { %>
-    <p class="spr-note spr-note-warn spr-choice-note">
-      <%~ md(option.unavailable) %>
-    </p>
+    <%~ include('@note', { level: 'warn', html: md(option.unavailable), className: 'spr-choice-note' }) %>
     <% }) %>
     </fieldset>
     <% } %>

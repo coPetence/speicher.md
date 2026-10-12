@@ -26,9 +26,7 @@
       <% } %>
     </header>
     <% card.notes.forEach(function (note) { %>
-    <p class="spr-note spr-note-idle">
-      <%= note %>
-    </p>
+    <%~ include('@note', { level: 'idle', text: note }) %>
     <% }) %>
     <div class="spr-fields">
       <% card.items.forEach(function (item) { %><%~ include('@config-fields/item', { ...it, item: item }) %><% }) %>

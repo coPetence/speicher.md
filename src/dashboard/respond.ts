@@ -8,6 +8,7 @@ import { sendHtml } from '../content-reader/views';
 import { dashboardNav } from './ui/views/nav-tree/nav-tree';
 import { renderSetupProgress } from './ui/views/setup/setup-progress/setup-progress';
 import { renderPage } from '../global-ui/global-views/page-layout/page-layout';
+import { NOTE_ICON_NAMES } from '../global-ui/note';
 import { sendNotFound } from '../global-ui/global-views/not-found/not-found';
 import { SetupStep, setupSteps } from './setup/steps';
 import {
@@ -151,8 +152,9 @@ export function renderDashboardPage(
 
     progressBar: progress.html,
 
-    // One sprite carries what nav and rail actually drew
-    sprite: renderSprite([...nav.icons, ...progress.icons]),
+    // One sprite carries what nav and rail actually drew, and every note icon: an
+    // island can turn any note to any level after the page has loaded
+    sprite: renderSprite([...nav.icons, ...progress.icons, ...NOTE_ICON_NAMES]),
 
     // Admin chrome layers its own stylesheet over the reader's
     extraStylesheet: dashboardStylesheetUrl(),

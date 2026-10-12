@@ -1,9 +1,11 @@
 import type { Request, Response } from 'express';
 
+import type { ConfigCommon } from '../../../configurator/config-page/payloads';
 import { DashboardResponder } from '../../../respond';
+import type { Note } from '../../../../global-ui/note';
 import { DashboardHit } from '../../../search/search';
 import { renderInlineIcon } from '../../../../content-reader/icons';
-import { renderTemplate } from '../../../../content-reader/views';
+import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
 
 /** What the admin search answers, to JSON callers and the page alike */
 export interface DashboardSearchPayload {
@@ -20,6 +22,7 @@ export function sendDashboardSearch(
   res: Response,
   isAdmin: boolean,
   payload: DashboardSearchPayload,
+  config: ConfigCommon,
 ): void {
   respond.send(req, res, isAdmin, {
     section: 'search',
@@ -39,6 +42,44 @@ export function sendDashboardSearch(
             .filter((icon) => icon !== '')
             .map((icon) => [icon, renderInlineIcon(icon, 'spr-icon')]),
         ),
+
+        no_match_note: {
+          level: 'warn',
+          html: `Nothing here matches <code>${escapeHtml(data.query)}</code>. Every word has to match something — try one of them on its own.`,
+        },
+
+        unsearchable_note: data.settings_searchable ? null : unsearchableNote(config),
       }),
   });
+}
+
+/** Says why only pages are searchable, and what the administrator does to search settings again */
+function unsearchableNote(config: ConfigCommon): Note {
+  const file = `<code>${escapeHtml(config.config_path ?? '')}</code>`;
+
+  if (config.unreadable) {
+    return {
+      level: 'warn',
+      html: `Only pages are searchable, because Speicher cannot read the configuration file ${file}: ${escapeHtml(config.unreadable)}. To search the settings as well, make sure that the file exists and that Speicher may read it.`,
+    };
+  }
+
+  if (config.unparseable && config.config_source === 'database') {
+    return {
+      level: 'warn',
+      html: `Only pages are searchable, because the newest saved configuration is not valid YAML: ${escapeHtml(config.unparseable)}. To search the settings as well, open <a href="/-/config/history">Configuration history</a> and restore the newest version that is valid.`,
+    };
+  }
+
+  if (config.unparseable) {
+    return {
+      level: 'warn',
+      html: `Only pages are searchable, because the configuration file ${file} is not valid YAML: ${escapeHtml(config.unparseable)}. To search the settings as well, correct the YAML in the file and search again.`,
+    };
+  }
+
+  return {
+    level: 'warn',
+    html: `Only pages are searchable, because the configuration file ${file} is empty. To search the settings as well, add the configuration to the file and search again.`,
+  };
 }
