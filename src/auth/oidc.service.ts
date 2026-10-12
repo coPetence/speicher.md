@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import { JWTPayload, createRemoteJWKSet, jwtVerify } from 'jose';
@@ -10,7 +10,7 @@ import { ConfigService } from '../config/config.service';
 import { OidcProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
 import { CompletedLogin } from './login-result';
-import { mintToken } from './tokens';
+import { mintPkce, mintToken } from './tokens';
 
 /**
  * OIDC authorization-code login for external identity providers
@@ -70,8 +70,7 @@ export class OidcService {
     const state = mintToken(24);
     const nonce = mintToken(24);
 
-    const codeVerifier = mintToken(48);
-    const challenge = createHash('sha256').update(codeVerifier).digest('base64url');
+    const { verifier: codeVerifier, challenge } = mintPkce();
 
     await LoginFlow.create({
       tenant_id: tenantId,

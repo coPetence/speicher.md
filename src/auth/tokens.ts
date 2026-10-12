@@ -11,6 +11,14 @@ export function mintToken(bytes = 32): string {
   return randomBytes(bytes).toString('base64url');
 }
 
+/**
+ * A PKCE verifier and S256 challenge
+ */
+export function mintPkce(): { verifier: string; challenge: string } {
+  const verifier = mintToken(48);
+  return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') };
+}
+
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
