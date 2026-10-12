@@ -157,7 +157,7 @@ export function storageSection(root: Obj): SectionSource {
   fields.push(
     bytesField(root, ['assets', 'max_asset_bytes'], 'assets.max_asset_bytes', 'Largest asset', {
       fallback: 10000000,
-      help: 'Files larger than this valie will not be stored. A finding will be reported to the author.',
+      help: 'Files larger than this value will not be stored. A finding will be reported to the author.',
     }),
   );
 
