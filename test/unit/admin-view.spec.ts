@@ -126,7 +126,7 @@ describe('the section list', () => {
 
   it('marks the step whose page you are on, and none on a page that is no step', () => {
     const configured = {
-      providerIds: ['entra'],
+      providerShortIds: ['entra'],
       hasAdministrator: false,
       hasContentSource: false,
       hasMagicLinkProvider: false,
@@ -155,7 +155,7 @@ describe('the section list', () => {
 
   it('asks for a relay before the provider that needs one, and only then', () => {
     const fresh = {
-      providerIds: [],
+      providerShortIds: [],
       hasAdministrator: false,
       hasContentSource: false,
       hasMagicLinkProvider: false,
@@ -197,13 +197,13 @@ describe('the section list', () => {
 
   it('hands a finished step over to the next, and only a finished one', () => {
     const fresh = {
-      providerIds: [],
+      providerShortIds: [],
       hasAdministrator: false,
       hasContentSource: false,
       hasMagicLinkProvider: false,
       hasMailTransport: false,
     };
-    const withProvider = { ...fresh, providerIds: ['entra'] };
+    const withProvider = { ...fresh, providerShortIds: ['entra'] };
 
     expect(nextSetupPage(fresh, withProvider, 'identity')).toBe('/-/config/sources');
     expect(nextSetupPage(fresh, withProvider, 'identity/entra')).toBe('/-/config/sources');

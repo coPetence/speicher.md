@@ -21,7 +21,7 @@ export const MAIL_TRANSPORT_PATH = '/-/config/mail';
 /** Subset of ConfigService properties that determine setup completion state */
 export type SetupState = Pick<
   ConfigService,
-  | 'providerIds'
+  | 'providerShortIds'
   | 'hasAdministrator'
   | 'hasContentSource'
   | 'hasMagicLinkProvider'
