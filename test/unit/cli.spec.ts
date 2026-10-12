@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-
 import { commandUsage, runCli, usage } from '../../src/cli/cli';
 import { UsageError } from '../../src/cli/command-types';
 import { COMMANDS } from '../../src/cli/commands';

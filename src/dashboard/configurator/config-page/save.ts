@@ -322,7 +322,7 @@ export class ConfigSaveService {
     // Everything from here describes the *edited* document, so a refused save hands
     // back the operator's own work rather than the version on disk.
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
-    
+
     await stampBrandImages(caller.tenantId, payload);
     await stampEntryOrigins(caller.tenantId, payload);
     await this.checks.stampDirectoryStatus(payload, false);
@@ -330,7 +330,6 @@ export class ConfigSaveService {
 
     payload.pending = edited !== state.storedYaml || payload.creating;
     payload.shape = payload.section ? shapeControls(doc, payload.section) : [];
-
 
     if (refusal || idTaken) {
       const error = idTaken

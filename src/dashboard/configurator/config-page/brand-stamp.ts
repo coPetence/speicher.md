@@ -32,7 +32,7 @@ export async function stampBrandImages(
       field.thumbHref = '';
       continue;
     }
-    
+
     const spec = BRAND_IMAGES.find((each) => each.key === field.path);
     const type = (spec?.types[fact.media_type] ?? '').toUpperCase();
     field.stored = `${type}, ${describeBytes(fact.byte_size)}`;

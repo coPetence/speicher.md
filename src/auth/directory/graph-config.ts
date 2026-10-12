@@ -34,4 +34,8 @@ export function graphDirectoryProblems(
   return problems;
 }
 
-const CREDENTIAL_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];
+const CREDENTIAL_CONFIG_KEYS: (keyof DirectoryConfig)[] = [
+  'tenant_id',
+  'client_id',
+  'client_secret',
+];

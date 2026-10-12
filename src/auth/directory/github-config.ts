@@ -31,7 +31,11 @@ export function githubDirectoryProblems(
   return problems;
 }
 
-const MICROSOFT_GRAPH_SPECIFIC_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];
+const MICROSOFT_GRAPH_SPECIFIC_CONFIG_KEYS: (keyof DirectoryConfig)[] = [
+  'tenant_id',
+  'client_id',
+  'client_secret',
+];
 const GITHUB_DIRECTORY_SPECIFIC_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['app_id', 'private_key'];
 
 /**

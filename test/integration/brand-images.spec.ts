@@ -93,7 +93,10 @@ describe('the brand_images table', () => {
     const image = logo();
     await internBrandImage(harness.tenantId, image);
 
-    const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(brandRef(image)));
+    const resolved = await resolveBrandImagesForTenantId(
+      harness.tenantId,
+      configWithLogo(brandRef(image)),
+    );
 
     expect(resolved.problems).toEqual([]);
     expect(resolved.images.get('logo')?.bytes.equals(PNG)).toBe(true);
@@ -146,7 +149,10 @@ describe('resolving what the document says', () => {
     const image = brandImageOf(hostile, 'image/svg+xml', 'svg');
     await internBrandImage(harness.tenantId, image);
 
-    const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(brandRef(image)));
+    const resolved = await resolveBrandImagesForTenantId(
+      harness.tenantId,
+      configWithLogo(brandRef(image)),
+    );
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([

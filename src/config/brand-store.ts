@@ -1,6 +1,6 @@
 /**
  * Handles the `brand_images` db table
- * 
+ *
  * writing to it is idempotent using the content hash
  */
 
@@ -53,7 +53,6 @@ export async function brandImagesByHash(
   );
   return new Map(rows.map((row) => [row.hash, row]));
 }
-
 
 export async function brandImageFactsByHash(
   tenantId: string,

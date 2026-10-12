@@ -179,9 +179,7 @@ export class S3BlobStore implements BlobStore {
   private failureDetail(err: unknown): string {
     const status = statusOf(err);
     if (status === 404) {
-      return (
-        `${this.description} does not exist. Make sure to create it before.`
-      );
+      return `${this.description} does not exist. Make sure to create it before.`;
     }
     if (status === 403) {
       return `${this.description} refused these credentials. Make sure it has s3:ListBucket permission.`;

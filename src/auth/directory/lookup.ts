@@ -63,17 +63,15 @@ function fingerprintOf(config: ConfigService): string {
   for (const id of config.providerShortIds) {
     const directory = directoryOf(config, id);
     if (!directory) continue;
-    parts.push(
-      [
-        id,
-        directory.type,
-        directory.tenant_id ?? '',
-        directory.client_id ?? '',
-        directory.client_secret ?? '',
-        directory.cache_ttl ?? '',
-        directory.type === 'github' ? config.groupSourcesByProvider(id).join(',') : '',
-      ],
-    );
+    parts.push([
+      id,
+      directory.type,
+      directory.tenant_id ?? '',
+      directory.client_id ?? '',
+      directory.client_secret ?? '',
+      directory.cache_ttl ?? '',
+      directory.type === 'github' ? config.groupSourcesByProvider(id).join(',') : '',
+    ]);
   }
   return JSON.stringify(parts);
 }
@@ -126,7 +124,13 @@ function build(
     if (directory.type === 'github') {
       byProvider.set(
         shortId,
-        new GithubDirectory(shortId, directory, config, config.groupSourcesByProvider(shortId), deps?.github),
+        new GithubDirectory(
+          shortId,
+          directory,
+          config,
+          config.groupSourcesByProvider(shortId),
+          deps?.github,
+        ),
       );
       continue;
     }
