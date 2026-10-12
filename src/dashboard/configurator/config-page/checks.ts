@@ -178,8 +178,7 @@ export class SectionChecks {
       icon: 'circle-alert',
       label: 'Pre-signing is not available',
       detail:
-        `A ${store.kind} store cannot hand the browser a URL of its own here, so ` +
-        'every asset is served through this instance whatever this says.',
+        `A ${store.kind} store cannot presign urls, so every asset is served through this instance instead.`
     };
   }
 

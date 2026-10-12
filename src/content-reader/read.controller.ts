@@ -299,8 +299,6 @@ export class ReadController {
         mime: asset.mime,
       });
     } catch (err) {
-      // Signing is local arithmetic for both drivers that do it, so a failure
-      // here is a surprise worth saying out loud -- and then proxying anyway
       this.log.warn('could not presign an asset, serving it instead', {
         repo_id: route.repoId,
         slug_path: asset.slug_path,

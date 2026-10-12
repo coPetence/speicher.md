@@ -142,7 +142,7 @@ export function storageSection(root: Obj): SectionSource {
 
     fields.push(
       urlField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Blob endpoint', {
-        help: 'Only for a sovereign cloud or a local emulator',
+        help: 'Keep blank if you use standard AWS. Fill with provider endpoint if you use other providers, AWS sovereign cloud or a local emulator',
       }),
     );
   } else {
@@ -157,7 +157,7 @@ export function storageSection(root: Obj): SectionSource {
   fields.push(
     bytesField(root, ['assets', 'max_asset_bytes'], 'assets.max_asset_bytes', 'Largest asset', {
       fallback: 10000000,
-      help: 'Larger files are not stored. A finding will be reported to the author.',
+      help: 'Files larger than this valie will not be stored. A finding will be reported to the author.',
     }),
   );
 
@@ -169,7 +169,7 @@ export function storageSection(root: Obj): SectionSource {
         'assets.presign_over_bytes',
         'Pre-sign above',
         {
-          help: 'Above this size we use a presigned url to serve the image to avoid proxying it through your backend. This does not apply to inline images. Set to zero if you want to proxy everything.',
+          help: 'Above this size we use a presigned url to serve the image to avoid proxying it through your backend. This does not apply to inline images. Set to zero if you want to proxy everything. Presigning reduces bandwith usage but can lead to incomplete access logs.',
         },
       ),
       durationField(
