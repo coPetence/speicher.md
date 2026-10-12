@@ -13,7 +13,7 @@ import {
 import {
   attachStoredBrandImages,
   resolveBrandImages,
-  resolveBrandImagesFor,
+  resolveBrandImagesForTenantId,
 } from '../../src/config/brand-resolve';
 import { brandImageExists, internBrandImage, sweepBrandImages } from '../../src/config/brand-store';
 import { ConfigService } from '../../src/config/config.service';
@@ -93,7 +93,7 @@ describe('the brand_images table', () => {
     const image = logo();
     await internBrandImage(harness.tenantId, image);
 
-    const resolved = await resolveBrandImagesFor(harness.tenantId, configWithLogo(brandRef(image)));
+    const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(brandRef(image)));
 
     expect(resolved.problems).toEqual([]);
     expect(resolved.images.get('logo')?.bytes.equals(PNG)).toBe(true);
@@ -124,7 +124,7 @@ describe('resolving what the document says', () => {
 
   it('reports a reference to an image nobody stored, without throwing', async () => {
     const missing = `sha256:${'a'.repeat(64)}`;
-    const resolved = await resolveBrandImagesFor(harness.tenantId, configWithLogo(missing));
+    const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(missing));
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([
@@ -145,7 +145,7 @@ describe('resolving what the document says', () => {
     const image = brandImageOf(hostile, 'image/svg+xml', 'svg');
     await internBrandImage(harness.tenantId, image);
 
-    const resolved = await resolveBrandImagesFor(harness.tenantId, configWithLogo(brandRef(image)));
+    const resolved = await resolveBrandImagesForTenantId(harness.tenantId, configWithLogo(brandRef(image)));
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([

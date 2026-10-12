@@ -1,15 +1,5 @@
 /**
- * Putting the pictures back into a document that is leaving this instance
- *
- * A stored document refers to its logo by hash, which is a name that means
- * nothing anywhere else: the row it names lives in this instance's database. An
- * export is a file another instance is started from, so the bytes travel with
- * it — as the `data:` URI the far end already knows how to read, since that is
- * the form every document written before the table existed holds.
- *
- * Only on the way *out*. What is stored stays a reference, which is the whole
- * point of the table; this is the one place that undoes it, and it undoes it
- * into a file rather than into the database.
+ * This resolves brand images when exporting the instance config
  */
 
 import { BRAND_IMAGES, parseBrandRef } from '../../../config/brand';

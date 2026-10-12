@@ -352,13 +352,8 @@ export class Worker {
 
       case 'brand-sweep': {
         /*
-          The images nothing names any more.
-
-          Kept out of the configuration's own history on purpose: a version is
-          never pruned, so a picture a version names is never deletable, and what
-          this collects is the other kind — bytes stored for a save that was then
-          refused or walked away from. What the *running* configuration names is
-          handed in, because in `file` mode no stored version says it.
+          removes all brand images that are not referenced by any instance config
+          this happens if older instance config versions get removed
         */
         const collected = await sweepBrandImages(
           job.tenant_id,

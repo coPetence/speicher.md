@@ -1,25 +1,13 @@
 /**
- * Turning what the document says about a logo into the bytes of one
+ * The config can store brand images in 3 formats:
+ *  - Reference to a local file
+ *  - `data:` URI
+ *  - `sha256:<hash>` -> reference to image in stored in `brand_images` db table
  *
- * A stored value is one of two things — a `data:` URI, or `sha256:<hash>` naming
- * a row in `brand_images` — and a reader of a config never gets to assume which:
- * every version written before the table existed holds the first, a hand-written
- * `file`-mode document may hold either, and a version an operator rolls back to
- * holds whatever it held when it was saved.
- *
- * So resolution is two passes. The first is synchronous and needs nothing but the
- * document, which is what makes `loadInstanceConfig` — called by the form on
- * every keystroke-sized round trip, and by the migration that builds a
- * `ConfigService` — still work exactly as it did. The second reaches the table,
- * and only a caller with a tenant can make it.
- *
- * Neither pass ever throws. A logo is presentation: an unresolvable reference
- * costs a header its picture and says so in the log, and the alternative — a
- * version that fails to load, falling the instance back to an older one — is a
- * cure enormously worse than the disease. See `loadActiveInstanceConfig`.
+ * This file reosolved all of them
  */
 
-import type { BrandField, BrandImage, BrandImageSpec } from './brand';
+import type { BrandField, BrandImage } from './brand';
 import {
   BRAND_IMAGES,
   brandImageOf,
@@ -33,11 +21,9 @@ import type { InstanceConfig } from './types';
 export type BrandImages = Map<BrandField, BrandImage>;
 
 export interface BrandResolution {
-  /** The fields a picture was found for */
   images: BrandImages;
-  /** Fields naming a row, and the hash each names, for the pass that can read it */
   pending: Map<BrandField, string>;
-  /** Why a field that names something has no picture, one line each */
+  /** Problems while resolving images */
   problems: string[];
 }
 
@@ -47,13 +33,6 @@ export const NO_BRAND_IMAGES: BrandResolution = {
   problems: [],
 };
 
-/**
- * The first pass: everything the document carries within itself.
- *
- * A field holding a reference is left `pending` rather than reported as a
- * problem — in `file` mode nothing will ever resolve it, and that is a real
- * problem, but it is not this function's to decide. See `loadActiveInstanceConfig`.
- */
 export function resolveBrandImages(config: InstanceConfig): BrandResolution {
   const images: BrandImages = new Map();
   const pending = new Map<BrandField, string>();
@@ -63,9 +42,9 @@ export function resolveBrandImages(config: InstanceConfig): BrandResolution {
     const stored = config.brand?.[spec.field];
     if (stored === undefined) continue;
 
-    const hash = parseBrandRef(stored);
-    if (hash !== null) {
-      pending.set(spec.field, hash);
+    const referencedHash = parseBrandRef(stored);
+    if (referencedHash !== null) {
+      pending.set(spec.field, referencedHash);
       continue;
     }
 
@@ -76,7 +55,6 @@ export function resolveBrandImages(config: InstanceConfig): BrandResolution {
 
   return { images, pending, problems };
 }
-
 
 export async function attachStoredBrandImages(
   tenantId: string,
@@ -89,12 +67,16 @@ export async function attachStoredBrandImages(
   const rows = await brandImagesByHash(tenantId, [...resolution.pending.values()]);
 
   for (const [field, hash] of resolution.pending) {
-    const spec = specFor(field);
+    const spec = BRAND_IMAGES.find((spec) => spec.field === field);
     const row = rows.get(hash);
+
+    if (!spec) {
+      problems.push(`\`brand.${field}\` is not a brand image`);
+      continue;
+    }
+
     if (!row) {
-      problems.push(
-        `\`${spec.key}\` names an image this instance does not have stored (${hash.slice(0, 12)}…)`,
-      );
+      problems.push(`\`${spec.key}\` names an image this instance does not have stored (${hash})`);
       continue;
     }
 
@@ -118,38 +100,16 @@ export async function attachStoredBrandImages(
   return { images, pending: new Map(), problems };
 }
 
-/**
- * Whether anything here needs the table, asked without decoding anything.
- *
- * What `file` mode uses to decide whether to go near the database at all: a
- * document holding its pictures inline — which is every `file`-mode document
- * written by hand — resolves completely without one, and should not acquire a
- * query at boot because a feature exists that it does not use.
- */
-export function namesStoredBrandImage(config: InstanceConfig): boolean {
+export function instanceConfigHasBrandImageRefs(config: InstanceConfig): boolean {
   return BRAND_IMAGES.some((spec) => {
     const stored = config.brand?.[spec.field];
     return stored !== undefined && parseBrandRef(stored) !== null;
   });
 }
 
-/**
- * Both passes, for a caller that has a tenant to ask.
- *
- * The first pass runs again here rather than being handed in: it is one base64
- * decode of at most 64 KB, it happens once per config a process adopts, and the
- * alternative is carrying a half-resolved intermediate through
- * `LoadedInstanceConfig` where every reader of that type would have to know not
- * to trust it.
- */
-export async function resolveBrandImagesFor(
+export async function resolveBrandImagesForTenantId(
   tenantId: string,
   config: InstanceConfig,
 ): Promise<BrandResolution> {
   return attachStoredBrandImages(tenantId, resolveBrandImages(config));
-}
-
-function specFor(field: BrandField): BrandImageSpec {
-  // The three specs are a closed list and `field` comes from it
-  return BRAND_IMAGES.find((spec) => spec.field === field) as BrandImageSpec;
 }
