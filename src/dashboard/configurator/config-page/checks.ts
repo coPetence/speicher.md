@@ -56,21 +56,6 @@ export class SectionChecks {
     private readonly blobs: BlobStore | null = null,
   ) {}
 
-  /**
-   * Whether this provider's directory answers, offered or answered.
-   *
-   * `asked` is `stampSectionCheck`'s, and it means the same thing: without it the
-   * page draws the *offer* and makes no request, and `?check=1` is what asks. The
-   * reason is the storage page's — a request to somebody else's endpoint takes as
-   * long to fail as the timeout allows, and here it is two of them, a token mint and
-   * a user list, each with its own timeout and the second retried. Probing while
-   * rendering put all of that in front of the page, and in front of the island's
-   * background validity check as well, which is what held Save.
-   *
-   * It stays a `Field.status` rather than moving to the foot of the page: what is
-   * being reported on is the `directory` block and its own credentials, not the
-   * provider, whose issuer and claims are configured on the same page.
-   */
   async stampDirectoryStatus(payload: ConfigSectionPayload, asked: boolean): Promise<void> {
     const member = memberOf(payload.section?.id ?? '');
     if (!payload.section || member?.section !== 'identity' || member.entry) return;
@@ -81,9 +66,6 @@ export class SectionChecks {
     );
     if (!field) return;
 
-    // Nothing is offered for a provider with no directory: an absent check is not a
-    // failed one. Asked of the config rather than of the probe, which is the only
-    // way to know it without making the request this exists to defer.
     if (!hasDirectory(this.config, member.id)) return;
 
     if (!asked) {

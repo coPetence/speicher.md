@@ -42,6 +42,12 @@ interface Installation {
   installationId: string;
 }
 
+interface InstallationPayload {
+  id: number;
+  suspended_at?: string | null;
+  account?: { login?: string };
+}
+
 export class GithubDirectory {
   private readonly log: Logger;
   private readonly fetch: FetchLike;
@@ -61,7 +67,7 @@ export class GithubDirectory {
   private readonly minter: GithubTokenMinter;
 
   constructor(
-    readonly providerId: string,
+    readonly providerShortId: string,
     config: DirectoryConfig,
     instance: ConfigService,
     private readonly teamIds: string[], // `org/team-slug`
@@ -72,7 +78,7 @@ export class GithubDirectory {
         teamIds.map((id) => splitTeam(id)[0]).filter((org): org is string => org !== null),
       ),
     ];
-    this.apiBase = apiBaseOf(instance.provider(providerId) as GithubProviderConfig | undefined);
+    this.apiBase = apiBaseOf(instance.provider(providerShortId) as GithubProviderConfig | undefined);
     this.minter = new GithubTokenMinter(
       config.app_id ?? '',
       config.private_key ?? '',
@@ -91,9 +97,9 @@ export class GithubDirectory {
     return undefined;
   }
 
-  /**
-   * Checks if a person is still part of the orgs
-   * Github user accounts are independant of orgs to a user can deaprt an org and still exist
+/**
+   * Checks if a person is still part of the orgs.
+   * GitHub user accounts are independent of orgs, so a user can depart an org and still exist.
    */
   async subjectExists(subject: string): Promise<boolean> {
     return this.cached(`subject:${subject}`, async () => {
@@ -101,8 +107,8 @@ export class GithubDirectory {
         if (!this.warnedAboutOrgs) {
           this.warnedAboutOrgs = true;
           this.log.warn(
-            'no organisation can be resolved from the ids. make sure you include the org in the id (`org/team-slug`)',
-            { provider: this.providerId },
+            'no group source names a GitHub team for this provider; make sure you include the team in the group ids (`org/team-slug`)',
+            { provider: this.providerShortId },
           );
         }
         return true;
@@ -115,7 +121,7 @@ export class GithubDirectory {
       if (login === null) return false;
 
       for (const org of orgs) {
-        const membership = await this.get(org, `/orgs/${enc(org)}/memberships/${enc(login)}`);
+        const membership = await this.apiGetRequest(org, `/orgs/${encodeURIComponent(org)}/memberships/${encodeURIComponent(login)}`);
         if ((membership as { state?: string } | null)?.state === 'active') return true;
       }
       return false;
@@ -134,8 +140,7 @@ export class GithubDirectory {
         if (orgs.length === 0) return null;
 
         const login = await this.loginOf(orgs[0], subject);
-        // The account is gone, so it is in nothing -- which fails closed, and is a
-        // different answer from not being able to ask
+
         if (login === null) return [];
 
         const out: string[] = [];
@@ -143,9 +148,9 @@ export class GithubDirectory {
           const [org, slug] = splitTeam(teamId);
           if (org === null || slug === null || !orgs.includes(org)) continue;
 
-          const membership = await this.get(
+          const membership = await this.apiGetRequest(
             org,
-            `/orgs/${enc(org)}/teams/${enc(slug)}/memberships/${enc(login)}`,
+            `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}/memberships/${encodeURIComponent(login)}`,
           );
           if ((membership as { state?: string } | null)?.state === 'active') out.push(teamId);
         }
@@ -166,7 +171,7 @@ export class GithubDirectory {
 
     try {
       return await this.cached(`team:${groupId}`, async () => {
-        const team = await this.get(org, `/orgs/${enc(org)}/teams/${enc(slug)}`);
+        const team = await this.apiGetRequest(org, `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}`);
         const count = (team as { members_count?: unknown } | null)?.members_count;
         return typeof count === 'number' ? count : null;
       });
@@ -193,7 +198,7 @@ export class GithubDirectory {
       return {
         level: 'fail',
         label: 'Nothing to reach',
-        detail: 'No group source names an organisation for this provider',
+        detail: 'You have no group configured which references a GitHub team; Therefore this configuration has no effect',
       };
     }
 
@@ -215,10 +220,10 @@ export class GithubDirectory {
     try {
       const found =
         slug === null
-          ? await this.get(org as string, `/orgs/${enc(org as string)}`, PROBE_TIMEOUT_MS)
-          : await this.get(
+          ? await this.apiGetRequest(org as string, `/orgs/${encodeURIComponent(org as string)}`, PROBE_TIMEOUT_MS)
+          : await this.apiGetRequest(
               org as string,
-              `/orgs/${enc(org as string)}/teams/${enc(slug)}`,
+              `/orgs/${encodeURIComponent(org as string)}/teams/${encodeURIComponent(slug)}`,
               PROBE_TIMEOUT_MS,
             );
 
@@ -251,7 +256,7 @@ export class GithubDirectory {
   /** Resolves the user behind a subject id */
   private async loginOf(org: string, subject: string): Promise<string | null> {
     return this.cached(`login:${subject}`, async () => {
-      const user = await this.get(org, `/user/${enc(subject)}`);
+      const user = await this.apiGetRequest(org, `/user/${encodeURIComponent(subject)}`);
       const login = (user as { login?: unknown } | null)?.login;
       return typeof login === 'string' && login !== '' ? login : null;
     });
@@ -279,8 +284,8 @@ export class GithubDirectory {
     return value;
   }
 
-  /** GET through the installation (null on 404) */
-  private async get(org: string, path: string, timeoutMs?: number): Promise<unknown | null> {
+  /** Perform a GET Request to the GitHub API */
+  private async apiGetRequest(org: string, path: string, timeoutMs?: number): Promise<unknown | null> {
     const installationId = await this.installationOn(org);
     if (installationId === null) throw this.unavailable(...noInstallation(org));
 
@@ -391,7 +396,7 @@ export class GithubDirectory {
   /** Throw if the directory is in its failure cooldown period */
   private assertAvailable(): void {
     if (this.now() < this.unavailableUntil) {
-      throw new DirectoryUnavailableError(this.providerId, 'still in the failure cooldown');
+      throw new DirectoryUnavailableError(this.providerShortId, 'still in the failure cooldown');
     }
   }
 
@@ -401,11 +406,11 @@ export class GithubDirectory {
     this.unavailableUntil = this.now() + UNAVAILABLE_COOLDOWN_MS;
     if (first) {
       this.log.error(`${message}; grants will resolve as they do without a directory`, {
-        provider: this.providerId,
+        provider: this.providerShortId,
         detail,
       });
     }
-    return new DirectoryUnavailableError(this.providerId, message, detail);
+    return new DirectoryUnavailableError(this.providerShortId, message, detail);
   }
 }
 
@@ -422,12 +427,4 @@ function noInstallation(orgs: string): [string, string] {
 function apiBaseOf(provider: GithubProviderConfig | undefined): string {
   const base = provider?.base_url?.replace(/\/+$/, '');
   return base ? `${base}/api/v3` : 'https://api.github.com';
-}
-
-const enc = encodeURIComponent;
-
-interface InstallationPayload {
-  id: number;
-  suspended_at?: string | null;
-  account?: { login?: string };
 }

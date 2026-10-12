@@ -395,7 +395,7 @@ export async function checkSummary(
     `${walk.documents.length} page(s) and ${walk.assets.length} asset(s) would be ingested.`,
   );
 
-  const hasDirectory = config.providerIds.some((id) => {
+  const hasDirectory = config.providerShortIds.some((id) => {
     const provider = config.provider(id);
     return provider !== undefined && 'directory' in provider && provider.directory !== undefined;
   });

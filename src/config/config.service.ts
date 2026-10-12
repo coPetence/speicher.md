@@ -148,16 +148,16 @@ export class ConfigService {
     return intervals.length > 0 ? Math.min(...intervals) : null;
   }
 
-  get providerIds(): string[] {
+  get providerShortIds(): string[] {
     return Object.keys(this.instance.auth?.providers ?? {});
   }
 
-  provider(id: string): ProviderConfig | undefined {
-    return this.instance.auth?.providers[id];
+  provider(providerShortId: string): ProviderConfig | undefined {
+    return this.instance.auth?.providers[providerShortId];
   }
 
   get hasMagicLinkProvider(): boolean {
-    return this.providerIds.some((id) => {
+    return this.providerShortIds.some((id) => {
       const provider = this.provider(id);
       return provider !== undefined && providerType(provider) === 'magic-link';
     });
@@ -177,7 +177,7 @@ export class ConfigService {
     const explicit = this.instance.auth?.default_provider;
     if (explicit) return explicit;
 
-    return this.providerIds.length === 1 ? this.providerIds[0] : undefined;
+    return this.providerShortIds.length === 1 ? this.providerShortIds[0] : undefined;
   }
 
   get assets(): Required<Pick<AssetsConfig, 'driver'>> & AssetsConfig {
@@ -335,11 +335,11 @@ export class ConfigService {
     return this.instance.groups?.[name] ?? [];
   }
 
-  groupSourceIdsFor(providerId: string): string[] {
+  groupSourcesByProvider(providerShortId: string): string[] {
     const out = new Set<string>();
     for (const sources of Object.values(this.instance.groups ?? {})) {
       for (const source of sources) {
-        if (source.provider === providerId && source.id !== undefined) out.add(source.id);
+        if (source.provider === providerShortId && source.id !== undefined) out.add(source.id);
       }
     }
     return [...out].sort();

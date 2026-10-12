@@ -15,12 +15,12 @@ export function sendSignIn(
   redirectTo: string,
   notice?: string,
 ): void {
-  const marks = config.providerIds.map((id) => providerMarkOf(config.provider(id)!));
+  const marks = config.providerShortIds.map((id) => providerMarkOf(config.provider(id)!));
   const body = renderTemplate('auth/views/sign-in', {
     notice,
     redirectTo,
     devLogin: env('SPEICHER_DEV_LOGIN'),
-    options: config.providerIds.map((id, index) => ({
+    options: config.providerShortIds.map((id, index) => ({
       href: `/api/auth/login?provider=${encodeURIComponent(id)}&redirect_to=${encodeURIComponent(redirectTo)}`,
       mark: renderMarkRef(marks[index], 'spr-icon spr-signin-mark'),
       name: config.providerName(id),

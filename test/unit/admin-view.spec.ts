@@ -185,7 +185,7 @@ describe('the section list', () => {
     expect(
       setupSteps({
         ...fresh,
-        providerIds: ['links'],
+        providerShortIds: ['links'],
         hasMagicLinkProvider: true,
       }).map((step) => step.id),
     ).toEqual(['mail', 'provider', 'content', 'administrator']);

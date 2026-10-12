@@ -98,14 +98,14 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
       id: 'provider',
       title: 'Identity provider',
       href: '/-/config/identity',
-      done: config.providerIds.length > 0,
+      done: config.providerShortIds.length > 0,
       current: false,
     },
     {
       id: 'group',
       title: 'Groups',
       href: '/-/config/groups',
-      done: config.providerIds.length > 0,
+      done: config.providerShortIds.length > 0,
       current: false,
     },
     {
@@ -134,7 +134,7 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
 /** Snapshot the setup-relevant state of a ConfigService for later comparison */
 export function setupStateOf(config: SetupState): SetupState {
   return {
-    providerIds: config.providerIds,
+    providerShortIds: config.providerShortIds,
     hasAdministrator: config.hasAdministrator,
     hasContentSource: config.hasContentSource,
     hasMagicLinkProvider: config.hasMagicLinkProvider,

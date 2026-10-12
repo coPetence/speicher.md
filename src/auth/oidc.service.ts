@@ -9,6 +9,7 @@ import { parseDurationWithFallback } from '../common/time';
 import { ConfigService } from '../config/config.service';
 import { OidcProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
+import { CompletedLogin } from './login-result';
 import { mintToken } from './tokens';
 
 /**
@@ -42,7 +43,7 @@ export class OidcService {
   providerForEmail(email: string): string | null {
     const domain = email.toLowerCase().split('@')[1];
     if (!domain) return null;
-    for (const id of this.config.providerIds) {
+    for (const id of this.config.providerShortIds) {
       const provider = this.config.provider(id);
       if (!provider || providerType(provider) !== 'oidc') continue;
       const domains = (provider as OidcProviderConfig).domains ?? [];
@@ -106,12 +107,7 @@ export class OidcService {
     code: string,
     state: string,
     redirectUri: string,
-  ): Promise<{
-    identity: CallerIdentity;
-    rawGroupIds: string[];
-    redirectTo: string;
-    namesFirstAdmin: boolean;
-  }> {
+  ): Promise<CompletedLogin> {
     const flow = await LoginFlow.findOne({ where: { tenant_id: tenantId, state } });
     if (!flow) throw new Error('unknown or reused login state');
 

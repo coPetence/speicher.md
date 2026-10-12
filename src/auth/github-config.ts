@@ -1,10 +1,10 @@
 import { GithubProviderConfig } from '../config/types';
 
 export function githubProviderProblems(
-  providerKey: string,
+  providerShortId: string,
   provider: GithubProviderConfig,
 ): string[] {
-  const at = `auth.providers.${providerKey}`;
+  const at = `auth.providers.${providerShortId}`;
 
   if (!provider.client_secret) {
     return [`${at}.client_secret is required`];

@@ -2,29 +2,27 @@ import { DirectoryConfig, OidcProviderConfig } from '../../config/types';
 
 // TODO check wether this makes sense for other OIDC providers than Microsoft
 export function graphDirectoryProblems(
-  providerKey: string,
+  providerShortId: string,
   provider: OidcProviderConfig,
 ): string[] {
   const directory = provider.directory;
   if (!directory) return [];
 
-  const at = `auth.providers.${providerKey}`;
+  const at = `auth.providers.${providerShortId}`;
   if (directory.type !== 'graph') {
     return [`${at}.directory.type must be "graph" for an oidc provider`];
   }
 
   const problems: string[] = [];
 
-  for (const key of CREDENTIALS) {
+  for (const key of CREDENTIAL_CONFIG_KEYS) {
     if (!directory[key]) {
       problems.push(`${at}.directory.${key} is required for a Microsoft Graph directory`);
     }
   }
 
   /*
-    Graph answers with the directory object id, so a subject resolved through it only
-    matches a grant whose subject *is* that id. A per-application claim would resolve
-    to a principal no grant could name.
+    Graph only resolves using oid. if something else is used as subject (can be configured in adv. settings) directory client cannot work
   */
   const claim = provider.subject_claim ?? 'sub';
   if (claim !== 'oid') {
@@ -36,5 +34,4 @@ export function graphDirectoryProblems(
   return problems;
 }
 
-/** The three an app registration needs to mint a client-credentials token */
-const CREDENTIALS: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];
+const CREDENTIAL_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];

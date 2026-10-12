@@ -1,26 +1,26 @@
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
 
 export function githubDirectoryProblems(
-  providerKey: string,
+  providerShortId: string,
   provider: GithubProviderConfig,
 ): string[] {
   const directory = provider.directory;
   if (!directory) return [];
 
-  const at = `auth.providers.${providerKey}.directory`;
+  const at = `auth.providers.${providerShortId}.directory`;
   if (directory.type !== 'github') {
     return [`${at}.type must be "github" for a github provider`];
   }
 
   const problems: string[] = [];
 
-  for (const key of GRAPH_ONLY) {
+  for (const key of MICROSOFT_GRAPH_SPECIFIC_CONFIG_KEYS) {
     if (directory[key] !== undefined) {
       problems.push(`${at}.${key} belongs to a Microsoft Graph directory. Remove the key.`);
     }
   }
 
-  for (const key of OWN_APP) {
+  for (const key of GITHUB_DIRECTORY_SPECIFIC_CONFIG_KEYS) {
     if (!directory[key]) {
       problems.push(
         `${at}.${key} is required: a GitHub directory reads organisations through its own GitHub App.`,
@@ -31,11 +31,8 @@ export function githubDirectoryProblems(
   return problems;
 }
 
-/** Graph's credentials, which name nothing a GitHub organisation would answer to */
-const GRAPH_ONLY: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];
-
-/** The directory's own App, never a content source's */
-const OWN_APP: (keyof DirectoryConfig)[] = ['app_id', 'private_key'];
+const MICROSOFT_GRAPH_SPECIFIC_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['tenant_id', 'client_id', 'client_secret'];
+const GITHUB_DIRECTORY_SPECIFIC_CONFIG_KEYS: (keyof DirectoryConfig)[] = ['app_id', 'private_key'];
 
 /**
  * Split `org/team-slug`

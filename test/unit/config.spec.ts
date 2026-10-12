@@ -288,7 +288,7 @@ describe('an instance nobody has configured yet', () => {
   it('has no primary forge, no provider and no administrator', () => {
     const config = new ConfigService(load(NOTHING));
     expect(load(NOTHING).primaryForgeId).toBeNull();
-    expect(config.providerIds).toEqual([]);
+    expect(config.providerShortIds).toEqual([]);
     expect(config.defaultProviderId).toBeUndefined();
     expect(config.adminPrincipals()).toEqual([]);
   });

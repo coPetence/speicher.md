@@ -62,8 +62,7 @@ export class GithubAuthService {
     url.searchParams.set('redirect_uri', redirectUri);
     url.searchParams.set('scope', SCOPES);
     url.searchParams.set('state', state);
-    // This instance's readers are an existing organisation's members so signup doesnt make sense
-    url.searchParams.set('allow_signup', 'false');
+    url.searchParams.set('allow_signup', 'true');
     return url.toString();
   }
 
@@ -101,13 +100,7 @@ export class GithubAuthService {
     const rawGroupIds = await this.teams(api, token, providerId);
     if (rawGroupIds.length === 0) {
       this.log.error(
-        'the sign-in carried no team memberships, so this user resolves to no groups. ' +
-          'An organisation answers with an empty list rather than an error when the ' +
-          'app cannot read its members, so check that first: a GitHub App needs the ' +
-          'organisation permission Members: Read-only and an installation on the ' +
-          "organisation; an OAuth app needs approving under the organisation's " +
-          'Settings -> Third-party Access, with `read:org` granted at the consent ' +
-          'screen. Failing that, this person is in none of its teams.',
+        'no team memberships were included in the sign-in response. This can happen if the app has no access to team memberships. If you configured a GitHub App check if the organisation permissions `Members: Read-only` is set. If you use an OAuth App make sure access is permitted in the organizations setings under Settings -> Third-party Access, `read:org`' +
         { provider: providerId },
       );
     }

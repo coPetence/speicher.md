@@ -378,7 +378,7 @@ auth:
     await getSequelize().query(`DELETE FROM instance_configs`, { type: QueryTypes.DELETE });
     config.adopt(unclaimedInstanceConfig());
     expect(config.configVersion).toBeNull();
-    expect(config.providerIds).toEqual([]);
+    expect(config.providerShortIds).toEqual([]);
   });
 
   it('adopts what the wizard saves, one version after another', async () => {
@@ -393,7 +393,7 @@ auth:
     expect(second.waiting).toEqual([]);
 
     expect(config.instance.mail?.host).toBe('smtp.example.test');
-    expect(config.providerIds.sort()).toEqual(['entra', 'link']);
+    expect(config.providerShortIds.sort()).toEqual(['entra', 'link']);
   });
 
   it('offers both providers on the next request, with nothing restarted', async () => {
