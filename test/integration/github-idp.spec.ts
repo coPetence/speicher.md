@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Server, createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
@@ -77,11 +78,11 @@ describe('the authorization URL', () => {
     expect(url.searchParams.get('allow_signup')).toBe('false');
   });
 
-  it('sends no PKCE challenge, which these endpoints would ignore', async () => {
+  it('sends an S256 PKCE challenge, the only method GitHub accepts', async () => {
     const url = new URL(await github.authorizationUrl(harness.tenantId, 'hub', REDIRECT_URI));
 
-    expect(url.searchParams.get('code_challenge')).toBeNull();
-    expect(url.searchParams.get('code_challenge_method')).toBeNull();
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(url.searchParams.get('code_challenge')).toMatch(/^[\w-]{43}$/);
   });
 
   it('stores a single-use flow carrying the redirect target', async () => {
@@ -90,10 +91,8 @@ describe('the authorization URL', () => {
 
     expect(flow?.provider).toBe('hub');
     expect(flow?.redirect_to).toBe('/');
-    // Both columns are NOT NULL and neither is ever sent; filled so no reader of
-    // the row takes an empty string for something this flow checks
     expect(flow?.nonce).not.toBe('');
-    expect(flow?.code_verifier).not.toBe('');
+    expect((flow?.code_verifier ?? '').length).toBeGreaterThanOrEqual(43);
   });
 
   it('refuses an absolute redirect target rather than carrying it', async () => {
@@ -107,6 +106,23 @@ describe('the authorization URL', () => {
 });
 
 describe('a completed sign-in', () => {
+  it('sends back the verifier behind the challenge it started with', async () => {
+    const url = new URL(await github.authorizationUrl(harness.tenantId, 'hub', REDIRECT_URI, '/'));
+
+    await github.completeLogin(
+      harness.tenantId,
+      'the-code',
+      url.searchParams.get('state') as string,
+      REDIRECT_URI,
+    );
+
+    const verifier = gh.tokenBody?.get('code_verifier') ?? '';
+    expect(createHash('sha256').update(verifier).digest('base64url')).toBe(
+      url.searchParams.get('code_challenge'),
+    );
+    expect(gh.tokenBody?.get('client_secret')).toBe('a-secret');
+  });
+
   it('keys the identity on the numeric id, not the renameable login', async () => {
     const { identity } = await github.completeLogin(
       harness.tenantId,
@@ -384,6 +400,7 @@ interface FakeGithub {
   base: string;
   seen: string[];
   bearers: string[];
+  tokenBody: URLSearchParams | null;
   user: Record<string, unknown>;
   emails: FakeEmail[];
   /** One entry per page, in order */
@@ -413,6 +430,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
     base: '',
     seen: [],
     bearers: [],
+    tokenBody: null,
     user: defaults.user,
     emails: defaults.emails,
     teams: defaults.teams,
@@ -421,6 +439,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
     reset() {
       state.seen = [];
       state.bearers = [];
+      state.tokenBody = null;
       state.user = { ...defaults.user };
       state.emails = [...defaults.emails];
       state.teams = defaults.teams.map((page) => [...page]);
@@ -438,6 +457,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
 
       if (req.method === 'POST' && path === '/login/oauth/access_token') {
         const body = new URLSearchParams(await readBody(req));
+        state.tokenBody = body;
         if (body.get('client_id') !== CLIENT_ID) return send(res, 401, { error: 'bad_client' });
         // GitHub reports a refused code as 200 with an `error` member
         if (state.tokenError) return send(res, 200, { error: state.tokenError });

@@ -8,7 +8,7 @@ import { GithubProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
 import { CompletedLogin } from './login-result';
 import { safeRedirect } from './oidc.service';
-import { mintToken } from './tokens';
+import { mintPkce, mintToken } from './tokens';
 
 /**
  * GitHub authorization-code login
@@ -40,18 +40,19 @@ export class GithubAuthService {
   ): Promise<string> {
     const provider = this.githubProvider(providerId);
     const state = mintToken(24);
+    const { verifier, challenge } = mintPkce();
 
     await LoginFlow.create({
       tenant_id: tenantId,
       provider: providerId,
       state,
       /*
-        GitHub's OAuth app endpoints accept neither a nonce nor a PKCE challenge --
-        sending `code_challenge` does not harden this flow, it is ignored. Both
-        columns are NOT NULL, so both are minted and neither is ever sent.
+        GitHub issues no id_token, so a nonce has no effect here; 
+        our login flow require a nonce for other idp types, 
+        therefore we mint a nonce here but do not send it.
       */
       nonce: mintToken(24),
-      code_verifier: mintToken(48),
+      code_verifier: verifier,
       redirect_to: safeRedirect(redirectTo),
       names_first_admin: options.namesFirstAdmin === true,
       expires_at: new Date(Date.now() + FLOW_TTL_MS),
@@ -63,6 +64,8 @@ export class GithubAuthService {
     url.searchParams.set('scope', SCOPES);
     url.searchParams.set('state', state);
     url.searchParams.set('allow_signup', 'true');
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', 'S256');
     return url.toString();
   }
 
@@ -85,7 +88,7 @@ export class GithubAuthService {
     const provider = this.githubProvider(providerId);
     const { web, api } = this.hosts(provider);
 
-    const token = await this.exchange(web, provider, code, redirectUri);
+    const token = await this.exchange(web, provider, code, redirectUri, flow.code_verifier);
     const user = await this.api<GithubUser>(api, token, '/user');
     const subject = typeof user.id === 'number' ? String(user.id) : '';
     if (subject === '') throw new Error('the GitHub user response carried no id');
@@ -133,11 +136,13 @@ export class GithubAuthService {
     provider: GithubProviderConfig,
     code: string,
     redirectUri: string,
+    codeVerifier: string,
   ): Promise<string> {
     const body = new URLSearchParams({
       client_id: provider.client_id,
       code,
       redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
     });
     if (provider.client_secret) body.set('client_secret', provider.client_secret);
 
