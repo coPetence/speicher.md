@@ -2125,3 +2125,96 @@ describe('the width a model reports', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('Enter in a field', () => {
+  function renderFields(): HTMLFormElement {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/identity/entra"
+              data-spr-config="identity/entra">
+          <input name="auth.providers.entra.client_id" type="text" value="abc">
+          <input name="auth.providers.entra.enabled" type="checkbox" value="on">
+          <textarea name="brand.tagline"></textarea>
+          <details class="spr-modal" open>
+            <input name="newname:identity" type="text">
+          </details>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    return form();
+  }
+
+  // Presses a key on the control, and says whether the browser would go on to submit
+  function press(selector: string, init: KeyboardEventInit = { key: 'Enter' }): boolean {
+    const control = document.querySelector(selector) as HTMLElement;
+    control.focus();
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    control.dispatchEvent(event);
+    return !event.defaultPrevented;
+  }
+
+  const CLIENT_ID = '[name="auth.providers.entra.client_id"]';
+
+  it('leaves a text field without submitting', () => {
+    renderFields();
+    run();
+
+    expect(press(CLIENT_ID)).toBe(false);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('is blocked on a checkbox, which stays focused', () => {
+    renderFields();
+    run();
+
+    expect(press('[type="checkbox"]')).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector('[type="checkbox"]'));
+  });
+
+  it('keeps its newline in a textarea', () => {
+    renderFields();
+    run();
+
+    expect(press('textarea')).toBe(true);
+  });
+
+  it('keeps its job on the Save button', () => {
+    renderFields();
+    run();
+
+    expect(press('.spr-config-save')).toBe(true);
+  });
+
+  it('leaves a modal field to the browser, with focus kept', () => {
+    renderFields();
+    run();
+
+    expect(press('.spr-modal input')).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('.spr-modal input'));
+  });
+
+  it('ignores other keys', () => {
+    renderFields();
+    run();
+
+    expect(press(CLIENT_ID, { key: 'a' })).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector(CLIENT_ID));
+  });
+
+  it('waits out an input method that is still composing', () => {
+    renderFields();
+    run();
+
+    expect(press(CLIENT_ID, { key: 'Enter', isComposing: true })).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector(CLIENT_ID));
+  });
+
+  it('still saves with the Save button', () => {
+    renderFields();
+    run();
+
+    expect(pressSave()).toBe(true);
+  });
+});
