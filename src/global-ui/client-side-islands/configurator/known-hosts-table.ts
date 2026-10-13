@@ -1,6 +1,6 @@
 /**
  * Redraws the known hosts field while the known_hosts lines or the repository URLs
- * of its source are edited
+ * of its source are edited, and shows its card only while a repository URL is an SSH URL
  */
 import { sshRemoteUrl } from '../../../forge/remote-url';
 import { missingHostKeysText, unreadableLinesText } from '../../known-hosts-notes';
@@ -19,7 +19,24 @@ const REPO_URL = /^(forges\.[^.]+)\.repos\.\d+\.url$/;
 
 export function mountKnownHostsTables(): void {
   const form = configForm();
-  if (!form || !globalThis.crypto?.subtle) return;
+  if (!form) return;
+
+  // Shows the card of the known hosts while a remote URL of its source is an SSH URL
+  form.addEventListener('input', (event) => {
+    const source = REPO_URL.exec((event.target as HTMLInputElement).name ?? '')?.[1];
+    const area = source
+      ? form.querySelector(`.spr-field-known-hosts textarea[name="${source}.known_hosts"]`)
+      : null;
+    const card = area?.closest<HTMLElement>('.spr-card');
+    if (!card) return;
+    card.hidden = ![...form.querySelectorAll<HTMLInputElement>('input[name$=".url"]')].some(
+      (input) =>
+        REPO_URL.exec(input.name)?.[1] === source &&
+        knownHostsNameOf(sshRemoteUrl(input.value)) !== null,
+    );
+  });
+
+  if (!globalThis.crypto?.subtle) return;
 
   const tableEdits = new WeakMap<Element, number>();
   const missingEdits = new WeakMap<Element, number>();

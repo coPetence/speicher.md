@@ -122,6 +122,7 @@ export interface Card {
   // Path of a switch on the page; the card is hidden while it is off, and the
   // controls inside still submit their values
   shownWith?: string;
+  hidden?: boolean;
 }
 
 export interface FormSection {

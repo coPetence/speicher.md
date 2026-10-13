@@ -3557,6 +3557,70 @@ describe('the transport and the notices', () => {
     expect(html).toContain('<span class="spr-clipped"> (required)</span>');
   });
 
+  it('hides the security card of a plain remote until a repository uses SSH', async () => {
+    const securityCard = async (url: string) => {
+      await appendConfigVersion(harness.tenantId, {
+        yaml: FIXTURE_YAML.replace(
+          'forges:\n',
+          'forges:\n' +
+            '  onprem:\n' +
+            '    type: git\n' +
+            '    known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly\n' +
+            '    repos:\n' +
+            '      - id: runbooks\n' +
+            `        url: ${url}\n`,
+        ),
+        resolutionHash: 'x',
+        origin: 'admin',
+        appliedBy: null,
+      });
+      const { html } = await open('sources/onprem');
+      const at = html.search(/<h4>\s*Security\s*<\/h4>/);
+      return html.slice(html.lastIndexOf('<section', at), at);
+    };
+
+    expect(await securityCard('https://example.test/internal/runbooks.git')).toMatch(/\shidden\s/);
+    expect(await securityCard('ssh://git@example.test/internal/runbooks.git')).not.toMatch(
+      /\shidden\s/,
+    );
+  });
+
+  it('folds the URL slug and the poll interval of a repository into its card', async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml: FIXTURE_YAML.replace(
+        'forges:\n',
+        'forges:\n' +
+          '  onprem:\n' +
+          '    type: git\n' +
+          '    repos:\n' +
+          '      - id: runbooks\n' +
+          '        url: https://example.test/internal/runbooks.git\n' +
+          '      - id: handbook\n' +
+          '        url: https://example.test/internal/handbook.git\n' +
+          '        slug: guide\n',
+      ),
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
+
+    const { html } = await open('sources/onprem');
+    const card = (id: string) => {
+      const at = html.search(new RegExp(`<h4>\\s*${id}\\s*</h4>`));
+      return html.slice(at, html.indexOf('</section>', at));
+    };
+    for (const id of ['runbooks', 'handbook']) {
+      const folded = card(id).slice(card(id).indexOf('<details class="spr-advanced"'));
+      expect(folded).toContain('name="forges.onprem.repos.');
+      expect(folded).toMatch(/name="forges\.onprem\.repos\.\d\.slug"/);
+      expect(folded).toMatch(/name="forges\.onprem\.repos\.\d\.poll_interval"/);
+      expect(folded).not.toMatch(/name="forges\.onprem\.repos\.\d\.branch"/);
+    }
+    // Closed while the folded fields are empty, open once one holds a value
+    expect(card('runbooks')).toContain('<details class="spr-advanced" >');
+    expect(card('handbook')).toContain('<details class="spr-advanced" open>');
+  });
+
   it('saves one notice without touching the ones beside it', async () => {
     await appendConfigVersion(harness.tenantId, {
       yaml: `${FIXTURE_YAML}\nnotify:\n  sync_failure: [admins, committer]\n  grant_expiry: [admins]\n`,

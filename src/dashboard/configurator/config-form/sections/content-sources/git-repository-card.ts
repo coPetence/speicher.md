@@ -55,6 +55,9 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
       // repository-id-from-url.ts fills it in the same way while the URL is typed
       value: id || defaultRepositoryId(url),
     },
+    textField(root, [...base, 'branch'], p('branch'), 'Branch', {
+      placeholder: 'main',
+    }),
     choice(
       'Transport',
       [
@@ -104,12 +107,11 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
     ),
     textField(root, [...base, 'slug'], p('slug'), 'URL slug', {
       help: 'How the repository is named in the URLs of this content source. Leave it empty to use the repository id instead.',
-    }),
-    textField(root, [...base, 'branch'], p('branch'), 'Branch', {
-      placeholder: 'main',
+      advanced: true,
     }),
     durationField(root, [...base, 'poll_interval'], p('poll_interval'), 'Poll interval', {
       help: 'Overrides the source-wide interval for this repository.',
+      advanced: true,
     }),
   ];
 
