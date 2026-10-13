@@ -124,10 +124,14 @@ export function isMarkdown(path: string): boolean {
   return MARKDOWN_EXTENSION.test(path);
 }
 
-/** Configuration file name for the Speicher system */
-export const CONFIG_FILENAME = '.speicher.yaml';
+/** Configuration file names for the Speicher system, in lookup order */
+export const CONFIG_FILENAMES = ['.speicher.yaml', '.speicher.yml'] as const;
 /** Default filenames that a directory resolves to when its path is visited */
 export const INDEX_FILENAMES = ['index.md', 'index.mdx'];
+
+export function isConfigFilename(name: string): boolean {
+  return (CONFIG_FILENAMES as readonly string[]).includes(name);
+}
 
 /** Path of a repo file relative to the ingest root; null if outside the ingest root */
 export function relativeToIngestRoot(ingestRoot: string, repoRelativePath: string): string | null {

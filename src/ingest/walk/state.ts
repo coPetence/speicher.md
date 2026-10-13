@@ -10,6 +10,8 @@ export interface RepoRoot {
   config: ConfigService;
   ingestRoot: string;
   ingestAbs: string;
+  /** File name the root config was read from (`.speicher.yaml` or `.speicher.yml`) */
+  configName: string;
   rootConfig: SpeicherConfig;
   resolved: ResolvedConfig;
   maintainerPrincipals: string[];
@@ -21,6 +23,8 @@ export interface RepoRoot {
 
 export interface ScannedDir {
   sourcePath: string;
+  /** Repo-relative path of the directory's config file, for reporting findings */
+  configSource: string;
   resolved: ResolvedConfig;
   sortOrder: number | null;
 }

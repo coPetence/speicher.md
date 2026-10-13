@@ -10,7 +10,7 @@
 
 import { InheritedCover } from '../cascade';
 import { FindingList } from '../findings';
-import { CONFIG_FILENAME, isSvg, resolveRelative } from '../paths';
+import { isSvg, resolveRelative } from '../paths';
 import { AssetRegistry } from './assets';
 import { RepoRoot, ScanState } from './state';
 
@@ -26,7 +26,7 @@ export async function resolveFolderCovers(
       await resolveCover(
         dir.resolved.cover,
         dir.sourcePath,
-        `${dir.sourcePath}/${CONFIG_FILENAME}`,
+        dir.configSource,
         assets,
         scan.root.findings,
       ),
@@ -43,7 +43,7 @@ export async function resolveRepoCover(
   return resolveCover(
     root.resolved.cover,
     '',
-    CONFIG_FILENAME,
+    root.configName,
     assets,
     root.findings,
     root.lineOf('display.cover') ?? undefined,
