@@ -889,7 +889,9 @@ describe('the identity section', () => {
     expect(said).toContain('<a href="/-/config/mail">');
     expect(page.html.indexOf(said!)).toBeGreaterThan(page.html.indexOf('spr-modal-panel'));
 
-    expect(page.html).toMatch(/<button\s+type="submit"\s+form="add-member"\s*>[^<]*<\/button>/);
+    expect(page.html).toMatch(
+      /<button\s+type="submit"\s+form="add-member"\s+class="spr-modal-submit"\s*>[^<]*<\/button>/,
+    );
   });
 
   it('marks nothing once the transport is configured', async () => {
@@ -1230,7 +1232,9 @@ describe('every way to remove something', () => {
 
     for (const page of pages) {
       const buttons = [
-        ...page.html.matchAll(/<button[^>]*class="spr-remove"[^>]*>([\s\S]*?)<\/button>/g),
+        ...page.html.matchAll(
+          /<button[^>]*class="spr-remove(?: [^"]*)?"[^>]*>([\s\S]*?)<\/button>/g,
+        ),
       ];
       expect(buttons.length).toBeGreaterThan(0);
       for (const [, inner] of buttons) {
@@ -1367,11 +1371,10 @@ describe('the groups section', () => {
     const { html } = await open('groups');
     expect(Object.keys(formBody(html))).not.toContain('admins.groups');
 
-    const removed = await post('groups', {
+    await post('groups', {
       '__shape:groups': String(formBody(html)['__shape:groups']),
       op: 'remove:groups.client-northwind',
-    }).expect(200);
-    await post('groups', { ...formBody(removed.text), intent: 'apply' }).expect(303);
+    }).expect(303);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).not.toContain('client-northwind');
@@ -1385,10 +1388,16 @@ describe('the groups section', () => {
     expect(bar).toContain('<form class="spr-form spr-filter" method="get"');
     expect(bar).toContain('class="spr-modal spr-index-add"');
     expect(bar).toMatch(/name="add"\s+form="add-member"/);
+    expect(bar).toMatch(
+      /<button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel<\/button>\s*<button\s+type="submit"\s+form="add-member"\s+class="spr-modal-submit"/,
+    );
     expect(bar).not.toContain('name="kind"');
     expect(bar).not.toMatch(/<option\s+value="entra"/);
 
-    expect(html).toContain('<form id="add-member" method="get" action="/-/config/groups">');
+    // A group is stored as it is added, so its id posts rather than asking for a page
+    expect(html).toContain(
+      '<form id="add-member" method="post" enctype="multipart/form-data" action="/-/config/groups">',
+    );
     expect(Object.keys(formBody(html))).not.toContain('add');
   });
 
@@ -1529,8 +1538,29 @@ describe('the groups section', () => {
     expect(html).toMatch(
       /formaction="\/-\/config\/groups">(<svg[\s\S]*?<\/svg>)?Remove this group<\/button>/,
     );
+    // Beside the group's name, posting the configuration form by its id
+    const head = html.slice(
+      html.indexOf('<div class="spr-page-head">'),
+      html.indexOf('<form class="spr-config"'),
+    );
+    expect(head).toMatch(
+      /<div class="spr-page-head">[\s\S]*?<button type="submit" name="op" value="remove:groups\.engineering" form="config-form" class="spr-remove spr-page-op"/,
+    );
+    expect(html.indexOf('Remove this group')).toBeLessThan(
+      html.indexOf('<form class="spr-config"'),
+    );
     expect(html).toContain('href="/-/config/groups/engineering/entra"');
     expect(html).toContain('class="spr-modal spr-index-add"');
+    expect(html).toContain('class="spr-index-bar"');
+    expect(/data-spr-empty="none"\s*([^>]*)>/.exec(html)?.[1]).toContain('hidden');
+
+    // The group's own fields lead, then Add, then the sources it draws from
+    const config = html.indexOf('<form class="spr-config"');
+    const access = html.indexOf('name="admins.groups"');
+    const bar = html.indexOf('class="spr-index-bar"');
+    expect(config).toBeLessThan(access);
+    expect(access).toBeLessThan(bar);
+    expect(bar).toBeLessThan(html.indexOf('class="spr-table spr-entries"'));
     expect(html).toMatch(/<details class="spr-dropdown">[\s\S]*?name="add"\s+value="entra"/);
     expect(html).toMatch(/<label class="spr-dd-row">[\s\S]*?<svg[\s\S]*?<span>entra<\/span>/);
   });
@@ -1544,11 +1574,56 @@ describe('the groups section', () => {
     expect(draft.html).toContain('No sources here yet.');
     expect(await versionCount()).toBe(1);
 
+    // Nothing to list: the drawing, with Add under it and no bar or header above
+    expect(draft.html).toMatch(
+      /<div class="spr-empty-state" data-spr-empty="none"\s*>\s*<svg class="spr-empty-art"[\s\S]*?No sources here yet\.<\/p>\s*<details class="spr-modal spr-index-add">/,
+    );
+    expect(draft.html).toContain(emptyStateArt('groups'));
+    expect(draft.html).not.toContain('class="spr-index-bar"');
+    expect(draft.html).toMatch(/<div class="spr-scroll" hidden>/);
+    expect(draft.html.match(/class="spr-modal spr-index-add"/g)).toHaveLength(1);
+    expect(draft.html.indexOf('id="f-member-id"')).toBeLessThan(
+      draft.html.indexOf('data-spr-empty="none"'),
+    );
+
     await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(loadInstanceConfig(yaml).raw.groups!['client-acme']).toEqual([]);
     expect(yaml).toContain('grp-eng');
+  });
+
+  it('stores a group the moment it is added, and opens its page', async () => {
+    const added = await post('groups', { add: ' client-acme ' }).expect(303);
+    const page = await landing('groups/client-acme', added);
+    expect(page.text).toContain('Saved.');
+    expect(page.text).not.toContain('data-spr-pending');
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(loadInstanceConfig(yaml).raw.groups!['client-acme']).toEqual([]);
+    expect(await versionCount()).toBe(2);
+  });
+
+  it('refuses to add a group whose id is taken or malformed, and stores nothing', async () => {
+    const taken = await post('groups', { add: 'engineering' }).expect(400);
+    expect(taken.text).toContain('There is already a group called &quot;engineering&quot;.');
+
+    const malformed = await post('groups', { add: 'not a name' }).expect(400);
+    expect(malformed.text).toContain('is not a short id a group may take');
+
+    expect(await versionCount()).toBe(1);
+  });
+
+  it('stores a removal made from the group\u2019s own page, and lands on the index', async () => {
+    const page = await open('groups/client-northwind');
+    const removed = await post('groups', {
+      ...page.body,
+      op: 'remove:groups.client-northwind',
+    }).expect(303);
+    await landing('groups', removed);
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).not.toContain('client-northwind');
   });
 
   it('takes the first source from the group’s own page, once there is one to name', async () => {
@@ -3036,29 +3111,36 @@ describe('adding and removing entries', () => {
     expect(after['groups.engineering.1.provider']).toBe('entra');
   });
 
-  it('removes an entry', async () => {
+  it('removes an entry, and a group is stored the moment it goes', async () => {
     const { body } = await open('groups');
-    const page = await post('groups', { ...body, op: 'remove:groups.client-northwind' }).expect(
-      200,
+    const removed = await post('groups', { ...body, op: 'remove:groups.client-northwind' }).expect(
+      303,
     );
+    const page = await landing('groups', removed);
     expect(page.text).not.toContain('>client-northwind<');
+    expect(page.text).toContain('Saved.');
     expect(String(formBody(page.text)['__shape:groups'])).not.toContain('client-northwind');
-    expect(await versionCount()).toBe(1);
+    expect(await versionCount()).toBe(2);
   });
 
-  it('keeps a removal through the save that follows it', async () => {
+  it('stores a group\u2019s removal without disturbing any other group', async () => {
     const { body } = await open('groups');
-    const afterRemove = await post('groups', {
-      ...body,
-      op: 'remove:groups.client-northwind',
-    }).expect(200);
-
-    await post('groups', { ...formBody(afterRemove.text), intent: 'apply' }).expect(303);
+    await post('groups', { ...body, op: 'remove:groups.client-northwind' }).expect(303);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).not.toContain('client-northwind');
     expect(yaml).toContain('engineering:');
     expect(yaml).toContain('platform-ops:');
+  });
+
+  it('leaves a source\u2019s removal pending, since only a whole group saves at once', async () => {
+    const page = await open('groups/engineering');
+    const removed = await post('groups/engineering', {
+      ...page.body,
+      op: 'remove:groups.engineering.provider.entra',
+    }).expect(200);
+    expect(removed.text).toContain('data-spr-pending');
+    expect(await versionCount()).toBe(1);
   });
 
   it('creates the provider when its page is saved, and disturbs no other', async () => {

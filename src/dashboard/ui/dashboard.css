@@ -84,7 +84,13 @@
 
   .spr-section-blurb {
     color: var(--spr-muted);
-    max-width: var(--spr-measure);
+    max-width: min(var(--spr-measure), 75%);
+  }
+
+  @media not all and (min-width: 48rem) {
+    .spr-section-blurb {
+      max-width: var(--spr-measure);
+    }
   }
 
   .spr-fields {
@@ -1253,21 +1259,57 @@
   }
 
   .spr-index-add-link,
-  .spr-index-add > summary {
+  .spr-index-add > summary,
+  .spr-modal-actions .spr-modal-submit:enabled {
     display: inline-flex;
     align-items: center;
     gap: var(--spr-space-2);
     padding: var(--spr-space-2) var(--spr-space-4);
-    border: var(--spr-border) solid var(--spr-line);
+    border: var(--spr-border) solid var(--spr-accent);
     border-radius: var(--spr-radius);
-    background: var(--spr-surface);
-    color: var(--spr-fg);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
     white-space: nowrap;
+    transition:
+      background-color var(--spr-transition),
+      border-color var(--spr-transition),
+      transform var(--spr-transition);
   }
 
   .spr-index-add-link:hover,
-  .spr-index-add > summary:hover {
-    border-color: var(--spr-accent);
+  .spr-index-add > summary:hover,
+  .spr-modal-actions .spr-modal-submit:enabled:hover {
+    border-color: color-mix(in oklab, var(--spr-accent) 92%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-accent) 92%, var(--spr-fg));
+    color: var(--spr-bg);
+  }
+
+  /* Lift and press only while closed: the open modal's backdrop is a fixed
+     pseudo-element of the summary, and a transform would pin it to the button */
+  .spr-index-add-link:hover,
+  .spr-index-add:not([open]) > summary:hover,
+  .spr-modal-actions .spr-modal-submit:enabled:hover {
+    transform: translateY(-1px);
+  }
+
+  .spr-index-add-link:active,
+  .spr-index-add:not([open]) > summary:active,
+  .spr-modal-actions .spr-modal-submit:enabled:active {
+    transform: scale(0.98);
+  }
+
+  /* Cancel is a word, not a second button: the muted text colour, and the
+     page's own text colour under the pointer */
+  .spr-modal-actions .spr-modal-cancel {
+    border-color: transparent;
+    background: transparent;
+    color: var(--spr-muted);
+    transition: color var(--spr-transition);
+  }
+
+  .spr-modal-actions .spr-modal-cancel:hover {
+    border-color: transparent;
     color: var(--spr-fg);
   }
 

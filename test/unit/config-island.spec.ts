@@ -930,6 +930,29 @@ describe('the save bar', () => {
     expect(document.activeElement).toBe(modal.querySelector('summary'));
   });
 
+  it('closes a modal from its Cancel and puts focus back where it came from', () => {
+    render();
+    const add = document.createElement('div');
+    add.innerHTML = `
+      <details class="spr-modal" open>
+        <summary>Add a group</summary>
+        <div class="spr-modal-panel">
+          <input name="add" value="ops">
+          <div class="spr-modal-actions">
+            <button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel</button>
+            <button type="submit" class="spr-modal-submit">Add a group</button>
+          </div>
+        </div>
+      </details>`;
+    document.body.append(add);
+    run();
+
+    const modal = document.querySelector('details.spr-modal') as HTMLDetailsElement;
+    (modal.querySelector('[data-spr-modal-close]') as HTMLButtonElement).click();
+    expect(modal.open).toBe(false);
+    expect(document.activeElement).toBe(modal.querySelector('summary'));
+  });
+
   it('leaves a page with no modal alone, and takes Escape from nobody', () => {
     render();
     run();

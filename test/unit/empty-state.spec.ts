@@ -111,6 +111,13 @@ describe('the drawing a configuration index has', () => {
     expect(sectionEmptyArt('sources/gh')).toBe('');
   });
 
+  it('draws a group\u2019s own page as the groups index, and nothing under it', () => {
+    expect(sectionEmptyArt('groups/engineering')).toBe(emptyStateArt('groups'));
+    expect(sectionEmptyArt('groups/engineering/entra')).toBe('');
+    expect(sectionEmptyArt('groups/')).toBe('');
+    expect(sectionEmptyArt('constructor/x')).toBe('');
+  });
+
   it('can be taken off the page, which its own layout would otherwise prevent', () => {
     expect(SHEET).toMatch(/\.spr-empty-state\[hidden\]\s*\{[^}]*display\s*:\s*none/);
   });

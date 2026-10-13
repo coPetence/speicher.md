@@ -47,6 +47,9 @@ export interface AddOp {
   opensPage?: boolean;
   // Direct URL instead of computing one from the op
   href?: string;
+  // Whether adding or removing a member is saved at once rather than left pending:
+  // the add posts, and the new member is stored before its page opens
+  savesAtOnce?: boolean;
 }
 
 export interface EntryLine {

@@ -1,8 +1,9 @@
 /**
- * Focus-on-open and close-on-Escape for `<details class="spr-modal">`
+ * Focus-on-open, close-on-Escape and Cancel for `<details class="spr-modal">`
  *
  * Modals use the native `<details>` open/close behaviour; JS only adds
- * auto-focus and the Escape shortcut
+ * auto-focus, the Escape shortcut and the `data-spr-modal-close` button.
+ * Without JS the backdrop still closes the modal, so Cancel is a convenience
  * Controls inside a closed nested details element are skipped to avoid
  * focusing an element in an unopened dropdown within the modal
  */
@@ -25,12 +26,21 @@ export function mountModals(): void {
     });
   }
 
+  const close = (modal: HTMLDetailsElement): void => {
+    modal.open = false;
+    modal.querySelector('summary')?.focus();
+  };
+
+  for (const modal of modals) {
+    for (const cancel of Array.from(modal.querySelectorAll('[data-spr-modal-close]'))) {
+      cancel.addEventListener('click', () => close(modal));
+    }
+  }
+
   addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     const open = modals.find((modal) => modal.open);
     if (!open) return;
-    open.open = false;
-
-    open.querySelector('summary')?.focus();
+    close(open);
   });
 }
