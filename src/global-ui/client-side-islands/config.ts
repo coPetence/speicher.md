@@ -15,6 +15,7 @@ import { mountConfigBar } from './configurator/unsaved-changes-bar';
 import { mountPickedFileNames } from './configurator/picked-file-name';
 import { mountFileDrops } from './configurator/drop-in-field';
 import { mountReshapeSubmits } from './configurator/reshape-submits-form';
+import { mountEnterLeavesField } from './configurator/enter-leaves-field';
 import { mountModals } from './configurator/modal-focus-and-escape';
 import { mountDropdowns } from './configurator/picture-dropdown';
 import { mountBlockedAnswers } from './configurator/unavailable-choice-blocker';
@@ -35,6 +36,7 @@ function mount(): void {
   mountPickedFileNames();
   mountFileDrops();
   mountReshapeSubmits();
+  mountEnterLeavesField();
   mountChecks();
 
   mountFilter('.spr-entries');

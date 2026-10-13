@@ -245,6 +245,9 @@
       <%= it.holds_work ? 'data-spr-holds-work' : '' %>
       <%= it.error || it.problems.length > 0 ? 'data-spr-attempted' : '' %>>
 
+<%/* Enter in a field submits through the form's first submit button; keeping that one disabled makes Enter do nothing, so only Save saves */%>
+<button type="submit" disabled hidden tabindex="-1" aria-hidden="true"></button>
+
 <% if (it.editable) { it.shape.forEach(function (control) { %>
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
 <% }) } %>
