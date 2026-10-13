@@ -1,115 +1,150 @@
-<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: it.name }] }) %>
+<%~ include('@crumbs', { crumbs: [{ href: '/-/status' , title: 'Sync status' }, { title: it.name }] }) %>
 
-<div class="spr-page-head">
-  <h1 class="spr-titled"><%~ it.mark_html || '' %><%= it.name %></h1>
-  <form method="post" action="/-/sync" class="spr-form spr-index-op spr-page-op">
-    <input type="hidden" name="namespace" value="<%= it.namespace %>" />
-    <input type="hidden" name="slug" value="<%= it.slug %>" />
-    <% if (it.syncing) { %>
-    <button type="submit" disabled aria-busy="true" data-spr-syncing><%~ it.syncing_icon || '' %>Syncing…</button>
-    <% } else { %>
-    <button type="submit"><%~ it.sync_icon || '' %>Sync now</button>
-    <% } %>
-  </form>
-</div>
+  <div class="spr-page-head">
+    <h1 class="spr-titled">
+      <%~ it.mark_html || '' %>
+        <%= it.name %>
+    </h1>
+    <form method="post" action="/-/sync" class="spr-form spr-index-op spr-page-op">
+      <input type="hidden" name="namespace" value="<%= it.namespace %>" />
+      <input type="hidden" name="slug" value="<%= it.slug %>" />
+      <% if (it.syncing) { %>
+        <button type="submit" disabled aria-busy="true" data-spr-syncing>
+          <%~ it.syncing_icon || '' %>Syncing…
+        </button>
+        <% } else { %>
+          <button type="submit">
+            <%~ it.sync_icon || '' %>Sync now
+          </button>
+          <% } %>
+    </form>
+  </div>
 
-<% if (it.config && it.runs.length) { %>
-<% if (!it.config.hasConfig) { %>
-<p class="spr-note spr-note-warn">
-  No <code>.speicher.yaml</code> (or <code>.speicher.yml</code>) at the repository root, so
-  nothing here is published. A repository publishes itself with that file — and removing it is how
-  a repository is unpublished, so this is the expected state for one that was.
-</p>
-<% } else if (it.config.principals === null) { %>
+  <% if (it.config && it.runs.length) { %>
+    <% if (!it.config.hasConfig) { %>
+      <p class="spr-note spr-note-warn">
+        No <code>.speicher.yaml</code> (or <code>.speicher.yml</code>) at the repository root, nothing
+        nothing will be published.
+      </p>
+      <% } else if (it.config.principals===null) { %>
 
-<p class="spr-note spr-note-warn">
-  This repository is not availiable because it never had a successfull sync
-</p>
-<% } else { %>
-<dl class="spr-defs">
-  <dt>Read access</dt>
-  <dd>
-    <% if (it.config.principals.length === 0) { %>
-    <%~ include('@badge', { level: 'fail', label: 'nobody' }) %>
-    <% } else { %>
-    <% it.config.principals.forEach(function (principal) { %><code><%= principal %></code> <% }) %>
-    <% } %>
-  </dd>
+        <p class="spr-note spr-note-warn">
+          This repository is not availiable because it never had a successfull sync
+        </p>
+        <% } else { %>
+          <dl class="spr-defs">
+            <dt>Read access</dt>
+            <dd>
+              <% if (it.config.principals.length===0) { %>
+                <%~ include('@badge', { level: 'fail' , label: 'nobody' }) %>
+                  <% } else { %>
+                    <% it.config.principals.forEach(function (principal) { %><code>
+                        <%= principal %>
+                      </code>
+                      <% }) %>
+                        <% } %>
+            </dd>
 
-  <dt>Maintainers</dt>
-  <dd>
-    <% if (it.config.maintainers.length === 0) { %>
-    admins only
-    <% } else { %>
-    <% it.config.maintainers.forEach(function (principal) { %><code><%= principal %></code> <% }) %>
-    <% } %>
-  </dd>
+            <dt>Maintainers</dt>
+            <dd>
+              <% if (it.config.maintainers.length===0) { %>
+                admins only
+                <% } else { %>
+                  <% it.config.maintainers.forEach(function (principal) { %><code>
+                      <%= principal %>
+                    </code>
+                    <% }) %>
+                      <% } %>
+            </dd>
 
-  <% if (it.config.title) { %>
-  <dt>Title</dt>
-  <dd><%= it.config.title %><% if (it.config.hasCover) %></dd>
-  <% } %>
+            <% if (it.config.title) { %>
+              <dt>Title</dt>
+              <dd>
+                <%= it.config.title %>
+                  <% if (it.config.hasCover) %>
+              </dd>
+              <% } %>
 
-  <% if (it.config.polls) { %>
-  <dt>Polls</dt>
-  <dd>every <%= it.config.polls %></dd>
-  <% } %>
+                <% if (it.config.polls) { %>
+                  <dt>Polls</dt>
+                  <dd>every <%= it.config.polls %>
+                  </dd>
+                  <% } %>
 
-  <% if (it.config.excludedFromRetrieval) { %>
-  <dt>Agent retrieval</dt>
-  
-  <dd>excluded — <code>retrieval.indexable</code> is off at the root</dd>
-  <% } %>
-</dl>
-<% } %>
-<% } %>
+                    <% if (it.config.excludedFromRetrieval) { %>
+                      <dt>Agent retrieval</dt>
 
-<h2>Sync runs</h2>
-<% if (it.runs.length === 0) { %>
-<p class="spr-empty">
-  This repository has never been synced. It syncs on its next poll, or now.
-</p>
-<% } else { %>
-<%
+                      <dd>excluded — <code>retrieval.indexable</code> is off at the root</dd>
+                      <% } %>
+          </dl>
+          <% } %>
+            <% } %>
 
-  const columns = it.show_findings ? 9 : 8;
-%>
-<div class="spr-scroll">
-  <table class="spr-table">
-    <thead>
-      <tr>
-        <th scope="col">Started</th>
-        <th scope="col">State</th>
-        <th scope="col">Trigger</th>
-        <th scope="col">Commit</th>
-        <th scope="col" class="spr-num">Took</th>
-        <th scope="col" class="spr-num">Pages</th>
-        <th scope="col" class="spr-num">Assets</th>
-        <th scope="col" class="spr-num">Dropped grants</th>
-        <% if (it.show_findings) { %><th scope="col" class="spr-num">Findings</th><% } %>
-      </tr>
-    </thead>
-    <tbody>
-      <% it.runs.forEach(function (run) { %>
-      <tr>
-        <th scope="row"><a href="<%= run.href %>"><time datetime="<%= run.startedAt %>"><%= run.started %></time></a></th>
-        <td><%~ include('@badge', { level: run.level, label: run.status }) %></td>
-        <td><%= run.trigger %></td>
-        <td><code><%= run.sha %></code></td>
-        <td class="spr-num"><%= run.took %></td>
-        <td class="spr-num"><%= run.documents === null ? '—' : run.documents %></td>
-        <td class="spr-num"><%= run.assets === null ? '—' : run.assets %></td>
-        <td class="spr-num"><%= run.droppedGrants %></td>
-        <% if (it.show_findings) { %>
-        <td class="spr-num">
-          <span class="spr-run-findings">
-            <% if (run.worst) { %><%~ include('@badge', { level: run.worst.level, label: run.worst.severity, iconHtml: run.worst.iconHtml }) %><% } %><%= run.findings.length %>
-          </span>
-        </td>
-        <% } %>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
-<% } %>
+              <h2>Sync runs</h2>
+              <% if (it.runs.length===0) { %>
+                <p class="spr-empty">
+                  This repository has never been synced. It syncs on its next poll, or now.
+                </p>
+                <% } else { %>
+                  <% const columns=it.show_findings ? 9 : 8; %>
+                    <div class="spr-scroll">
+                      <table class="spr-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Started</th>
+                            <th scope="col">State</th>
+                            <th scope="col">Trigger</th>
+                            <th scope="col">Commit</th>
+                            <th scope="col" class="spr-num">Took</th>
+                            <th scope="col" class="spr-num">Pages</th>
+                            <th scope="col" class="spr-num">Assets</th>
+                            <th scope="col" class="spr-num">Dropped grants</th>
+                            <% if (it.show_findings) { %>
+                              <th scope="col" class="spr-num">Findings</th>
+                              <% } %>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <% it.runs.forEach(function (run) { %>
+                            <tr>
+                              <th scope="row"><a href="<%= run.href %>"><time datetime="<%= run.startedAt %>">
+                                    <%= run.started %>
+                                  </time></a></th>
+                              <td>
+                                <%~ include('@badge', { level: run.level, label: run.status }) %>
+                              </td>
+                              <td>
+                                <%= run.trigger %>
+                              </td>
+                              <td><code>
+                                  <%= run.sha %>
+                                </code></td>
+                              <td class="spr-num">
+                                <%= run.took %>
+                              </td>
+                              <td class="spr-num">
+                                <%= run.documents===null ? '—' : run.documents %>
+                              </td>
+                              <td class="spr-num">
+                                <%= run.assets===null ? '—' : run.assets %>
+                              </td>
+                              <td class="spr-num">
+                                <%= run.droppedGrants %>
+                              </td>
+                              <% if (it.show_findings) { %>
+                                <td class="spr-num">
+                                  <span class="spr-run-findings">
+                                    <% if (run.worst) { %>
+                                      <%~ include('@badge', { level: run.worst.level, label: run.worst.severity,
+                                        iconHtml: run.worst.iconHtml }) %>
+                                        <% } %>
+                                          <%= run.findings.length %>
+                                  </span>
+                                </td>
+                                <% } %>
+                            </tr>
+                            <% }) %>
+                        </tbody>
+                      </table>
+                    </div>
+                    <% } %>
