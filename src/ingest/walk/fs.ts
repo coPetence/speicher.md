@@ -43,7 +43,6 @@ export async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-/** A config file that was read, plus any lower-priority config files beside it that were not */
 export interface ConfigFile {
   name: string;
   raw: string;
