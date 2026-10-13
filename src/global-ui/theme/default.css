@@ -954,11 +954,15 @@
   }
 
   @media (min-width: 48rem) {
+    html {
+      overflow: hidden;
+    }
+
     body {
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: clip;
     }
 
     .spr-attribution {
@@ -1016,7 +1020,7 @@
       margin: 0 var(--spr-space-3) var(--spr-space-3);
       border-radius: var(--spr-radius-xl);
       background: var(--spr-pane);
-      overflow: hidden;
+      overflow: clip;
     }
 
     .spr-layout[data-tree] > .spr-pane {
