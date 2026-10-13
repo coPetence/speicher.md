@@ -328,6 +328,17 @@ describe('the overview', () => {
 });
 
 describe('the form', () => {
+  it('starts with a disabled submit button, so Enter in a field cannot save', async () => {
+    for (const section of ['identity/entra', 'groups', 'branding']) {
+      const { html } = await open(section);
+      const form = html.slice(html.indexOf('<form class="spr-config"'));
+      const firstButton = /<button\b[^>]*>/.exec(form)?.[0] ?? '';
+
+      expect(firstButton).toContain('type="submit"');
+      expect(firstButton).toContain('disabled');
+    }
+  });
+
   it('renders a control for every setting, named after its place in the document', async () => {
     const named = async (section: string) => Object.keys((await open(section)).body);
 
