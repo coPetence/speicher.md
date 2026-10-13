@@ -1313,6 +1313,37 @@
     color: var(--spr-fg);
   }
 
+  .spr-modal-panel .spr-note {
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .spr-modal > summary.spr-remove {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    color: var(--spr-muted);
+  }
+
+  .spr-modal > summary.spr-remove:hover {
+    border-color: var(--spr-status-fail);
+    color: var(--spr-status-fail);
+  }
+
+  .spr-modal-actions .spr-modal-danger:enabled {
+    border-color: var(--spr-status-fail);
+    background: var(--spr-status-fail);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+    transition:
+      background-color var(--spr-transition),
+      border-color var(--spr-transition);
+  }
+
+  .spr-modal-actions .spr-modal-danger:enabled:hover {
+    border-color: color-mix(in oklab, var(--spr-status-fail) 92%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-status-fail) 92%, var(--spr-fg));
+  }
+
   .spr-index-add-link .spr-icon,
   .spr-index-add > summary .spr-icon {
     width: 1em;

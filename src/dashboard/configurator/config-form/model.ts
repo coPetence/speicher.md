@@ -144,6 +144,8 @@ export interface FormSection {
   removeOp?: string | null;
   // Operation string to rename the section or member
   renameOp?: string | null;
+  // Removes confirmation dialog
+  removeWarnings?: string[];
   // Operation string that removes the stored values of this page's fields from the
   // document; null when none is stored, so no reset button is drawn
   resetOp?: string | null;

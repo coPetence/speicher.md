@@ -1233,11 +1233,11 @@ describe('every way to remove something', () => {
     for (const page of pages) {
       const buttons = [
         ...page.html.matchAll(
-          /<button[^>]*class="spr-remove(?: [^"]*)?"[^>]*>([\s\S]*?)<\/button>/g,
+          /<(button|summary)[^>]*class="spr-remove(?: [^"]*)?"[^>]*>([\s\S]*?)<\/\1>/g,
         ),
       ];
       expect(buttons.length).toBeGreaterThan(0);
-      for (const [, inner] of buttons) {
+      for (const [, , inner] of buttons) {
         expect(inner).toMatch(/^<svg class="spr-icon"[\s\S]*<\/svg>Remove/);
         expect(inner).not.toContain('<use');
       }
@@ -1538,19 +1538,28 @@ describe('the groups section', () => {
     expect(html).toMatch(
       /formaction="\/-\/config\/groups">(<svg[\s\S]*?<\/svg>)?Remove this group<\/button>/,
     );
-    // Beside the group's name, posting the configuration form by its id
+    // Beside the group's name, and since the group still draws from a source and
+    // its removal is stored at once, behind a confirmation that says what goes
     const head = html.slice(
       html.indexOf('<div class="spr-page-head">'),
       html.indexOf('<form class="spr-config"'),
     );
     expect(head).toMatch(
-      /<div class="spr-page-head">[\s\S]*?<button type="submit" name="op" value="remove:groups\.engineering" form="config-form" class="spr-remove spr-page-op"/,
+      /<details class="spr-modal spr-remove-confirm spr-page-op">\s*<summary class="spr-remove"><svg[\s\S]*?<\/svg>Remove this group<\/summary>/,
     );
-    expect(html.indexOf('Remove this group')).toBeLessThan(
-      html.indexOf('<form class="spr-config"'),
+    expect(head).toContain('Remove engineering?');
+    expect(head).toContain('Its sources from <code>entra</code> go with it');
+    expect(head).not.toContain('administrator access');
+    expect(head).toMatch(
+      /<button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel<\/button>\s*<button type="submit" name="op" value="remove:groups\.engineering" form="config-form" class="spr-modal-danger"/,
     );
+    expect(head).not.toContain('class="spr-remove spr-page-op"');
     expect(html).toContain('href="/-/config/groups/engineering/entra"');
-    expect(html).toContain('class="spr-modal spr-index-add"');
+    // One provider configured, so Add goes straight to it rather than asking which
+    expect(html).toContain(
+      '<a class="spr-index-add spr-index-add-link" href="/-/config/groups/engineering/entra">',
+    );
+    expect(html).not.toContain('class="spr-modal spr-index-add"');
     expect(html).toContain('class="spr-index-bar"');
     expect(/data-spr-empty="none"\s*([^>]*)>/.exec(html)?.[1]).toContain('hidden');
 
@@ -1561,8 +1570,21 @@ describe('the groups section', () => {
     expect(config).toBeLessThan(access);
     expect(access).toBeLessThan(bar);
     expect(bar).toBeLessThan(html.indexOf('class="spr-table spr-entries"'));
-    expect(html).toMatch(/<details class="spr-dropdown">[\s\S]*?name="add"\s+value="entra"/);
-    expect(html).toMatch(/<label class="spr-dd-row">[\s\S]*?<svg[\s\S]*?<span>entra<\/span>/);
+  });
+
+  it('asks before removing an administrator group, and says what it loses', async () => {
+    const { html } = await open('groups/platform-ops');
+    expect(html).toContain('class="spr-modal spr-remove-confirm spr-page-op"');
+    expect(html).toContain('Its members lose administrator access to this instance.');
+  });
+
+  it('removes an empty group in one press, with nothing to confirm', async () => {
+    const added = await post('groups', { add: 'client-acme' }).expect(303);
+    const page = await landing('groups/client-acme', added);
+    expect(page.text).not.toContain('spr-remove-confirm');
+    expect(page.text).toMatch(
+      /<button type="submit" name="op" value="remove:groups\.client-acme" form="config-form" class="spr-remove spr-page-op"/,
+    );
   });
 
   it('creates a group from its own first save, with nothing mapped to it yet', async () => {
@@ -1576,12 +1598,12 @@ describe('the groups section', () => {
 
     // Nothing to list: the drawing, with Add under it and no bar or header above
     expect(draft.html).toMatch(
-      /<div class="spr-empty-state" data-spr-empty="none"\s*>\s*<svg class="spr-empty-art"[\s\S]*?No sources here yet\.<\/p>\s*<details class="spr-modal spr-index-add">/,
+      /<div class="spr-empty-state" data-spr-empty="none"\s*>\s*<svg class="spr-empty-art"[\s\S]*?No sources here yet\.<\/p>\s*<a class="spr-index-add spr-index-add-link" href="\/-\/config\/groups\/client-acme\/entra">/,
     );
     expect(draft.html).toContain(emptyStateArt('groups'));
     expect(draft.html).not.toContain('class="spr-index-bar"');
     expect(draft.html).toMatch(/<div class="spr-scroll" hidden>/);
-    expect(draft.html.match(/class="spr-modal spr-index-add"/g)).toHaveLength(1);
+    expect(draft.html.match(/class="spr-index-add spr-index-add-link"/g)).toHaveLength(1);
     expect(draft.html.indexOf('id="f-member-id"')).toBeLessThan(
       draft.html.indexOf('data-spr-empty="none"'),
     );

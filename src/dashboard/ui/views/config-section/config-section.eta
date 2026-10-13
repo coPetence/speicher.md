@@ -57,8 +57,46 @@
   <% } %>
 
   <% if (it.editable && it.section && it.section.removeOp && it.section.parent && !it.creating) { %>
+  <%
+    const removeNoun = it.section.noun || 'entry';
+    const removeWarnings = it.section.removeWarnings || [];
+    const removeUsage = it.section.removeWarnings ? (it.usage || []) : [];
+  %>
+  <% if (removeWarnings.length > 0 || removeUsage.length > 0) { %>
+  <%/* Stored the moment it is pressed, so a member that still grants something asks first */%>
+  <details class="spr-modal spr-remove-confirm spr-page-op">
+    <summary class="spr-remove"><%~ it.remove_icon || '' %>Remove this <%= removeNoun %></summary>
+    <div class="spr-modal-panel">
+      <h2 class="spr-modal-title">Remove <%= it.section_title %>?</h2>
+      <% removeWarnings.forEach(function (line) { %>
+      <p class="spr-note spr-note-warn"><%~ it.warn_icon || '' %><%~ md(line) %></p>
+      <% }) %>
+      <% if (removeUsage.length > 0) { %>
+      <div class="spr-note spr-note-warn">
+        <p>
+          <%~ it.warn_icon || '' %>
+          <code>.speicher.yaml</code> files in these repositories name this <%= removeNoun %>, and stop granting through it:
+        </p>
+        <ul class="spr-problems">
+          <% removeUsage.forEach(function (repo) { %>
+          <li><code><%= repo.namespace %>/<%= repo.slug %></code> (<%= repo.pages %>
+            page<%= repo.pages === 1 ? '' : 's' %>)</li>
+          <% }) %>
+        </ul>
+      </div>
+      <% } %>
+      <p class="spr-help">This is saved as soon as you confirm.</p>
+      <div class="spr-modal-actions">
+        <button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel</button>
+        <button type="submit" name="op" value="<%= it.section.removeOp %>" form="config-form" class="spr-modal-danger"
+                formaction="/-/config/<%= it.section.parent %>">Remove this <%= removeNoun %></button>
+      </div>
+    </div>
+  </details>
+  <% } else { %>
   <button type="submit" name="op" value="<%= it.section.removeOp %>" form="config-form" class="spr-remove spr-page-op"
-          formaction="/-/config/<%= it.section.parent %>"><%~ it.remove_icon || '' %>Remove this <%= it.section.noun || 'entry' %></button>
+          formaction="/-/config/<%= it.section.parent %>"><%~ it.remove_icon || '' %>Remove this <%= removeNoun %></button>
+  <% } %>
   <% } %>
 </div>
 <% if (it.section && it.section.blurb) { %>

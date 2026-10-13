@@ -61,6 +61,9 @@ export function groupsSection(root: Obj): SectionSource {
         typeOptions: [],
         // Navigates to the new group's detail page
         opensPage: true,
+        // A group is valid with nothing in it, so it is stored on add and on
+        // remove, with no Save to press afterwards
+        savesAtOnce: true,
       },
     ],
   };
@@ -87,10 +90,10 @@ function groupEntry(root: Obj, name: string, adminGroups: string[]): SectionEntr
       providers.length === 0
         ? [{ label: '', value: 'no sources yet', mark: '' }]
         : providers.map((provider) => ({
-            label: '',
-            value: providerLine(root, name, provider, true),
-            mark: providerMark(root, provider),
-          })),
+          label: '',
+          value: providerLine(root, name, provider, true),
+          mark: providerMark(root, provider),
+        })),
     cells: [],
     search: [
       name,
