@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # everything on main has already passed pr-checks
+      # building only from main as main must have passed pr-checks
       - name: Tag must be on main
         run: |
           git fetch --no-tags origin main
@@ -109,7 +109,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Currentl the package is private so it needs login to pull the image
+      # Currently the package is private so it needs login to pull the image
+      # TODO: remove the authentication as soon as packages are publically availiable
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
