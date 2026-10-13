@@ -68,3 +68,27 @@ jobs:
       - name: Service logs on failure
         if: failure()
         run: docker compose -f compose.dev.yml logs --tail=80
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      # tests the build (does not release any image)
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: speicher:pr
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Check for missing runtime dependencies
+        run: |
+          docker run --rm speicher:pr speicher help > /dev/null
+          docker run --rm --entrypoint node speicher:pr -e "
+            require('/app/dist/app.module.js');
+            require('node:fs').accessSync('/app/dist/worker.js');
+          "
