@@ -20,6 +20,7 @@ import type {
   UrlField,
 } from '../config-fields';
 import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
+import { sshRemoteUrl } from '../../../../forge/remote-url';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
 import { FormBody, submitted, submittedList } from './body';
 
@@ -246,11 +247,14 @@ const decodeText: Decoder<
   return writeAtWithDefault(doc, path, raw.trim(), field.fallback);
 };
 
-/** An address keeps the scheme it was given, or is read as meaning https */
+/**
+ * An address keeps the scheme it was given, or is read as meaning https. An SSH remote
+ * in the scp form, e.g. `git@github.com:owner/repo.git`, is saved as its `ssh://` URL
+ */
 const decodeUrl: Decoder<UrlField> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
-  return writeAtWithDefault(doc, path, withHttpsScheme(raw.trim()), field.fallback);
+  return writeAtWithDefault(doc, path, withHttpsScheme(sshRemoteUrl(raw.trim())), field.fallback);
 };
 
 /**

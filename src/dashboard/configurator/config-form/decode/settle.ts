@@ -5,7 +5,6 @@ import { belongsToChoiceOption } from '../config-fields/choice';
 import { dottedPath, writeAt } from '../document';
 import { MemberRef, memberPath } from '../members';
 import { FormSection, allFields, cardItems, fieldsOf } from '../model';
-import { sshRemoteUrl } from '../../../../forge/remote-url';
 import { defaultRepositoryId } from '../sections/content-sources/git-repository-card';
 import { FormBody } from './body';
 
@@ -156,23 +155,6 @@ export function settleAssetDriver(doc: Document, body: FormBody, section: FormSe
   if (doc.hasIn(['assets', 'driver'])) return false;
 
   return writeAt(doc, control.path.split('.'), driver);
-}
-
-/**
- * settleRemoteUrls rewrites each remote URL of a git repository on the page that is in the scp form. It writes `git@github.com:owner/repo.git` as `ssh://git@github.com/owner/repo.git`.
- * @param doc the configuration document
- * @param section the page the form was submitted from
- */
-export function settleRemoteUrls(doc: Document, section: FormSection): boolean {
-  let changed = false;
-  for (const field of allFields([section])) {
-    if (field.schemaPath !== 'forges.<key>.repos.<index>.url') continue;
-    const path = dottedPath(field.path);
-    const url = doc.getIn(path);
-    if (typeof url !== 'string' || sshRemoteUrl(url) === url) continue;
-    if (writeAt(doc, path, sshRemoteUrl(url))) changed = true;
-  }
-  return changed;
 }
 
 /**

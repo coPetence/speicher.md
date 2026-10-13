@@ -2,6 +2,7 @@
  * Git remote repository card
  */
 
+import { SCP_FORM, repositoryName } from '../../../../../forge/remote-url';
 import type { CardItem, Obj } from '../../config-fields';
 import {
   SECRET_HELP,
@@ -10,16 +11,16 @@ import {
   durationField,
   secretField,
   textField,
+  urlField,
 } from '../../config-fields';
 import { scalarString } from '../../document';
 import type { Card } from '../../model';
-import { SCP_FORM, repositoryName } from '../../../../../forge/remote-url';
 
 const REPO_ID_PATTERN = '[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}';
 const REPO_ID_HINT =
   'Letters, digits, dots, underscores and hyphens, starting with a letter or digit. Up to 100 characters.';
 const ACCESS_TOKEN_HELP =
-  'Used to fetch this repository over HTTPS. It needs read access to the contents of the repository.';
+  'Used to fetch this repository over HTTPS. It needs the permission **Contents: Read-only** on the repository.';
 const DEPLOY_KEY_HELP =
   'The private SSH key used to fetch this repository. The key must not have a passphrase. To create a key, run `ssh-keygen -t ed25519 -N "" -f speicher-deploy-key`. Paste the content of `speicher-deploy-key` here, or choose the file with the button or drop it onto the field, and add `speicher-deploy-key.pub` to the repository as a read-only deploy key, on GitHub you can do this under **Settings → Deploy keys**.';
 
@@ -38,8 +39,8 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
   const url = scalarString(at(root, [...base, 'url']));
   const id = scalarString(at(root, [...base, 'id']));
 
-  const urlField = textField(root, [...base, 'url'], p('url'), 'Remote URL', {
-    help: 'ssh:// with a deploy key, or https:// with a token. Nothing else is fetched. The path before the repository name is its owner, for example `team` in `ssh://git@example.com/team/docs.git`.',
+  const remoteUrlField = urlField(root, [...base, 'url'], p('url'), 'Remote URL', {
+    help: 'Can be either https:// or ssh://, or the scp form git hosts show, for example `git@example.com:owner/docs.git`.',
     wide: true,
     required: true,
   });
@@ -49,7 +50,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
       ...textField(root, [...base, 'id'], p('id'), 'Repository id', {
         pattern: REPO_ID_PATTERN,
         patternHint: REPO_ID_HINT,
-        help: 'The repository id identifies this repository within the content source. It is used as the URL slug when the URL slug field is empty. If you leave it empty, Speicher uses the name of the repository in the remote URL when you save, for example `docs` for `ssh://git@example.com/team/docs.git`.',
+        help: 'The repository id identifies this repository within the content source. It is used as the URL slug when the URL slug field is empty. If you leave it empty, Speicher uses the name of the repository in the remote URL when you save, for example `docs` for `ssh://git@example.com/owner/docs.git`.',
       }),
       // A repository without an id gets the name of the repository in its remote URL.
       // repository-id-from-url.ts fills it in the same way while the URL is typed
@@ -65,7 +66,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
           value: 'https',
           label: 'HTTPS',
           prefix: 'https://',
-          placeholder: 'https://example.com/team/docs.git',
+          placeholder: 'https://example.com/owner/docs.git',
           prefixHint: 'With HTTPS selected, the remote URL starts with https://.',
           items: [
             secretField(root, [...base, 'token'], p('token'), 'Access token', {
@@ -85,9 +86,9 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
           prefix: 'ssh://',
           // An ssh:// URL, or the scp form git hosts show
           pattern: `ssh://.*|${SCP_FORM}`,
-          placeholder: 'ssh://git@example.com/team/docs.git',
+          placeholder: 'ssh://git@example.com/owner/docs.git',
           prefixHint:
-            'With SSH selected, the remote URL starts with ssh://, or has the form git@example.com:team/docs.git.',
+            'With SSH selected, the remote URL starts with ssh://, or has the form git@example.com:owner/docs.git.',
           items: [
             secretField(root, [...base, 'deploy_key'], p('deploy_key'), 'Deploy key', {
               help: `${DEPLOY_KEY_HELP}\n\n${SECRET_HELP}`,
@@ -103,7 +104,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
           ],
         },
       ],
-      urlField,
+      remoteUrlField,
     ),
     textField(root, [...base, 'slug'], p('slug'), 'URL slug', {
       help: 'How the repository is named in the URLs of this content source. Leave it empty to use the repository id instead.',

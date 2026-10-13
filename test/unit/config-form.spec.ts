@@ -1782,6 +1782,11 @@ describe('an address typed without a scheme', () => {
     );
   });
 
+  it('reads a host and a port as an address, not as an SSH remote', () => {
+    expect(sshRemoteUrl('localhost:9000')).toBe('localhost:9000');
+    expect(sshRemoteUrl('localhost:9000/api')).toBe('localhost:9000/api');
+  });
+
   it('leaves an empty box empty rather than saving a scheme on its own', () => {
     expect(withHttpsScheme('')).toBe('');
   });

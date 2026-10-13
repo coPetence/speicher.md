@@ -6,10 +6,9 @@
  */
 
 /**
- * SCP_FORM matches a remote in the scp form, `[user@]host:path`. It is written so that a
- * browser also accepts it in the `pattern` attribute of an input
+ * SCP_FORM matches a remote in the scp form, `[user@]host:path`. It is written so that a browser also accepts it in the `pattern` attribute of an input
  */
-export const SCP_FORM = '(?:([^@\\/:\\s]+)@)?([^@\\/:\\s]+):(?!\\/\\/)(\\S+)';
+export const SCP_FORM = '(?:([^@\\/:\\s]+)@)?([^@\\/:\\s]+):(?!\\/\\/)(?!\\d+(?:\\/|$))(\\S+)';
 
 const SCP_URL = new RegExp(`^${SCP_FORM}$`, 'u');
 
