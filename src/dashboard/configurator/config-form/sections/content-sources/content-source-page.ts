@@ -42,9 +42,9 @@ export function forgeSection(root: Obj, id: string): SectionSource {
   const cards: Card[] =
     type === 'git'
       ? [
+          ...repos.map((_, index) => repoCard(root, id, index)),
           urlCard(root, id),
           fetchingCard(root, id),
-          ...repos.map((_, index) => repoCard(root, id, index)),
           securityCard(root, id),
         ]
       : [appCard(root, id), urlCard(root, id)];
@@ -64,8 +64,8 @@ export function forgeSection(root: Obj, id: string): SectionSource {
             {
               op: `add:forges.${id}.repos`,
               label: 'Add a repository',
-              // After the last repository, before the security card
-              beforeCard: cards.length - 1,
+              // After the last repository, before the URLs card
+              beforeCard: repos.length,
               nameLabel: null,
               namePattern: null,
               nameHint: null,

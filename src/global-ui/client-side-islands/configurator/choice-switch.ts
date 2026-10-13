@@ -6,7 +6,8 @@
  * - Typing or pasting a value into the followed field, e.g. the remote URL, that
  *   starts with an option's prefix checks that option
  * - The followed field takes the checked option's placeholder, and its pattern
- *   only accepts values with the checked option's prefix
+ *   only accepts values with the checked option's prefix, or values that match
+ *   the checked option's own pattern
  */
 import { configForm, reportScriptedEdit } from './config-form-handle';
 
@@ -32,10 +33,14 @@ export function mountChoices(): void {
     const fit = () => {
       const checked = radios.find((radio) => radio.checked);
       if (!checked) return;
-      const { sprChoicePrefix: prefix, sprChoicePlaceholder: placeholder } = checked.dataset;
+      const {
+        sprChoicePrefix: prefix,
+        sprChoicePattern: pattern,
+        sprChoicePlaceholder: placeholder,
+      } = checked.dataset;
       if (placeholder) followed.placeholder = placeholder;
-      if (prefix) {
-        followed.pattern = `${literal(prefix)}.*`;
+      if (pattern || prefix) {
+        followed.pattern = pattern ?? `${literal(prefix ?? '')}.*`;
         followed.title = checked.dataset.sprChoiceHint ?? '';
       } else {
         followed.removeAttribute('pattern');
@@ -48,8 +53,9 @@ export function mountChoices(): void {
     followed.addEventListener('input', () => {
       const value = followed.value.trim();
       const match = radios.find((radio) => {
-        const prefix = radio.dataset.sprChoicePrefix;
-        return prefix !== undefined && value.startsWith(prefix);
+        const { sprChoicePrefix: prefix, sprChoicePattern: pattern } = radio.dataset;
+        if (prefix !== undefined && value.startsWith(prefix)) return true;
+        return pattern !== undefined && new RegExp(`^(?:${pattern})$`, 'u').test(value);
       });
       if (!match || match.checked) return;
       match.checked = true;

@@ -30,6 +30,7 @@ import { mountChecks } from './configurator/live-connection-check';
 import { mountWidths } from './configurator/embedding-width-lookup';
 import { mountFragments } from './configurator/open-folded-on-fragment';
 import { mountKnownHostsTables } from './configurator/known-hosts-table';
+import { mountRepositoryIds } from './configurator/repository-id-from-url';
 import { mountLanding } from './configurator/land-on-changed-entry';
 
 function mount(): void {
@@ -57,6 +58,7 @@ function mount(): void {
   mountGrowingTables();
   mountFragments();
   mountKnownHostsTables();
+  mountRepositoryIds();
   mountLanding();
 }
 

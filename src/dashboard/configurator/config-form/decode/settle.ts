@@ -1,9 +1,12 @@
 import { Document, isMap, isSeq } from 'yaml';
 
 import type { SelectField } from '../config-fields';
+import { belongsToChoiceOption } from '../config-fields/choice';
 import { dottedPath, writeAt } from '../document';
 import { MemberRef, memberPath } from '../members';
 import { FormSection, allFields, cardItems, fieldsOf } from '../model';
+import { sshRemoteUrl } from '../../../../forge/remote-url';
+import { defaultRepositoryId } from '../sections/content-sources/git-repository-card';
 import { FormBody } from './body';
 
 /**
@@ -156,6 +159,42 @@ export function settleAssetDriver(doc: Document, body: FormBody, section: FormSe
 }
 
 /**
+ * settleRemoteUrls rewrites each remote URL of a git repository on the page that is in the scp form. It writes `git@github.com:owner/repo.git` as `ssh://git@github.com/owner/repo.git`.
+ * @param doc the configuration document
+ * @param section the page the form was submitted from
+ */
+export function settleRemoteUrls(doc: Document, section: FormSection): boolean {
+  let changed = false;
+  for (const field of allFields([section])) {
+    if (field.schemaPath !== 'forges.<key>.repos.<index>.url') continue;
+    const path = dottedPath(field.path);
+    const url = doc.getIn(path);
+    if (typeof url !== 'string' || sshRemoteUrl(url) === url) continue;
+    if (writeAt(doc, path, sshRemoteUrl(url))) changed = true;
+  }
+  return changed;
+}
+
+/**
+ * settleRepositoryIds fills in the id of each git repository on the page that has none. The id is the name of the repository in its remote URL.
+ * @param doc the configuration document
+ * @param section the page the form was submitted from
+ */
+export function settleRepositoryIds(doc: Document, section: FormSection): boolean {
+  let changed = false;
+  for (const field of allFields([section])) {
+    if (field.schemaPath !== 'forges.<key>.repos.<index>.id') continue;
+    const path = dottedPath(field.path);
+    const id = doc.getIn(path);
+    if (typeof id === 'string' && id.trim() !== '') continue;
+    const url = doc.getIn([...path.slice(0, -1), 'url']);
+    const name = typeof url === 'string' ? defaultRepositoryId(url) : '';
+    if (name !== '' && writeAt(doc, path, name)) changed = true;
+  }
+  return changed;
+}
+
+/**
  * Removes the values of the options that were not chosen in each choice on the
  * page, e.g. the access token of a git remote switched to SSH.
  */
@@ -170,8 +209,7 @@ export function settleChoices(doc: Document, body: FormBody, section: FormSectio
       typeof submitted === 'string'
         ? item.options.find((option) => option.value === submitted)
         : item.options.find(
-            (option) =>
-              option.prefix && typeof value === 'string' && value.trim().startsWith(option.prefix),
+            (option) => typeof value === 'string' && belongsToChoiceOption(option, value.trim()),
           );
     if (!chosen) continue;
 
