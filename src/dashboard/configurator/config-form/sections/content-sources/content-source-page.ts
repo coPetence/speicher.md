@@ -64,7 +64,7 @@ export function forgeSection(root: Obj, id: string): SectionSource {
             {
               op: `add:forges.${id}.repos`,
               label: 'Add a repository',
-              // After the last repository, before the URLs card
+              // After the last repository, before the Simpler URLs card
               beforeCard: repos.length,
               nameLabel: null,
               namePattern: null,

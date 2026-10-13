@@ -1055,6 +1055,11 @@
     margin-block-start: var(--spr-space-5);
   }
 
+  .spr-card > .spr-advanced {
+    margin-block-start: var(--spr-space-5);
+    padding-block-start: var(--spr-space-4);
+  }
+
   .spr-yaml {
     margin: var(--spr-space-8) 0;
   }

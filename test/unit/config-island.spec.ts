@@ -1588,6 +1588,48 @@ describe('the transport of a git remote', () => {
   });
 });
 
+describe('the security card of a plain remote', () => {
+  const URL_PATH = 'forges.onprem.repos.0.url';
+
+  function renderSource(): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/onprem"
+              data-spr-config="sources/onprem">
+          <section class="spr-card"><input name="${URL_PATH}" value="https://example.com/team/docs.git"></section>
+          <section class="spr-card" hidden>
+            <div class="spr-field spr-field-known-hosts">
+              <textarea name="forges.onprem.known_hosts"></textarea>
+            </div>
+          </section>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+  }
+
+  const card = () =>
+    document.querySelector('.spr-field-known-hosts')?.closest('.spr-card') as HTMLElement;
+
+  it('shows while a remote URL is an SSH URL, in either form', () => {
+    renderSource();
+    run();
+    type(URL_PATH, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(false);
+    type(URL_PATH, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(false);
+  });
+
+  it('hides again once no remote URL is an SSH URL', () => {
+    renderSource();
+    run();
+    type(URL_PATH, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    type(URL_PATH, 'https://github.com/TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(true);
+  });
+});
+
 describe('the id of a repository on a plain remote', () => {
   const REPO = 'forges.onprem.repos.0';
 

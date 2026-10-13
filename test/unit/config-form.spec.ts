@@ -221,14 +221,17 @@ describe('advanced settings', () => {
     expect(folded.filter((f) => f.kind === 'select' && f.reshapes).map((f) => f.path)).toEqual([]);
   });
 
-  it('marks nothing inside a card, where the block does not reach', () => {
+  it('folds only the URL slug and the poll interval inside a card, which draws its own block', () => {
     const inCards: string[] = [];
     const walk = (card: Card): void => {
-      for (const field of fieldsOf(card.items)) if (field.advanced) inCards.push(field.path);
+      for (const field of fieldsOf(card.items)) if (field.advanced) inCards.push(field.schemaPath);
       card.cards.forEach(walk);
     };
     for (const section of buildSections(loadDocument(FULL))) section.cards.forEach(walk);
-    expect(inCards).toEqual([]);
+    expect([...new Set(inCards)].sort()).toEqual([
+      'forges.<key>.repos.<index>.poll_interval',
+      'forges.<key>.repos.<index>.slug',
+    ]);
   });
 
   it('is a rendering and not a second list, so decoding still reaches it', () => {

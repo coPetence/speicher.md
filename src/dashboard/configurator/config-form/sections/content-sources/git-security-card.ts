@@ -38,6 +38,8 @@ export function securityCard(root: Obj, id: string): Card {
     notes: [],
     cards: [],
     addOps: [],
+    // Only an ssh:// repository needs the known hosts. If there is none, the card is hidden.
+    hidden: servers.length === 0,
     items: [
       knownHostsField(root, [...base, 'known_hosts'], p('known_hosts'), 'Known hosts', {
         help: 'These are the SSH host keys of the servers the `ssh://` repositories of this source are fetched from. A host key is the public key a server proves its identity with, so Speicher can authenticate the real server. Speicher does not connect to a server whose key is not listed here. To add the keys, press **Fetch host keys** and ==compare the fingerprints with the ones published by the administrator of the server==, and save.',
