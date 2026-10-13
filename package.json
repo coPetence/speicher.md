@@ -1,6 +1,6 @@
 {
   "name": "speicher.md",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "Business Source License 1.1",
   "engines": {
@@ -48,6 +48,7 @@
     "eta": "^3.5.0",
     "express": "^5.2.1",
     "highlight.js": "11.11.1",
+    "htmlparser2": "^10.1.0",
     "jose": "^5.9.6",
     "lucide": "^1.33.0",
     "markdown-it": "^14.3.2",
@@ -82,6 +83,7 @@
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
+    "domhandler": "^5.0.3",
     "esbuild": "^0.28.2",
     "eslint": "^8.57.1",
     "husky": "^9.1.7",

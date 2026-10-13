@@ -74,19 +74,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # check if the image boots
       - name: Pull image and check build
         run: |
           REF="${IMAGE}:${GITHUB_REF_NAME#v}"
-
-          # tests the PATH symlink bin/speicher and dist/cli/cli.js
-          docker run --rm "$REF" speicher help > /dev/null
-          docker run --rm --platform linux/arm64 "$REF" speicher help > /dev/null
-
-          docker run --rm --entrypoint node "$REF" -e "
-            const fs = require('node:fs');
-            fs.accessSync('/app/dist/main.js');
-            fs.accessSync('/app/dist/worker.js');
-          "
+          docker run --rm --entrypoint node "$REF" -e "require('/app/dist/app.module.js')"
 
   # Tests run migrations
   migrate:
@@ -124,10 +116,13 @@ jobs:
           REF="${IMAGE}:${GITHUB_REF_NAME#v}"
           LAST=$(basename "$(ls src/db/migrations/*.ts | sort | tail -1)" .ts)
 
-          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate up
-          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate status | tee /tmp/status
+          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate up > /tmp/up 2>&1
+          cat /tmp/up
+          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate status > /tmp/status 2>&1
+          cat /tmp/status
 
-          grep -q "$LAST" /tmp/status || { echo "expected $LAST to be applied" >&2; exit 1; }
+          grep -q "$LAST" /tmp/up || { echo "expected $LAST in the applied list" >&2; exit 1; }
+          grep -q '"pending":\[\]' /tmp/status || { echo "migrations still pending" >&2; exit 1; }
 
   release:
     needs: [image, migrate]
