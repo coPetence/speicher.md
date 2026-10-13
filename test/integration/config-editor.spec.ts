@@ -3557,6 +3557,38 @@ describe('the transport and the notices', () => {
     expect(html).toContain('<span class="spr-clipped"> (required)</span>');
   });
 
+  it('offers a connection check under each remote URL, and answers it for that repository', async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml: FIXTURE_YAML.replace(
+        'forges:\n',
+        'forges:\n' +
+          '  onprem:\n' +
+          '    type: git\n' +
+          '    repos:\n' +
+          '      - id: docs\n' +
+          // A port nothing listens on, so the check fails at once and without a network
+          '        url: https://127.0.0.1:9/internal/docs.git\n' +
+          '        token: t\n',
+      ),
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
+    const path = 'forges.onprem.repos.0.url';
+    const href = `/-/config/sources/onprem?check=${encodeURIComponent(path)}`;
+
+    const { html } = await open('sources/onprem');
+    expect(html).toContain(`data-spr-check="${href}" data-spr-check-at="${path}"`);
+
+    const { body } = await request(app.getHttpServer())
+      .get(href)
+      .set('cookie', ops)
+      .set('accept', 'application/json')
+      .expect(200);
+    const field = allFields([body.section as FormSection]).find((each) => each.path === path);
+    expect(field?.status).toMatchObject({ level: 'fail', label: 'Cannot connect' });
+  });
+
   it('hides the security card of a plain remote until a repository uses SSH', async () => {
     const securityCard = async (url: string) => {
       await appendConfigVersion(harness.tenantId, {

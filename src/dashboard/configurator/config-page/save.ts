@@ -387,6 +387,7 @@ export class ConfigSaveService {
     await stampBrandImages(caller.tenantId, payload);
     await stampEntryOrigins(caller.tenantId, payload);
     await this.checks.stampDirectoryStatus(payload, false);
+    await this.checks.stampRepositoryStatus(payload, edited);
     await this.checks.stampSectionCheck(payload, edited, false);
     const fetchedInto =
       hostKeys && payload.section

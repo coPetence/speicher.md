@@ -1617,9 +1617,7 @@ describe('the round trip', () => {
     const out = serialise(doc);
 
     expect(out).toContain('# One of everything.');
-    expect(out).toContain(
-      "# An ssh remote: a deploy key, checked against the forge's known_hosts.",
-    );
+    expect(out).toContain('# An ssh remote\n');
 
     const before = FULL.split('\n');
     const after = out.split('\n');
