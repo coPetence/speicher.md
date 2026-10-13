@@ -53,7 +53,6 @@ export interface AddOp {
   // Index of the section's card the button is drawn before, so that it can follow
   // the entries it adds to rather than the last card
   beforeCard?: number;
-
 }
 
 export interface EntryLine {

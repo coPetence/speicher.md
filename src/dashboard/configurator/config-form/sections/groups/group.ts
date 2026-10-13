@@ -80,9 +80,9 @@ export function groupSection(root: Obj, name: string): SectionSource {
     removeWarnings: [
       ...(providers.length > 0
         ? [
-          `Its sources from ${providers.map((p) => `\`${p || 'no provider'}\``).join(', ')} ` +
-          'go with it, and nobody is a member any more.',
-        ]
+            `Its sources from ${providers.map((p) => `\`${p || 'no provider'}\``).join(', ')} ` +
+              'go with it, and nobody is a member any more.',
+          ]
         : []),
       ...(isAdmin ? ['Its members lose administrator access to this instance.'] : []),
     ],

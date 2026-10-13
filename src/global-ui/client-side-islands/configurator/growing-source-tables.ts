@@ -146,7 +146,7 @@ export function mountGrowingTables(): void {
     const body = table.tBodies[0];
     if (!body) return;
     let changed = false;
-    for (; ;) {
+    for (;;) {
       const last = body.querySelector<HTMLTableRowElement>('tr[data-spr-trailing]');
       const before = last?.previousElementSibling as HTMLTableRowElement | null | undefined;
       if (!last || !before || filled(last) || filled(before)) break;

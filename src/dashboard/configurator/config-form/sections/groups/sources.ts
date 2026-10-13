@@ -113,10 +113,10 @@ export function groupProviderSection(root: Obj, name: string, provider: string):
     blurb:
       (magicLink
         ? 'This provider emits no group ids, so a mapping is an email domain: ' +
-        'everybody signing in with an address at it. Never a freemail domain, ' +
-        'which would grant anyone who can receive mail there. '
+          'everybody signing in with an address at it. Never a freemail domain, ' +
+          'which would grant anyone who can receive mail there. '
         : `Add a group from ${provider} by its object id, not its display name. ` +
-        'Everyone in a mapped group becomes a member. ') +
+          'Everyone in a mapped group becomes a member. ') +
       'To add individuals directly, list them under People. That is also the way ' +
       'to go when the provider sends no group ids at all.',
     fields: [],
@@ -133,24 +133,24 @@ export function groupProviderSection(root: Obj, name: string, provider: string):
         columns: [
           magicLink
             ? column(
-              'Email domain',
-              'Everybody signing in with an address at this domain is a member. ' +
-              'A magic-link provider emits no group ids, so this is what it ' +
-              'matches on — never a freemail domain, which would grant anyone ' +
-              'who can receive mail there.',
-            )
+                'Email domain',
+                'Everybody signing in with an address at this domain is a member. ' +
+                  'A magic-link provider emits no group ids, so this is what it ' +
+                  'matches on — never a freemail domain, which would grant anyone ' +
+                  'who can receive mail there.',
+              )
             : column(
-              `${heading} id`,
-              `The id as ${provider} emits it in its groups claim — an object id, ` +
-              'not a display name. Anybody in the group is a member of this one, ' +
-              "and who that is stays the directory's answer rather than a list " +
-              'kept here.',
-            ),
+                `${heading} id`,
+                `The id as ${provider} emits it in its groups claim — an object id, ` +
+                  'not a display name. Anybody in the group is a member of this one, ' +
+                  "and who that is stays the directory's answer rather than a list " +
+                  'kept here.',
+              ),
           column(
             'Note',
             'Optional on a mapping, and worth writing: a directory group id is ' +
-            'usually thirty-six characters that carry no meaning to read, only to ' +
-            'match. This is the only place the listing can say which group it is.',
+              'usually thirty-six characters that carry no meaning to read, only to ' +
+              'match. This is the only place the listing can say which group it is.',
           ),
           column('Expire by', EXPIRE_BY_HELP),
         ],
@@ -168,17 +168,17 @@ export function groupProviderSection(root: Obj, name: string, provider: string):
           column(
             'Person',
             'An email address, matched against the address the provider reports — ' +
-            'or the id it emits in its `subject` claim, which is the durable form: ' +
-            'a subject is assigned by the provider and cannot be set by the ' +
-            'person it identifies, so it survives a rename and nobody else can ' +
-            'claim it. Which of the two a row asks for follows what is stored, ' +
-            'and a new one is an address.',
+              'or the id it emits in its `subject` claim, which is the durable form: ' +
+              'a subject is assigned by the provider and cannot be set by the ' +
+              'person it identifies, so it survives a rename and nobody else can ' +
+              'claim it. Which of the two a row asks for follows what is stored, ' +
+              'and a new one is an address.',
           ),
           column(
             'Note',
             'Optional, and worth writing: a name in a group is one whose reason ' +
-            'for being there nobody remembers a year later. It is what an access ' +
-            'review reads.',
+              'for being there nobody remembers a year later. It is what an access ' +
+              'review reads.',
           ),
           column('Expire by', EXPIRE_BY_HELP),
         ],

@@ -90,10 +90,10 @@ function groupEntry(root: Obj, name: string, adminGroups: string[]): SectionEntr
       providers.length === 0
         ? [{ label: '', value: 'no sources yet', mark: '' }]
         : providers.map((provider) => ({
-          label: '',
-          value: providerLine(root, name, provider, true),
-          mark: providerMark(root, provider),
-        })),
+            label: '',
+            value: providerLine(root, name, provider, true),
+            mark: providerMark(root, provider),
+          })),
     cells: [],
     search: [
       name,
