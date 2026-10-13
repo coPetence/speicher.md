@@ -14,7 +14,6 @@
 
 import { parentSlugPath } from '../../common/slug';
 import { Frontmatter } from '../../config/types';
-import { CONFIG_FILENAME } from '../paths';
 import { ScanState } from './state';
 
 /** Grouping container for a file or directory with its siblings under one parent */
@@ -93,7 +92,7 @@ function reportMixedOrdering(scan: ScanState, parentPath: string, ignored: numbe
   const dir = scan.dirs.get(parentPath);
   scan.root.findings.warn({
     code: 'mixed-ordering',
-    source: dir?.sourcePath || CONFIG_FILENAME,
+    source: dir?.sourcePath || scan.root.configName,
     message:
       `this folder is ordered by numeric filename prefixes, so the imported ` +
       `\`sidebar_position\`/\`sidebar.order\` on ${ignored} ` +

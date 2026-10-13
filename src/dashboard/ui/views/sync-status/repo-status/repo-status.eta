@@ -16,8 +16,8 @@
 <% if (it.config && it.runs.length) { %>
 <% if (!it.config.hasConfig) { %>
 <p class="spr-note spr-note-warn">
-  No <code>.speicher.yaml</code> at the repository root, so nothing here is
-  published. A repository publishes itself with that file — and removing it is how
+  No <code>.speicher.yaml</code> (or <code>.speicher.yml</code>) at the repository root, so
+  nothing here is published. A repository publishes itself with that file — and removing it is how
   a repository is unpublished, so this is the expected state for one that was.
 </p>
 <% } else if (it.config.principals === null) { %>

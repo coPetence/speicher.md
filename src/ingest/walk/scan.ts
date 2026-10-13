@@ -1,7 +1,7 @@
 /**
  * Filesystem scan of the ingest tree
  *
- * Resolves `.speicher.yaml` config inheritance at each directory level
+ * Resolves `.speicher.yaml` (or `.speicher.yml`) config inheritance at each directory level
  * Finds markdown files, parses frontmatter, assigns slug paths
  * Index files and sibling-matching files become folder landing pages
  * Slug collisions within a directory are rejected
@@ -16,15 +16,16 @@ import micromatch from 'micromatch';
 import { deslugify } from '../../common/slug';
 import { ResolvedConfig, fold, inheritInto } from '../cascade';
 import {
-  CONFIG_FILENAME,
+  CONFIG_FILENAMES,
   INDEX_FILENAMES,
+  isConfigFilename,
   isMarkdown,
   relativeToIngestRoot,
   slugForContentFile,
   slugForDirectory,
 } from '../paths';
 import { parseContentFile, validateConfigFile } from '../validate';
-import { readFileOrNull } from './fs';
+import { readConfigFile, readFileOrNull, warnIgnoredConfigs } from './fs';
 import { RepoRoot, ScanState } from './state';
 
 /** Start a scan from the repo's ingest root */
@@ -64,17 +65,18 @@ async function scanDirectory(
 ): Promise<void> {
   const repoRelativeDir = relative(scan.root.workingTree, absolute).split(sep).join('/');
 
-  const resolved = await resolveDirectoryConfig(
+  const directoryConfig = await resolveDirectoryConfig(
     scan,
     absolute,
     repoRelativeDir,
     slugPath,
     inherited,
   );
-  if (resolved === null) return;
+  if (directoryConfig === null) return;
+  const { resolved, configSource } = directoryConfig;
 
   scan.nextExpiry = minDate(scan.nextExpiry, resolved.nextExpiry);
-  scan.dirs.set(slugPath, { sourcePath: repoRelativeDir, resolved, sortOrder });
+  scan.dirs.set(slugPath, { sourcePath: repoRelativeDir, configSource, resolved, sortOrder });
 
   const entries = await fs.readdir(absolute, { withFileTypes: true });
   const dir: DirectoryScan = {
@@ -86,7 +88,7 @@ async function scanDirectory(
   };
 
   for (const entry of directoriesFirst(entries)) {
-    if (entry.name === CONFIG_FILENAME) continue;
+    if (isConfigFilename(entry.name)) continue;
     if (entry.name.startsWith('.')) continue;
     const entryAbs = join(absolute, entry.name);
     const entryRel = repoRelativeDir ? `${repoRelativeDir}/${entry.name}` : entry.name;
@@ -116,7 +118,7 @@ async function scanDirectory(
 }
 
 /**
- * Resolve config for a directory from `.speicher.yaml`
+ * Resolve config for a directory from `.speicher.yaml` (or `.speicher.yml`)
  * Not read when already folded (root with empty ingestRoot)
  * No file: inherit parent settings, strip own title
  * Null return: subtree excluded by invalid or rejected config
@@ -127,17 +129,21 @@ async function resolveDirectoryConfig(
   repoRelativeDir: string,
   slugPath: string,
   inherited: ResolvedConfig,
-): Promise<ResolvedConfig | null> {
+): Promise<{ resolved: ResolvedConfig; configSource: string } | null> {
   const alreadyFolded = slugPath === '' && scan.root.ingestRoot === '';
   // Config already loaded by loadRoot; do not fold again
-  const configRaw = alreadyFolded ? null : await readFileOrNull(join(absolute, CONFIG_FILENAME));
+  const configFile = alreadyFolded ? null : await readConfigFile(absolute);
   // No config: inherit parent settings but strip ownTitle so the directory
   // does not display the parent's title
-  if (configRaw === null) return inheritInto(inherited);
+  if (configFile === null) {
+    const configName = alreadyFolded ? scan.root.configName : CONFIG_FILENAMES[0];
+    return { resolved: inheritInto(inherited), configSource: `${repoRelativeDir}/${configName}` };
+  }
 
-  const source = `${repoRelativeDir}/${CONFIG_FILENAME}`;
+  warnIgnoredConfigs(scan.root.findings, configFile, repoRelativeDir);
+  const source = `${repoRelativeDir}/${configFile.name}`;
   const parsed = validateConfigFile(
-    configRaw,
+    configFile.raw,
     { source, isRoot: false, rootVersion: scan.root.rootConfig.version },
     scan.root.findings,
   );
@@ -163,7 +169,7 @@ async function resolveDirectoryConfig(
     scan.failedSubtrees.push(slugPath);
     return null;
   }
-  return resolved;
+  return { resolved, configSource: source };
 }
 
 /**

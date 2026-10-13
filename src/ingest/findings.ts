@@ -48,6 +48,7 @@ export type FindingCode =
   | 'cover-svg'
   | 'slug-collision'
   | 'mixed-ordering'
+  | 'duplicate-config'
   | 'empty-read-set'
   | 'noop-narrowing'
   | 'public-not-enabled'
