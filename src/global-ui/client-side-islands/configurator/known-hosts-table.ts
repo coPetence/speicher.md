@@ -2,6 +2,7 @@
  * Redraws the known hosts field while the known_hosts lines or the repository URLs
  * of its source are edited
  */
+import { sshRemoteUrl } from '../../../forge/remote-url';
 import { missingHostKeysText, unreadableLinesText } from '../../known-hosts-notes';
 import { setNoteText } from '../notes';
 import { configForm } from './config-form-handle';
@@ -73,7 +74,10 @@ async function serversWithoutHostKey(
   const source = area.name.replace(/\.known_hosts$/, '');
   const names = new Set<string>();
   for (const input of form.querySelectorAll<HTMLInputElement>('input[name$=".url"]')) {
-    const name = REPO_URL.exec(input.name)?.[1] === source ? knownHostsNameOf(input.value) : null;
+    const name =
+      REPO_URL.exec(input.name)?.[1] === source
+        ? knownHostsNameOf(sshRemoteUrl(input.value))
+        : null;
     if (name) names.add(name);
   }
   const missing: string[] = [];

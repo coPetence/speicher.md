@@ -4,6 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { SCP_FORM } from '../../src/forge/remote-url';
+
 const BUNDLE = (() => {
   const dir = join(__dirname, '../../dist/client');
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Record<
@@ -1527,6 +1529,7 @@ describe('the transport of a git remote', () => {
               <label>
                 <input type="radio" name="choice:${URL_PATH}" value="ssh"
                        data-spr-choice-prefix="ssh://"
+                       data-spr-choice-pattern="ssh://.*|${SCP_FORM}"
                        data-spr-choice-placeholder="ssh://git@example.com/team/docs.git"
                        data-spr-choice-hint="With SSH selected, the remote URL starts with ssh://.">
                 SSH
@@ -1564,7 +1567,15 @@ describe('the transport of a git remote', () => {
     type(URL_PATH, 'ssh://git@example.test/internal/runbooks.git');
     expect(radio('ssh').checked).toBe(true);
     expect(radio('https').checked).toBe(false);
-    expect(url().pattern).toBe('ssh://.*');
+    expect(url().pattern).toBe(`ssh://.*|${SCP_FORM}`);
+  });
+
+  it('checks SSH when a URL in the scp form is pasted, and lets the form send it', () => {
+    renderChoice();
+    run();
+    type(URL_PATH, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(radio('ssh').checked).toBe(true);
+    expect(new RegExp(`^(?:${url().pattern})$`, 'v').test(url().value)).toBe(true);
   });
 
   it('fits the URL again when the other option is picked by hand', () => {
@@ -1573,7 +1584,58 @@ describe('the transport of a git remote', () => {
     radio('ssh').checked = true;
     radio('ssh').dispatchEvent(new Event('change', { bubbles: true }));
     expect(url().placeholder).toBe('ssh://git@example.com/team/docs.git');
-    expect(url().pattern).toBe('ssh://.*');
+    expect(url().pattern).toBe(`ssh://.*|${SCP_FORM}`);
+  });
+});
+
+describe('the id of a repository on a plain remote', () => {
+  const REPO = 'forges.onprem.repos.0';
+
+  function renderRepository(id: string, url: string): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/onprem"
+              data-spr-config="sources/onprem">
+          <input name="${REPO}.id" value="${id}" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}">
+          <input name="${REPO}.url" value="${url}">
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+  }
+
+  const id = () => document.querySelector(`input[name="${REPO}.id"]`) as HTMLInputElement;
+
+  it('takes the name of the repository while the remote URL is typed', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.url`, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(id().value).toBe('TestSpeicher');
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/Handbook.git');
+    expect(id().value).toBe('Handbook');
+  });
+
+  it('keeps an id the user typed', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.id`, 'docs');
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    expect(id().value).toBe('docs');
+  });
+
+  it('keeps a saved id that is not the name in the URL', () => {
+    renderRepository('docs', 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    run();
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/Handbook.git');
+    expect(id().value).toBe('docs');
+  });
+
+  it('fills in nothing when the name is no valid id', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.url`, 'https://example.com/team/my docs.git');
+    expect(id().value).toBe('');
   });
 });
 

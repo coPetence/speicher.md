@@ -11,6 +11,7 @@ export interface ChoiceOption {
   items: CardItem[];
   // Start of the followed field's value that belongs to this option, e.g. `ssh://`
   prefix?: string;
+  pattern?: string;
   // Placeholder of the followed field while this option is checked
   placeholder?: string;
   // Shown when the browser refuses a followed value without the prefix
@@ -29,10 +30,19 @@ export interface ChoiceItem {
   options: ChoiceOption[];
 }
 
+/**
+ * belongsToChoiceOption returns whether a value of the followed field belongs to an option.
+ * @param option the option of the choice
+ * @param value the value of the followed field
+ */
+export function belongsToChoiceOption(option: ChoiceOption, value: string): boolean {
+  if (option.prefix && value.startsWith(option.prefix)) return true;
+  return option.pattern ? new RegExp(`^(?:${option.pattern})$`, 'u').test(value) : false;
+}
+
 export function choice(label: string, options: ChoiceOption[], follows: Field): ChoiceItem {
   const value = 'value' in follows ? follows.value.trim() : '';
-  const selected =
-    options.find((option) => option.prefix && value.startsWith(option.prefix)) ?? options[0];
+  const selected = options.find((option) => belongsToChoiceOption(option, value)) ?? options[0];
   return {
     kind: 'choice',
     label,

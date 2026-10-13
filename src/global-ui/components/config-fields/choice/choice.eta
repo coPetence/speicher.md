@@ -18,6 +18,7 @@
           <%= option.value === item.selected ? 'checked' : '' %>
           <%= it.editable ? '' : 'disabled' %>
           <% if (option.prefix) { %>data-spr-choice-prefix="<%= option.prefix %>"<% } %>
+          <% if (option.pattern) { %>data-spr-choice-pattern="<%= option.pattern %>"<% } %>
           <% if (option.placeholder) { %>data-spr-choice-placeholder="<%= option.placeholder %>"<% } %>
           <% if (option.prefixHint) { %>data-spr-choice-hint="<%= option.prefixHint %>"<% } %>
         >

@@ -9,6 +9,8 @@ import { ELIDED, REDACTED, displayYaml } from '../../src/dashboard/configurator/
 import { applyForm } from '../../src/dashboard/configurator/config-form/apply';
 import { renameMember } from '../../src/dashboard/configurator/config-form/member-edits';
 import { sectionOf } from '../../src/dashboard/configurator/config-form/sections';
+import { repoCard } from '../../src/dashboard/configurator/config-form/sections/content-sources/git-repository-card';
+import { SCP_FORM, repositoryName, sshRemoteUrl } from '../../src/forge/remote-url';
 import {
   RENDERED_PREFIX,
   SHAPE_PREFIX,
@@ -2009,5 +2011,93 @@ describe("a GitHub source's webhook URL", () => {
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {
     const values = withPublicUrl('https://docs.acme.example', () => copyValues('sources/onprem'));
     expect(values).toEqual([]);
+  });
+});
+
+describe('a remote URL in the scp form', () => {
+  it('becomes the ssh:// URL git reads it as', () => {
+    expect(sshRemoteUrl('git@github.com:TimMolitor/TestSpeicher.git')).toBe(
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+    );
+    expect(sshRemoteUrl('example.com:docs.git')).toBe('ssh://example.com/docs.git');
+    expect(sshRemoteUrl('git@example.com:~/docs.git')).toBe('ssh://git@example.com/~/docs.git');
+  });
+
+  it('leaves every other URL as it is', () => {
+    for (const url of [
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+      'ssh://git@example.com:2222/team/docs.git',
+      'https://github.com/TimMolitor/TestSpeicher.git',
+      '',
+    ]) {
+      expect(sshRemoteUrl(url)).toBe(url);
+    }
+  });
+
+  it('is a pattern a browser accepts, and one that takes both SSH forms', () => {
+    const ssh = new RegExp(`^(?:ssh://.*|${SCP_FORM})$`, 'v');
+    expect(ssh.test('git@github.com:TimMolitor/TestSpeicher.git')).toBe(true);
+    expect(ssh.test('ssh://git@github.com/TimMolitor/TestSpeicher.git')).toBe(true);
+    expect(ssh.test('https://github.com/TimMolitor/TestSpeicher.git')).toBe(false);
+  });
+
+  it('is saved as its ssh:// URL', () => {
+    const doc = loadDocument(
+      'forges:\n  onprem:\n    type: git\n    repos:\n      - id: docs\n        url: https://example.com/team/docs.git\n',
+    );
+    applyForm(
+      doc,
+      {
+        'forges.onprem.repos.0.url': 'git@github.com:TimMolitor/TestSpeicher.git',
+        'choice:forges.onprem.repos.0.url': 'ssh',
+      },
+      'sources/onprem',
+    );
+    expect(doc.getIn(['forges', 'onprem', 'repos', 0, 'url'])).toBe(
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+    );
+  });
+});
+
+describe('the id of a repository on a plain remote', () => {
+  const idOf = (repo: Record<string, string>): string =>
+    (repoCard({ forges: { onprem: { repos: [repo] } } }, 'onprem', 0).items[0] as { value: string })
+      .value;
+
+  it('takes the name of the repository from its remote URL', () => {
+    expect(repositoryName('ssh://git@example.com/team/docs.git')).toBe('docs');
+    expect(repositoryName('git@example.com:team/docs.git')).toBe('docs');
+    expect(repositoryName('https://example.com/team/docs')).toBe('docs');
+    expect(repositoryName('https://example.com/team/docs.git/')).toBe('docs');
+  });
+
+  it('takes nothing from a URL that names no repository', () => {
+    expect(repositoryName('')).toBe('');
+    expect(repositoryName('https://example.com')).toBe('');
+  });
+
+  it('fills in the id of a repository that has none, and keeps the one it has', () => {
+    expect(idOf({ url: 'ssh://git@example.com/team/docs.git' })).toBe('docs');
+    expect(idOf({ id: 'handbook', url: 'ssh://git@example.com/team/docs.git' })).toBe('handbook');
+  });
+
+  it('fills in nothing when the name of the repository is no valid id', () => {
+    expect(idOf({ url: 'https://example.com/team/my docs.git' })).toBe('');
+  });
+
+  it('saves the name of the repository as the id when the id is left empty', () => {
+    const doc = loadDocument(
+      'forges:\n  onprem:\n    type: git\n    repos:\n      - id: docs\n        url: https://example.com/team/docs.git\n',
+    );
+    applyForm(
+      doc,
+      {
+        'forges.onprem.repos.0.id': '',
+        'forges.onprem.repos.0.url': 'git@github.com:TimMolitor/TestSpeicher.git',
+        'choice:forges.onprem.repos.0.url': 'ssh',
+      },
+      'sources/onprem',
+    );
+    expect(doc.getIn(['forges', 'onprem', 'repos', 0, 'id'])).toBe('TestSpeicher');
   });
 });
