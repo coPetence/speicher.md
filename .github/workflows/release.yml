@@ -1,0 +1,148 @@
+# Publishes the container image and drafts a GitHub Release
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/copetence/speicher.md
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # everything on main has already passed pr-checks
+      - name: Tag must be on main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "tag is not an ancestor of main" >&2; exit 1; }
+
+      # makes sure the version in package.json is the same
+      - name: Tag matches package.json
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          [ "$PKG" = "${GITHUB_REF_NAME#v}" ] || {
+            echo "package.json is $PKG, tag is ${GITHUB_REF_NAME#v}" >&2
+            exit 1
+          }
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # docker image tags:
+      # Git tag: vX.Y.Z -> Image tag:  X.Y.Z, X.Y, latest
+      # Git tag: vX.Y.Z-rc.1 -> Image tag:  X.Y.Z-rc.1
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=auto # if the tag has a pre-release component (-rc / -beta...) latest is not added as an image tag
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Pull image and check build
+        run: |
+          REF="${IMAGE}:${GITHUB_REF_NAME#v}"
+
+          # tests the PATH symlink bin/speicher and dist/cli/cli.js
+          docker run --rm "$REF" speicher help > /dev/null
+          docker run --rm --platform linux/arm64 "$REF" speicher help > /dev/null
+
+          docker run --rm --entrypoint node "$REF" -e "
+            const fs = require('node:fs');
+            fs.accessSync('/app/dist/main.js');
+            fs.accessSync('/app/dist/worker.js');
+          "
+
+  # Tests run migrations
+  migrate:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: speicher
+          POSTGRES_PASSWORD: speicher
+          POSTGRES_DB: speicher
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U speicher -d speicher"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Currentl the package is private so it needs login to pull the image
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Migrate a fresh database with the shipped image
+        env:
+          SPEICHER_DATABASE_URL: postgres://speicher:speicher@localhost:5432/speicher
+        run: |
+          REF="${IMAGE}:${GITHUB_REF_NAME#v}"
+          LAST=$(basename "$(ls src/db/migrations/*.ts | sort | tail -1)" .ts)
+
+          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate up
+          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate status | tee /tmp/status
+
+          grep -q "$LAST" /tmp/status || { echo "expected $LAST to be applied" >&2; exit 1; }
+
+  release:
+    needs: [image, migrate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --draft \
+            $PRERELEASE
