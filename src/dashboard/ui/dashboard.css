@@ -1112,8 +1112,51 @@
   }
 
   .spr-rows .spr-select-col input[type='checkbox'] {
-    font-size: 1.4em;
+    font-size: 1.15em;
     cursor: pointer;
+  }
+
+  .spr-rows {
+    background: var(--spr-bg);
+  }
+
+  .spr-rows th,
+  .spr-rows td {
+    border-right-width: 0;
+  }
+
+  .spr-rows thead th {
+    padding-block: var(--spr-space-2);
+    padding-inline: calc(var(--spr-space-2) + var(--spr-input-lead) + var(--spr-border));
+    color: var(--spr-accent);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-rows tbody td {
+    padding: var(--spr-space-1) var(--spr-space-2);
+  }
+
+  .spr-rows .spr-select-col {
+    padding-inline: var(--spr-space-4) var(--spr-space-2);
+  }
+
+  .spr-rows td input[type='text'] {
+    border-color: transparent;
+    background: transparent;
+    transition:
+      border-color var(--spr-transition),
+      background-color var(--spr-transition);
+  }
+
+  .spr-rows td input[type='text']:hover:not(:disabled) {
+    border-color: var(--spr-line);
+  }
+
+  .spr-rows td input[type='text']:focus {
+    border-color: var(--spr-accent);
+    background: var(--spr-bg);
+    outline: 1px solid var(--spr-accent);
+    outline-offset: 0;
   }
 
   .spr-table-head {

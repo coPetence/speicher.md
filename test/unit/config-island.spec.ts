@@ -1618,6 +1618,40 @@ describe('a table that grows', () => {
     expect(rows('group')[2].hasAttribute('data-spr-trailing')).toBe(true);
   });
 
+  it('takes the added row away again once the rows are empty, and the shape with it', () => {
+    type('groups.eng.1.id', 'grp-two');
+    expect(rows('group')).toHaveLength(3);
+
+    type('groups.eng.1.id', '');
+    expect(rows('group')).toHaveLength(2);
+    expect(rows('group')[1].hasAttribute('data-spr-trailing')).toBe(true);
+    expect(rows('group')[1].querySelector('input[type="checkbox"]')).toHaveProperty(
+      'dataset.sprIdle',
+      '',
+    );
+    expect(rows('person')[0].dataset.sprPosition).toBe('2');
+    expect(shape()).toBe('group');
+  });
+
+  it('keeps a placeholder\u2019s provider on it, and gives none to the row after', () => {
+    const trailing = rows('group')[1];
+    const carried = document.createElement('input');
+    carried.type = 'hidden';
+    carried.name = 'groups.eng.1.provider';
+    carried.value = 'entra';
+    trailing.querySelector('td')?.append(carried);
+
+    type('groups.eng.1.id', 'grp-two');
+    expect(rows('group')[1].querySelector('input[name="groups.eng.1.provider"]')).not.toBeNull();
+    expect(rows('group')[2].querySelector('input[type="hidden"][name$=".provider"]')).toBeNull();
+  });
+
+  it('never folds away a stored row, however empty it is left', () => {
+    type('groups.eng.0.id', '');
+    expect(rows('group')).toHaveLength(2);
+    expect(rows('group')[0].querySelector('input[name="select"]')).not.toBeNull();
+  });
+
   it('numbers the unsaved rows in document order, across both tables', () => {
     type('groups.eng.1.id', 'grp-two');
 

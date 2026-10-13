@@ -1648,6 +1648,23 @@ describe('the groups section', () => {
     expect(yaml).not.toContain('client-northwind');
   });
 
+  it('offers one empty row on a new source, not a placeholder with a second under it', async () => {
+    await post('groups', { add: 'client-acme' }).expect(303);
+    const { html } = await open('groups/client-acme/entra');
+    const table = html.slice(
+      html.indexOf('data-spr-kind="group"'),
+      html.indexOf('data-spr-kind="person"'),
+    );
+    const rows = [...table.matchAll(/<tr data-spr-position="(\d+)"([^>]*)>/g)];
+    expect(rows).toHaveLength(1);
+    expect(rows[0][1]).toBe('0');
+    expect(rows[0][2]).toContain('data-spr-trailing');
+    expect(table).not.toContain('name="select"');
+    expect(html).toMatch(
+      /<tr data-spr-position="1" data-spr-trailing>[\s\S]*?groups\.client-acme\.1\.email/,
+    );
+  });
+
   it('takes the first source from the group’s own page, once there is one to name', async () => {
     await addEntry('groups', 'client-acme');
     const draft = await open('groups/client-acme');

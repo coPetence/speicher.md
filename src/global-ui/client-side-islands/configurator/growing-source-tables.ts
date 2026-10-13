@@ -127,6 +127,11 @@ export function mountGrowingTables(): void {
     for (const control of fresh.querySelectorAll<HTMLInputElement>('input[type="text"]')) {
       control.value = '';
     }
+    for (const carried of fresh.querySelectorAll<HTMLInputElement>(
+      'input[type="hidden"][name$=".provider"]',
+    )) {
+      carried.remove();
+    }
 
     selectable(fresh, false);
 
@@ -137,11 +142,33 @@ export function mountGrowingTables(): void {
     resync();
   };
 
+  const shrink = (table: HTMLTableElement): void => {
+    const body = table.tBodies[0];
+    if (!body) return;
+    let changed = false;
+    for (; ;) {
+      const last = body.querySelector<HTMLTableRowElement>('tr[data-spr-trailing]');
+      const before = last?.previousElementSibling as HTMLTableRowElement | null | undefined;
+      if (!last || !before || filled(last) || filled(before)) break;
+      if (before.querySelector('input[name="select"]')) break;
+
+      last.remove();
+      before.setAttribute('data-spr-trailing', '');
+      const box = before.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      if (box) box.checked = false;
+      selectable(before, false);
+      changed = true;
+    }
+    if (changed) resync();
+  };
+
   form.addEventListener('input', (event) => {
     const table = (event.target as HTMLElement | null)?.closest<HTMLTableElement>(
       'table[data-spr-grow]',
     );
-    if (table) grow(table);
+    if (!table) return;
+    grow(table);
+    shrink(table);
   });
 
   form.addEventListener('click', (event) => {
