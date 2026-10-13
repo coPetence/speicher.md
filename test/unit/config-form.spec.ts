@@ -2014,6 +2014,31 @@ describe("a GitHub source's webhook URL", () => {
   });
 });
 
+describe('the required fields of a plain remote', () => {
+  const required = (repos: string): string[] => {
+    const section = sectionOf(
+      loadDocument(`forges:\n  onprem:\n    type: git\n    repos:\n${repos}`),
+      'sources/onprem',
+    );
+    return (section ? allFields([section]) : [])
+      .filter((field) => field.required)
+      .map((field) => field.schemaPath);
+  };
+
+  it('marks the remote URL, the access token and the deploy key', () => {
+    expect(required('      - id: docs\n        url: https://example.com/team/docs.git\n')).toEqual([
+      'forges.<key>.repos.<index>.url',
+      'forges.<key>.repos.<index>.token',
+      'forges.<key>.repos.<index>.deploy_key',
+    ]);
+  });
+
+  it('marks the known hosts once a repository uses ssh://', () => {
+    const repos = '      - id: docs\n        url: ssh://git@example.com/team/docs.git\n';
+    expect(required(repos)).toContain('forges.<key>.known_hosts');
+  });
+});
+
 describe('a remote URL in the scp form', () => {
   it('becomes the ssh:// URL git reads it as', () => {
     expect(sshRemoteUrl('git@github.com:TimMolitor/TestSpeicher.git')).toBe(

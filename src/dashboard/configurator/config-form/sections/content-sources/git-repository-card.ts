@@ -41,6 +41,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
   const urlField = textField(root, [...base, 'url'], p('url'), 'Remote URL', {
     help: 'ssh:// with a deploy key, or https:// with a token. Nothing else is fetched. The path before the repository name is its owner, for example `team` in `ssh://git@example.com/team/docs.git`.',
     wide: true,
+    required: true,
   });
 
   const items: CardItem[] = [
@@ -67,6 +68,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
             secretField(root, [...base, 'token'], p('token'), 'Access token', {
               help: `${ACCESS_TOKEN_HELP}\n\n${SECRET_HELP}`,
               startsRow: true,
+              required: true,
             }),
             textField(root, [...base, 'username'], p('username'), 'Username', {
               fallback: 'x-access-token',
@@ -86,6 +88,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
           items: [
             secretField(root, [...base, 'deploy_key'], p('deploy_key'), 'Deploy key', {
               help: `${DEPLOY_KEY_HELP}\n\n${SECRET_HELP}`,
+              required: true,
               upload: {
                 // Keys from `ssh-keygen` have no extension, so every file can be picked
                 accept: '',

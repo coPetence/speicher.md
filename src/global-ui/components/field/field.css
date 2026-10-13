@@ -49,6 +49,10 @@
     align-items: center;
     gap: var(--spr-space-2);
   }
+  .spr-required {
+    margin-inline-start: 0.15em;
+    color: var(--spr-status-fail);
+  }
   .spr-field input:not([type='checkbox'], [type='radio'], [type='file'], [type='color']),
   .spr-field select,
   .spr-field textarea,
