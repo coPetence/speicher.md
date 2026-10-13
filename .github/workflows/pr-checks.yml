@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 
-# A new push supersedes the previous run on the same ref
+# New pushes replace a previous run on the same ref
 concurrency:
   group: pr-checks-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
