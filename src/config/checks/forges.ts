@@ -68,6 +68,29 @@ export function checkFirstSegments(
     if (forgeId !== primaryForgeId) claim(forgeId, `forge "${forgeId}"`);
   }
 
+  for (const [forgeId, forge] of Object.entries(config.forges ?? {})) {
+    if (forgeId === primaryForgeId || forge.type !== 'git') continue;
+    if (forge.default_repository_owner === undefined) continue;
+    const forgeOwner = slugify(forge.default_repository_owner);
+    const taken = new Map<string, string>();
+    for (const repo of forge.repos ?? []) {
+      const owner = gitRepositoryOwner(repo);
+      if (owner === null) continue;
+      const [segment, claimant] =
+        slugify(owner) === forgeOwner
+          ? [slugify(repo.slug ?? repo.id), `repo "${repo.id}"`]
+          : [slugify(owner), `repository owner "${owner}"`];
+      const existing = taken.get(segment);
+      if (existing && existing !== claimant) {
+        problems.push(
+          `segment "${segment}" after forge "${forgeId}" is claimed by both ${existing} and ${claimant}`,
+        );
+      } else {
+        taken.set(segment, claimant);
+      }
+    }
+  }
+
   if (primaryForgeId === null) return;
   const primary = config.forges?.[primaryForgeId];
   if (primary?.type !== 'git') return;

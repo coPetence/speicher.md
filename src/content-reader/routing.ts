@@ -1,10 +1,11 @@
 /**
  * URL routing for repository pages
  *
- * Segments after the tenant prefix are matched against repos in one of three
- * schemes: explicit forge, primary forge with namespace, or primary forge in
- * its default namespace.  The first match wins.  If no match, tries a
- * rename lookup and returns a redirect to the current slug
+ * Segments after the tenant prefix are matched against repos in one of four
+ * schemes: explicit forge with namespace, explicit forge in its default namespace,
+ * primary forge with namespace, or primary forge in its default namespace.  The
+ * first match wins.  If no match, tries a rename lookup and returns a redirect to
+ * the current slug
  *
  * A repo whose forge+namespace combination claims the first path segment
  * cannot be created with a slug that is reserved, equals a non-primary forge
@@ -107,13 +108,26 @@ export class RoutingService {
 
     if (primary === null) return out;
 
-    if (segments.length >= 3 && this.config.forge(segments[0]) && segments[0] !== primary) {
-      out.push({
-        forgeKey: segments[0],
-        namespace: segments[1],
-        slug: segments[2],
-        rest: segments.slice(3),
-      });
+    if (this.config.forge(segments[0]) && segments[0] !== primary) {
+      if (segments.length >= 3) {
+        out.push({
+          forgeKey: segments[0],
+          namespace: segments[1],
+          slug: segments[2],
+          rest: segments.slice(3),
+        });
+      }
+
+      // A non-primary forge leaves its default repository owner out as well, after its id
+      const forgeOwner = this.config.defaultRepositoryOwnerFor(segments[0]);
+      if (forgeOwner !== undefined && segments.length >= 2) {
+        out.push({
+          forgeKey: segments[0],
+          namespace: slugify(forgeOwner),
+          slug: segments[1],
+          rest: segments.slice(2),
+        });
+      }
     }
 
     if (segments.length >= 2) {
@@ -199,11 +213,12 @@ export class RoutingService {
   }
 
   /**
-   * assertFirstSegmentFree checks that a repository on the primary forge does not
-   * claim a first URL segment that is reserved, a forge id, or already used. A
-   * repository of the default repository owner claims its own slug; any other
-   * repository claims the slug of its owner. It throws a `TwoAudienceError` if the
-   * segment is taken.
+   * assertFirstSegmentFree checks that a repository does not claim a URL segment that
+   * is already used. On the primary forge this is the first segment, which also must
+   * not be reserved or a forge id. On any other forge it is the segment after the
+   * forge id. A repository of the default repository owner claims its own slug; any
+   * other repository claims the slug of its owner. It throws a `TwoAudienceError` if
+   * the segment is taken.
    *
    * @param tenantId the tenant the repository belongs to
    * @param forgeKey the forge the repository is on
@@ -218,7 +233,7 @@ export class RoutingService {
     slug: string,
     excludeRepoId?: string,
   ): Promise<void> {
-    if (forgeKey !== this.config.primaryForgeId) return;
+    const primary = forgeKey === this.config.primaryForgeId;
     const defaultOwner = this.config.defaultRepositoryOwnerFor(forgeKey);
     const defaultOwnerSlug = defaultOwner === undefined ? undefined : slugify(defaultOwner);
     const isDefaultOwner = slugify(namespace) === defaultOwnerSlug;
@@ -227,14 +242,14 @@ export class RoutingService {
       ? `repo slug "${slug}" of the default repository owner ${namespace}`
       : `repository owner "${namespace}"`;
 
-    if (isReservedSegment(segment)) {
+    if (primary && isReservedSegment(segment)) {
       throw new TwoAudienceError(
         `"${segment}" is a reserved name. Choose another, or ask an administrator which segment is free.`,
         `${claimant} (forge ${forgeKey}) lands on the reserved first segment "${segment}"`,
       );
     }
 
-    if (this.config.forge(segment) && segment !== this.config.primaryForgeId) {
+    if (primary && this.config.forge(segment) && segment !== this.config.primaryForgeId) {
       throw new TwoAudienceError(
         `"${segment}" is already claimed. Choose another name, or ask an administrator which segment is free.`,
         `${claimant} collides with forge id "${segment}"`,
@@ -269,7 +284,7 @@ export class RoutingService {
     if (owner) {
       throw new TwoAudienceError(
         `"${slug}" is already claimed. Choose another name, or ask an administrator which segment is free.`,
-        `${claimant} collides with repository owner "${owner.namespace}" on the primary forge`,
+        `${claimant} collides with repository owner "${owner.namespace}" on forge ${forgeKey}`,
       );
     }
 
