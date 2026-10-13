@@ -3531,6 +3531,32 @@ describe('the transport and the notices', () => {
     expect(card.indexOf('Known hosts')).toBeLessThan(card.indexOf('</section>'));
   });
 
+  it('marks the required fields of a plain remote with an asterisk', async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml: FIXTURE_YAML.replace(
+        'forges:\n',
+        'forges:\n' +
+          '  onprem:\n' +
+          '    type: git\n' +
+          '    known_hosts: example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly\n' +
+          '    repos:\n' +
+          '      - id: runbooks\n' +
+          '        url: ssh://git@example.test/internal/runbooks.git\n' +
+          '        deploy_key: ${TEST_GH_PRIVATE_KEY}\n',
+      ),
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
+
+    const { html } = await open('sources/onprem');
+    const marked = [
+      ...html.matchAll(/>\s*([^<>]+?)<span class="spr-required" aria-hidden="true">\*<\/span>/g),
+    ].map((m) => m[1].trim());
+    expect(marked).toEqual(['Remote URL', 'Access token', 'Deploy key', 'Known hosts']);
+    expect(html).toContain('<span class="spr-clipped"> (required)</span>');
+  });
+
   it('saves one notice without touching the ones beside it', async () => {
     await appendConfigVersion(harness.tenantId, {
       yaml: `${FIXTURE_YAML}\nnotify:\n  sync_failure: [admins, committer]\n  grant_expiry: [admins]\n`,
