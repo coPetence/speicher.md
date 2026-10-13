@@ -21,6 +21,7 @@ import {
   readKnownHosts,
   sshKeyscan,
 } from '../../../forge/host-keys';
+import { RemoteProber, probeRemote } from '../../../forge/git/probe';
 import { probeMail } from '../../../notify/mailer';
 import { applyForm } from '../config-form/apply';
 import type { KnownHostsField, Obj } from '../config-form/config-fields';
@@ -100,7 +101,75 @@ export class SectionChecks {
     private readonly blobs: BlobStore | null = null,
 
     private readonly keyscan: KeyScanner = sshKeyscan,
+
+    private readonly remoteProber: RemoteProber = probeRemote,
   ) {}
+
+  /**
+   * stampRepositoryStatus offers a connection check under the remote URL of each repository of a plain git remote.
+   * @param payload the page that is sent back
+   * @param yaml the configuration the check reads
+   * @param check the `check` parameter of the request, or undefined if the user did not ask
+   */
+  async stampRepositoryStatus(
+    payload: ConfigSectionPayload,
+    yaml: string,
+    check?: string,
+  ): Promise<void> {
+    const member = memberOf(payload.section?.id ?? '');
+    if (!payload.section || member?.section !== 'sources' || member.entry) return;
+    const sectionId = payload.section.id;
+
+    const forge = ((loadDocument(yaml).toJS() as { forges?: Record<string, Obj> } | null)?.forges ??
+      {})[member.id];
+    if (!forge || forge.type !== 'git') return;
+    const repos = Array.isArray(forge.repos) ? (forge.repos as Obj[]) : [];
+
+    const fields = allFields([payload.section]).filter(
+      (field) => field.schemaPath === 'forges.<key>.repos.<index>.url',
+    );
+    await Promise.all(
+      fields.map(async (field) => {
+        const repo = repos[Number(field.path.split('.')[3])];
+        // A repository without a URL has nothing to check yet
+        if (!repo || scalarString(repo.url).trim() === '') return;
+        if (check === undefined) {
+          field.checkHref = `/-/config/${sectionId}?check=${encodeURIComponent(field.path)}`;
+          return;
+        }
+        if (check !== '1' && check !== field.path) return;
+        field.status = await this.repositoryStatus(repo, scalarString(forge.known_hosts));
+      }),
+    );
+  }
+
+  // Probes one repository with its values as a sync reads them, `${VAR}` resolved
+  private async repositoryStatus(repo: Obj, knownHosts: string): Promise<FieldStatus> {
+    let values;
+    try {
+      values = interpolateEnv({
+        url: scalarString(repo.url).trim(),
+        branch: scalarString(repo.branch).trim(),
+        deployKey: scalarString(repo.deploy_key),
+        token: scalarString(repo.token),
+        username: scalarString(repo.username),
+        knownHosts,
+      });
+    } catch (err) {
+      const problems = err instanceof ConfigError ? err.problems : [(err as Error).message];
+      return { level: 'fail', label: 'Not configured', detail: problems.join(' ') };
+    }
+    return this.remoteProber(
+      values.url,
+      {
+        deployKey: values.deployKey || undefined,
+        knownHosts: values.knownHosts || undefined,
+        token: values.token || undefined,
+        username: values.username || undefined,
+      },
+      values.branch,
+    );
+  }
 
   /**
    * fetchHostKeys fetches the host keys of the SSH servers of a content source.

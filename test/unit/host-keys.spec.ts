@@ -177,7 +177,7 @@ describe('fetching the host keys of a git source', () => {
 
     expect(answer?.changed).toBe(false);
     expect(answer?.status.level).toBe('ok');
-    expect(answer?.status.detail).toBe('The keys of example.test are the ones already saved.');
+    expect(answer?.status.detail).toBe('The keys of example.test are already saved.');
     expect(serialise(doc)).toBe(before);
   });
 

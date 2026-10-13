@@ -308,6 +308,7 @@ export class ConfigController {
     await stampUsage(caller.tenantId, sectionId, payload);
     // Runs directory connectivity check when the user asked for one
     await this.checks.stampDirectoryStatus(payload, check !== undefined);
+    await this.checks.stampRepositoryStatus(payload, state.storedYaml, check);
     // Runs storage or mail check when the user asked for one
     await this.checks.stampSectionCheck(payload, state.storedYaml, check !== undefined);
     this.sectionAnswer(req, res, caller, sectionId, payload);
