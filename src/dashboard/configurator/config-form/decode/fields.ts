@@ -1,6 +1,5 @@
 import { Document, isSeq } from 'yaml';
 
-import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
 import type {
   AmountField,
   BooleanField,
@@ -20,6 +19,8 @@ import type {
   TextField,
   UrlField,
 } from '../config-fields';
+import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
+import { sshRemoteUrl } from '../../../../forge/remote-url';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
 import { FormBody, submitted, submittedList } from './body';
 
@@ -225,6 +226,11 @@ const decodeSecret: Decoder<SecretField> = (doc, body, field, path) => {
     if (typeof value === 'string' && value !== '') return writeAt(doc, path, value);
   }
 
+  const unsaved = submitted(body, `unsaved:${field.path}`);
+  if (raw.trim() === '' && unsaved !== undefined && unsaved.trim() !== '') {
+    return writeAt(doc, path, unsaved.trim());
+  }
+
   // Blank against a hidden literal means "leave it alone". The form never
   // rendered the value, so a blank box is what an operator sees when they have
   // not touched it — treating that as a deletion would silently unconfigure a
@@ -241,11 +247,14 @@ const decodeText: Decoder<
   return writeAtWithDefault(doc, path, raw.trim(), field.fallback);
 };
 
-/** An address keeps the scheme it was given, or is read as meaning https */
+/**
+ * An address keeps the scheme it was given, or is read as meaning https. An SSH remote
+ * in the scp form, e.g. `git@github.com:owner/repo.git`, is saved as its `ssh://` URL
+ */
 const decodeUrl: Decoder<UrlField> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
-  return writeAtWithDefault(doc, path, withHttpsScheme(raw.trim()), field.fallback);
+  return writeAtWithDefault(doc, path, withHttpsScheme(sshRemoteUrl(raw.trim())), field.fallback);
 };
 
 /**
@@ -268,6 +277,7 @@ const DECODERS: { [K in FieldKind]: Decoder<FieldOf<K>> } = {
   number: decodeNumber,
   boolean: decodeBoolean,
   multiline: decodeMultiline,
+  'known-hosts': decodeMultiline,
   lines: decodeLines,
   checkboxes: decodeCheckboxes,
   file: decodeFile,

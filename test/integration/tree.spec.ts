@@ -4,7 +4,11 @@ import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
-import { stylesheetUrl, templateNames } from '../../src/content-reader/assets.controller';
+import {
+  dashboardStylesheetUrl,
+  stylesheetUrl,
+  templateNames,
+} from '../../src/content-reader/assets.controller';
 
 import { closeSequelize } from '../../src/db/sequelize';
 import { Harness, PrincipalName, createHarness } from '../helpers/harness';
@@ -184,6 +188,13 @@ describe('theme templates', () => {
     expect(css.status).toBe(200);
     expect(css.headers['content-type']).toContain('text/css');
     expect(css.headers['cache-control']).toContain('immutable');
+  });
+
+  it('names no file beside the dashboard sheet, because every icon is markup in the page', async () => {
+    const sheet = dashboardStylesheetUrl();
+    expect(sheet).not.toBeNull();
+    const css = (await request(app.getHttpServer()).get(sheet as string)).text;
+    expect(css).not.toMatch(/url\("?\.\//);
   });
 
   it('carries the layer order, so a template never needs a specificity hack', async () => {

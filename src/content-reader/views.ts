@@ -18,6 +18,8 @@ import { reflectsCallerInput } from '../app-setup';
 import { env, isProduction } from '../common/env';
 import type { ColourScheme } from '../config/palette';
 import { renderHelp } from '../global-ui/help-markup';
+import { noteIconName } from '../global-ui/note';
+import { renderIconRef } from './icons';
 
 // Views live beside the surface that sends them — `content-reader/views`, `dashboard/ui/views`,
 // `auth/views` and `global-ui/global-views` — so a view's name is its folder's path from the
@@ -29,13 +31,17 @@ const eta = new Eta({
   cache: isProduction(),
   autoEscape: true,
   autoTrim: false,
-  // Every template and partial gets `md()`, which renders a help text's markup
-  functionHeader: 'const md = this.config.md;',
+  // Every template and partial gets `md()`, which renders a help text's markup, and
+  // `noteIcon()`, which the `@note` component draws the icon of a note's level with
+  functionHeader: 'const md = this.config.md; const noteIcon = this.config.noteIcon;',
 });
 
 // Called through a closure, since help-markup imports this module for escapeHtml and may
 // not have finished loading when this line runs
-Object.assign(eta.config, { md: (text: string | undefined) => renderHelp(text ?? '') });
+Object.assign(eta.config, {
+  md: (text: string | undefined) => renderHelp(text ?? ''),
+  noteIcon: (level?: string) => renderIconRef(noteIconName(level)),
+});
 
 /** Every view is a folder holding `<name>.eta`, so `dashboard/ui/views/sync-status/logs` is `src/dashboard/ui/views/sync-status/logs/logs.eta` */
 function templateSource(name: string): string {

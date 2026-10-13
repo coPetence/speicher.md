@@ -22,8 +22,8 @@ export function unavailableOption(option: Option, reason: string): Option {
 }
 
 export interface FieldStatus {
-  level: 'ok' | 'warn' | 'fail';
-  icon: string;
+  // Decides the note's colour and icon, see note.css
+  level: 'info' | 'ok' | 'warn' | 'fail';
   label: string;
   detail: string;
 }
@@ -50,6 +50,10 @@ export interface AddOp {
   // Whether adding or removing a member is saved at once rather than left pending:
   // the add posts, and the new member is stored before its page opens
   savesAtOnce?: boolean;
+  // Index of the section's card the button is drawn before, so that it can follow
+  // the entries it adds to rather than the last card
+  beforeCard?: number;
+
 }
 
 export interface EntryLine {
@@ -122,6 +126,7 @@ export interface Card {
   // Path of a switch on the page; the card is hidden while it is off, and the
   // controls inside still submit their values
   shownWith?: string;
+  hidden?: boolean;
 }
 
 export interface FormSection {
@@ -210,7 +215,7 @@ export function cardItems(sections: FormSection[]): CardItem[] {
   const push = (item: CardItem) => {
     out.push(item);
     if (item.kind !== 'choice') return;
-    if (item.follows) push(item.follows);
+    push(item.follows);
     for (const option of item.options) option.items.forEach(push);
   };
   for (const section of sections) section.cards.flatMap(itemsOfCard).forEach(push);
@@ -222,10 +227,7 @@ export function fieldsOf(items: CardItem[]): Field[] {
   return items.flatMap((item): Field[] => {
     if (item.kind === 'copy-value') return [];
     if (item.kind === 'choice') {
-      return [
-        ...(item.follows ? [item.follows] : []),
-        ...item.options.flatMap((option) => fieldsOf(option.items)),
-      ];
+      return [item.follows, ...item.options.flatMap((option) => fieldsOf(option.items))];
     }
     return [item];
   });

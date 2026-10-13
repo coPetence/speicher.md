@@ -9,6 +9,8 @@ import { ELIDED, REDACTED, displayYaml } from '../../src/dashboard/configurator/
 import { applyForm } from '../../src/dashboard/configurator/config-form/apply';
 import { renameMember } from '../../src/dashboard/configurator/config-form/member-edits';
 import { sectionOf } from '../../src/dashboard/configurator/config-form/sections';
+import { repoCard } from '../../src/dashboard/configurator/config-form/sections/content-sources/git-repository-card';
+import { SCP_FORM, repositoryName, sshRemoteUrl } from '../../src/forge/remote-url';
 import {
   RENDERED_PREFIX,
   SHAPE_PREFIX,
@@ -29,6 +31,7 @@ import {
   Card,
   Field,
   SectionEntry,
+  ChoiceItem,
   CopyValueItem,
   allFields,
   allOps,
@@ -218,14 +221,17 @@ describe('advanced settings', () => {
     expect(folded.filter((f) => f.kind === 'select' && f.reshapes).map((f) => f.path)).toEqual([]);
   });
 
-  it('marks nothing inside a card, where the block does not reach', () => {
+  it('folds only the URL slug and the poll interval inside a card, which draws its own block', () => {
     const inCards: string[] = [];
     const walk = (card: Card): void => {
-      for (const field of fieldsOf(card.items)) if (field.advanced) inCards.push(field.path);
+      for (const field of fieldsOf(card.items)) if (field.advanced) inCards.push(field.schemaPath);
       card.cards.forEach(walk);
     };
     for (const section of buildSections(loadDocument(FULL))) section.cards.forEach(walk);
-    expect(inCards).toEqual([]);
+    expect([...new Set(inCards)].sort()).toEqual([
+      'forges.<key>.repos.<index>.poll_interval',
+      'forges.<key>.repos.<index>.slug',
+    ]);
   });
 
   it('is a rendering and not a second list, so decoding still reaches it', () => {
@@ -1644,7 +1650,7 @@ describe('the round trip', () => {
     const out = serialise(doc);
 
     expect(out).toContain('# One of everything.');
-    expect(out).toContain('# An ssh remote: deploy key and a pinned host key.');
+    expect(out).toContain('# An ssh remote\n');
 
     const before = FULL.split('\n');
     const after = out.split('\n');
@@ -1809,6 +1815,11 @@ describe('an address typed without a scheme', () => {
     );
   });
 
+  it('reads a host and a port as an address, not as an SSH remote', () => {
+    expect(sshRemoteUrl('localhost:9000')).toBe('localhost:9000');
+    expect(sshRemoteUrl('localhost:9000/api')).toBe('localhost:9000/api');
+  });
+
   it('leaves an empty box empty rather than saving a scheme on its own', () => {
     expect(withHttpsScheme('')).toBe('');
   });
@@ -1944,6 +1955,66 @@ describe("a GitHub provider's addresses", () => {
   });
 });
 
+describe("a git remote's transport", () => {
+  const SOURCE = 'sources/onprem';
+  const repo = (index: number) => ['forges', 'onprem', 'repos', index];
+
+  const choices = (doc: Document): ChoiceItem[] =>
+    cardItems([buildSections(doc).find((s) => s.id === SOURCE)!]).filter(
+      (item): item is ChoiceItem => item.kind === 'choice',
+    );
+
+  // The body of the page as drawn, with each switch on the option it shows
+  const pageBody = (doc: Document): Record<string, unknown> => {
+    const section = buildSections(doc).find((s) => s.id === SOURCE)!;
+    const body = untouchedBody(allFields([section]));
+    for (const item of choices(doc)) body[item.name] = item.selected;
+    return body;
+  };
+
+  it('shows the option the stored URL belongs to', () => {
+    const [ssh, https] = choices(loadDocument(FULL));
+    expect(ssh.name).toBe('choice:forges.onprem.repos.0.url');
+    expect(ssh.selected).toBe('ssh');
+    expect(ssh.follows.path).toBe('forges.onprem.repos.0.url');
+    expect(https.selected).toBe('https');
+  });
+
+  it('changes nothing on a save nobody touched', () => {
+    const doc = loadDocument(FULL);
+    const before = serialise(doc);
+    expect(applyForm(doc, pageBody(doc), SOURCE).changed).toBe(false);
+    expect(serialise(doc)).toBe(before);
+  });
+
+  it('removes the values of HTTPS when SSH is chosen, and keeps its own', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        ...pageBody(doc),
+        'choice:forges.onprem.repos.1.url': 'ssh',
+        'forges.onprem.repos.1.url': 'ssh://git@example.test/internal/playbooks.git',
+        'forges.onprem.repos.1.deploy_key': '${TEST_GH_PRIVATE_KEY}',
+      },
+      SOURCE,
+    );
+    expect(doc.getIn([...repo(1), 'token'])).toBeUndefined();
+    expect(doc.getIn([...repo(1), 'username'])).toBeUndefined();
+    expect(doc.getIn([...repo(1), 'deploy_key'])).toBe('${TEST_GH_PRIVATE_KEY}');
+    expect(doc.getIn([...repo(0), 'deploy_key'])).toBe('${TEST_GH_PRIVATE_KEY}');
+  });
+
+  it('follows the URL when the body names no option', () => {
+    const doc = loadDocument(FULL);
+    const body = pageBody(doc);
+    delete body['choice:forges.onprem.repos.0.url'];
+    body['forges.onprem.repos.0.url'] = 'https://example.test/internal/runbooks.git';
+    applyForm(doc, body, SOURCE);
+    expect(doc.getIn([...repo(0), 'deploy_key'])).toBeUndefined();
+  });
+});
+
 describe("a GitHub source's webhook URL", () => {
   const withPublicUrl = <T>(value: string | undefined, run: () => T): T => {
     const before = process.env.SPEICHER_PUBLIC_URL;
@@ -1979,5 +2050,118 @@ describe("a GitHub source's webhook URL", () => {
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {
     const values = withPublicUrl('https://docs.acme.example', () => copyValues('sources/onprem'));
     expect(values).toEqual([]);
+  });
+});
+
+describe('the required fields of a plain remote', () => {
+  const required = (repos: string): string[] => {
+    const section = sectionOf(
+      loadDocument(`forges:\n  onprem:\n    type: git\n    repos:\n${repos}`),
+      'sources/onprem',
+    );
+    return (section ? allFields([section]) : [])
+      .filter((field) => field.required)
+      .map((field) => field.schemaPath);
+  };
+
+  it('marks the remote URL, the access token and the deploy key', () => {
+    expect(required('      - id: docs\n        url: https://example.com/team/docs.git\n')).toEqual([
+      'forges.<key>.repos.<index>.url',
+      'forges.<key>.repos.<index>.token',
+      'forges.<key>.repos.<index>.deploy_key',
+    ]);
+  });
+
+  it('marks the known hosts once a repository uses ssh://', () => {
+    const repos = '      - id: docs\n        url: ssh://git@example.com/team/docs.git\n';
+    expect(required(repos)).toContain('forges.<key>.known_hosts');
+  });
+});
+
+describe('a remote URL in the scp form', () => {
+  it('becomes the ssh:// URL git reads it as', () => {
+    expect(sshRemoteUrl('git@github.com:TimMolitor/TestSpeicher.git')).toBe(
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+    );
+    expect(sshRemoteUrl('example.com:docs.git')).toBe('ssh://example.com/docs.git');
+    expect(sshRemoteUrl('git@example.com:~/docs.git')).toBe('ssh://git@example.com/~/docs.git');
+  });
+
+  it('leaves every other URL as it is', () => {
+    for (const url of [
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+      'ssh://git@example.com:2222/team/docs.git',
+      'https://github.com/TimMolitor/TestSpeicher.git',
+      '',
+    ]) {
+      expect(sshRemoteUrl(url)).toBe(url);
+    }
+  });
+
+  it('is a pattern a browser accepts, and one that takes both SSH forms', () => {
+    const ssh = new RegExp(`^(?:ssh://.*|${SCP_FORM})$`, 'v');
+    expect(ssh.test('git@github.com:TimMolitor/TestSpeicher.git')).toBe(true);
+    expect(ssh.test('ssh://git@github.com/TimMolitor/TestSpeicher.git')).toBe(true);
+    expect(ssh.test('https://github.com/TimMolitor/TestSpeicher.git')).toBe(false);
+  });
+
+  it('is saved as its ssh:// URL', () => {
+    const doc = loadDocument(
+      'forges:\n  onprem:\n    type: git\n    repos:\n      - id: docs\n        url: https://example.com/team/docs.git\n',
+    );
+    applyForm(
+      doc,
+      {
+        'forges.onprem.repos.0.url': 'git@github.com:TimMolitor/TestSpeicher.git',
+        'choice:forges.onprem.repos.0.url': 'ssh',
+      },
+      'sources/onprem',
+    );
+    expect(doc.getIn(['forges', 'onprem', 'repos', 0, 'url'])).toBe(
+      'ssh://git@github.com/TimMolitor/TestSpeicher.git',
+    );
+  });
+});
+
+describe('the id of a repository on a plain remote', () => {
+  const idOf = (repo: Record<string, string>): string =>
+    (repoCard({ forges: { onprem: { repos: [repo] } } }, 'onprem', 0).items[0] as { value: string })
+      .value;
+
+  it('takes the name of the repository from its remote URL', () => {
+    expect(repositoryName('ssh://git@example.com/team/docs.git')).toBe('docs');
+    expect(repositoryName('git@example.com:team/docs.git')).toBe('docs');
+    expect(repositoryName('https://example.com/team/docs')).toBe('docs');
+    expect(repositoryName('https://example.com/team/docs.git/')).toBe('docs');
+  });
+
+  it('takes nothing from a URL that names no repository', () => {
+    expect(repositoryName('')).toBe('');
+    expect(repositoryName('https://example.com')).toBe('');
+  });
+
+  it('fills in the id of a repository that has none, and keeps the one it has', () => {
+    expect(idOf({ url: 'ssh://git@example.com/team/docs.git' })).toBe('docs');
+    expect(idOf({ id: 'handbook', url: 'ssh://git@example.com/team/docs.git' })).toBe('handbook');
+  });
+
+  it('fills in nothing when the name of the repository is no valid id', () => {
+    expect(idOf({ url: 'https://example.com/team/my docs.git' })).toBe('');
+  });
+
+  it('saves the name of the repository as the id when the id is left empty', () => {
+    const doc = loadDocument(
+      'forges:\n  onprem:\n    type: git\n    repos:\n      - id: docs\n        url: https://example.com/team/docs.git\n',
+    );
+    applyForm(
+      doc,
+      {
+        'forges.onprem.repos.0.id': '',
+        'forges.onprem.repos.0.url': 'git@github.com:TimMolitor/TestSpeicher.git',
+        'choice:forges.onprem.repos.0.url': 'ssh',
+      },
+      'sources/onprem',
+    );
+    expect(doc.getIn(['forges', 'onprem', 'repos', 0, 'id'])).toBe('TestSpeicher');
   });
 });

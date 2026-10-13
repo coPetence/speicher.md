@@ -1,0 +1,60 @@
+<%
+  const f = it.field;
+%>
+    <div class="spr-host-keys-head">
+      <%~ include('@config-fields/label', it) %>
+      <% if (it.editable) { %>
+      <button
+        type="submit"
+        name="op"
+        value="<%= f.fetchOp %>"
+        formnovalidate
+      >
+        Fetch host keys
+      </button>
+      <% } %>
+    </div>
+    <p class="spr-help">
+      Speicher only connects to the servers listed here. After you fetch their keys, compare each fingerprint with the one the server publishes, and save only if they match. Public Git hosts such as GitHub usually publish their fingerprints in their documentation. To find the fingerprint of your own server, run <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on it, or ask its administrator.
+    </p>
+    <% if (f.fetchNote) { %>
+    <%~ include('@note', { level: f.fetchNote.level, text: f.fetchNote.label, detail: f.fetchNote.detail, role: 'status' }) %>
+    <% } %>
+    <% const notes = it.hostKeyNotes[f.path] %>
+    <%~ include('@note', { ...notes.missing, role: 'status', data: { 'spr-missing-hosts': true }, hidden: f.missing.length === 0 }) %>
+    <%
+      /*
+        The table, the empty message and the warning are always drawn, so that
+        known-hosts-table.ts can show the ones that apply while the lines are edited
+      */
+    %>
+    <table class="spr-table spr-host-keys" <%= f.keys.length > 0 ? '' : 'hidden' %>>
+      <thead>
+        <tr>
+          <th scope="col">Server</th>
+          <th scope="col">Key type</th>
+          <th scope="col">Fingerprint</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% f.keys.forEach(function (key) { %>
+        <tr>
+          <td><code><%= key.host %></code></td>
+          <td><%= key.type %></td>
+          <td><code><%= key.fingerprint %></code></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="spr-host-keys-empty" <%= f.keys.length > 0 ? 'hidden' : '' %>>No host key is trusted yet.</p>
+    <%~ include('@note', { ...notes.unreadable, data: { 'spr-unreadable': true }, hidden: f.unreadable === 0 }) %>
+    <details class="spr-host-keys-manual" <%= f.unreadable > 0 ? 'open' : '' %>>
+      <summary>Edit manually</summary>
+      <textarea
+        id="f-<%= f.path %>"
+        name="<%= f.path %>"
+        rows="<%= f.rows %>"
+        spellcheck="false"
+        <%= it.editable ? '' : 'disabled' %>
+      ><%= f.value %></textarea>
+    </details>

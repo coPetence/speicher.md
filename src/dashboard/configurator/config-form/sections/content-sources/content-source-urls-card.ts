@@ -12,7 +12,7 @@ export function urlCard(root: Obj, id: string): Card {
   const base = ['forges', id];
   const p = (key: string) => `forges.<key>.${key}`;
   return {
-    title: 'URLs',
+    title: 'Simpler URLs',
     subtitle: "Which names are left out of the URLs of this source's repositories.",
     removeOp: null,
     notes: [],

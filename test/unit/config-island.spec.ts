@@ -4,6 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { SCP_FORM } from '../../src/forge/remote-url';
+
 const BUNDLE = (() => {
   const dir = join(__dirname, '../../dist/client');
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Record<
@@ -217,8 +219,6 @@ describe('the check a section offers', () => {
     document.body.innerHTML = `
       <main>
         <p class="spr-note spr-note-idle spr-section-status" data-spr-check="/-/config/storage?check=1">
-          <span data-spr-check-mark="ok" hidden><svg class="spr-icon"></svg></span>
-          <span data-spr-check-mark="fail" hidden><svg class="spr-icon"></svg></span>
           <span data-spr-check-text><a href="/-/config/storage?check=1">Check the connection</a></span>
         </p>
       </main>`;
@@ -228,10 +228,6 @@ describe('the check a section offers', () => {
   const note = () => document.querySelector('.spr-section-status') as HTMLElement;
   const words = () =>
     (document.querySelector('[data-spr-check-text]') as HTMLElement).textContent ?? '';
-  const shown = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('[data-spr-check-mark]'))
-      .filter((mark) => !mark.hidden)
-      .map((mark) => mark.dataset.sprCheckMark);
 
   it('follows the link on load, so nobody has to press it', async () => {
     fetchMock.mockResolvedValue({
@@ -251,7 +247,6 @@ describe('the check a section offers', () => {
     expect(fetchMock).toHaveBeenCalledWith('/-/config/storage?check=1', expect.anything());
     expect(words()).toBe('The volume is writable: /srv/assets');
     expect(note().className).toContain('spr-note-ok');
-    expect(shown()).toEqual(['ok']);
   });
 
   it('draws a refusal as the refusal it is', async () => {
@@ -268,7 +263,6 @@ describe('the check a section offers', () => {
     await flush();
 
     expect(note().className).toContain('spr-note-fail');
-    expect(shown()).toEqual(['fail']);
     expect(words()).toContain('account_key is required');
   });
 
@@ -279,7 +273,6 @@ describe('the check a section offers', () => {
     await flush();
 
     expect(note().className).toContain('spr-note-idle');
-    expect(shown()).toEqual([]);
     expect(document.querySelector('[data-spr-check-text] a')?.textContent).toBe(
       'Check the connection',
     );
@@ -298,8 +291,6 @@ describe('the check a field offers', () => {
     document.body.innerHTML = `
       <main>
         <p class="spr-note spr-note-idle" data-spr-check="/-/config/identity/entra?check=1" data-spr-check-at="${path}">
-          <span data-spr-check-mark="ok" hidden><svg class="spr-icon"></svg></span>
-          <span data-spr-check-mark="fail" hidden><svg class="spr-icon"></svg></span>
           <span data-spr-check-text><a href="/-/config/identity/entra?check=1">Check the connection</a></span>
         </p>
       </main>`;
@@ -308,10 +299,6 @@ describe('the check a field offers', () => {
   const note = () => document.querySelector('[data-spr-check]') as HTMLElement;
   const words = () =>
     (document.querySelector('[data-spr-check-text]') as HTMLElement).textContent ?? '';
-  const shown = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('[data-spr-check-mark]'))
-      .filter((mark) => !mark.hidden)
-      .map((mark) => mark.dataset.sprCheckMark);
 
   const answer = () => ({
     ok: true,
@@ -341,7 +328,7 @@ describe('the check a field offers', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/-/config/identity/entra?check=1', expect.anything());
     expect(words()).toBe('Connected');
-    expect(shown()).toEqual(['ok']);
+    expect(note().className).toContain('spr-note-ok');
   });
 
   it('keeps the classes the server drew it with', async () => {
@@ -362,7 +349,6 @@ describe('the check a field offers', () => {
     await flush();
 
     expect(note().className).toContain('spr-note-idle');
-    expect(shown()).toEqual([]);
     expect(document.querySelector('[data-spr-check-text] a')?.textContent).toBe(
       'Check the connection',
     );
@@ -1545,6 +1531,178 @@ function filter(value: string): void {
   box().value = value;
   box().dispatchEvent(new Event('input', { bubbles: true }));
 }
+
+describe('the transport of a git remote', () => {
+  const URL_PATH = 'forges.onprem.repos.0.url';
+
+  function renderChoice(): HTMLFormElement {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/onprem"
+              data-spr-config="sources/onprem">
+          <div class="spr-choice" data-spr-choice="${URL_PATH}">
+            <div class="spr-choice-switch" role="radiogroup" aria-label="Transport">
+              <label>
+                <input type="radio" name="choice:${URL_PATH}" value="https" checked
+                       data-spr-choice-prefix="https://"
+                       data-spr-choice-placeholder="https://example.com/team/docs.git"
+                       data-spr-choice-hint="With HTTPS selected, the remote URL starts with https://.">
+                HTTPS
+              </label>
+              <label>
+                <input type="radio" name="choice:${URL_PATH}" value="ssh"
+                       data-spr-choice-prefix="ssh://"
+                       data-spr-choice-pattern="ssh://.*|${SCP_FORM}"
+                       data-spr-choice-placeholder="ssh://git@example.com/team/docs.git"
+                       data-spr-choice-hint="With SSH selected, the remote URL starts with ssh://.">
+                SSH
+              </label>
+            </div>
+            <div class="spr-fields">
+              <div class="spr-field spr-field-text">
+                <input name="${URL_PATH}" value="">
+              </div>
+            </div>
+          </div>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    return document.querySelector('form') as HTMLFormElement;
+  }
+
+  const url = () => document.querySelector(`input[name="${URL_PATH}"]`) as HTMLInputElement;
+  const radio = (value: string) =>
+    document.querySelector(`input[type="radio"][value="${value}"]`) as HTMLInputElement;
+
+  it('fits the URL to the checked option', () => {
+    renderChoice();
+    run();
+    expect(url().placeholder).toBe('https://example.com/team/docs.git');
+    expect(url().pattern).toBe('https://.*');
+    expect(url().title).toBe('With HTTPS selected, the remote URL starts with https://.');
+  });
+
+  it('checks SSH when an ssh:// URL is typed', () => {
+    renderChoice();
+    run();
+    type(URL_PATH, 'ssh://git@example.test/internal/runbooks.git');
+    expect(radio('ssh').checked).toBe(true);
+    expect(radio('https').checked).toBe(false);
+    expect(url().pattern).toBe(`ssh://.*|${SCP_FORM}`);
+  });
+
+  it('checks SSH when a URL in the scp form is pasted, and lets the form send it', () => {
+    renderChoice();
+    run();
+    type(URL_PATH, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(radio('ssh').checked).toBe(true);
+    expect(new RegExp(`^(?:${url().pattern})$`, 'v').test(url().value)).toBe(true);
+  });
+
+  it('fits the URL again when the other option is picked by hand', () => {
+    renderChoice();
+    run();
+    radio('ssh').checked = true;
+    radio('ssh').dispatchEvent(new Event('change', { bubbles: true }));
+    expect(url().placeholder).toBe('ssh://git@example.com/team/docs.git');
+    expect(url().pattern).toBe(`ssh://.*|${SCP_FORM}`);
+  });
+});
+
+describe('the security card of a plain remote', () => {
+  const URL_PATH = 'forges.onprem.repos.0.url';
+
+  function renderSource(): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/onprem"
+              data-spr-config="sources/onprem">
+          <section class="spr-card"><input name="${URL_PATH}" value="https://example.com/team/docs.git"></section>
+          <section class="spr-card" hidden>
+            <div class="spr-field spr-field-known-hosts">
+              <textarea name="forges.onprem.known_hosts"></textarea>
+            </div>
+          </section>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+  }
+
+  const card = () =>
+    document.querySelector('.spr-field-known-hosts')?.closest('.spr-card') as HTMLElement;
+
+  it('shows while a remote URL is an SSH URL, in either form', () => {
+    renderSource();
+    run();
+    type(URL_PATH, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(false);
+    type(URL_PATH, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(false);
+  });
+
+  it('hides again once no remote URL is an SSH URL', () => {
+    renderSource();
+    run();
+    type(URL_PATH, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    type(URL_PATH, 'https://github.com/TimMolitor/TestSpeicher.git');
+    expect(card().hidden).toBe(true);
+  });
+});
+
+describe('the id of a repository on a plain remote', () => {
+  const REPO = 'forges.onprem.repos.0';
+
+  function renderRepository(id: string, url: string): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/onprem"
+              data-spr-config="sources/onprem">
+          <input name="${REPO}.id" value="${id}" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{0,99}">
+          <input name="${REPO}.url" value="${url}">
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+  }
+
+  const id = () => document.querySelector(`input[name="${REPO}.id"]`) as HTMLInputElement;
+
+  it('takes the name of the repository while the remote URL is typed', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.url`, 'git@github.com:TimMolitor/TestSpeicher.git');
+    expect(id().value).toBe('TestSpeicher');
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/Handbook.git');
+    expect(id().value).toBe('Handbook');
+  });
+
+  it('keeps an id the user typed', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.id`, 'docs');
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    expect(id().value).toBe('docs');
+  });
+
+  it('keeps a saved id that is not the name in the URL', () => {
+    renderRepository('docs', 'ssh://git@github.com/TimMolitor/TestSpeicher.git');
+    run();
+    type(`${REPO}.url`, 'ssh://git@github.com/TimMolitor/Handbook.git');
+    expect(id().value).toBe('docs');
+  });
+
+  it('fills in nothing when the name is no valid id', () => {
+    renderRepository('', '');
+    run();
+    type(`${REPO}.url`, 'https://example.com/team/my docs.git');
+    expect(id().value).toBe('');
+  });
+});
 
 describe('a table that grows', () => {
   function renderTable(): HTMLFormElement {

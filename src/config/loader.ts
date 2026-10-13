@@ -20,6 +20,7 @@ import { tenancy } from '../db/tenancy';
 import { unclaimedInstanceConfig } from '../dashboard/setup/unclaimed';
 import { privateKeyProblem } from '../forge/github/tokens';
 import { instanceConfigHasBrandImageRefs, resolveBrandImagesForTenantId } from './brand-resolve';
+import { serversWithoutHostKey } from '../forge/host-keys';
 import { adminLockout } from './checks/admins';
 import { LoadedInstanceConfig, loadInstanceConfig, loadInstanceConfigFromFile } from './parser';
 import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
@@ -295,7 +296,27 @@ export function validateForSave(
   if (keys.length > 0) {
     throw new ConfigError('a GitHub App private key in this configuration cannot be read', keys);
   }
+
+  // check that every `ssh://` repository has a known host key, so the instance can fetch it
+  const hosts = serversWithoutTrustedKey(loaded.raw);
+  if (hosts.length > 0) {
+    throw new ConfigError('an SSH server in this configuration has no trusted host key', hosts);
+  }
   return loaded;
+}
+
+/** Find the servers of `ssh://` repositories that `known_hosts` holds no key for */
+function serversWithoutTrustedKey(config: InstanceConfig): string[] {
+  const problems: string[] = [];
+  for (const [key, forge] of Object.entries(config.forges ?? {})) {
+    if (forge.type !== 'git') continue;
+    for (const name of serversWithoutHostKey(forge)) {
+      problems.push(
+        `forge "${key}": Speicher has no host key for ${name}, so it cannot fetch the repositories on that server. To add the key, open the content source, press Fetch host keys, compare the fingerprints with the published ones, and save.`,
+      );
+    }
+  }
+  return problems;
 }
 
 /** Find GitHub private keys that cannot be parsed */

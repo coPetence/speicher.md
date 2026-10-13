@@ -1,18 +1,12 @@
 
 <% if (!it.done && !it.provable.length) { %>
-<p class="spr-note spr-note-warn">
-  This step needs an identity provider that uses OpenID Connect, such as Entra ID.
-  Email magic links cannot be used here.
-  <a href="/-/config/identity">Add a provider</a>, then come back.
-</p>
+<%~ include('@note', { level: 'warn', html: md('This step needs an identity provider that uses OpenID Connect, such as Entra ID. Email magic links cannot be used here. [Add a provider](/-/config/identity), then come back.') }) %>
 <% } %>
 
 <h1>Administrator</h1>
 
 <% if (it.done) { %>
-<p class="spr-note spr-note-ok">
-  This instance already has an administrator configured.
-</p>
+<%~ include('@note', { level: 'ok', text: 'This instance already has an administrator configured.' }) %>
 <% } else { %>
 
 <p class="spr-empty">
@@ -21,7 +15,7 @@
 </p>
 
 <% if (it.error) { %>
-<p class="spr-note spr-note-fail" role="status"><%= it.error %></p>
+<%~ include('@note', { level: 'fail', text: it.error, role: 'status' }) %>
 <% } %>
 
 <% if (it.provable.length) { %>

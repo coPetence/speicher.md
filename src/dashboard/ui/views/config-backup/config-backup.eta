@@ -7,11 +7,8 @@
 
 <p class="spr-section-blurb"><%~ md(it.blurb) %></p>
 
-<% if (it.unreadable) { %>
-<p class="spr-note spr-note-fail">
-  The configuration file cannot be read: <%= it.unreadable %>. There is nothing to
-  download.
-</p>
+<% if (it.unreadable_note) { %>
+<%~ include('@note', it.unreadable_note) %>
 <% } else { %>
 <dl class="spr-defs">
   <% if (it.config_source === 'database') { %>

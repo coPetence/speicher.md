@@ -1,0 +1,39 @@
+<%
+  /*
+    A switch between sets of fields, e.g. HTTPS or SSH for a git remote. The switch
+    is a group of radio buttons; choice.css shows only the pane of the checked one,
+    so switching works without JavaScript. The followed field, e.g. the remote URL,
+    is drawn between the switch and the panes
+  */
+  const item = it.item;
+%>
+  <div class="spr-choice" data-spr-choice="<%= item.follows.path %>">
+    <div class="spr-choice-switch" role="radiogroup" aria-label="<%= item.label %>">
+      <% item.options.forEach(function (option) { %>
+      <label>
+        <input
+          type="radio"
+          name="<%= item.name %>"
+          value="<%= option.value %>"
+          <%= option.value === item.selected ? 'checked' : '' %>
+          <%= it.editable ? '' : 'disabled' %>
+          <% if (option.prefix) { %>data-spr-choice-prefix="<%= option.prefix %>"<% } %>
+          <% if (option.pattern) { %>data-spr-choice-pattern="<%= option.pattern %>"<% } %>
+          <% if (option.placeholder) { %>data-spr-choice-placeholder="<%= option.placeholder %>"<% } %>
+          <% if (option.prefixHint) { %>data-spr-choice-hint="<%= option.prefixHint %>"<% } %>
+        >
+        <%= option.label %>
+      </label>
+      <% }) %>
+    </div>
+    <div class="spr-fields">
+      <%~ include('@field', { ...it, field: item.follows }) %>
+    </div>
+    <div class="spr-choice-panes">
+      <% item.options.forEach(function (option) { %>
+      <div class="spr-fields" data-spr-choice-pane="<%= option.value %>">
+        <% option.items.forEach(function (child) { %><%~ include('@config-fields/item', { ...it, item: child }) %><% }) %>
+      </div>
+      <% }) %>
+    </div>
+  </div>

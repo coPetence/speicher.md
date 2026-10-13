@@ -6,20 +6,30 @@ import { hasDirectory, probeDirectory } from '../../../auth/directory/lookup';
 import { ConfigError } from '../../../common/errors';
 import { ConfigService } from '../../../config/config.service';
 import { interpolateEnv } from '../../../config/env-interpolation';
+import { loadInstanceConfig } from '../../../config/parser';
+import { AssetsConfig } from '../../../config/types';
 import {
   EmbeddingClient,
   EmbeddingError,
   fetchWithin,
   PROBE_TIMEOUT_MS,
 } from '../../../embed/client';
-import { loadInstanceConfig } from '../../../config/parser';
-import { AssetsConfig } from '../../../config/types';
+import {
+  KeyScanner,
+  keysOfHost,
+  mergeKnownHosts,
+  readKnownHosts,
+  sshKeyscan,
+} from '../../../forge/host-keys';
+import { RemoteProber, probeRemote } from '../../../forge/git/probe';
 import { probeMail } from '../../../notify/mailer';
 import { applyForm } from '../config-form/apply';
-import { scalarString } from '../config-form/document';
-import type { Obj } from '../config-form/config-fields';
+import type { KnownHostsField, Obj } from '../config-form/config-fields';
+import { FETCH_HOST_KEYS_OP } from '../config-form/config-fields';
+import { dottedPath, loadDocument, scalarString, writeAt } from '../config-form/document';
 import { memberOf } from '../config-form/members';
-import { FieldStatus, allFields } from '../config-form/model';
+import { allFields, FieldStatus } from '../config-form/model';
+import { sectionOf } from '../config-form/sections';
 import { ConfigSectionPayload } from './payloads';
 
 // Stable key for comparing store configs, excluding runtime-only fields
@@ -47,6 +57,41 @@ export interface WidthAnswer {
   body: { dimensions: number; model: string } | { error: string };
 }
 
+/** Response of fetching host keys. */
+export interface HostKeysAnswer {
+  path: string;
+  status: FieldStatus;
+  // True when the fetched keys changed the field's value
+  changed: boolean;
+}
+
+/**
+ * Puts a note on every known hosts field of the page that lists a key the stored
+ * document does not trust yet.
+ *
+ * @param payload the page that is sent back
+ * @param storedYaml the stored document the keys are compared against
+ */
+export function stampUnsavedHostKeys(payload: ConfigSectionPayload, storedYaml: string): void {
+  if (!payload.section) return;
+  const stored = loadDocument(storedYaml);
+  for (const field of allFields([payload.section])) {
+    if (field.kind !== 'known-hosts' || field.fetchNote) continue;
+    const trusted = readKnownHosts(scalarString(stored.getIn(dottedPath(field.path)))).keys;
+    const unsaved = field.keys.some(
+      (key) =>
+        !trusted.some((each) => each.host === key.host && each.fingerprint === key.fingerprint),
+    );
+    if (!unsaved) continue;
+    field.fetchNote = {
+      level: 'warn',
+      label: 'Keys not saved',
+      detail:
+        'The keys in the list below are not saved yet. Save only if their fingerprints match the published ones.',
+    };
+  }
+}
+
 export class SectionChecks {
   constructor(
     private readonly config: ConfigService,
@@ -54,7 +99,174 @@ export class SectionChecks {
     private readonly directoryDeps: GraphDirectoryDeps | null = null,
 
     private readonly blobs: BlobStore | null = null,
+
+    private readonly keyscan: KeyScanner = sshKeyscan,
+
+    private readonly remoteProber: RemoteProber = probeRemote,
   ) {}
+
+  /**
+   * stampRepositoryStatus offers a connection check under the remote URL of each repository of a plain git remote.
+   * @param payload the page that is sent back
+   * @param yaml the configuration the check reads
+   * @param check the `check` parameter of the request, or undefined if the user did not ask
+   */
+  async stampRepositoryStatus(
+    payload: ConfigSectionPayload,
+    yaml: string,
+    check?: string,
+  ): Promise<void> {
+    const member = memberOf(payload.section?.id ?? '');
+    if (!payload.section || member?.section !== 'sources' || member.entry) return;
+    const sectionId = payload.section.id;
+
+    const forge = ((loadDocument(yaml).toJS() as { forges?: Record<string, Obj> } | null)?.forges ??
+      {})[member.id];
+    if (!forge || forge.type !== 'git') return;
+    const repos = Array.isArray(forge.repos) ? (forge.repos as Obj[]) : [];
+
+    const fields = allFields([payload.section]).filter(
+      (field) => field.schemaPath === 'forges.<key>.repos.<index>.url',
+    );
+    await Promise.all(
+      fields.map(async (field) => {
+        const repo = repos[Number(field.path.split('.')[3])];
+        // A repository without a URL has nothing to check yet
+        if (!repo || scalarString(repo.url).trim() === '') return;
+        if (check === undefined) {
+          field.checkHref = `/-/config/${sectionId}?check=${encodeURIComponent(field.path)}`;
+          return;
+        }
+        if (check !== '1' && check !== field.path) return;
+        field.status = await this.repositoryStatus(repo, scalarString(forge.known_hosts));
+      }),
+    );
+  }
+
+  // Probes one repository with its values as a sync reads them, `${VAR}` resolved
+  private async repositoryStatus(repo: Obj, knownHosts: string): Promise<FieldStatus> {
+    let values;
+    try {
+      values = interpolateEnv({
+        url: scalarString(repo.url).trim(),
+        branch: scalarString(repo.branch).trim(),
+        deployKey: scalarString(repo.deploy_key),
+        token: scalarString(repo.token),
+        username: scalarString(repo.username),
+        knownHosts,
+      });
+    } catch (err) {
+      const problems = err instanceof ConfigError ? err.problems : [(err as Error).message];
+      return { level: 'fail', label: 'Not configured', detail: problems.join(' ') };
+    }
+    return this.remoteProber(
+      values.url,
+      {
+        deployKey: values.deployKey || undefined,
+        knownHosts: values.knownHosts || undefined,
+        token: values.token || undefined,
+        username: values.username || undefined,
+      },
+      values.branch,
+    );
+  }
+
+  /**
+   * fetchHostKeys fetches the host keys of the SSH servers of a content source.
+   * It writes the keys into the known hosts field of `doc`. It does not save them.
+   * If `op` is not Fetch host keys, fetchHostKeys returns null.
+   * The returned note says which keys are not saved yet.
+   *
+   * @param doc the submitted form
+   * @param sectionId the content source page
+   * @param op the button the user pressed
+   * @param storedYaml the saved configuration
+   */
+  async fetchHostKeys(
+    doc: Document,
+    sectionId: string,
+    op: unknown,
+    storedYaml?: string,
+  ): Promise<HostKeysAnswer | null> {
+    if (typeof op !== 'string' || !op.startsWith(FETCH_HOST_KEYS_OP)) return null;
+    const section = sectionOf(doc, sectionId);
+    const field = (section ? allFields([section]) : []).find(
+      (each): each is KnownHostsField => each.kind === 'known-hosts' && each.fetchOp === op,
+    );
+    if (!field) return null;
+
+    const note = (level: FieldStatus['level'], label: string, detail: string) => ({
+      level,
+      label,
+      detail,
+    });
+    if (field.servers.length === 0) {
+      return {
+        path: field.path,
+        changed: false,
+        status: note(
+          'info',
+          'Nothing fetched',
+          'No repository with an `ssh://` URL is configured, so there are no servers to fetch keys from.',
+        ),
+      };
+    }
+
+    const answers = await Promise.all(
+      field.servers.map(async (server, i) => {
+        try {
+          return { name: field.serverNames[i], lines: await this.keyscan(server), error: '' };
+        } catch (err) {
+          return { name: field.serverNames[i], lines: '', error: (err as Error).message };
+        }
+      }),
+    );
+    const answered = answers.filter((answer) => answer.error === '');
+    const failed = answers.filter((answer) => answer.error !== '');
+
+    // Whether `text` holds exactly the keys the server of `answer` answered with
+    const holds = (text: string, answer: { name: string; lines: string }) =>
+      keysOfHost(text, answer.name).join('\n') === keysOfHost(answer.lines, answer.name).join('\n');
+
+    const value = mergeKnownHosts(
+      field.value,
+      answered.map((answer) => answer.name),
+      answered.map((answer) => answer.lines).join('\n'),
+    );
+    // Rewriting lines that already hold the answered keys would only reorder them
+    const changed =
+      answered.some((answer) => !holds(field.value, answer)) &&
+      writeAt(doc, dottedPath(field.path), value);
+
+    const errors = failed.map((answer) => answer.error).join(' ');
+    if (answered.length === 0) {
+      return { path: field.path, changed, status: note('fail', 'No keys fetched', errors) };
+    }
+    const saved =
+      storedYaml === undefined
+        ? null
+        : scalarString(loadDocument(storedYaml).getIn(dottedPath(field.path)));
+    const unsaved = answered.filter((answer) => saved === null || !holds(saved, answer));
+    const fetched =
+      unsaved.length > 0
+        ? `The keys of ${unsaved.map((answer) => answer.name).join(', ')} are not saved yet. Save only if their fingerprints match the published ones.`
+        : `The keys of ${answered.map((answer) => answer.name).join(', ')} are already saved.`;
+    if (failed.length > 0) {
+      return {
+        path: field.path,
+        changed,
+        status: note('fail', 'Some keys fetched', `${fetched} ${errors}`),
+      };
+    }
+    return {
+      path: field.path,
+      changed,
+      status:
+        unsaved.length > 0
+          ? note('warn', 'Keys fetched', fetched)
+          : note('ok', 'Keys unchanged', fetched),
+    };
+  }
 
   async stampDirectoryStatus(payload: ConfigSectionPayload, asked: boolean): Promise<void> {
     const member = memberOf(payload.section?.id ?? '');
@@ -78,7 +290,6 @@ export class SectionChecks {
 
     field.status = {
       level: status.level,
-      icon: status.level === 'ok' ? 'check' : 'circle-alert',
       label: status.label,
       detail: status.detail,
     };
@@ -114,7 +325,6 @@ export class SectionChecks {
     return (level, label, detail) => {
       payload.section!.status = {
         level: inForce ? level : level === 'ok' ? 'warn' : level,
-        icon: level === 'ok' && inForce ? 'check' : 'circle-alert',
         label,
         detail: inForce
           ? detail
@@ -175,7 +385,6 @@ export class SectionChecks {
 
     field.status = {
       level: 'warn',
-      icon: 'circle-alert',
       label: 'Pre-signing is not available',
       detail: `A ${store.kind} store cannot presign urls, so every asset is served through this instance instead.`,
     };

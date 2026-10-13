@@ -93,8 +93,18 @@ export function sendStatus(
         */
         empty_art: emptyStateArt('sources'),
         instance: data.instance,
-        reembedding: banners.reembedding,
-        discovering: banners.discovering,
+        reembedding_note:
+          banners.reembedding === null
+            ? null
+            : {
+                text: `Re-embedding ${banners.reembedding} chunks for semantic search.`,
+              },
+        discovering_note:
+          banners.discovering === null
+            ? null
+            : {
+                text: `Discovering the repositories of ${banners.discovering} content ${banners.discovering === 1 ? 'source' : 'sources'}.`,
+              },
       }),
   });
 }

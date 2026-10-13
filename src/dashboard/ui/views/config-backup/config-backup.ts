@@ -31,6 +31,12 @@ export function sendConfigBackup(
       renderTemplate('dashboard/ui/views/config-backup', {
         ...(data as unknown as Record<string, unknown>),
         blurb: BACKUP_BLURB,
+        unreadable_note: data.unreadable
+          ? {
+              level: 'fail',
+              text: `The configuration file cannot be read: ${data.unreadable}. There is nothing to download.`,
+            }
+          : null,
         // Inline, for the reason every mark under `/-/` is: the page's sprite is
         // what the left column names, and this page is not in it.
         download_icon: renderInlineIcon('download', 'spr-link-mark'),

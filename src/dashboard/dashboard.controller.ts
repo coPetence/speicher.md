@@ -173,12 +173,19 @@ export class DashboardController {
     const sections = state.doc ? buildSections(state.doc) : null;
     const found = searchDashboard(query, sections, dashboardNavOptions(this.config));
 
-    sendDashboardSearch(this.respond, req, res, caller.isAdmin, {
-      query,
-      hits: found.hits,
-      total: found.total,
-      settings_searchable: sections !== null,
-    });
+    sendDashboardSearch(
+      this.respond,
+      req,
+      res,
+      caller.isAdmin,
+      {
+        query,
+        hits: found.hits,
+        total: found.total,
+        settings_searchable: sections !== null,
+      },
+      state.common,
+    );
   }
 
   /** Renders the sync-status overview: freshness and errors per repository */

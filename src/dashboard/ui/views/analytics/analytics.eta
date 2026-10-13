@@ -14,18 +14,11 @@
 <%~ include('@stats', { tiles: it.tiles }) %>
 
 
-<p class="spr-note">
-  <% if (it.beacon) { %>
-  Public pages are counted in the browser, so ad blockers and readers without
-  JavaScript are missing from those figures. Private pages are counted on the server
-  and are complete.
-  <% } else { %>
-  Public pages are counted on the server, and a public page answered to a signed-out
-  reader may be served by a cache without reaching this instance at all — so those
-  figures are a lower bound, and behind a CDN they can be far below the truth.
-  Private pages are complete.
-  <% } %>
-</p>
+<% if (it.beacon) { %>
+<%~ include('@note', { text: 'Public pages are counted in the browser, so ad blockers and readers without JavaScript are missing from those figures. Private pages are counted on the server and are complete.' }) %>
+<% } else { %>
+<%~ include('@note', { text: 'Public pages are counted on the server, and a public page answered to a signed-out reader may be served by a cache without reaching this instance at all — so those figures are a lower bound, and behind a CDN they can be far below the truth. Private pages are complete.' }) %>
+<% } %>
 
 
 <%~ it.chart %>

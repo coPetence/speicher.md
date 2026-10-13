@@ -6,7 +6,10 @@
 @import '../../global-ui/components/config-fields/color/color.css';
 @import '../../global-ui/components/config-fields/template/template.css';
 @import '../../global-ui/components/config-fields/copy-value/copy-value.css';
+@import '../../global-ui/components/config-fields/choice/choice.css';
+@import '../../global-ui/components/config-fields/known-hosts/known-hosts.css';
 @import '../../global-ui/components/info/info.css';
+@import '../../global-ui/components/note/note.css';
 @import '../../global-ui/components/select/select.css';
 @import '../../global-ui/components/dropdown/dropdown.css';
 @import '../../global-ui/components/card/card.css';
@@ -112,7 +115,8 @@
     );
   }
 
-  .spr-fields.spr-fields-wide {
+  .spr-fields.spr-fields-wide,
+  .spr-card > .spr-fields {
     max-inline-size: none;
   }
 
@@ -128,16 +132,6 @@
   .spr-note > .spr-problems {
     margin-block: var(--spr-space-2) 0;
     padding-inline-start: var(--spr-space-4);
-  }
-
-  .spr-note .spr-icon,
-  .spr-section-status .spr-icon {
-    display: inline-block;
-    inline-size: 1em;
-    block-size: 1em;
-    margin-inline-end: 0.4em;
-    vertical-align: -0.15em;
-    color: var(--spr-status-accent);
   }
 
   .spr-nav a[aria-current='true'] {
@@ -1065,6 +1059,11 @@
 
   .spr-advanced > .spr-fields {
     margin-block-start: var(--spr-space-5);
+  }
+
+  .spr-card > .spr-advanced {
+    margin-block-start: var(--spr-space-5);
+    padding-block-start: var(--spr-space-4);
   }
 
   .spr-yaml {

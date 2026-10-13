@@ -54,10 +54,27 @@ async function git(
     });
     return stdout.trim();
   } catch (err) {
+    if ((err as { killed?: boolean }).killed) {
+      throw new Error(`git ${args[0]} failed: timed out after ${timeoutMs / 1000} seconds`);
+    }
     // Strip credentials from the error before exposing it
     const message = redactUrls((err as Error).message ?? String(err));
     throw new Error(`git ${args[0]} failed: ${message}`);
   }
+}
+
+/**
+ * lsRemote lists refs of a remote and their commits. It fetches nothing.
+ * @param options the remote with its credentials
+ * @param refs the refs to list, e.g. `HEAD`
+ */
+export async function lsRemote(options: GitOptions, refs: string[]): Promise<string> {
+  return git(
+    ['ls-remote', '--symref', options.authenticatedUrl, ...refs],
+    undefined,
+    options.timeoutMs,
+    options.env,
+  );
 }
 
 /** Replace embedded credentials in HTTPS URLs with `***` */

@@ -12,7 +12,7 @@
   >
   <% } else { %>
   <div
-    class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %>"
+    class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %><%= f.wide ? ' spr-field-wide' : '' %>"
     <% if (f.kind === 'secret' && f.upload && editable) { %>data-spr-drop-zone<% } %>
     <% if (f.shownWith) { %>data-spr-shown-with="<%= f.shownWith %>"<% } %>
     <% if (f.sourceToCopyFrom) { %>data-spr-copy-from="<%= f.sourceToCopyFrom %>"<% } %>
@@ -25,20 +25,9 @@
     </p>
     <% } %>
     <% if (f.status) { %>
-    <p class="spr-note spr-note-<%= f.status.level %>">
-      <%~ (it.badgeIcons || {})[f.status.icon] || '' %><%= f.status.label %><% if (f.status.detail) { %>: <%= f.status.detail %><% } %>
-    </p>
+    <%~ include('@note', { level: f.status.level, text: f.status.label, detail: f.status.detail }) %>
     <% } else if (f.checkHref) { %>
-
-    <p
-      class="spr-note spr-note-idle"
-      data-spr-check="<%= f.checkHref %>"
-      data-spr-check-at="<%= f.path %>"
-    >
-      <span data-spr-check-mark="ok" hidden><%~ (it.badgeIcons || {})['check'] || '' %></span>
-      <span data-spr-check-mark="fail" hidden><%~ (it.badgeIcons || {})['circle-alert'] || '' %></span>
-      <span data-spr-check-text><a href="<%= f.checkHref %>">Check the connection</a></span>
-    </p>
+    <%~ include('@note', { level: 'idle', check: { href: f.checkHref, at: f.path } }) %>
     <% } %>
     <% if (f.link) { %>
     <p class="spr-help">

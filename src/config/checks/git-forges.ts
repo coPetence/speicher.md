@@ -84,9 +84,9 @@ export function checkGitForges(config: InstanceConfig, problems: string[]): void
             `${forgeRepoDescriptor}: A repository with an ssh:// URL needs a \`deploy_key\` to sign in to the server.`,
           );
         }
-        if (!(repo.known_hosts ?? forge.known_hosts)) {
+        if (!forge.known_hosts) {
           problems.push(
-            `${forgeRepoDescriptor}: A repository with an ssh:// URL needs \`known_hosts\`, so Speicher can check that it is talking to the right server. Add the server's host key as \`known_hosts\` on this repository or on the forge.`,
+            `${forgeRepoDescriptor}: A repository with an ssh:// URL needs \`known_hosts\`, so Speicher can check that it is talking to the right server. Add the server's host key to \`known_hosts\` of the forge.`,
           );
         }
         if (repo.token) {

@@ -1,3 +1,4 @@
+import { setNoteLevel, setNoteText } from '../notes';
 import { configForm, reportScriptedEdit } from './config-form-handle';
 
 /**
@@ -36,8 +37,8 @@ export function mountWidths(): void {
     let written: string | null = null;
 
     const say = (level: string, text: string): void => {
-      note.className = `spr-note spr-note-${level}`;
-      note.textContent = text;
+      setNoteLevel(note, level);
+      setNoteText(note, text);
       note.hidden = false;
     };
 

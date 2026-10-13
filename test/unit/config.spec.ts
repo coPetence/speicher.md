@@ -455,6 +455,21 @@ forges:
     expect(() => load(yaml)).toThrow(/claimed by both forge "gl" and repository owner "gl"/);
   });
 
+  it('rejects an owner that collides with a repo of the default owner on a non-primary forge', () => {
+    const yaml = `${GIT}      - id: other
+        url: ssh://git@git.example.test/handbook/other.git
+        deploy_key: k
+  gl:
+    type: gitlab
+    primary: true
+    token: t
+    webhook_secret: s
+`;
+    expect(() => load(yaml)).toThrow(
+      /after forge "internal" is claimed by both repo "handbook" and repository owner "handbook"/,
+    );
+  });
+
   it('takes the owner from the path of the remote URL', () => {
     const owner = (url: string) => gitRepositoryOwner({ id: 'x', url });
     expect(owner('ssh://git@git.example.test/ops/handbook.git')).toBe('ops');
