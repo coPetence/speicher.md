@@ -22,7 +22,6 @@ import {
   settleChoices,
   settleDirectory,
   settleGroupSources,
-  settleRemoteUrls,
   settleRepositoryIds,
 } from './decode/settle';
 import { reconcileStructure } from './decode/shape';
@@ -64,8 +63,6 @@ export function applyForm(
   if (member && !member.entry && settleDirectory(doc, member)) changed = true;
 
   if (settleAssetDriver(doc, body, section)) changed = true;
-
-  if (settleRemoteUrls(doc, section)) changed = true;
 
   if (settleRepositoryIds(doc, section)) changed = true;
 
