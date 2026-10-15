@@ -5,6 +5,7 @@ import { Logger, rootLogger } from '../../common/logger';
 import { backoffMs, parseDurationWithFallback, retryAfterHeaderToMs } from '../../common/time';
 import { ConfigService } from '../../config/config.service';
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
+import { githubHosts } from '../../forge/github/hosts';
 import { GithubTokenMinter } from '../../forge/github/tokens';
 import { DirectoryUnavailableError } from '../../ingest/grants';
 import { splitTeam } from './github-config';
@@ -442,6 +443,5 @@ function noInstallation(orgs: string): [string, string] {
  * API host. Defaults to GitHub API if no base url is specified for the provider
  */
 function apiBaseOf(provider: GithubProviderConfig | undefined): string {
-  const base = provider?.base_url?.replace(/\/+$/, '');
-  return base ? `${base}/api/v3` : 'https://api.github.com';
+  return githubHosts(provider?.base_url).api;
 }

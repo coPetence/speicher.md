@@ -1010,6 +1010,29 @@
         },
         "directory": {
           "$ref": "#/$defs/directory"
+        },
+        "app": {
+          "type": "object",
+          "description": "The GitHub App of this provider.",
+          "required": ["client_id", "slug", "owner_account", "owner_is_organization"],
+          "additionalProperties": false,
+          "properties": {
+            "client_id": {
+              "type": "string",
+              "description": "The client id of the App. The entry is ignored once client_id names another App."
+            },
+            "slug": {
+              "type": "string",
+              "description": "The name of the App in its URLs."
+            },
+            "owner_account": {
+              "type": "string",
+              "description": "The GitHub account the App belongs to."
+            },
+            "owner_is_organization": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },

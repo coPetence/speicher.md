@@ -9,7 +9,12 @@ import { SESSION_COOKIE } from '../../src/auth/session.service';
 import { hashToken, mintToken } from '../../src/auth/tokens';
 import { ConfigService } from '../../src/config/config.service';
 import { Session, initModels } from '../../src/db/models';
+import { GITHUB_APP_LOOKUP_FETCH } from '../../src/forge/github/app-links';
 import { PRINCIPALS, PrincipalName } from './harness';
+
+const offlineFetch = (async () => {
+  throw new Error('tests do not reach GitHub');
+}) as typeof fetch;
 
 export async function bootTestApp(
   config?: ConfigService,
@@ -17,6 +22,10 @@ export async function bootTestApp(
   overrides: { token: unknown; value: unknown }[] = [],
 ): Promise<INestApplication> {
   const builder = Test.createTestingModule({ imports: [AppModule], controllers: extraControllers });
+  
+  if (!overrides.some(({ token }) => token === GITHUB_APP_LOOKUP_FETCH)) {
+    builder.overrideProvider(GITHUB_APP_LOOKUP_FETCH).useValue(offlineFetch);
+  }
   for (const { token, value } of overrides) builder.overrideProvider(token).useValue(value);
   if (config) builder.overrideProvider(ConfigService).useValue(config);
   const moduleRef = await builder.compile();

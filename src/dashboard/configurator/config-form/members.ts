@@ -29,6 +29,7 @@ export interface ProviderKind {
 }
 
 export const PROVIDER_KINDS: ProviderKind[] = [
+  { value: 'github', label: 'GitHub', type: 'github', mark: 'github' },
   {
     value: 'entra',
     label: 'Microsoft Entra ID',
@@ -42,7 +43,6 @@ export const PROVIDER_KINDS: ProviderKind[] = [
     type: 'magic-link',
     mark: 'mail',
   },
-  { value: 'github', label: 'GitHub', type: 'github', mark: 'github' },
 ];
 
 export interface KindHint {
@@ -135,14 +135,7 @@ export const GROUP_NAME = new RegExp('^[A-Za-z0-9][A-Za-z0-9\\-]{0,63}$');
 export const GROUP_NAME_HINT =
   'Letters, digits and hyphens, starting with a letter or digit. Up to 64 characters.';
 
-/*
-  One field, two tooltips: a provider's id is never shown to anybody signing in,
-  whereas a group's name is only ever referenced from a repository's `.speicher.yaml`.
-  A group's is shown wherever its name is typed, so the add popup and the group's
-  own page cannot word it differently.
-*/
-export const PROVIDER_ID_HELP =
-  'The id repositories grant access with. Never shown to anybody signing in — that is **Name**.';
+// A group's short id is typed in the add popup on the groups page
 export const GROUP_ID_HELP =
   'The name repositories grant access with, in their `.speicher.yaml`. Nobody signing in sees it.';
 

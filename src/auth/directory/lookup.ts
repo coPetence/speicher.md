@@ -2,7 +2,7 @@ import { Logger, rootLogger } from '../../common/logger';
 import { parseDurationWithFallback } from '../../common/time';
 import { isExpired } from '../../common/until';
 import { ConfigService } from '../../config/config.service';
-import { DirectoryConfig } from '../../config/types';
+import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
 import { DirectoryLookup } from '../../ingest/grants';
 
 import { GithubDirectory, GithubDirectoryDeps } from './github';
@@ -63,14 +63,18 @@ function fingerprintOf(config: ConfigService): string {
   for (const id of config.providerShortIds) {
     const directory = directoryOf(config, id);
     if (!directory) continue;
+    const github = directory.type === 'github';
     parts.push([
       id,
       directory.type,
       directory.tenant_id ?? '',
       directory.client_id ?? '',
       directory.client_secret ?? '',
+      directory.app_id ?? '',
+      directory.private_key ?? '',
       directory.cache_ttl ?? '',
-      directory.type === 'github' ? config.groupSourcesByProvider(id).join(',') : '',
+      github ? ((config.provider(id) as GithubProviderConfig).base_url ?? '') : '',
+      github ? config.groupSourcesByProvider(id).join(',') : '',
     ]);
   }
   return JSON.stringify(parts);

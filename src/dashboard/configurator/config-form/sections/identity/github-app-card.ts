@@ -3,6 +3,8 @@ import {
   githubCallbackUrl,
   publicUrl,
 } from '../../../../../auth/callback-url';
+import { githubAppLinks } from '../../../../../forge/github/app-links';
+import { githubHosts } from '../../../../../forge/github/hosts';
 
 import type { CardItem, Obj } from '../../config-fields';
 import {
@@ -11,6 +13,7 @@ import {
   choice,
   choiceName,
   copyValue,
+  githubAppLinksItem,
   githubAppManifest,
   secretField,
   textField,
@@ -62,6 +65,29 @@ export function waitsForProviderApp(root: Obj, id: string, card: Card): Card {
 }
 
 /**
+ * storedAppLinks returns the links to the settings page and the installation page of a GitHub provider's App.
+ * It returns null if Speicher did not create the App, or if the client id now names another App.
+ *
+ * @param root the configuration document
+ * @param id the provider's key
+ */
+function storedAppLinks(root: Obj, id: string): CardItem | null {
+  const base = ['auth', 'providers', id];
+  const app = at(root, [...base, 'app']) as Obj | undefined;
+  const slug = scalarString(app?.slug);
+  const clientId = scalarString(at(root, [...base, 'client_id']));
+  if (!app || slug === '' || scalarString(app.client_id) !== clientId) return null;
+
+  const { web } = githubHosts(scalarString(at(root, [...base, 'base_url'])));
+  return githubAppLinksItem(
+    githubAppLinks(web, slug, {
+      accountName: scalarString(app.owner_account),
+      isOrganization: app.owner_is_organization === true,
+    }),
+  );
+}
+
+/**
  * githubAppCard builds the card holding the client id and secret of a GitHub provider's App.
  *
  * @param root the configuration document
@@ -93,8 +119,9 @@ export function githubAppCard(root: Obj, id: string): Card {
     ),
   ];
 
-  // Once the provider has an App, the card shows only its client id and secret
+  // Once the provider has an App, the card shows only its client id and secret, and the links to the App
   if (hasProviderApp(root, id)) {
+    const links = storedAppLinks(root, id);
     return {
       title: 'GitHub App',
       required: true,
@@ -104,7 +131,7 @@ export function githubAppCard(root: Obj, id: string): Card {
       notes: [],
       cards: [],
       addOps: [],
-      items: credentials,
+      items: links ? [...credentials, links] : credentials,
     };
   }
 

@@ -60,6 +60,16 @@ export interface GithubProviderConfig {
   base_url?: string;
   session_ttl?: string;
   directory?: DirectoryConfig;
+  app?: GithubProviderApp;
+}
+
+
+export interface GithubProviderApp {
+  client_id: string;
+  // The name of the App in its URLs, e.g. `speicher-md`
+  slug: string;
+  owner_account: string;
+  owner_is_organization: boolean;
 }
 
 export type ProviderConfig = OidcProviderConfig | MagicLinkProviderConfig | GithubProviderConfig;

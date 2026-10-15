@@ -21,6 +21,7 @@ import {
 } from '../driver';
 import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
 import { RateLimiter } from '../rate-limit';
+import { githubHosts } from './hosts';
 import { GithubTokenMinter } from './tokens';
 import { mapGithubEvent, verifyGithubSignature } from './webhook';
 
@@ -39,9 +40,7 @@ export class GithubDriver implements ForgeDriver {
     private readonly trackedBranchOf: (forgeRepoId: string) => string | undefined = () => undefined,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {
-    this.apiBase = config.base_url
-      ? `${config.base_url.replace(/\/+$/, '')}/api/v3`
-      : 'https://api.github.com';
+    this.apiBase = githubHosts(config.base_url).api;
     this.minter = new GithubTokenMinter(
       config.app_id ?? '',
       config.private_key ?? '',

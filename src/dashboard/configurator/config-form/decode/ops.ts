@@ -31,18 +31,6 @@ export function applyOp(
     return NOTHING;
   }
 
-  /*
-    Only the two verbs that edit *this* document in place.
-
-    `rename:` is the third operation a member's page offers, and it does not belong
-    here: it moves a key and every reference to it, and it is a save rather than a
-    round trip, so the route applies it to a copy and stores the result. Letting it
-    reach `applyStructural` was a bug that hid behind the shape of the names —
-    `rename:groups.<name>` has the same *target* as `add:groups.<name>`, so the
-    default branch appended an empty source to the group being renamed and the
-    loader refused the save with a complaint about a source nobody had asked for.
-    A provider's rename fell through harmlessly, which is why it went unnoticed.
-  */
   const verb = op.slice(0, op.indexOf(':'));
 
   /*

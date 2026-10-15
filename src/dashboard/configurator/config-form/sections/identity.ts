@@ -137,7 +137,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
   const p = (key: string) => `auth.providers.<key>.${key}`;
 
   const fields: Field[] = [
-    textField(root, [...base, 'display_name'], p('display_name'), 'Name', {
+    textField(root, [...base, 'display_name'], p('display_name'), 'Display name', {
       placeholder: id,
       help: 'The name is shown to readers signing in',
     }),

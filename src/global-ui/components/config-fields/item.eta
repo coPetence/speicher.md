@@ -7,4 +7,5 @@
 <% if (item.kind === 'choice') { %><%~ include('@config-fields/choice', it) %>
 <% } else if (item.kind === 'copy-value') { %><%~ include('@config-fields/copy-value', it) %>
 <% } else if (item.kind === 'github-app-manifest') { %><%~ include('@config-fields/github-app-manifest', it) %>
+<% } else if (item.kind === 'github-app-links') { %><%~ include('@config-fields/github-app-links', it) %>
 <% } else { %><%~ include('@field', { ...it, field: item }) %><% } %>

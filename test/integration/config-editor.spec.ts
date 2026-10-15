@@ -26,7 +26,6 @@ import {
   CONFIG_NAV_SECTIONS,
   CONFIG_SECTIONS,
   GROUP_ID_HELP,
-  PROVIDER_ID_HELP,
   allFields,
 } from '../../src/dashboard/configurator/config-form/fields';
 import { renderHelp } from '../../src/global-ui/help-markup';
@@ -853,10 +852,11 @@ describe('the identity section', () => {
     expect(page.html).toMatch(/value="github"[^>]*\s+data-spr-suggest="github"/);
     expect(page.html).toContain('data-spr-suggests="add-name"');
 
+    // GitHub is the first kind, so the box starts with its suggestion
     const box = /<input\s+id="add-name"[^>]*value="([^"]*)"/.exec(page.html)?.[1];
-    expect(box).toBe('entra-2');
+    expect(box).toBe('github');
     expect(page.html.indexOf('name="kind"')).toBeLessThan(page.html.indexOf('id="add-name"'));
-    expect(page.html).toMatch(/value="entra"[^>]*checked/);
+    expect(page.html).toMatch(/value="github"[^>]*checked/);
   });
 
   it('names each kind by its logo, in a dropdown that can carry one', async () => {
@@ -881,7 +881,7 @@ describe('the identity section', () => {
     expect(row).toContain('data-spr-unavailable');
     expect(row).not.toContain('disabled');
     expect(row).not.toContain('checked');
-    expect(page.html).toMatch(/value="entra"[^>]*checked/);
+    expect(page.html).toMatch(/value="github"[^>]*checked/);
 
     const said = helpNotes(page.html).find((text) => text.includes('mail transport'));
     expect(said).toBeDefined();
@@ -906,54 +906,31 @@ describe('the identity section', () => {
     expect(helpNotes(page.html).filter((text) => text.includes('mail transport'))).toEqual([]);
   });
 
-  it('lets the short id be chosen on the page the wizard lands on', async () => {
+  it('asks for no short id on the page the wizard lands on, and saves under the suggested one', async () => {
     const draft = await open('identity/oidc?kind=oidc');
-    expect(draft.html).toMatch(/name="newname:identity\/oidc"[^>]*value="oidc"/);
-    expect(draft.html.match(/<div class="spr-fields">/g)).toHaveLength(1);
-    expect(draft.html).toMatch(/<div class="spr-field spr-field-text">[\s\S]{0,400}?f-member-id/);
-    expect(draft.html).toContain('aria-describedby="help-member-id"');
-    expect(noteAt(draft.html, 'help-member-id', PROVIDER_ID_HELP)).toBe(true);
+    expect(draft.html).not.toContain('newname:identity/oidc');
+    expect(draft.html).not.toContain('f-member-id');
 
     const applied = await post('identity/oidc?kind=oidc', {
       ...draft.body,
-      'newname:identity/oidc': 'corp',
       'auth.providers.oidc.issuer': 'https://id.example.test',
       'auth.providers.oidc.client_id': 'corp-client',
       intent: 'apply',
     }).expect(303);
-    expect(applied.headers.location).toMatch(/^\/-\/config\/identity\/corp\?saved=/);
+    expect(applied.headers.location).toMatch(/^\/-\/config\/identity\/oidc\?saved=/);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    expect(yaml).toContain('corp:');
-    expect(yaml).not.toMatch(/^\s+oidc:$/m);
-    expect(providerBlock(yaml, 'corp')).toContain('https://id.example.test');
+    expect(providerBlock(yaml, 'oidc')).toContain('https://id.example.test');
+
+    // Once saved, the pencil renames it
+    expect((await open('identity/oidc')).html).toContain('value="rename:auth.providers.oidc"');
   });
 
-  it("explains a group's short id in the add popup and on the group's own page", async () => {
+  it("explains a group's short id in the add popup", async () => {
     const index = await open('groups');
     expect(index.html).toMatch(/<label for="add-name">\s*Short id\s*<\/label>/);
     expect(index.html).not.toContain('Internal name');
     expect(noteAt(index.html, 'help-add-name', GROUP_ID_HELP)).toBe(true);
-
-    const { html } = await open('groups/new-team');
-    expect(noteAt(html, 'help-member-id', GROUP_ID_HELP)).toBe(true);
-    // And not the provider's sentence, which is what makes them two strings.
-    expect(html).not.toContain(renderHelp(PROVIDER_ID_HELP));
-  });
-
-  it('refuses a short id that is already taken, and keeps the work', async () => {
-    const draft = await open('identity/oidc?kind=oidc');
-    const refused = await post('identity/oidc?kind=oidc', {
-      ...draft.body,
-      'newname:identity/oidc': 'entra',
-      'auth.providers.oidc.issuer': 'https://id.example.test',
-      'auth.providers.oidc.client_id': 'corp-client',
-      intent: 'apply',
-    }).expect(400);
-    expect(refused.text).toContain('already');
-    expect(refused.text).toContain('https://id.example.test');
-    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    expect(yaml).not.toMatch(/^\s+oidc:$/m);
   });
 
   it('creates the provider the Add tile was filled in for', async () => {

@@ -30,6 +30,7 @@ import { GithubAppManifestService } from './dashboard/configurator/config-page/g
 import { BlobStore } from './assets/blob-store';
 import { GraphDirectoryDeps } from './auth/directory/graph';
 import { DIRECTORY_DEPS } from './auth/directory/lookup';
+import { GITHUB_APP_LOOKUP_FETCH } from './forge/github/app-links';
 import { DashboardResponder } from './dashboard/respond';
 import { StatusService } from './dashboard/status/status.service';
 import { ApiKeyService } from './auth/api-key.service';
@@ -138,6 +139,7 @@ import { SearchService } from './content-reader/search/search.service';
     },
     // Null by default; integrated tests override
     { provide: DIRECTORY_DEPS, useValue: null },
+    { provide: GITHUB_APP_LOOKUP_FETCH, useValue: fetch },
     {
       provide: ConfigPageService,
       inject: [ConfigService],
@@ -146,12 +148,13 @@ import { SearchService } from './content-reader/search/search.service';
     {
       provide: SectionChecks,
       // Graph directory and blob store are optional; null deps produce degraded pages
-      inject: [ConfigService, DIRECTORY_DEPS, BLOB_STORE],
+      inject: [ConfigService, DIRECTORY_DEPS, BLOB_STORE, GITHUB_APP_LOOKUP_FETCH],
       useFactory: (
         config: ConfigService,
         directoryDeps: GraphDirectoryDeps | null,
         blobs: BlobStore,
-      ) => new SectionChecks(config, directoryDeps, blobs),
+        githubFetch: typeof fetch,
+      ) => new SectionChecks(config, directoryDeps, blobs, undefined, undefined, githubFetch),
     },
     {
       provide: ConfigSaveService,

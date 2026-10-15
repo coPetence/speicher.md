@@ -9,8 +9,6 @@ import { missingHostKeysText, unreadableLinesText } from '../../../../global-ui/
 import type { Note } from '../../../../global-ui/note';
 import { loadNotes, versionNotes } from '../../config-notes';
 import {
-  GROUP_ID_HELP,
-  PROVIDER_ID_HELP,
   memberOf,
   memberPosition,
   nounOf,
@@ -52,7 +50,6 @@ export function sendConfigSection(
       renderTemplate('dashboard/ui/views/config-section', {
         ...(data as unknown as Record<string, unknown>),
         // Help markup, rendered by the template's `md()`
-        member_id_help: sectionId.startsWith('groups/') ? GROUP_ID_HELP : PROVIDER_ID_HELP,
         // The logos this page draws, once each. Markup, so it belongs to the
         // rendering and not to the payload — see `provider-marks.ts`.
         marks_sprite: markSprite([
@@ -93,7 +90,11 @@ export function sendConfigSection(
               entry.badges.map((badge) => badge.icon),
             ),
             ...(payload.section ? cardItems([payload.section]) : []).flatMap((item) =>
-              item.kind === 'copy-value' ? ['copy', 'check'] : [],
+              item.kind === 'copy-value'
+                ? ['copy', 'check']
+                : item.kind === 'github-app-links'
+                  ? ['external-link']
+                  : [],
             ),
           ]
             .filter((icon) => icon !== '')

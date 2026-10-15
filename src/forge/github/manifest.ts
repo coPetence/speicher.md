@@ -7,6 +7,8 @@
  * See https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
  */
 
+import type { GithubAppOwner } from './app-links';
+
 const CONTENT_SOURCE_PERMISSIONS = {
   contents: 'read',
   metadata: 'read',
@@ -76,6 +78,26 @@ export type AppManifestOptions =
   | IdentityProviderAppOptions
   | DirectoryAppOptions;
 
+// GitHub refuses an App name that is longer
+const MAX_APP_NAME = 34;
+
+/**
+ * signInAppName returns the name of an identity provider's App: the hostname of this instance, then `Speicher.md`.
+ * A hostname too long for GitHub's limit on App names is shortened.
+ *
+ * @param homepage the address of this instance
+ */
+export function signInAppName(homepage: string): string {
+  const suffix = ' Speicher.md';
+  let host: string;
+  try {
+    host = new URL(homepage).hostname;
+  } catch {
+    return suffix.trim();
+  }
+  return `${host.slice(0, MAX_APP_NAME - suffix.length)}${suffix}`;
+}
+
 /**
  * appManifest builds the manifest of a GitHub App for a content source, an identity provider or a directory lookup.
  *
@@ -92,7 +114,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   if (options.purpose === 'identity-provider') {
     return {
       ...base,
-      name: 'Speicher.md OAuth',
+      name: signInAppName(options.homepage),
       description: IDENTITY_PROVIDER_DESCRIPTION,
       callback_urls: [options.callbackUrl],
       default_permissions: IDENTITY_PROVIDER_PERMISSIONS,
@@ -143,6 +165,7 @@ export function manifestFormUrl(web: string, owner: string, state: string): stri
 export interface ConvertedApp {
   id: number;
   slug: string;
+  owner: GithubAppOwner | null;
   // The App's page on GitHub, e.g. `https://github.com/apps/speicher-md`
   html_url: string;
   pem: string;
@@ -176,7 +199,9 @@ export async function convertManifestCode(
     throw new Error(`GitHub did not accept the code: ${response.status} ${response.statusText}`);
   }
 
-  const app = (await response.json()) as Partial<ConvertedApp>;
+  const app = (await response.json()) as Partial<Omit<ConvertedApp, 'owner'>> & {
+    owner?: { login?: unknown; type?: unknown } | null;
+  };
   if (
     typeof app.id !== 'number' ||
     typeof app.pem !== 'string' ||
@@ -187,6 +212,10 @@ export async function convertManifestCode(
   return {
     id: app.id,
     slug: app.slug ?? '',
+    owner:
+      typeof app.owner?.login === 'string'
+        ? { accountName: app.owner.login, isOrganization: app.owner.type === 'Organization' }
+        : null,
     html_url: app.html_url,
     pem: app.pem,
     webhook_secret: typeof app.webhook_secret === 'string' ? app.webhook_secret : null,

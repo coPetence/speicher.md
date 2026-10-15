@@ -3,7 +3,7 @@
  */
 
 import type { Obj } from '../../config-fields';
-import { at, choice, githubAppManifest } from '../../config-fields';
+import { at, choice, githubAppLinksItem, githubAppManifest } from '../../config-fields';
 import { scalarString } from '../../document';
 import { memberSectionId } from '../../members';
 import type { Card } from '../../model';
@@ -49,6 +49,12 @@ export function githubDirectoryCard(root: Obj, id: string, kind: string): Card {
             { name: `auth.providers.${id}.directory.app`, selected: 'create' },
           ),
         ]
-      : fields,
+      : [
+          ...fields,
+          githubAppLinksItem({
+            lookup: ['auth', 'providers', id, 'directory'],
+            baseUrl: scalarString(at(root, ['auth', 'providers', id, 'base_url'])),
+          }),
+        ],
   });
 }

@@ -1,9 +1,12 @@
+import { createHash } from 'node:crypto';
+
 import { Document } from 'yaml';
 
 import { BlobStore, createBlobStore } from '../../../assets/blob-store';
 import { GraphDirectoryDeps } from '../../../auth/directory/graph';
 import { hasDirectory, probeDirectory } from '../../../auth/directory/lookup';
 import { ConfigError } from '../../../common/errors';
+import { rootLogger } from '../../../common/logger';
 import { ConfigService } from '../../../config/config.service';
 import { interpolateEnv } from '../../../config/env-interpolation';
 import { loadInstanceConfig } from '../../../config/parser';
@@ -22,13 +25,15 @@ import {
   sshKeyscan,
 } from '../../../forge/host-keys';
 import { RemoteProber, probeRemote } from '../../../forge/git/probe';
+import { GithubAppLinks, githubAppLinks, lookupGithubApp } from '../../../forge/github/app-links';
+import { githubHosts } from '../../../forge/github/hosts';
 import { probeMail } from '../../../notify/mailer';
 import { applyForm } from '../config-form/apply';
-import type { KnownHostsField, Obj } from '../config-form/config-fields';
-import { FETCH_HOST_KEYS_OP } from '../config-form/config-fields';
+import type { GithubAppLinksItem, KnownHostsField, Obj } from '../config-form/config-fields';
+import { FETCH_HOST_KEYS_OP, at } from '../config-form/config-fields';
 import { dottedPath, loadDocument, scalarString, writeAt } from '../config-form/document';
 import { memberOf } from '../config-form/members';
-import { allFields, FieldStatus } from '../config-form/model';
+import { allFields, cardItems, FieldStatus } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { ConfigSectionPayload } from './payloads';
 
@@ -42,6 +47,9 @@ function storeIdentity(assets: AssetsConfig): string {
 }
 
 export const NOT_IN_USE_YET = 'Not in use yet';
+
+const APP_LINKS_TTL_MS = 10 * 60 * 1000;
+const FAILED_APP_LOOKUP_TTL_MS = 60 * 1000;
 
 /**
  * The live checks a settings page offers: whether the store, the mail relay or a
@@ -103,7 +111,82 @@ export class SectionChecks {
     private readonly keyscan: KeyScanner = sshKeyscan,
 
     private readonly remoteProber: RemoteProber = probeRemote,
+
+    private readonly githubFetch: typeof fetch = fetch,
   ) {}
+
+  // The links of each GitHub App, by its API address, id and private key
+  private readonly appLinks = new Map<string, { links: GithubAppLinks | null; expires: number }>();
+
+  /**
+   * stampGithubAppLinks fills in the links of the GitHub Apps on the page whose id and private key are stored.
+   * It asks GitHub for the slug and the owner of each App, and keeps the answer for a while.
+   * If GitHub cannot be asked, the links stay empty and are not drawn.
+   *
+   * @param payload the page that is sent back
+   * @param yaml the configuration the App's credentials are read from
+   */
+  async stampGithubAppLinks(payload: ConfigSectionPayload, yaml: string): Promise<void> {
+    if (!payload.section) return;
+    const items = cardItems([payload.section]).filter(
+      (item): item is GithubAppLinksItem =>
+        item.kind === 'github-app-links' && item.lookup.length > 0,
+    );
+    if (items.length === 0) return;
+
+    const root = (loadDocument(yaml).toJS() as Obj | null) ?? {};
+    await Promise.all(
+      items.map(async (item) => {
+        const stored = at(root, item.lookup) as Obj | undefined;
+        let credentials;
+        try {
+          credentials = interpolateEnv({
+            appId: scalarString(stored?.app_id).trim(),
+            privateKey: scalarString(stored?.private_key),
+          });
+        } catch {
+          // A `${VAR}` that is not set: there is no App to ask about
+          return;
+        }
+        if (credentials.appId === '' || credentials.privateKey.trim() === '') return;
+
+        const links = await this.githubAppLinksOf(
+          item.baseUrl,
+          credentials.appId,
+          credentials.privateKey,
+        );
+        if (links) Object.assign(item, links);
+      }),
+    );
+  }
+
+  // Asks GitHub for the links of an App, or answers from the cache
+  private async githubAppLinksOf(
+    baseUrl: string,
+    appId: string,
+    privateKey: string,
+  ): Promise<GithubAppLinks | null> {
+    const { web, api } = githubHosts(baseUrl);
+    const key = createHash('sha256').update(`${api}\n${appId}\n${privateKey}`).digest('hex');
+    const cached = this.appLinks.get(key);
+    if (cached && cached.expires > Date.now()) return cached.links;
+
+    let links: GithubAppLinks | null = null;
+    try {
+      const app = await lookupGithubApp(api, appId, privateKey, this.githubFetch);
+      links = githubAppLinks(web, app.slug, app.owner);
+    } catch (err) {
+      rootLogger.child('config').debug('could not look up a GitHub App', {
+        app_id: appId,
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+    this.appLinks.set(key, {
+      links,
+      expires: Date.now() + (links ? APP_LINKS_TTL_MS : FAILED_APP_LOOKUP_TTL_MS),
+    });
+    return links;
+  }
 
   /**
    * stampRepositoryStatus offers a connection check under the remote URL of each repository of a plain git remote.

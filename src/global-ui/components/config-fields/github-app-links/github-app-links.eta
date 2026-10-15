@@ -1,0 +1,13 @@
+<%
+  /*
+    Links to a GitHub App's settings page and installation page.
+  */
+  const item = it.item;
+  const icon = (it.badgeIcons || {})['external-link'] || '';
+%>
+<% if (item.settingsUrl && item.installUrl) { %>
+  <div class="spr-github-app-links">
+    <a href="<%= item.settingsUrl %>" target="_blank" rel="noopener noreferrer">Open App settings<%~ icon %></a>
+    <a href="<%= item.installUrl %>" target="_blank" rel="noopener noreferrer">Install App<%~ icon %></a>
+  </div>
+<% } %>
