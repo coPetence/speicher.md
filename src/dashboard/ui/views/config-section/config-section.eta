@@ -345,8 +345,9 @@
 <% } %>
 
 <%
-  const ordinary = it.section.fields.filter(function (f) { return !f.advanced });
+  const ordinary = it.section.fields.filter(function (f) { return !f.advanced && !f.trailing });
   const advanced = it.section.fields.filter(function (f) { return f.advanced });
+  const trailing = it.section.fields.filter(function (f) { return f.trailing && !f.advanced });
   const paired = ordinary.filter(function (f) { return f.kind !== 'template' });
   const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
 %>
@@ -356,7 +357,7 @@
   <% if (showsId) { %>
   <div class="spr-field spr-field-text">
     <div class="spr-field-head">
-      <label for="f-member-id">Short id</label>
+      <label for="f-member-id">Short id<span class="spr-required" aria-hidden="true">*</span><span class="spr-clipped"> (required)</span></label>
       <%~ include('@info', { field: { path: 'member-id', label: 'Short id', help: it.member_id_help } }) %>
     </div>
     <input
@@ -393,6 +394,12 @@
 <% }) %>
 
 <% inlineAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
+
+<% if (trailing.length > 0) { %>
+<div class="spr-fields">
+  <% trailing.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
 
 <% if (advanced.length > 0) { %>
 <details class="spr-advanced" <%= it.error ? 'open' : '' %>>

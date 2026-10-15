@@ -7,21 +7,16 @@
  * document rather than reading `type`
  */
 
-import { GITHUB_CALLBACK_PATH, githubCallbackUrl, publicUrl } from '../../../../auth/callback-url';
-
 import { scalarString } from '../document';
 import type { Field, Obj } from '../config-fields';
 import {
   SECRET_HELP,
   at,
   booleanField,
-  copyValue,
   durationField,
   entraTenantField,
-  isEnvPlaceholder,
   linesField,
   secretField,
-  selectField,
   textField,
   urlField,
 } from '../config-fields';
@@ -40,7 +35,10 @@ import {
   type KindHint,
 } from '../members';
 import { unavailableOption } from '../model';
-import type { Card, Option, SectionEntry } from '../model';
+import type { Option, SectionEntry } from '../model';
+import { directoryFields } from './identity/directory-fields';
+import { githubAppCard } from './identity/github-app-card';
+import { githubDirectoryCard } from './identity/github-directory-card';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
@@ -187,10 +185,6 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     );
   } else {
     fields.push(
-      textField(root, [...base, 'client_id'], p('client_id'), 'Client id'),
-      secretField(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', {
-        help: SECRET_HELP,
-      }),
       // GitHub Enterprise base URL, only relevant for self-hosted installations
       urlField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
         placeholder: 'https://github.example.com',
@@ -199,24 +193,18 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
       }),
       durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
         fallback: '8h',
-        help:
-          'How long a sign-in stays valid before the person has ' +
-          'to sign in again. If you remove someone from a team it needs a new session ' +
-          'to take effect. If you need fast team removal times, keep this low.',
+        help: 'How long a sign-in stays valid before the person has to sign in again. If you remove someone from a team it needs a new session to take effect. If you need fast team removal times, keep this low.',
+        advanced: true,
       }),
     );
-    fields.push(...directoryFields(root, base, 'github', kind));
   }
 
   fields.push(
     // Boolean field using the provider id as trueValue
     booleanField(root, ['auth', 'default_provider'], 'auth.default_provider', 'Default provider', {
       trueValue: id,
-      help:
-        'The default provider is used for grants that name a person without naming a ' +
-        'provider, for example `{ email: example@copetence.de }` under ' +
-        "`access.users` in a repository's `.speicher.yaml`. If only one provider is " +
-        'configured, this provider will be automatically set as the default.',
+      help: "The default provider is used for grants that name a person without naming a provider, for example `{ email: example@copetence.de }` under `access.users` in a repository's `.speicher.yaml`. If only one provider is configured, this provider will be automatically set as the default.",
+      trailing: kind === 'github',
     }),
   );
 
@@ -224,7 +212,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     id: memberSectionId('identity', id),
     title: id,
     parent: 'identity',
-    cards: kind === 'github' ? [githubAppCard()] : [],
+    cards: kind === 'github' ? [githubAppCard(root, id), githubDirectoryCard(root, id, kind)] : [],
     mark: kindOf(kind)?.mark ?? '',
     // The last remaining provider cannot be removed
     removeOp: providerIds(root).length > 1 ? `remove:auth.providers.${id}` : null,
@@ -236,23 +224,6 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     fields,
     entries: [],
     addOps: [],
-  };
-}
-
-function githubAppCard(): Card {
-  return {
-    title: `URL's for the GitHub App`,
-    subtitle:
-      'Enter these two addresses when creating the OApp, under Developer settings → ' +
-      'OAuth Apps.',
-    removeOp: null,
-    notes: [],
-    cards: [],
-    addOps: [],
-    items: [
-      copyValue('Homepage URL', publicUrl() ?? '/'),
-      copyValue('Authorization callback URL', githubCallbackUrl() ?? GITHUB_CALLBACK_PATH),
-    ],
   };
 }
 
@@ -314,92 +285,6 @@ function oidcFields(
         'sign in again, counted from the sign-in. It also decides how long a removed group ' +
         'membership keeps working: groups are read from the sign-in token, so the removal ' +
         'only takes effect at the next sign-in.',
-    }),
-  ];
-}
-
-function directoryFields(
-  root: Obj,
-  base: (string | number)[],
-  type: 'graph' | 'github',
-  kind: string,
-): Field[] {
-  const d = [...base, 'directory'];
-  const p = (key: string) => `auth.providers.<key>.directory.${key}`;
-  const shownWith = [...d, 'type'].join('.');
-
-  const copyable = type === 'graph';
-  const from = (key: string) => (copyable ? [...base, key].join('.') : undefined);
-  const secret = at(root, [...base, 'client_secret']);
-  const secretHidden = secret !== undefined && !isEnvPlaceholder(secret);
-
-  const credentials: Field[] =
-    type === 'github'
-      ? [
-          textField(root, [...d, 'app_id'], p('app_id'), 'Directory App id', {
-            shownWith,
-            help:
-              "The App id of the directory's GitHub App. You can find it under: " +
-              '**Developer settings** → **GitHub Apps**. It needs the organisation ' +
-              'permission **Members: Read-only** and must be installed on every ' +
-              'organisation that you want to use.',
-          }),
-          secretField(root, [...d, 'private_key'], p('private_key'), 'Directory private key', {
-            shownWith,
-            help: `${SECRET_HELP}\n\nThe App's secret key .pem file.`,
-            upload: {
-              accept: '.pem,application/x-pem-file',
-              content: 'rsa-private-key',
-              label: 'Choose .pem…',
-              dropLabel: "Drop the App's .pem file here",
-            },
-          }),
-        ]
-      : [
-          textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {
-            shownWith,
-            sourceToCopyFrom: kind === 'entra' ? from('issuer') : undefined,
-          }),
-          textField(root, [...d, 'client_id'], p('client_id'), 'Directory client id', {
-            shownWith,
-            sourceToCopyFrom: from('client_id'),
-            help:
-              'The directory client id is the application (client) id Speicher uses to look up ' +
-              'users and groups in Microsoft Graph. The app registration needs the application ' +
-              'permission `User.Read.All`.',
-          }),
-          secretField(
-            root,
-            [...d, 'client_secret'],
-            p('client_secret'),
-            'Directory client secret',
-            {
-              shownWith,
-              sourceToCopyFrom: from('client_secret'),
-              // When the provider secret is a stored literal, indicate the directory secret is the same
-              sourceToCopyFromOnSave: copyable && secretHidden,
-              help: SECRET_HELP,
-            },
-          ),
-        ];
-
-  return [
-    selectField(root, [...d, 'type'], p('type'), 'Directory lookup', {
-      options: [
-        { value: '', label: 'Not configured' },
-        { value: type, label: type === 'graph' ? 'Microsoft Graph' : 'GitHub' },
-      ],
-      // TODO check wether this is actually correct
-      help:
-        "The directory lookup lets Speicher ask the provider's user directory about the people " +
-        'and groups repositories grant access to. It is used to match a grant by email even when ' +
-        'the sign-in name differs from the address, to show how many people a group reaches, and ' +
-        'to drop grants for people whose account has been disabled or deleted.',
-    }),
-    ...credentials,
-    durationField(root, [...d, 'cache_ttl'], p('cache_ttl'), 'Directory cache lifetime', {
-      shownWith,
-      fallback: '1h',
     }),
   ];
 }

@@ -1890,14 +1890,20 @@ describe("a GitHub provider's addresses", () => {
     }
   };
 
+  // A GitHub provider without an App shows the addresses for entering its App manually
+  const NEW_PROVIDER = `${FULL}\n`.replace(
+    '  providers:\n',
+    '  providers:\n    octo:\n      type: github\n',
+  );
+
   const copyValues = (id: string): CopyValueItem[] => {
-    const section = buildSections(loadDocument(FULL)).find((s) => s.id === id)!;
+    const section = buildSections(loadDocument(NEW_PROVIDER)).find((s) => s.id === id)!;
     return cardItems([section]).filter((item): item is CopyValueItem => item.kind === 'copy-value');
   };
 
   it('offers the homepage and the callback to copy, from the declared public URL', () => {
     const [homepage, callback] = withPublicUrl('https://docs.acme.example/', () =>
-      copyValues('identity/hub'),
+      copyValues('identity/octo'),
     );
 
     expect(homepage.text).toBe('https://docs.acme.example');
@@ -1905,7 +1911,7 @@ describe("a GitHub provider's addresses", () => {
   });
 
   it('offers the path when no public URL is declared, for the browser to complete', () => {
-    const [homepage, callback] = withPublicUrl(undefined, () => copyValues('identity/hub'));
+    const [homepage, callback] = withPublicUrl(undefined, () => copyValues('identity/octo'));
 
     expect(homepage.text).toBe('/');
     expect(callback.text).toBe('/api/auth/github/callback');
@@ -1915,10 +1921,20 @@ describe("a GitHub provider's addresses", () => {
     // The two are the same constant; GitHub refuses a redirect_uri that differs from
     // the registered one, and says nothing about which address it expected
     const [, callback] = withPublicUrl('https://docs.acme.example', () =>
-      copyValues('identity/hub'),
+      copyValues('identity/octo'),
     );
 
     expect(callback.text.endsWith(GITHUB_CALLBACK_PATH)).toBe(true);
+  });
+
+  it('places the callback beside the homepage', () => {
+    const [homepage, callback] = copyValues('identity/octo');
+    expect(homepage.startsRow).toBe(true);
+    expect(callback.startsRow).toBe(false);
+  });
+
+  it('leaves the addresses out once the provider has an App', () => {
+    expect(copyValues('identity/hub')).toEqual([]);
   });
 
   it('says nothing of the sort on a provider with no App to register them in', () => {
@@ -2023,6 +2039,120 @@ describe("a GitHub source's webhook URL", () => {
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {
     const values = withPublicUrl('https://docs.acme.example', () => copyValues('sources/onprem'));
     expect(values).toEqual([]);
+  });
+});
+
+describe("a GitHub identity provider's App setup", () => {
+  const NEW_PROVIDER = 'auth:\n  providers:\n    octo:\n      type: github\n';
+  const items = (yaml: string, id: string) =>
+    cardItems([sectionOf(loadDocument(yaml), `identity/${id}`)!]);
+
+  it('offers to create a GitHub App, and says who will be able to sign in with it', () => {
+    const shown = items(NEW_PROVIDER, 'octo');
+    const [setup] = shown.filter((item): item is ChoiceItem => item.kind === 'choice');
+    expect(setup.name).toBe('choice:auth.providers.octo.app');
+    expect(setup.selected).toBe('create');
+
+    const manifest = shown.find((item) => item.kind === 'github-app-manifest');
+    expect(manifest).toMatchObject({ action: '/-/config/identity/octo/github-app/manifest' });
+    expect(manifest && 'note' in manifest ? manifest.note : '').toContain('not an OAuth App');
+  });
+
+  it('shows only the client id and secret once the provider has them', () => {
+    const shown = items(FULL, 'hub');
+    expect(shown.some((item) => item.kind === 'choice')).toBe(false);
+    expect(
+      shown.some((item) => 'path' in item && item.path === 'auth.providers.hub.client_id'),
+    ).toBe(true);
+  });
+
+  const DIRECTORY = 'GitHub directory lookup (optional)';
+  const directoryCard = (yaml: string, id: string) =>
+    sectionOf(loadDocument(yaml), `identity/${id}`)!.cards.find(
+      (card) => card.title === DIRECTORY,
+    )!;
+
+  it('hides the directory card until the App is entered manually', () => {
+    expect(directoryCard(NEW_PROVIDER, 'octo')).toMatchObject({
+      shownWith: 'choice:auth.providers.octo.app',
+      shownWhen: 'manual',
+      hidden: true,
+    });
+  });
+
+  it('always shows the directory card once the provider has an App', () => {
+    expect(directoryCard(FULL, 'hub').hidden).toBeUndefined();
+  });
+
+  it('asks for no directory kind, since filling in its App turns the lookup on', () => {
+    const fields = allFields([sectionOf(loadDocument(FULL), 'identity/hub')!]);
+    expect(fields.some((field) => field.path === 'auth.providers.hub.directory.type')).toBe(false);
+  });
+
+  it('keeps the session lifetime under advanced settings, and the default provider last', () => {
+    const section = sectionOf(loadDocument(FULL), 'identity/hub')!;
+    const field = (path: string) => section.fields.find((each) => each.path === path);
+    expect(field('auth.providers.hub.session_ttl')?.advanced).toBe(true);
+    expect(field('auth.default_provider')?.trailing).toBe(true);
+    expect(section.cards.map((card) => card.title)).toEqual(['GitHub App', DIRECTORY]);
+  });
+
+  it('turns the GitHub directory on with its App, and removes it without one', () => {
+    const directory = ['auth', 'providers', 'hub', 'directory'];
+    const save = (body: Record<string, unknown>) => {
+      const doc = loadDocument(FULL);
+      applyForm(
+        doc,
+        { ...untouchedBody(allFields([sectionOf(doc, 'identity/hub')!])), ...body },
+        'identity/hub',
+      );
+      return doc;
+    };
+
+    expect(save({}).getIn([...directory, 'type'])).toBe('github');
+
+    const cleared = save({
+      'auth.providers.hub.directory.app_id': '',
+      'auth.providers.hub.directory.private_key': '',
+    });
+    expect(cleared.hasIn(directory)).toBe(false);
+  });
+
+  const directoryChoice = (yaml: string, id: string) =>
+    directoryCard(yaml, id).items.find((item): item is ChoiceItem => item.kind === 'choice');
+
+  it('offers to create the directory App once the provider has its App', () => {
+    const yaml = 'auth:\n  providers:\n    octo:\n      type: github\n      client_id: Iv1.abc\n';
+    const setup = directoryChoice(yaml, 'octo');
+    expect(setup?.name).toBe('choice:auth.providers.octo.directory.app');
+    expect(setup?.selected).toBe('create');
+    const manifest = setup?.options[0].items[0];
+    expect(manifest).toMatchObject({
+      kind: 'github-app-manifest',
+      action: '/-/config/identity/octo/github-directory-app/manifest',
+      ownerName: 'github-directory-app:owner',
+    });
+  });
+
+  it('offers the directory App on a new provider too, and none once it has a directory App', () => {
+    expect(directoryChoice(NEW_PROVIDER, 'octo')?.selected).toBe('create');
+    expect(directoryChoice(FULL, 'hub')).toBeUndefined();
+  });
+
+  it('marks the GitHub App card and its client id and secret as required', () => {
+    const section = sectionOf(loadDocument(FULL), 'identity/hub')!;
+    expect(section.cards.find((card) => card.title === 'GitHub App')?.required).toBe(true);
+    const required = allFields([section])
+      .filter((field) => field.required)
+      .map((field) => field.path);
+    expect(required).toEqual(
+      expect.arrayContaining([
+        'auth.providers.hub.client_id',
+        'auth.providers.hub.client_secret',
+        'auth.providers.hub.directory.app_id',
+        'auth.providers.hub.directory.private_key',
+      ]),
+    );
   });
 });
 

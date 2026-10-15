@@ -105,16 +105,17 @@ const CONTRACT: Record<string, Contract> = {
       'draws it is.',
   },
 
-  'POST /-/config/sources/:member/github-app/manifest': {
+  'POST /-/config/:section/:member/:app/manifest': {
     covered:
-      'github-app-manifest.spec.ts. It saves the page and then hands the browser ' +
-      'over to GitHub with a form that posts a manifest there, so the document a ' +
-      'JSON caller would receive is a form for another site.',
+      'github-app-manifest.spec.ts. It hands the browser over to GitHub with a form ' +
+      'that posts a manifest there, so the document a JSON caller would receive is a ' +
+      'form for another site.',
   },
-  'GET /-/config/sources/:member/github-app/manifest/callback': {
+  'GET /-/config/:section/:member/:app/manifest/callback': {
     covered:
       'github-app-manifest.spec.ts. It is where GitHub sends the browser back with ' +
-      'a code, and it answers with a redirect to the page that installs the App.',
+      'a code, and it answers with the page of the source or provider, filled with ' +
+      'the App GitHub created.',
   },
   'POST /-/config/:section/:member/:entry': {
     covered:

@@ -36,6 +36,8 @@ export interface FieldBase {
   wide: boolean;
   // Shows the field under the collapsed "Advanced settings" instead of on the page
   advanced: boolean;
+  // Draws a field of the page after the page's cards instead of before them
+  trailing: boolean;
   // Marks the label with an asterisk, because the configuration needs a value here
   required: boolean;
   // Renders only a hidden empty input, which clears the stored value on save,
@@ -63,6 +65,7 @@ export interface BaseOptions {
   startsRow?: boolean;
   wide?: boolean;
   advanced?: boolean;
+  trailing?: boolean;
   required?: boolean;
   inapplicable?: boolean;
   attached?: Field[];
@@ -85,6 +88,7 @@ export function baseField(
     startsRow: options.startsRow === true,
     wide: options.wide === true,
     advanced: options.advanced === true,
+    trailing: options.trailing === true,
     required: options.required === true,
     inapplicable: options.inapplicable === true,
     attached: options.attached ?? [],

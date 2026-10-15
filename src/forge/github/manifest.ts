@@ -28,6 +28,12 @@ const CONTENT_SOURCE_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App gives Sp
 
 const IDENTITY_PROVIDER_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets people sign in to Speicher.md with their GitHub account. Access can then be granted to their GitHub teams, or to them by email address.`;
 
+const DIRECTORY_PERMISSIONS = {
+  members: 'read',
+};
+
+const DIRECTORY_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets Speicher.md look up the members and teams of the organizations it is installed on. Speicher.md uses this to notice when someone leaves a team or the organization during their session, and to show how many people a team grant reaches.`;
+
 export interface AppManifest {
   name: string;
   description: string;
@@ -61,10 +67,17 @@ export interface IdentityProviderAppOptions extends AppManifestBase {
   callbackUrl: string;
 }
 
-export type AppManifestOptions = ContentSourceAppOptions | IdentityProviderAppOptions;
+export interface DirectoryAppOptions extends AppManifestBase {
+  purpose: 'directory';
+}
+
+export type AppManifestOptions =
+  | ContentSourceAppOptions
+  | IdentityProviderAppOptions
+  | DirectoryAppOptions;
 
 /**
- * appManifest builds the manifest of a GitHub App for a content source or an identity provider.
+ * appManifest builds the manifest of a GitHub App for a content source, an identity provider or a directory lookup.
  *
  * @param options what the App is for, and the addresses it points at
  */
@@ -83,6 +96,15 @@ export function appManifest(options: AppManifestOptions): AppManifest {
       description: IDENTITY_PROVIDER_DESCRIPTION,
       callback_urls: [options.callbackUrl],
       default_permissions: IDENTITY_PROVIDER_PERMISSIONS,
+      default_events: [],
+    };
+  }
+  if (options.purpose === 'directory') {
+    return {
+      ...base,
+      name: 'Speicher.md Directory',
+      description: DIRECTORY_DESCRIPTION,
+      default_permissions: DIRECTORY_PERMISSIONS,
       default_events: [],
     };
   }

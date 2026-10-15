@@ -15,7 +15,7 @@
   >
     <header>
       <h4>
-        <%= card.title %>
+        <%= card.title %><% if (card.required) { %><span class="spr-required" aria-hidden="true">*</span><span class="spr-clipped"> (required)</span><% } %>
       </h4>
       <% if (card.subtitle) { %>
       <p class="spr-card-sub">

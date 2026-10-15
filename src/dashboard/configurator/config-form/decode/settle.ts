@@ -97,6 +97,20 @@ export function settleDirectory(doc: Document, member: MemberRef): boolean {
 
   const path = [...memberPath(member), 'directory'];
   if (!doc.hasIn(path)) return false;
+
+  if (doc.getIn([...memberPath(member), 'type']) === 'github') {
+    const hasApp = ['app_id', 'private_key'].some((key) => {
+      const value = doc.getIn([...path, key]);
+      return typeof value === 'string' && value.trim() !== '';
+    });
+    if (!hasApp) {
+      doc.deleteIn(path);
+      return true;
+    }
+    if (doc.getIn([...path, 'type']) === 'github') return false;
+    doc.setIn([...path, 'type'], 'github');
+    return true;
+  }
   // Empty counts as absent: the select submits `''` for "not configured", and
   // `writeAt` will already have removed the key — this is the case where the boxes
   // beneath it kept the block alive.
