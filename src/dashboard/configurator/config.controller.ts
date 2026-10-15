@@ -11,6 +11,7 @@
  */
 import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { Document } from 'yaml';
 
 import { originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
@@ -51,6 +52,7 @@ import {
   isMemberId,
   memberOf,
   memberSectionId,
+  nounOf,
 } from './config-form/members';
 import { readUploads } from './config-form/upload';
 import { SectionChecks } from './config-page/checks';
@@ -59,7 +61,7 @@ import {
   GITHUB_APP_BASE_URL_COOKIE,
   GithubAppManifestError,
   GithubAppManifestService,
-  contentSourceTarget,
+  MANIFEST_TARGETS,
   fillWithApp,
   githubAppCallbackPath,
 } from './config-page/github-app-manifest';
@@ -483,37 +485,43 @@ export class ConfigController {
     }
   }
 
-  /** Hand the browser over to GitHub to create the App of a new GitHub source */
-  @Post('config/sources/:member/github-app/manifest')
+  /** Hand the browser over to GitHub to create one of the GitHub Apps of a source or an identity provider */
+  @Post('config/:section/:member/:app/manifest')
   async startGithubAppManifest(
     @Req() req: Request,
     @Res() res: Response,
+    @Param('section') section: string,
     @Param('member') member: string,
+    @Param('app') app: string,
   ): Promise<void> {
     const caller = callerOf(req);
-    if (!caller.isAdmin || !isMemberId('sources', member)) return this.respond.notFound(req, res);
-    const sectionId = memberSectionId('sources', member);
+    const targetOf = MANIFEST_TARGETS[section]?.[app];
+    if (!caller.isAdmin || !targetOf || !isMemberId(section, member)) {
+      return this.respond.notFound(req, res);
+    }
+    const sectionId = memberSectionId(section, member);
 
     // Nothing is saved here: the page is saved once GitHub filled in the App's credentials
     await readUploads(req, res);
     const body = req.body as Record<string, unknown>;
-    // A new source is created under the short id typed on its page
-    const forgeId = (submitted(body, `newname:${sectionId}`) ?? '').trim() || member;
-    const baseUrl = (submitted(body, `forges.${member}.base_url`) ?? '').trim();
+    // A new member is created under the short id typed on its page
+    const id = (submitted(body, `newname:${sectionId}`) ?? '').trim() || member;
+    const baseUrl = (submitted(body, `${targetOf(member).path.join('.')}.base_url`) ?? '').trim();
     try {
       if (this.config.configSource !== 'database') {
         throw new GithubAppManifestError(new ConfigReadOnlyError(this.config.sourcePath).message);
       }
-      if (!isMemberId('sources', forgeId)) {
+      if (!isMemberId(section, id)) {
         throw new GithubAppManifestError(
-          `"${forgeId}" cannot be the short id of a content source. ${SHORT_ID_HINT}`,
+          `"${id}" cannot be the short id of a ${nounOf(section)}. ${SHORT_ID_HINT}`,
         );
       }
-      const target = contentSourceTarget(forgeId, baseUrl);
+      const target = targetOf(id, baseUrl);
       const handoff = await this.manifests.start(
         caller.tenantId,
         target,
-        (submitted(body, 'github-app:owner') ?? '').trim(),
+        // Each App on a page has its own organization field
+        (submitted(body, `${app}:owner`) ?? '').trim(),
         originOf(req),
       );
 
@@ -521,7 +529,7 @@ export class ConfigController {
         httpOnly: true,
         secure: !env('SPEICHER_INSECURE_COOKIES'),
         sameSite: 'lax',
-        path: githubAppCallbackPath(target.sectionId),
+        path: githubAppCallbackPath(target.sectionId, target.app),
         maxAge: FLOW_TTL_MS,
       });
       sendGithubAppManifest(res, handoff);
@@ -531,21 +539,28 @@ export class ConfigController {
     }
   }
 
-  /** Where GitHub sends the browser back after it created a source's App */
-  @Get('config/sources/:member/github-app/manifest/callback')
+  /** Where GitHub sends the browser back after it created one of the GitHub Apps of a source or an identity provider */
+  @Get('config/:section/:member/:app/manifest/callback')
   async completeGithubAppManifest(
     @Req() req: Request,
     @Res() res: Response,
+    @Param('section') section: string,
     @Param('member') member: string,
+    @Param('app') appSegment: string,
     @Query('code') code?: string,
     @Query('state') state?: string,
   ): Promise<void> {
     const caller = callerOf(req);
-    if (!caller.isAdmin || !isMemberId('sources', member)) return this.respond.notFound(req, res);
-    const sectionId = memberSectionId('sources', member);
+    const targetOf = MANIFEST_TARGETS[section]?.[appSegment];
+    if (!caller.isAdmin || !targetOf || !isMemberId(section, member)) {
+      return this.respond.notFound(req, res);
+    }
+    const sectionId = memberSectionId(section, member);
 
     const baseUrl: unknown = req.cookies?.[GITHUB_APP_BASE_URL_COOKIE];
-    res.clearCookie(GITHUB_APP_BASE_URL_COOKIE, { path: githubAppCallbackPath(sectionId) });
+    res.clearCookie(GITHUB_APP_BASE_URL_COOKIE, {
+      path: githubAppCallbackPath(sectionId, appSegment),
+    });
     try {
       if (typeof code !== 'string' || typeof state !== 'string') {
         throw new GithubAppManifestError(
@@ -557,20 +572,23 @@ export class ConfigController {
           'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
         );
       }
+      const target = targetOf(member, baseUrl);
       const configState = await this.page.state(caller);
-      if (configState.doc?.hasIn(['forges', member])) {
+      const stored = configState.doc?.hasIn(target.path) === true;
+      const noun = nounOf(section);
+
+      if (target.member === 'new' && stored) {
         throw new GithubAppManifestError(
-          `The content source "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new source, start again with another short id.`,
+          `The ${noun} "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new ${noun}, start again with another short id.`,
         );
       }
-
-      const target = contentSourceTarget(member, baseUrl);
       const app = await this.manifests.complete(caller.tenantId, target, code, state);
-      const payload = this.page.draftPayload(configState, sectionId, target.kind, (doc) =>
-        fillWithApp(doc, target, app),
-      );
+      const fill = (doc: Document) => fillWithApp(doc, target, app);
+      const payload = stored
+        ? await this.page.filledPayload(configState, sectionId, fill)
+        : this.page.draftPayload(configState, sectionId, target.kind, fill);
       if (!payload) return this.respond.notFound(req, res);
-      payload.notice = `App successfully created. You can now [install the App](${app.html_url}/installations/new) on the repositories Speicher.md should be able to read. The App's credentials are filled in below. To store them, save this page.`;
+      payload.notice = target.createdNotice(`${app.html_url}/installations/new`);
       return this.sectionAnswer(req, res, caller, sectionId, payload);
     } catch (err) {
       if (!(err instanceof GithubAppManifestError)) throw err;
@@ -588,7 +606,7 @@ export class ConfigController {
   ): Promise<void> {
     const state = await this.page.state(caller);
     let payload = await this.page.sectionPayload(state, sectionId);
-    // A new source is not stored yet, so its page is a draft
+    // A new source or provider is not stored yet, so its page is a draft
     if (!payload.section) {
       const draft = this.page.draftPayload(state, sectionId, 'github');
       if (!draft) return this.respond.notFound(req, res);

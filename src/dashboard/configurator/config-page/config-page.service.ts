@@ -292,6 +292,29 @@ export class ConfigPageService {
     return payload;
   }
 
+  /**
+   * filledPayload builds the page of a stored member with values written into it, e.g. the credentials of a GitHub App. The page holds them as unsaved work.
+   *
+   * @param state the stored configuration
+   * @param sectionId the page of the member, e.g. `identity/hub`
+   * @param fill writes the values into the configuration document
+   */
+  async filledPayload(
+    state: ConfigState,
+    sectionId: string,
+    fill: (doc: Document) => void,
+  ): Promise<ConfigSectionPayload | null> {
+    const doc = loadDocument(state.storedYaml);
+    fill(doc);
+    const payload = this.payloadFrom(state, doc, sectionId);
+    if (!payload.section) return null;
+    carryUnsavedSecrets(payload, doc, state.storedYaml);
+    payload.holds_work = true;
+    payload.pending = true;
+    await stampBrandImages(state.tenantId, payload);
+    return payload;
+  }
+
   private payloadFrom(
     state: ConfigState,
     doc: Document | null,

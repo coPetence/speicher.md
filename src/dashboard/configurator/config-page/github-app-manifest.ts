@@ -1,10 +1,11 @@
 /**
- * The manifest flow that creates a GitHub App, for a content source or an identity provider
+ * The manifest flow that creates a GitHub App, for a content source, an identity provider or a directory lookup
 
  */
 
 import { Document } from 'yaml';
 
+import { GITHUB_CALLBACK_PATH } from '../../../auth/callback-url';
 import { FLOW_TTL_MS } from '../../../auth/github.service';
 import { mintToken } from '../../../auth/tokens';
 import { Logger, rootLogger } from '../../../common/logger';
@@ -28,12 +29,23 @@ const FLOW_MARK = 'github-app:';
 export const GITHUB_APP_BASE_URL_COOKIE = 'speicher_github_app_base_url';
 
 /**
+ * githubAppPath returns the path the flow of one App on a config page starts at.
+ *
+ * @param sectionId the config page the App is created for, e.g. `sources/gh`
+ * @param app which App of the page, e.g. `github-app`
+ */
+export function githubAppPath(sectionId: string, app: string): string {
+  return `/-/config/${sectionId}/${app}/manifest`;
+}
+
+/**
  * githubAppCallbackPath returns the path GitHub sends the browser back to after it created an App.
  *
  * @param sectionId the config page the App is created for, e.g. `sources/gh`
+ * @param app which App of the page, e.g. `github-app`
  */
-export function githubAppCallbackPath(sectionId: string): string {
-  return `/-/config/${sectionId}/github-app/manifest/callback`;
+export function githubAppCallbackPath(sectionId: string, app: string): string {
+  return `${githubAppPath(sectionId, app)}/callback`;
 }
 
 export class GithubAppManifestError extends Error {}
@@ -48,14 +60,18 @@ export interface ManifestUrls {
 export interface ManifestTarget {
   // The config page the App is created for, e.g. `sources/gh`
   sectionId: string;
-  // Where the target lives in the configuration document, e.g. `['forges', 'gh']`
+  app: string;
+  // Where the member lives in the configuration document, e.g. `['forges', 'gh']`
   path: string[];
-  // The kind a new target is created as, e.g. `github`
+  // `new` when the App comes with a member that is not stored yet; `either` when it fills a stored member or a new one
+  member: 'new' | 'either';
+  // The kind a new member is created as, e.g. `github`
   kind: string;
   // The base URL of a GitHub Enterprise Server; undefined for GitHub.com
   baseUrl?: string;
   manifest: (urls: ManifestUrls) => AppManifest;
   values: (app: ConvertedApp) => [string[], string | undefined][];
+  createdNotice: (installUrl: string) => string;
 }
 
 export interface ManifestHandoff {
@@ -77,7 +93,9 @@ export interface ManifestHandoff {
 export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarget {
   return {
     sectionId: memberSectionId('sources', forgeId),
+    app: 'github-app',
     path: ['forges', forgeId],
+    member: 'new',
     kind: 'github',
     baseUrl: baseUrl || undefined,
     manifest: ({ origin, redirectUrl, setupUrl }) => {
@@ -98,8 +116,77 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
       // An App created without a webhook has no secret, and the source needs one
       [['webhook_secret'], app.webhook_secret ?? mintToken(32)],
     ],
+    createdNotice: (installUrl) =>
+      `App successfully created. You can now [install the App](${installUrl}) on the repositories Speicher.md should be able to read. The App's credentials are filled in below. To store them, save this page.`,
   };
 }
+
+/**
+ * identityProviderTarget returns the target of the App of a new GitHub identity provider.
+ *
+ * @param providerId the id of the identity provider
+ * @param baseUrl the base URL of a GitHub Enterprise Server. If it is empty, the App is created on GitHub.com
+ */
+export function identityProviderTarget(providerId: string, baseUrl = ''): ManifestTarget {
+  return {
+    sectionId: memberSectionId('identity', providerId),
+    app: 'github-app',
+    path: ['auth', 'providers', providerId],
+    member: 'new',
+    kind: 'github',
+    baseUrl: baseUrl || undefined,
+    manifest: ({ origin, redirectUrl, setupUrl }) =>
+      appManifest({
+        purpose: 'identity-provider',
+        homepage: origin,
+        callbackUrl: `${origin}${GITHUB_CALLBACK_PATH}`,
+        redirectUrl,
+        setupUrl,
+      }),
+    values: (app) => [
+      [['base_url'], baseUrl || undefined],
+      [['client_id'], app.client_id],
+      [['client_secret'], app.client_secret],
+    ],
+    createdNotice: (installUrl) =>
+      `App successfully created. You can now [install the App](${installUrl}) on the organization whose members should be able to sign in, so Speicher.md can read their teams. The App's credentials are filled in below. To store them, save this page.`,
+  };
+}
+
+/**
+ * directoryTarget returns the target of the directory lookup App of a GitHub identity provider, stored or new.
+ *
+ * @param providerId the id of the identity provider
+ * @param baseUrl the base URL of a GitHub Enterprise Server. If it is empty, the App is created on GitHub.com
+ */
+export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarget {
+  return {
+    sectionId: memberSectionId('identity', providerId),
+    app: 'github-directory-app',
+    path: ['auth', 'providers', providerId],
+    member: 'either',
+    kind: 'github',
+    baseUrl: baseUrl || undefined,
+    manifest: ({ origin, redirectUrl, setupUrl }) =>
+      appManifest({ purpose: 'directory', homepage: origin, redirectUrl, setupUrl }),
+    values: (app) => [
+      [['directory', 'type'], 'github'],
+      [['directory', 'app_id'], String(app.id)],
+      [['directory', 'private_key'], app.pem],
+    ],
+    createdNotice: (installUrl) =>
+      `App successfully created. You can now [install the App](${installUrl}) on every organization whose members and teams Speicher.md should look up. The App's id and private key are filled in below. To store them, save this page.`,
+  };
+}
+
+// The Apps that can be created from each config page, by the path segment of their flow
+export const MANIFEST_TARGETS: Record<
+  string,
+  Record<string, (id: string, baseUrl?: string) => ManifestTarget>
+> = {
+  sources: { 'github-app': contentSourceTarget },
+  identity: { 'github-app': identityProviderTarget, 'github-directory-app': directoryTarget },
+};
 
 /**
  * fillWithApp writes the App's values into the target in a configuration document.
@@ -141,7 +228,7 @@ export class GithubAppManifestService {
     const state = mintToken(24);
     await LoginFlow.create({
       tenant_id: tenantId,
-      provider: `${FLOW_MARK}${target.sectionId}`,
+      provider: flowMark(target),
       state,
       // A manifest flow has no nonce and no verifier; the columns are filled as a sign-in fills them
       nonce: mintToken(24),
@@ -154,7 +241,7 @@ export class GithubAppManifestService {
     const { web } = githubHosts(target.baseUrl);
     const manifest = target.manifest({
       origin,
-      redirectUrl: `${origin}${githubAppCallbackPath(target.sectionId)}`,
+      redirectUrl: `${origin}${githubAppCallbackPath(target.sectionId, target.app)}`,
       setupUrl: `${origin}${configPageUrl}`,
     });
     return {
@@ -181,7 +268,7 @@ export class GithubAppManifestService {
     state: string,
   ): Promise<ConvertedApp> {
     const flow = await LoginFlow.findOne({
-      where: { tenant_id: tenantId, state, provider: `${FLOW_MARK}${target.sectionId}` },
+      where: { tenant_id: tenantId, state, provider: flowMark(target) },
     });
     if (!flow) {
       throw new GithubAppManifestError(
@@ -200,6 +287,7 @@ export class GithubAppManifestService {
     } catch (err) {
       this.log.warn('could not convert the manifest code', {
         target: target.sectionId,
+        app: target.app,
         error: (err as Error).message,
       });
       throw new GithubAppManifestError(
@@ -207,4 +295,13 @@ export class GithubAppManifestService {
       );
     }
   }
+}
+
+/**
+ * flowMark returns what a flow's LoginFlow holds as its provider: the page and the App the flow belongs to.
+ *
+ * @param target what the App is created for
+ */
+function flowMark(target: ManifestTarget): string {
+  return `${FLOW_MARK}${target.sectionId}/${target.app}`;
 }

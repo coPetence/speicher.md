@@ -112,6 +112,8 @@ export interface Card {
   // True when the title is a key from the document, e.g. a repository id; it is
   // then drawn in a monospace font
   titleIsKey?: boolean;
+  // Marks the title with an asterisk
+  required?: boolean;
   subtitle: string;
   removeOp: string | null;
   // The card's fields, copy values and choices, drawn in order

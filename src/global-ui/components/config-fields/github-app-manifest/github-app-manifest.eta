@@ -1,16 +1,17 @@
 <%
   const item = it.item;
-  const owner = { path: 'github-app-owner', label: 'Organization', help: 'The GitHub organization for which the app should be created. Leave it empty to create the App on your personal account.' };
+  const inputId = 'f-' + item.ownerName.replace(/[^a-z0-9]+/gi, '-');
+  const owner = { path: item.ownerName, label: 'Organization', help: 'The GitHub organization for which the app should be created. Leave it empty to create the App on your personal account.' };
 %>
   <div class="spr-github-app-manifest">
     <div class="spr-field spr-field-text">
       <div class="spr-field-head">
-        <label for="f-github-app-owner"><%= owner.label %></label>
+        <label for="<%= inputId %>"><%= owner.label %></label>
         <%~ include('@info', { field: owner }) %>
       </div>
       <input
-        id="f-github-app-owner"
-        name="github-app:owner"
+        id="<%= inputId %>"
+        name="<%= item.ownerName %>"
         type="text"
         value="<%= item.owner %>"
         placeholder=""

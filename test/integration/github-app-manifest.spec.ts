@@ -86,10 +86,10 @@ async function stored(): Promise<{ version: number; doc: Record<string, any> }> 
   return { version: row!.version, doc: parse(row!.yaml) as Record<string, any> };
 }
 
-/** Opens the page of a GitHub source that is not stored yet, and returns its form */
-async function openNewSource(id: string): Promise<FormBody> {
+/** Opens the page of a GitHub source or provider that is not stored yet, and returns its form */
+async function openNewSource(id: string, section = 'sources'): Promise<FormBody> {
   const page = await request(app.getHttpServer())
-    .get(`/-/config/sources/${id}?kind=github`)
+    .get(`/-/config/${section}/${id}?kind=github`)
     .set('cookie', ops)
     .expect(200);
   return formBody(page.text);
@@ -105,8 +105,8 @@ function postForm(path: string, body: FormBody) {
 }
 
 /** Presses the button that creates the App, with the form as the page holds it */
-function startFlow(id: string, body: FormBody) {
-  return postForm(`/-/config/sources/${id}/github-app/manifest`, body);
+function startFlow(id: string, body: FormBody, section = 'sources', app = 'github-app') {
+  return postForm(`/-/config/${section}/${id}/${app}/manifest`, body);
 }
 
 /** The page on GitHub the hand-off page posts its manifest to */
@@ -131,19 +131,30 @@ function baseUrlCookie(started: request.Response): string {
 }
 
 /** Comes back from GitHub, with the cookie the start set unless one is given */
-function callback(id: string, query: string, cookie: string | null) {
+function callback(
+  id: string,
+  query: string,
+  cookie: string | null,
+  section = 'sources',
+  appSegment = 'github-app',
+) {
   const cookies = cookie === null ? ops : `${ops}; ${cookie.split(';')[0]}`;
   return request(app.getHttpServer())
-    .get(`/-/config/sources/${id}/github-app/manifest/callback?${query}`)
+    .get(`/-/config/${section}/${id}/${appSegment}/manifest/callback?${query}`)
     .set('cookie', cookies);
 }
 
-/** Starts a flow for a new source, and returns its state and cookie */
+/** Starts a flow for a new source or provider, and returns its state and cookie */
 async function started(
   id: string,
   body: FormBody = {},
+  section = 'sources',
 ): Promise<{ state: string; cookie: string }> {
-  const response = await startFlow(id, { ...(await openNewSource(id)), ...body }).expect(200);
+  const response = await startFlow(
+    id,
+    { ...(await openNewSource(id, section)), ...body },
+    section,
+  ).expect(200);
   return {
     state: manifestPostUrl(response.text).searchParams.get('state')!,
     cookie: baseUrlCookie(response),
@@ -299,6 +310,172 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     const { state, cookie } = await started('gh');
     const back = await callback('gh', `code=the-code&state=${state}`, cookie).expect(400);
     expect(back.text).toContain('already exists');
+    expect(github).not.toHaveBeenCalled();
+  });
+});
+
+describe('creating the GitHub App of a new identity provider from a manifest', () => {
+  it('hands a sign-in App over to GitHub, and stores nothing', async () => {
+    const before = (await stored()).version;
+    const response = await startFlow(
+      'octo',
+      { ...(await openNewSource('octo', 'identity')), 'github-app:owner': 'acme' },
+      'identity',
+    ).expect(200);
+
+    expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
+    const manifest = manifestOf(response.text);
+    expect(manifest.name).toBe('Speicher.md OAuth');
+    expect(manifest.callback_urls?.[0]).toMatch(/\/api\/auth\/github\/callback$/);
+    expect(manifest.redirect_url).toMatch(
+      /\/-\/config\/identity\/octo\/github-app\/manifest\/callback$/,
+    );
+    expect(manifest.hook_attributes).toBeUndefined();
+    expect(manifest.default_permissions).toEqual({ members: 'read', emails: 'read' });
+    expect((await stored()).version).toBe(before);
+  });
+
+  it('fills the page with the client id and secret, and saving stores the provider', async () => {
+    const { state, cookie } = await started('octo', {}, 'identity');
+    const back = await callback('octo', `code=the-code&state=${state}`, cookie, 'identity').expect(
+      200,
+    );
+    expect(back.text).toContain('href="https://github.com/apps/speicher-md/installations/new"');
+    expect(back.text).toContain('value="Iv1.abc"');
+
+    await postForm('/-/config/identity/octo?kind=github', {
+      ...formBody(back.text),
+      intent: 'apply',
+    }).expect(303);
+    const octo = (await stored()).doc.auth.providers.octo;
+    expect(octo.type).toBe('github');
+    expect(octo.client_id).toBe('Iv1.abc');
+    expect(octo.client_secret).toBe('secret');
+  });
+
+  it('refuses to fill in a provider that is already stored', async () => {
+    const { state, cookie } = await started('entra', {}, 'identity');
+    const back = await callback('entra', `code=the-code&state=${state}`, cookie, 'identity').expect(
+      400,
+    );
+    expect(back.text).toContain('already exists');
+    expect(github).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a section that has no GitHub App', async () => {
+    await startFlow('engineering', {}, 'groups').expect(404);
+  });
+});
+
+describe('creating the directory App of a stored identity provider from a manifest', () => {
+  /** Opens the page of a stored provider, and returns its form */
+  async function openProvider(id: string): Promise<FormBody> {
+    const page = await request(app.getHttpServer())
+      .get(`/-/config/identity/${id}`)
+      .set('cookie', ops)
+      .expect(200);
+    return formBody(page.text);
+  }
+
+  /** Stores a GitHub provider whose App GitHub created */
+  async function storeProvider(id: string): Promise<void> {
+    const { state, cookie } = await started(id, {}, 'identity');
+    const back = await callback(id, `code=sign-in&state=${state}`, cookie, 'identity').expect(200);
+    await postForm(`/-/config/identity/${id}?kind=github`, {
+      ...formBody(back.text),
+      intent: 'apply',
+    }).expect(303);
+    github.mockClear();
+  }
+
+  it('hands a directory App over to GitHub', async () => {
+    await storeProvider('octo');
+    const response = await startFlow(
+      'octo',
+      { ...(await openProvider('octo')), 'github-directory-app:owner': 'acme' },
+      'identity',
+      'github-directory-app',
+    ).expect(200);
+
+    expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
+    const manifest = manifestOf(response.text);
+    expect(manifest.name).toBe('Speicher.md Directory');
+    expect(manifest.default_permissions).toEqual({ members: 'read' });
+    expect(manifest.callback_urls).toBeUndefined();
+    expect(manifest.redirect_url).toMatch(
+      /\/-\/config\/identity\/octo\/github-directory-app\/manifest\/callback$/,
+    );
+  });
+
+  it("fills the stored provider's directory lookup, and saving stores it", async () => {
+    await storeProvider('octo');
+    const response = await startFlow(
+      'octo',
+      await openProvider('octo'),
+      'identity',
+      'github-directory-app',
+    ).expect(200);
+    const state = manifestPostUrl(response.text).searchParams.get('state')!;
+
+    const back = await callback(
+      'octo',
+      `code=directory&state=${state}`,
+      baseUrlCookie(response),
+      'identity',
+      'github-directory-app',
+    ).expect(200);
+    expect(back.text).toContain('href="https://github.com/apps/speicher-md/installations/new"');
+
+    await postForm('/-/config/identity/octo', { ...formBody(back.text), intent: 'apply' }).expect(
+      303,
+    );
+    const octo = (await stored()).doc.auth.providers.octo;
+    // The sign-in App stays as it was
+    expect(octo.client_id).toBe('Iv1.abc');
+    expect(octo.directory).toMatchObject({ type: 'github', app_id: '4242' });
+    expect(octo.directory.private_key).toBe(PEM.trim());
+  });
+
+  it('fills a new provider with the directory App, beside a sign-in App entered manually', async () => {
+    const response = await startFlow(
+      'octo',
+      await openNewSource('octo', 'identity'),
+      'identity',
+      'github-directory-app',
+    ).expect(200);
+    const state = manifestPostUrl(response.text).searchParams.get('state')!;
+
+    const back = await callback(
+      'octo',
+      `code=directory&state=${state}`,
+      baseUrlCookie(response),
+      'identity',
+      'github-directory-app',
+    ).expect(200);
+    expect((await stored()).doc.auth.providers.octo).toBeUndefined();
+
+    await postForm('/-/config/identity/octo?kind=github', {
+      ...formBody(back.text),
+      'choice:auth.providers.octo.app': 'manual',
+      'auth.providers.octo.client_id': 'Iv1.manual',
+      'auth.providers.octo.client_secret': 'typed',
+      intent: 'apply',
+    }).expect(303);
+    const octo = (await stored()).doc.auth.providers.octo;
+    expect(octo.client_id).toBe('Iv1.manual');
+    expect(octo.directory).toMatchObject({ type: 'github', app_id: '4242' });
+  });
+
+  it("refuses the state of the provider's sign-in App", async () => {
+    await storeProvider('octo');
+    const { state, cookie } = await started('fresh', {}, 'identity');
+    await callback(
+      'octo',
+      `code=directory&state=${state}`,
+      cookie,
+      'identity',
+      'github-directory-app',
+    ).expect(400);
     expect(github).not.toHaveBeenCalled();
   });
 });
