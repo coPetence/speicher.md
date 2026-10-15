@@ -3,11 +3,11 @@
     A switch between sets of fields, e.g. HTTPS or SSH for a git remote. The switch
     is a group of radio buttons; choice.css shows only the pane of the checked one,
     so switching works without JavaScript. The followed field, e.g. the remote URL,
-    is drawn between the switch and the panes
+    is drawn between the switch and the panes.
   */
   const item = it.item;
 %>
-  <div class="spr-choice" data-spr-choice="<%= item.follows.path %>">
+  <div class="spr-choice"<% if (item.follows) { %> data-spr-choice="<%= item.follows.path %>"<% } %>>
     <div class="spr-choice-switch" role="radiogroup" aria-label="<%= item.label %>">
       <% item.options.forEach(function (option) { %>
       <label>
@@ -26,9 +26,11 @@
       </label>
       <% }) %>
     </div>
+    <% if (item.follows) { %>
     <div class="spr-fields">
       <%~ include('@field', { ...it, field: item.follows }) %>
     </div>
+    <% } %>
     <div class="spr-choice-panes">
       <% item.options.forEach(function (option) { %>
       <div class="spr-fields" data-spr-choice-pane="<%= option.value %>">

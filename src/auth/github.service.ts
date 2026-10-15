@@ -6,6 +6,7 @@ import { parseDurationWithFallback } from '../common/time';
 import { ConfigService } from '../config/config.service';
 import { GithubProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
+import { githubHosts } from '../forge/github/hosts';
 import { CompletedLogin } from './login-result';
 import { safeRedirect } from './oidc.service';
 import { mintPkce, mintToken } from './tokens';
@@ -58,7 +59,7 @@ export class GithubAuthService {
       expires_at: new Date(Date.now() + FLOW_TTL_MS),
     });
 
-    const url = new URL(`${this.hosts(provider).web}/login/oauth/authorize`);
+    const url = new URL(`${githubHosts(provider.base_url).web}/login/oauth/authorize`);
     url.searchParams.set('client_id', provider.client_id);
     url.searchParams.set('redirect_uri', redirectUri);
     url.searchParams.set('scope', SCOPES);
@@ -86,7 +87,7 @@ export class GithubAuthService {
 
     const providerId = flow.provider;
     const provider = this.githubProvider(providerId);
-    const { web, api } = this.hosts(provider);
+    const { web, api } = githubHosts(provider.base_url);
 
     const token = await this.exchange(web, provider, code, redirectUri, flow.code_verifier);
     const user = await this.api<GithubUser>(api, token, '/user');
@@ -240,23 +241,14 @@ export class GithubAuthService {
     }
     return provider as GithubProviderConfig;
   }
-
-  private hosts(provider: GithubProviderConfig): { web: string; api: string } {
-    const base = provider.base_url?.replace(/\/+$/, '');
-    if (!base) return { web: GITHUB_WEB, api: GITHUB_API };
-    return { web: base, api: `${base}/api/v3` };
-  }
 }
-
-const GITHUB_WEB = 'https://github.com';
-const GITHUB_API = 'https://api.github.com';
 
 /**
  * `read:org` carries team membership, `user:email` the verified address
  */
 const SCOPES = 'read:org user:email';
 
-const FLOW_TTL_MS = 10 * 60_000;
+export const FLOW_TTL_MS = 10 * 60_000;
 
 const PAGE_SIZE = 100;
 const MAX_TEAM_PAGES = 10;

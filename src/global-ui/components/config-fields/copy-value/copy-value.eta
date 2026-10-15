@@ -5,7 +5,7 @@
   */
   const item = it.item;
 %>
-  <div class="spr-field spr-field-copy-value spr-field-break">
+  <div class="spr-field spr-field-copy-value<%= item.startsRow ? ' spr-field-break' : '' %><%= item.wide ? ' spr-field-wide' : '' %>">
     <span class="spr-field-head"><%= item.label %></span>
     <span
       class="spr-copyable"

@@ -186,7 +186,7 @@ export function settleChoices(doc: Document, body: FormBody, section: FormSectio
     if (item.kind !== 'choice') continue;
 
     const submitted = body[item.name];
-    const value = doc.getIn(dottedPath(item.follows.path));
+    const value = item.follows ? doc.getIn(dottedPath(item.follows.path)) : undefined;
     const chosen =
       typeof submitted === 'string'
         ? item.options.find((option) => option.value === submitted)

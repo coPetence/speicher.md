@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>Continuing to GitHub</title>
+</head>
+<body>
+  <form method="post" action="<%= it.manifestPostUrl %>">
+    <input type="hidden" name="manifest" value="<%= it.manifest_json %>">
+    <noscript><button type="submit">Continue on GitHub</button></noscript>
+  </form>
+  <script nonce="<%= it.nonce %>">document.forms[0].submit();</script>
+</body>
+</html>

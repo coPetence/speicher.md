@@ -7,6 +7,7 @@ import type { CopyValueItem } from './copy-value';
 import type { EmbeddingModelField } from './embedding-model';
 import type { EntraTenantField } from './entra-tenant';
 import type { FileField } from './file';
+import type { GithubAppManifestItem } from './github-app-manifest';
 import type { KnownHostsField } from './known-hosts';
 import type { LinesField } from './lines';
 import type { MembershipField } from './membership';
@@ -40,7 +41,7 @@ export type Field =
 export type FieldKind = Field['kind'];
 
 // What a card holds: fields, and the items that store nothing themselves
-export type CardItem = Field | ChoiceItem | CopyValueItem;
+export type CardItem = Field | ChoiceItem | CopyValueItem | GithubAppManifestItem;
 
 // The field of one kind, e.g. `FieldOf<'secret'>` is `SecretField`
 type WithKind<F, K> = F extends { kind: infer Kinds } ? (K extends Kinds ? F : never) : never;
@@ -57,6 +58,7 @@ export * from './copy-value';
 export * from './embedding-model';
 export * from './entra-tenant';
 export * from './file';
+export * from './github-app-manifest';
 export * from './known-hosts';
 export * from './lines';
 export * from './membership';

@@ -1949,7 +1949,7 @@ describe("a git remote's transport", () => {
     const [ssh, https] = choices(loadDocument(FULL));
     expect(ssh.name).toBe('choice:forges.onprem.repos.0.url');
     expect(ssh.selected).toBe('ssh');
-    expect(ssh.follows.path).toBe('forges.onprem.repos.0.url');
+    expect(ssh.follows?.path).toBe('forges.onprem.repos.0.url');
     expect(https.selected).toBe('https');
   });
 
@@ -2023,6 +2023,78 @@ describe("a GitHub source's webhook URL", () => {
   it('says nothing of the sort on a plain remote, which has no endpoint', () => {
     const values = withPublicUrl('https://docs.acme.example', () => copyValues('sources/onprem'));
     expect(values).toEqual([]);
+  });
+});
+
+describe("a GitHub source's App setup", () => {
+  const NEW_SOURCE = 'forges:\n  gh:\n    type: github\n    default_repository_owner: copetence\n';
+
+  const items = (yaml: string) => cardItems([sectionOf(loadDocument(yaml), 'sources/gh')!]);
+
+  it('offers to create the App on GitHub while the source has none', () => {
+    const [setup] = items(NEW_SOURCE).filter((item): item is ChoiceItem => item.kind === 'choice');
+    expect(setup.name).toBe('choice:forges.gh.app');
+    expect(setup.selected).toBe('create');
+    expect(setup.follows).toBeUndefined();
+
+    const manifest = items(NEW_SOURCE).find((item) => item.kind === 'github-app-manifest');
+    expect(manifest).toMatchObject({
+      action: '/-/config/sources/gh/github-app/manifest',
+      owner: 'copetence',
+    });
+  });
+
+  it('shows only the credentials once the source has an App', () => {
+    const shown = items(FULL);
+    expect(shown.some((item) => item.kind === 'choice')).toBe(false);
+    expect(shown.some((item) => item.kind === 'github-app-manifest')).toBe(false);
+  });
+
+  const urlCardOf = (yaml: string) =>
+    sectionOf(loadDocument(yaml), 'sources/gh')!.cards.find(
+      (card) => card.title === 'Simpler URLs',
+    )!;
+
+  it('hides the Simpler URLs card until the App is entered manually', () => {
+    expect(urlCardOf(NEW_SOURCE)).toMatchObject({
+      shownWith: 'choice:forges.gh.app',
+      shownWhen: 'manual',
+      hidden: true,
+    });
+  });
+
+  it('always shows the Simpler URLs card once the source has an App', () => {
+    const card = urlCardOf(FULL);
+    expect(card.shownWith).toBeUndefined();
+    expect(card.hidden).toBeUndefined();
+  });
+
+  it('drops the credentials typed into the manual pane when the App is to be created', () => {
+    const doc = loadDocument(NEW_SOURCE);
+    applyForm(
+      doc,
+      {
+        ...untouchedBody(allFields([sectionOf(doc, 'sources/gh')!])),
+        'choice:forges.gh.app': 'create',
+        'forges.gh.app_id': '12345',
+      },
+      'sources/gh',
+    );
+    expect(doc.getIn(['forges', 'gh', 'app_id'])).toBeUndefined();
+  });
+
+  it('keeps the credentials when they are entered manually', () => {
+    const doc = loadDocument(NEW_SOURCE);
+    applyForm(
+      doc,
+      {
+        ...untouchedBody(allFields([sectionOf(doc, 'sources/gh')!])),
+        'choice:forges.gh.app': 'manual',
+        'forges.gh.app_id': '12345',
+      },
+      'sources/gh',
+    );
+    expect(doc.getIn(['forges', 'gh', 'app_id'])).toBe('12345');
   });
 });
 

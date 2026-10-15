@@ -122,6 +122,8 @@ export interface Card {
   // Path of a switch on the page; the card is hidden while it is off, and the
   // controls inside still submit their values
   shownWith?: string;
+  // The option of a choice's radio group the card is shown with, e.g. `manual`
+  shownWhen?: string;
   hidden?: boolean;
 }
 
@@ -209,7 +211,7 @@ export function cardItems(sections: FormSection[]): CardItem[] {
   const push = (item: CardItem) => {
     out.push(item);
     if (item.kind !== 'choice') return;
-    push(item.follows);
+    if (item.follows) push(item.follows);
     for (const option of item.options) option.items.forEach(push);
   };
   for (const section of sections) section.cards.flatMap(itemsOfCard).forEach(push);
@@ -219,9 +221,10 @@ export function cardItems(sections: FormSection[]): CardItem[] {
 /** The fields among `items`, including those inside a choice's options */
 export function fieldsOf(items: CardItem[]): Field[] {
   return items.flatMap((item): Field[] => {
-    if (item.kind === 'copy-value') return [];
+    if (item.kind === 'copy-value' || item.kind === 'github-app-manifest') return [];
     if (item.kind === 'choice') {
-      return [item.follows, ...item.options.flatMap((option) => fieldsOf(option.items))];
+      const options = item.options.flatMap((option) => fieldsOf(option.items));
+      return item.follows ? [item.follows, ...options] : options;
     }
     return [item];
   });

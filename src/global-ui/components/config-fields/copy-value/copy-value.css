@@ -5,6 +5,9 @@
     gap: var(--spr-space-2);
     max-inline-size: 28rem;
   }
+  .spr-field-wide .spr-copyable {
+    max-inline-size: none;
+  }
 
   .spr-copyable > code {
     flex: 1;

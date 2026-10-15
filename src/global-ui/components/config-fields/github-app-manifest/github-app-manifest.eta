@@ -1,0 +1,36 @@
+<%
+  const item = it.item;
+  const owner = { path: 'github-app-owner', label: 'Organization', help: 'The GitHub organization for which the app should be created. Leave it empty to create the App on your personal account.' };
+%>
+  <div class="spr-github-app-manifest">
+    <div class="spr-field spr-field-text">
+      <div class="spr-field-head">
+        <label for="f-github-app-owner"><%= owner.label %></label>
+        <%~ include('@info', { field: owner }) %>
+      </div>
+      <input
+        id="f-github-app-owner"
+        name="github-app:owner"
+        type="text"
+        value="<%= item.owner %>"
+        placeholder=""
+        spellcheck="false"
+        autocomplete="off"
+        data-spr-transient
+        <%= it.editable ? '' : 'disabled' %>
+      >
+    </div>
+    <button
+      type="submit"
+      class="spr-github-app-create"
+      formaction="<%= item.action %>"
+      formnovalidate
+      <%= it.editable ? '' : 'disabled' %>
+    >
+      <svg class="spr-icon" aria-hidden="true"><use href="#m-github"></use></svg>
+      Create the App on GitHub
+    </button>
+  </div>
+  <% if (item.note) { %>
+  <%~ include('@note', { level: 'info', html: md(item.note), className: 'spr-github-app-note' }) %>
+  <% } %>

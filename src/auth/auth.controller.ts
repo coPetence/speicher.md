@@ -15,7 +15,7 @@ import { SetupService } from '../dashboard/setup/setup.service';
 import { sendMagicLink } from './views/magic-link/magic-link';
 import { sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
-import { GITHUB_CALLBACK_PATH } from './callback-url';
+import { GITHUB_CALLBACK_PATH, originOf } from './callback-url';
 import { callerOf } from './caller.middleware';
 import { GithubAuthService } from './github.service';
 import { CompletedLogin } from './login-result';
@@ -428,16 +428,4 @@ export class AuthController {
     );
     return (rows[0]?.count ?? 0) <= 20;
   }
-}
-
-/**
- * Origin for callback URLs and magic links
- *
- * Not req.protocol when SPEICHER_PUBLIC_URL is set: wrong behind a reverse proxy
- */
-function originOf(req: Request): string {
-  const configured = env('SPEICHER_PUBLIC_URL');
-  if (configured) return configured.replace(/\/+$/, '');
-
-  return `${req.protocol}://${req.get('host')}`;
 }

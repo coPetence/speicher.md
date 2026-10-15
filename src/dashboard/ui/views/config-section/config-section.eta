@@ -52,6 +52,10 @@
 
 <% it.version_notes.forEach(function (note) { %><%~ include('@note', note) %><% }) %>
 
+<% if (it.notice) { %>
+<%~ include('@note', { level: 'ok', html: md(it.notice) }) %>
+<% } %>
+
 <% if (it.error) { %>
 <%~ include('@note', { level: 'fail', text: it.error }) %>
 <% if (it.problems.length > 0) { %>
@@ -64,7 +68,7 @@
 <section class="spr-verdict">
   <h2>What this change does</h2>
   <% if (it.verdict.effect === 'none') { %>
-  <%~ include('@note', { level: 'idle', text: 'Nothing differs from the version in force. Saving would append a version that changes nothing.' }) %>
+  <%~ include('@note', { level: 'idle', text: 'Nothing differs from the version in force, so saving stores no new version.' }) %>
   <% } else { %>
     <% if (it.restart_note) { %>
     <%~ include('@note', it.restart_note) %>
