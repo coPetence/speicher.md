@@ -11,7 +11,6 @@
  */
 import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { Document } from 'yaml';
 
 import { originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
@@ -47,7 +46,6 @@ import { submitted } from './config-form/decode/body';
 import { diffConfigVersions } from './config-form/diff';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
 import {
-  SHORT_ID_HINT,
   entryHrefFor,
   isMemberId,
   memberOf,
@@ -58,12 +56,15 @@ import { readUploads } from './config-form/upload';
 import { SectionChecks } from './config-page/checks';
 import { ConfigPageService } from './config-page/config-page.service';
 import {
-  GITHUB_APP_BASE_URL_COOKIE,
+  GITHUB_APP_FORM_COOKIE,
   GithubAppManifestError,
   GithubAppManifestService,
   MANIFEST_TARGETS,
-  fillWithApp,
+  appFields,
+  carryForm,
   githubAppCallbackPath,
+  uploadsOf,
+  writeStoredValues,
 } from './config-page/github-app-manifest';
 import { stampEntryOrigins } from './config-page/origins';
 import {
@@ -331,6 +332,7 @@ export class ConfigController {
     // Runs directory connectivity check when the user asked for one
     await this.checks.stampDirectoryStatus(payload, check !== undefined);
     await this.checks.stampRepositoryStatus(payload, state.storedYaml, check);
+    await this.checks.stampGithubAppLinks(payload, state.storedYaml);
     // Runs storage or mail check when the user asked for one
     await this.checks.stampSectionCheck(payload, state.storedYaml, check !== undefined);
     this.sectionAnswer(req, res, caller, sectionId, payload);
@@ -501,31 +503,25 @@ export class ConfigController {
     }
     const sectionId = memberSectionId(section, member);
 
-    // Nothing is saved here: the page is saved once GitHub filled in the App's credentials
-    await readUploads(req, res);
+    const uploads = await readUploads(req, res);
     const body = req.body as Record<string, unknown>;
-    // A new member is created under the short id typed on its page
-    const id = (submitted(body, `newname:${sectionId}`) ?? '').trim() || member;
     const baseUrl = (submitted(body, `${targetOf(member).path.join('.')}.base_url`) ?? '').trim();
     try {
       if (this.config.configSource !== 'database') {
         throw new GithubAppManifestError(new ConfigReadOnlyError(this.config.sourcePath).message);
       }
-      if (!isMemberId(section, id)) {
-        throw new GithubAppManifestError(
-          `"${id}" cannot be the short id of a ${nounOf(section)}. ${SHORT_ID_HINT}`,
-        );
-      }
-      const target = targetOf(id, baseUrl);
-      const handoff = await this.manifests.start(
+      if (uploads.refusal) throw new GithubAppManifestError(uploads.refusal);
+      const target = targetOf(member, baseUrl);
+      const { handoff, sealedForm } = await this.manifests.start(
         caller.tenantId,
         target,
         // Each App on a page has its own organization field
         (submitted(body, `${app}:owner`) ?? '').trim(),
         originOf(req),
+        carryForm(body, uploads),
       );
 
-      res.cookie(GITHUB_APP_BASE_URL_COOKIE, baseUrl, {
+      res.cookie(GITHUB_APP_FORM_COOKIE, sealedForm, {
         httpOnly: true,
         secure: !env('SPEICHER_INSECURE_COOKIES'),
         sameSite: 'lax',
@@ -557,8 +553,8 @@ export class ConfigController {
     }
     const sectionId = memberSectionId(section, member);
 
-    const baseUrl: unknown = req.cookies?.[GITHUB_APP_BASE_URL_COOKIE];
-    res.clearCookie(GITHUB_APP_BASE_URL_COOKIE, {
+    const sealedForm: unknown = req.cookies?.[GITHUB_APP_FORM_COOKIE];
+    res.clearCookie(GITHUB_APP_FORM_COOKIE, {
       path: githubAppCallbackPath(sectionId, appSegment),
     });
     try {
@@ -567,29 +563,62 @@ export class ConfigController {
           'GitHub sent the browser back without a code. To create the App, start again on this page.',
         );
       }
-      if (typeof baseUrl !== 'string') {
+      if (typeof sealedForm !== 'string') {
         throw new GithubAppManifestError(
           'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
         );
       }
+      const form = await this.manifests.claim(
+        caller.tenantId,
+        sectionId,
+        appSegment,
+        state,
+        sealedForm,
+      );
+      const baseUrl = (
+        submitted(form.body, `${targetOf(member).path.join('.')}.base_url`) ?? ''
+      ).trim();
       const target = targetOf(member, baseUrl);
-      const configState = await this.page.state(caller);
-      const stored = configState.doc?.hasIn(target.path) === true;
-      const noun = nounOf(section);
 
-      if (target.member === 'new' && stored) {
+      const configState = await this.page.state(caller);
+      if (target.member === 'new' && configState.doc?.hasIn(target.path)) {
+        const noun = nounOf(section);
         throw new GithubAppManifestError(
           `The ${noun} "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new ${noun}, start again with another short id.`,
         );
       }
-      const app = await this.manifests.complete(caller.tenantId, target, code, state);
-      const fill = (doc: Document) => fillWithApp(doc, target, app);
-      const payload = stored
-        ? await this.page.filledPayload(configState, sectionId, fill)
-        : this.page.draftPayload(configState, sectionId, target.kind, fill);
-      if (!payload) return this.respond.notFound(req, res);
-      payload.notice = target.createdNotice(`${app.html_url}/installations/new`);
-      return this.sectionAnswer(req, res, caller, sectionId, payload);
+      const app = await this.manifests.convert(target, code);
+
+      // Saved as the page's Save button saves it, with the App's credentials entered manually
+      const outcome = await this.saves.save({
+        caller,
+        sectionId,
+        kind: target.kind,
+        json: false,
+        readBody: async () => ({
+          uploads: uploadsOf(form),
+          body: {
+            ...form.body,
+            ...appFields(target, app),
+            [target.switchName]: 'manual',
+            intent: 'apply',
+          },
+        }),
+        amend: (doc) => writeStoredValues(doc, target, app),
+      });
+      const installUrl = `${app.html_url}/installations/new`;
+
+      if (outcome.kind === 'redirect') return this.redirectTo(res, installUrl);
+      if (outcome.kind !== 'page') return this.respond.notFound(req, res);
+      outcome.payload.notice = target.unsavedNotice(installUrl);
+      return this.sectionAnswer(
+        req,
+        res,
+        caller,
+        outcome.sectionId,
+        outcome.payload,
+        outcome.status,
+      );
     } catch (err) {
       if (!(err instanceof GithubAppManifestError)) throw err;
       return this.manifestRefused(req, res, caller, sectionId, err);

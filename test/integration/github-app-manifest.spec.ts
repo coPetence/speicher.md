@@ -12,7 +12,7 @@ import {
   loadActiveInstanceConfig,
 } from '../../src/config/loader';
 import {
-  GITHUB_APP_BASE_URL_COOKIE,
+  GITHUB_APP_FORM_COOKIE,
   GithubAppManifestService,
 } from '../../src/dashboard/configurator/config-page/github-app-manifest';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
@@ -29,12 +29,14 @@ const PEM = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.expor
 const CONVERTED = {
   id: 4242,
   slug: 'speicher-md',
+  owner: { login: 'acme', type: 'Organization' },
   html_url: 'https://github.com/apps/speicher-md',
   pem: PEM,
   webhook_secret: 'from-github',
   client_id: 'Iv1.abc',
   client_secret: 'secret',
 };
+const INSTALL_URL = 'https://github.com/apps/speicher-md/installations/new';
 
 let harness: Harness;
 let config: ConfigService;
@@ -95,6 +97,15 @@ async function openNewSource(id: string, section = 'sources'): Promise<FormBody>
   return formBody(page.text);
 }
 
+/** Opens the page of a stored provider, and returns its form */
+async function openProvider(id: string): Promise<FormBody> {
+  const page = await request(app.getHttpServer())
+    .get(`/-/config/identity/${id}`)
+    .set('cookie', ops)
+    .expect(200);
+  return formBody(page.text);
+}
+
 /** Posts a form as the page's multipart form posts it */
 function postForm(path: string, body: FormBody) {
   let req = request(app.getHttpServer()).post(path).set('cookie', ops);
@@ -105,11 +116,11 @@ function postForm(path: string, body: FormBody) {
 }
 
 /** Presses the button that creates the App, with the form as the page holds it */
-function startFlow(id: string, body: FormBody, section = 'sources', app = 'github-app') {
-  return postForm(`/-/config/${section}/${id}/${app}/manifest`, body);
+function startFlow(id: string, body: FormBody, section = 'sources', appSegment = 'github-app') {
+  return postForm(`/-/config/${section}/${id}/${appSegment}/manifest`, body);
 }
 
-/** The page on GitHub the hand-off page posts its manifest to */
+/** The page on GitHub the hand-off posts its manifest to */
 function manifestPostUrl(html: string): URL {
   const action = /<form method="post" action="([^"]+)"/.exec(html)?.[1];
   if (!action) throw new Error('the page has no form that posts the manifest');
@@ -122,15 +133,15 @@ function manifestOf(html: string): AppManifest {
   return JSON.parse(value.replace(/&quot;/g, '"').replace(/&amp;/g, '&')) as AppManifest;
 }
 
-/** The cookie that holds the base URL while the browser is on GitHub, as the start set it */
-function baseUrlCookie(started: request.Response): string {
-  const cookies = ([] as string[]).concat(started.headers['set-cookie'] ?? []);
-  const cookie = cookies.find((each) => each.startsWith(`${GITHUB_APP_BASE_URL_COOKIE}=`));
-  if (!cookie) throw new Error('the start set no base URL cookie');
+/** The cookie that carries the page's form while the browser is on GitHub, as the start set it */
+function formCookie(response: request.Response): string {
+  const cookies = ([] as string[]).concat(response.headers['set-cookie'] ?? []);
+  const cookie = cookies.find((each) => each.startsWith(`${GITHUB_APP_FORM_COOKIE}=`));
+  if (!cookie) throw new Error('the start set no form cookie');
   return cookie;
 }
 
-/** Comes back from GitHub, with the cookie the start set unless one is given */
+/** Comes back from GitHub, with the cookie the start set unless another is given */
 function callback(
   id: string,
   query: string,
@@ -144,25 +155,29 @@ function callback(
     .set('cookie', cookies);
 }
 
-/** Starts a flow for a new source or provider, and returns its state and cookie */
+/** Starts a flow from a page, and returns its state and cookie */
 async function started(
   id: string,
-  body: FormBody = {},
+  form: FormBody,
   section = 'sources',
+  appSegment = 'github-app',
 ): Promise<{ state: string; cookie: string }> {
-  const response = await startFlow(
-    id,
-    { ...(await openNewSource(id, section)), ...body },
-    section,
-  ).expect(200);
+  const response = await startFlow(id, form, section, appSegment).expect(200);
   return {
     state: manifestPostUrl(response.text).searchParams.get('state')!,
-    cookie: baseUrlCookie(response),
+    cookie: formCookie(response),
   };
 }
 
+/** Creates the sign-in App of a new provider, which stores the provider */
+async function storeProvider(id: string): Promise<void> {
+  const { state, cookie } = await started(id, await openNewSource(id, 'identity'), 'identity');
+  await callback(id, `code=sign-in&state=${state}`, cookie, 'identity').expect(303);
+  github.mockClear();
+}
+
 describe('creating the GitHub App of a new source from a manifest', () => {
-  it('hands the manifest over to GitHub, and stores nothing', async () => {
+  it('hands the manifest over to GitHub, and stores nothing yet', async () => {
     const before = (await stored()).version;
     const response = await startFlow('team', {
       ...(await openNewSource('team')),
@@ -193,7 +208,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     expect(manifest.default_events).toEqual([]);
 
     // Only the callback reads the cookie
-    expect(baseUrlCookie(response)).toContain(
+    expect(formCookie(response)).toContain(
       'Path=/-/config/sources/team/github-app/manifest/callback',
     );
     const after = await stored();
@@ -225,28 +240,22 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     expect(manifestPostUrl(response.text).pathname).toBe('/settings/apps/new');
   });
 
-  it('fills the page with the App, and leaves the save to the person', async () => {
-    const before = (await stored()).version;
-    const { state, cookie } = await started('team');
+  it('saves the source with the App and the values typed on the page, then installs the App', async () => {
+    const { state, cookie } = await started('team', {
+      ...(await openNewSource('team')),
+      'forges.team.default_repository_owner': 'copetence-docs',
+    });
 
-    const back = await callback('team', `code=the-code&state=${state}`, cookie).expect(200);
+    const back = await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
+    expect(back.headers.location).toBe(INSTALL_URL);
     expect(github).toHaveBeenCalledWith(
       'https://api.github.com/app-manifests/the-code/conversions',
       expect.objectContaining({ method: 'POST' }),
     );
-    // The note links to where the App is installed on the repositories
-    expect(back.text).toContain('href="https://github.com/apps/speicher-md/installations/new"');
-    expect(back.text).toContain('value="4242"');
-    expect(back.text).toContain('name="unsaved:forges.team.webhook_secret"');
-    expect((await stored()).version).toBe(before);
 
-    // Saving the page stores the source with the App's credentials
-    await postForm('/-/config/sources/team?kind=github', {
-      ...formBody(back.text),
-      intent: 'apply',
-    }).expect(303);
     const team = (await stored()).doc.forges.team;
     expect(team.type).toBe('github');
+    expect(team.default_repository_owner).toBe('copetence-docs');
     expect(team.app_id).toBe('4242');
     // The form trims the key's last newline, as it trims a key pasted into it
     expect(team.private_key).toBe(PEM.trim());
@@ -258,56 +267,73 @@ describe('creating the GitHub App of a new source from a manifest', () => {
       async () =>
         new Response(JSON.stringify({ ...CONVERTED, webhook_secret: null }), { status: 201 }),
     );
-    const { state, cookie } = await started('team');
-    const back = await callback('team', `code=the-code&state=${state}`, cookie).expect(200);
-
-    await postForm('/-/config/sources/team?kind=github', {
-      ...formBody(back.text),
-      intent: 'apply',
-    }).expect(303);
+    const { state, cookie } = await started('team', await openNewSource('team'));
+    await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
     expect((await stored()).doc.forges.team.webhook_secret).toEqual(expect.any(String));
   });
 
   it('creates the App on the GitHub Enterprise Server the page names', async () => {
     const { state, cookie } = await started('team', {
+      ...(await openNewSource('team')),
       'forges.team.base_url': 'https://ghe.example.test',
     });
 
-    const back = await callback('team', `code=the-code&state=${state}`, cookie).expect(200);
+    await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
     expect(github).toHaveBeenCalledWith(
       'https://ghe.example.test/api/v3/app-manifests/the-code/conversions',
       expect.anything(),
     );
-    expect(back.text).toContain('value="https://ghe.example.test"');
+    expect((await stored()).doc.forges.team.base_url).toBe('https://ghe.example.test');
+  });
+
+  it('carries the form sealed, so the cookie shows nothing typed on the page', async () => {
+    const response = await startFlow('team', {
+      ...(await openNewSource('team')),
+      'forges.team.default_repository_owner': 'visible-owner',
+    }).expect(200);
+    const value = formCookie(response).split(';')[0];
+    expect(value).not.toContain('visible-owner');
+    expect(Buffer.from(value.split('=')[1], 'base64url').toString('latin1')).not.toContain(
+      'visible-owner',
+    );
+  });
+
+  it('refuses a cookie that was changed', async () => {
+    const { state, cookie } = await started('team', await openNewSource('team'));
+    const [pair, ...attributes] = cookie.split(';');
+    const changed = `${pair.slice(0, -2)}AA;${attributes.join(';')}`;
+    const back = await callback('team', `code=the-code&state=${state}`, changed).expect(400);
+    expect(back.text).toContain('without the details this page sent along');
+    expect(github).not.toHaveBeenCalled();
   });
 
   it('refuses a state it did not hand out, or one it has used', async () => {
-    const { state, cookie } = await started('team');
+    const { state, cookie } = await started('team', await openNewSource('team'));
 
     const unknown = await callback('team', 'code=the-code&state=made-up', cookie).expect(400);
     expect(unknown.text).toContain('Speicher does not know this answer from GitHub');
     expect(github).not.toHaveBeenCalled();
 
-    await callback('team', `code=the-code&state=${state}`, cookie).expect(200);
+    await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
     await callback('team', `code=the-code&state=${state}`, cookie).expect(400);
     expect(github).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a state handed out for another source', async () => {
-    const { state, cookie } = await started('team');
+    const { state, cookie } = await started('team', await openNewSource('team'));
     await callback('other', `code=the-code&state=${state}`, cookie).expect(400);
     expect(github).not.toHaveBeenCalled();
   });
 
   it('refuses to come back without the cookie the start set', async () => {
-    const { state } = await started('team');
+    const { state } = await started('team', await openNewSource('team'));
     const back = await callback('team', `code=the-code&state=${state}`, null).expect(400);
     expect(back.text).toContain('without the details this page sent along');
     expect(github).not.toHaveBeenCalled();
   });
 
-  it('refuses to fill in a source that is already stored', async () => {
-    const { state, cookie } = await started('gh');
+  it('refuses to take the App over for a source that is already stored', async () => {
+    const { state, cookie } = await started('gh', await openNewSource('gh'));
     const back = await callback('gh', `code=the-code&state=${state}`, cookie).expect(400);
     expect(back.text).toContain('already exists');
     expect(github).not.toHaveBeenCalled();
@@ -315,7 +341,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
 });
 
 describe('creating the GitHub App of a new identity provider from a manifest', () => {
-  it('hands a sign-in App over to GitHub, and stores nothing', async () => {
+  it('hands a sign-in App over to GitHub, and stores nothing yet', async () => {
     const before = (await stored()).version;
     const response = await startFlow(
       'octo',
@@ -325,7 +351,8 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
 
     expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
     const manifest = manifestOf(response.text);
-    expect(manifest.name).toBe('Speicher.md OAuth');
+    // Named after the host of this instance, which answers the test on 127.0.0.1
+    expect(manifest.name).toBe('127.0.0.1 Speicher.md');
     expect(manifest.callback_urls?.[0]).toMatch(/\/api\/auth\/github\/callback$/);
     expect(manifest.redirect_url).toMatch(
       /\/-\/config\/identity\/octo\/github-app\/manifest\/callback$/,
@@ -335,26 +362,81 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
     expect((await stored()).version).toBe(before);
   });
 
-  it('fills the page with the client id and secret, and saving stores the provider', async () => {
-    const { state, cookie } = await started('octo', {}, 'identity');
-    const back = await callback('octo', `code=the-code&state=${state}`, cookie, 'identity').expect(
-      200,
+  it('saves the provider with its client id and secret, then installs the App', async () => {
+    const { state, cookie } = await started(
+      'octo',
+      {
+        ...(await openNewSource('octo', 'identity')),
+        'auth.providers.octo.display_name': 'Octo staff',
+      },
+      'identity',
     );
-    expect(back.text).toContain('href="https://github.com/apps/speicher-md/installations/new"');
-    expect(back.text).toContain('value="Iv1.abc"');
+    const back = await callback('octo', `code=the-code&state=${state}`, cookie, 'identity').expect(
+      303,
+    );
+    expect(back.headers.location).toBe(INSTALL_URL);
 
-    await postForm('/-/config/identity/octo?kind=github', {
-      ...formBody(back.text),
-      intent: 'apply',
-    }).expect(303);
     const octo = (await stored()).doc.auth.providers.octo;
     expect(octo.type).toBe('github');
+    expect(octo.display_name).toBe('Octo staff');
     expect(octo.client_id).toBe('Iv1.abc');
     expect(octo.client_secret).toBe('secret');
+    expect(octo.app).toEqual({
+      client_id: 'Iv1.abc',
+      slug: 'speicher-md',
+      owner_account: 'acme',
+      owner_is_organization: true,
+    });
+
+    const page = await request(app.getHttpServer())
+      .get('/-/config/identity/octo')
+      .set('cookie', ops)
+      .expect(200);
+    expect(page.text).toContain(
+      'href="https://github.com/organizations/acme/settings/apps/speicher-md"',
+    );
+    expect(page.text).toContain(`href="${INSTALL_URL}"`);
   });
 
-  it('refuses to fill in a provider that is already stored', async () => {
-    const { state, cookie } = await started('entra', {}, 'identity');
+  it('saves the provider under the short id it was added with', async () => {
+    const response = await startFlow(
+      'octo',
+      await openNewSource('octo', 'identity'),
+      'identity',
+    ).expect(200);
+    // After the App is installed, GitHub sends the browser to the provider's page
+    expect(manifestOf(response.text).setup_url).toMatch(/\/-\/config\/identity\/octo$/);
+
+    const state = manifestPostUrl(response.text).searchParams.get('state')!;
+    await callback('octo', `code=the-code&state=${state}`, formCookie(response), 'identity').expect(
+      303,
+    );
+    expect((await stored()).doc.auth.providers.octo.client_id).toBe('Iv1.abc');
+  });
+
+  it('shows the page with the App kept in it when the save is refused', async () => {
+    // The session lifetime is not a duration, so the save refuses it
+    const { state, cookie } = await started(
+      'octo',
+      {
+        ...(await openNewSource('octo', 'identity')),
+        'auth.providers.octo.session_ttl': 'forever',
+      },
+      'identity',
+    );
+
+    const back = await callback('octo', `code=the-code&state=${state}`, cookie, 'identity').expect(
+      400,
+    );
+    expect(back.text).toContain('could not be saved yet');
+    expect(back.text).toContain(`href="${INSTALL_URL}"`);
+    expect(back.text).toContain('value="Iv1.abc"');
+    expect(back.text).toContain('name="unsaved:auth.providers.octo.client_secret"');
+    expect((await stored()).doc.auth.providers.octo).toBeUndefined();
+  });
+
+  it('refuses to take the App over for a provider that is already stored', async () => {
+    const { state, cookie } = await started('entra', await openProvider('entra'), 'identity');
     const back = await callback('entra', `code=the-code&state=${state}`, cookie, 'identity').expect(
       400,
     );
@@ -367,27 +449,7 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
   });
 });
 
-describe('creating the directory App of a stored identity provider from a manifest', () => {
-  /** Opens the page of a stored provider, and returns its form */
-  async function openProvider(id: string): Promise<FormBody> {
-    const page = await request(app.getHttpServer())
-      .get(`/-/config/identity/${id}`)
-      .set('cookie', ops)
-      .expect(200);
-    return formBody(page.text);
-  }
-
-  /** Stores a GitHub provider whose App GitHub created */
-  async function storeProvider(id: string): Promise<void> {
-    const { state, cookie } = await started(id, {}, 'identity');
-    const back = await callback(id, `code=sign-in&state=${state}`, cookie, 'identity').expect(200);
-    await postForm(`/-/config/identity/${id}?kind=github`, {
-      ...formBody(back.text),
-      intent: 'apply',
-    }).expect(303);
-    github.mockClear();
-  }
-
+describe('creating the directory App of an identity provider from a manifest', () => {
   it('hands a directory App over to GitHub', async () => {
     await storeProvider('octo');
     const response = await startFlow(
@@ -407,68 +469,61 @@ describe('creating the directory App of a stored identity provider from a manife
     );
   });
 
-  it("fills the stored provider's directory lookup, and saving stores it", async () => {
+  it("saves the stored provider's directory lookup, and keeps its sign-in App", async () => {
     await storeProvider('octo');
-    const response = await startFlow(
+    const { state, cookie } = await started(
       'octo',
       await openProvider('octo'),
       'identity',
       'github-directory-app',
-    ).expect(200);
-    const state = manifestPostUrl(response.text).searchParams.get('state')!;
+    );
 
-    const back = await callback(
+    await callback(
       'octo',
       `code=directory&state=${state}`,
-      baseUrlCookie(response),
+      cookie,
       'identity',
       'github-directory-app',
-    ).expect(200);
-    expect(back.text).toContain('href="https://github.com/apps/speicher-md/installations/new"');
-
-    await postForm('/-/config/identity/octo', { ...formBody(back.text), intent: 'apply' }).expect(
-      303,
-    );
+    ).expect(303);
     const octo = (await stored()).doc.auth.providers.octo;
-    // The sign-in App stays as it was
     expect(octo.client_id).toBe('Iv1.abc');
     expect(octo.directory).toMatchObject({ type: 'github', app_id: '4242' });
     expect(octo.directory.private_key).toBe(PEM.trim());
   });
 
-  it('fills a new provider with the directory App, beside a sign-in App entered manually', async () => {
-    const response = await startFlow(
+  it('saves a new provider with the directory App and a sign-in App typed in manually', async () => {
+    const { state, cookie } = await started(
       'octo',
-      await openNewSource('octo', 'identity'),
+      {
+        ...(await openNewSource('octo', 'identity')),
+        'choice:auth.providers.octo.app': 'manual',
+        'auth.providers.octo.client_id': 'Iv1.manual',
+        'auth.providers.octo.client_secret': 'typed',
+      },
       'identity',
       'github-directory-app',
-    ).expect(200);
-    const state = manifestPostUrl(response.text).searchParams.get('state')!;
+    );
 
-    const back = await callback(
+    await callback(
       'octo',
       `code=directory&state=${state}`,
-      baseUrlCookie(response),
+      cookie,
       'identity',
       'github-directory-app',
-    ).expect(200);
-    expect((await stored()).doc.auth.providers.octo).toBeUndefined();
-
-    await postForm('/-/config/identity/octo?kind=github', {
-      ...formBody(back.text),
-      'choice:auth.providers.octo.app': 'manual',
-      'auth.providers.octo.client_id': 'Iv1.manual',
-      'auth.providers.octo.client_secret': 'typed',
-      intent: 'apply',
-    }).expect(303);
+    ).expect(303);
     const octo = (await stored()).doc.auth.providers.octo;
     expect(octo.client_id).toBe('Iv1.manual');
+    expect(octo.client_secret).toBe('typed');
     expect(octo.directory).toMatchObject({ type: 'github', app_id: '4242' });
   });
 
   it("refuses the state of the provider's sign-in App", async () => {
     await storeProvider('octo');
-    const { state, cookie } = await started('fresh', {}, 'identity');
+    const { state, cookie } = await started(
+      'fresh',
+      await openNewSource('fresh', 'identity'),
+      'identity',
+    );
     await callback(
       'octo',
       `code=directory&state=${state}`,

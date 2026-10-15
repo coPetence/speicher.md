@@ -223,7 +223,13 @@ export function cardItems(sections: FormSection[]): CardItem[] {
 /** The fields among `items`, including those inside a choice's options */
 export function fieldsOf(items: CardItem[]): Field[] {
   return items.flatMap((item): Field[] => {
-    if (item.kind === 'copy-value' || item.kind === 'github-app-manifest') return [];
+    if (
+      item.kind === 'copy-value' ||
+      item.kind === 'github-app-manifest' ||
+      item.kind === 'github-app-links'
+    ) {
+      return [];
+    }
     if (item.kind === 'choice') {
       const options = item.options.flatMap((option) => fieldsOf(option.items));
       return item.follows ? [item.follows, ...options] : options;

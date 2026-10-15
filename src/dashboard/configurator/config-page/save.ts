@@ -54,6 +54,7 @@ export interface SaveRequest {
    * check on `payload.editable` — and the multipart body is not read at all then.
    */
   readBody: () => Promise<{ uploads: Uploads; body: Record<string, unknown> }>;
+  amend?: (doc: Document) => boolean;
 }
 
 function pageOf(sectionId: string, payload: ConfigSectionPayload, status?: number): SaveOutcome {
@@ -131,10 +132,7 @@ export class ConfigSaveService {
   /**
    * Apply a rename and save it, or answer why it was refused.
    *
-   * Separate from the save below because the two differ in what they write and in
-   * where they land, and sharing the tail of one with the other would mean a
-   * branch inside every step of it. What they share is the part that matters:
-   * both hand the *whole* document to `saveInstanceConfig`, which is the loader,
+   * Both this and the save below hand the whole document to `saveInstanceConfig`,
    * so a rename is checked exactly as hard as a value.
    */
   private async rename(
@@ -155,8 +153,7 @@ export class ConfigSaveService {
       return refuse(`"${to}" is not a name this key may take: lower case, digits and hyphens.`);
     }
 
-    // On a copy, so a refusal hands back the operator's own edits with the old
-    // name still on them rather than a page for a member that was never stored.
+    // On a copy, so a refusal hands back the operator's edits with the old name on them
     const renamed = loadDocument(edited);
     if (!renameMember(renamed, from.section, from.id, to)) {
       return refuse(`There is already a ${noun} called "${to}".`);
@@ -169,18 +166,7 @@ export class ConfigSaveService {
         provenanceOf(caller),
       );
 
-      /*
-        And the rows minted under the old spelling, which the document cannot
-        reach. A provider's key is what every principal is built from, so a
-        session, an API key or an OAuth grant left naming the old one resolves to
-        nobody — including the administrator who just pressed the button, whose
-        repair would be to clear a cookie and sign in again. The two credentials
-        that are not a cookie have no such repair.
-
-        After the save, because the save is the step that can be refused; a
-        failure here leaves the rows behind and is logged at error, which is the
-        state this instance was in before any of it was carried.
-      */
+      // Sessions, API keys and OAuth grants name the provider, so they move with it
       if (from.section === 'identity') {
         const log = rootLogger.child('config');
         try {
@@ -212,8 +198,6 @@ export class ConfigSaveService {
         return pageOf(moved, after);
       }
 
-      // The member is at a different URL now, and this is the only place under
-      // `/-/config` where a save moves the page it was made on.
       return { kind: 'redirect', href: `/-/config/${moved}?saved=${saved.version}` };
     } catch (err) {
       if (err instanceof ConfigReadOnlyError || err instanceof ConfigError) {
@@ -223,7 +207,14 @@ export class ConfigSaveService {
     }
   }
 
-  async save({ caller, sectionId, kind, json, readBody }: SaveRequest): Promise<SaveOutcome> {
+  async save({
+    caller,
+    sectionId,
+    kind,
+    json,
+    readBody,
+    amend,
+  }: SaveRequest): Promise<SaveOutcome> {
     const state = await this.page.state(caller);
     const payload = await this.page.sectionPayload(state, sectionId);
     // Every answer below is a submission rendered back, so whatever is in the boxes
@@ -320,39 +311,12 @@ export class ConfigSaveService {
     // *value* for a checkbox, so decoding the whole model against one section's
     // submission would turn off every switch on the other seven — see `applyForm`.
     const { structural, changed: edited_ } = applyForm(doc, body, sectionId, hint);
+    const amended = amend?.(doc) ?? false;
     // The Fetch host keys button: a round trip like Add, which writes the fetched keys
     // into the edited document and stores nothing. See `SectionChecks.fetchHostKeys`
     const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);
 
-    /*
-      The id a member being created is stored under.
-
-      The add modal used to ask it beside the kind, and it left with the modal: the
-      kinds are cards now, a card answers one question, and the id arrived as
-      `freeMemberId`'s suggestion with nowhere to change it. The box is on the
-      creating form instead — the pencil is not an option there, because a rename is
-      a save that moves a key and there is no key until this request finishes.
-
-      Applied by *moving the finished member*, not by decoding into a different path.
-      Every control on that page submits under a path containing the id the route
-      carries, so the id cannot be known before the form is decoded: the save seeds
-      at the route's id, fills it in, and moves the key afterwards. `renameMember`
-      is the same function the pencil uses, so a provider created as `entra` and
-      typed as `corp` lands with `auth.default_provider` already pointing at it.
-
-      A name that is taken is refused here rather than by `renameMapKey` returning
-      false at save time, because the operator is owed the reason and their own
-      work back — and because the two failures are different: one is a typo, the
-      other would silently merge two providers.
-    */
-    const wantedId =
-      created && member && offered?.renameOp
-        ? String(body[`newname:${sectionId}`] ?? '').trim()
-        : '';
-    const renamesTo = member && wantedId !== '' && wantedId !== member.id ? wantedId : null;
-    const idTaken =
-      renamesTo !== null && member !== null && memberExists(doc, { ...member, id: renamesTo });
-    const changed = edited_ || created || hostKeys?.changed === true;
+    const changed = edited_ || amended || created || hostKeys?.changed === true;
     // Only re-serialise when a value actually moved. Rendering an untouched
     // document back out would normalise its formatting, so opening the form and
     // pressing Save would append a version that differs by whitespace alone.
@@ -365,6 +329,7 @@ export class ConfigSaveService {
     await stampEntryOrigins(caller.tenantId, payload);
     await this.checks.stampDirectoryStatus(payload, false);
     await this.checks.stampRepositoryStatus(payload, edited);
+    await this.checks.stampGithubAppLinks(payload, edited);
     await this.checks.stampSectionCheck(payload, edited, false);
     const fetchedInto =
       hostKeys && payload.section
@@ -380,36 +345,12 @@ export class ConfigSaveService {
     payload.pending = edited !== state.storedYaml || payload.creating;
     payload.shape = payload.section ? shapeControls(doc, payload.section) : [];
 
-    if (refusal || idTaken) {
-      const error = idTaken
-        ? `There is already a \`${renamesTo}\` here. Every short id in this ` +
-          'collection is distinct, because it is the key the document stores and ' +
-          'the name a grant is written against.'
-        : refusal;
-      return pageOf(sectionId, { ...payload, error }, 400);
+    if (refusal) {
+      return pageOf(sectionId, { ...payload, error: refusal }, 400);
     }
 
-    /*
-      Renaming the member this page is about.
-
-      The one operation here that is a *save* rather than a round trip, and it has
-      to be: the id is the key, so a renamed provider lives at a URL that nothing
-      has stored yet — a round trip would leave the operator on a page for a
-      member the next request cannot find. Saving makes the new name real, and the
-      303 lands them on it.
-
-      It is applied to a copy, so a refusal costs nothing: the document that comes
-      back is the one *without* the rename, carrying every edit the operator had
-      typed, and the loader's message says why. Renaming onto a name that is taken
-      would silently merge two of them, so `renameMember` refuses it and the
-      page says so rather than guessing which one was meant.
-
-      What it cannot reach is a grant written in a repository — `speicher.yaml`
-      can name a provider by id, and those documents are not this instance's to
-      edit. Such a grant becomes an `unknown-provider` rejection at the next sync:
-      dropped, and reported to the author. The page says so before the button.
-    */
-    const renameTo = (body[`newname:${sectionId}`] ?? body['rename'] ?? '') as string;
+    // The pencil's rename, which is a save: the renamed member lives at a new URL
+    const renameTo = body['rename'];
     if (
       payload.section?.renameOp &&
       body.op === payload.section.renameOp &&
@@ -475,47 +416,18 @@ export class ConfigSaveService {
     // step", which is a question nothing else on this surface asks.
     const beforeSave = by.origin === 'setup' ? setupStateOf(this.config) : null;
 
-    /*
-      The new member's key moved into place, on the one path that stores anything.
-
-      Last, and deliberately: everything above — decoding, the field model, the
-      verdict, the refusal that hands a page back — is written against the id the
-      route carries, and moving the key earlier would leave `sectionId` naming a
-      member the document no longer has. A check that never saves therefore never
-      renames, which is right: `intent=check` asks whether this document loads, and
-      the answer does not depend on what the member is called.
-
-      Validated again afterwards rather than trusted. `renameProvider` rewrites
-      `auth.default_provider` and every grant that named the old id, so the text
-      being stored is not the text that was checked a moment ago — and the rule on
-      this surface is that what the button obeys is the loader, on the bytes that
-      are about to be written.
-    */
-    let toStore = edited;
-    let landing = sectionId;
-    if (renamesTo && member && renameMember(doc, member.section, member.id, renamesTo)) {
-      toStore = serialise(doc);
-      landing = memberSectionId(member.section, renamesTo);
-      try {
-        validateForSave(toStore, { requireAdministrator: by.origin !== 'setup' });
-      } catch (err) {
-        if (!(err instanceof ConfigError)) throw err;
-        return pageOf(sectionId, refused(payload, err), 400);
-      }
-    }
-
     // Check if the stored config is the same as the one we are trying to save. If so, we don't need to save it again.
-    if (toStore === state.storedYaml) {
+    if (edited === state.storedYaml) {
       if (json) {
         payload.pending = false;
         payload.holds_work = false;
         return pageOf(sectionId, payload);
       }
-      return { kind: 'redirect', href: `/-/config/${landing}` };
+      return { kind: 'redirect', href: `/-/config/${sectionId}` };
     }
 
     try {
-      const saved = await saveInstanceConfig(caller.tenantId, toStore, by);
+      const saved = await saveInstanceConfig(caller.tenantId, edited, by);
 
       // Adopt it now rather than up to a poll interval from now, so the admin who
       // made the change reads the truth on the page that reports it. Other replicas
@@ -566,7 +478,7 @@ export class ConfigSaveService {
       */
       const forward = beforeSave ? nextSetupPage(beforeSave, this.config, sectionId) : null;
 
-      return { kind: 'redirect', href: forward ?? `/-/config/${landing}?saved=${saved.version}` };
+      return { kind: 'redirect', href: forward ?? `/-/config/${sectionId}?saved=${saved.version}` };
     } catch (err) {
       // `file` mode: refused, not ignored, and not a 404 either — this caller can
       // see the page, so they get the reason rather than a surface that pretends

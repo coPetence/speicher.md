@@ -351,28 +351,8 @@
   const paired = ordinary.filter(function (f) { return f.kind !== 'template' });
   const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
 %>
-<% const showsId = it.editable && it.creating && it.section.renameOp %>
-<% if (showsId || paired.length > 0) { %>
+<% if (paired.length > 0) { %>
 <div class="spr-fields">
-  <% if (showsId) { %>
-  <div class="spr-field spr-field-text">
-    <div class="spr-field-head">
-      <label for="f-member-id">Short id<span class="spr-required" aria-hidden="true">*</span><span class="spr-clipped"> (required)</span></label>
-      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', help: it.member_id_help } }) %>
-    </div>
-    <input
-      id="f-member-id"
-      name="newname:<%= it.section_id %>"
-      type="text"
-      value="<%= it.section_title %>"
-      pattern="<%= it.section.renamePattern %>"
-      title="<%= it.section.renameHint %>"
-      spellcheck="false"
-      autocomplete="off"
-      required
-    >
-  </div>
-  <% } %>
   <% paired.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
 </div>
 <% } %>

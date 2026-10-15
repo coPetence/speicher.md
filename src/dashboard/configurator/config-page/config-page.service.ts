@@ -242,14 +242,8 @@ export class ConfigPageService {
    * @param state the stored configuration
    * @param sectionId the page of the new member, e.g. `sources/gh`
    * @param kind the kind the member is created as, e.g. `github`
-   * @param fill writes values into the new member before the page is built, e.g. the credentials of a GitHub App. The page holds them as unsaved work
    */
-  draftPayload(
-    state: ConfigState,
-    sectionId: string,
-    kind: string,
-    fill?: (doc: Document) => void,
-  ): ConfigSectionPayload | null {
+  draftPayload(state: ConfigState, sectionId: string, kind: string): ConfigSectionPayload | null {
     const member = memberOf(sectionId);
     if (!state.doc || !member || !canCreateMember(member, kind)) return null;
 
@@ -276,7 +270,6 @@ export class ConfigPageService {
     }
     // Insert a placeholder entry for the new member so the form has fields to render
     seedMemberInto(doc, member, kind);
-    fill?.(doc);
 
     const hint: KindHint | undefined =
       member.section === 'identity' ? { provider: member.id, kind } : undefined;
@@ -285,33 +278,6 @@ export class ConfigPageService {
     if (!payload.section) return null;
     // Track what kind is being created so the UI can show the right defaults
     if (memberCollectionOf(member.section)?.kinds) payload.creating_kind = kind;
-    if (fill) {
-      carryUnsavedSecrets(payload, doc, state.storedYaml);
-      payload.holds_work = true;
-    }
-    return payload;
-  }
-
-  /**
-   * filledPayload builds the page of a stored member with values written into it, e.g. the credentials of a GitHub App. The page holds them as unsaved work.
-   *
-   * @param state the stored configuration
-   * @param sectionId the page of the member, e.g. `identity/hub`
-   * @param fill writes the values into the configuration document
-   */
-  async filledPayload(
-    state: ConfigState,
-    sectionId: string,
-    fill: (doc: Document) => void,
-  ): Promise<ConfigSectionPayload | null> {
-    const doc = loadDocument(state.storedYaml);
-    fill(doc);
-    const payload = this.payloadFrom(state, doc, sectionId);
-    if (!payload.section) return null;
-    carryUnsavedSecrets(payload, doc, state.storedYaml);
-    payload.holds_work = true;
-    payload.pending = true;
-    await stampBrandImages(state.tenantId, payload);
     return payload;
   }
 

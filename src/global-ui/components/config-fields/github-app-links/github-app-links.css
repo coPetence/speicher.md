@@ -1,0 +1,18 @@
+@layer speicher.base {
+  .spr-github-app-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spr-space-2) var(--spr-space-5);
+    grid-column: 1 / -1;
+  }
+  .spr-github-app-links > a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-1);
+  }
+  .spr-github-app-links .spr-icon {
+    inline-size: 0.9em;
+    block-size: 0.9em;
+    flex: none;
+  }
+}

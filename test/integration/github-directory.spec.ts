@@ -446,6 +446,23 @@ describe('the memoised lookup', () => {
     expect(second).not.toBe(first);
   });
 
+  it.each([
+    ['App id', (yaml: string) => yaml.replace(`app_id: '2'`, `app_id: '3'`)],
+    [
+      'private key',
+      (yaml: string) => yaml.replace('${TEST_APP_KEY}', '${TEST_OTHER_APP_KEY}'),
+    ],
+    ['GitHub host', (yaml: string) => yaml.replace(gh.base, 'https://ghe.acme.test')],
+  ])('is rebuilt when the %s changes', (_what, change) => {
+    const config = configFor(['acme/platform']);
+    const first = createDirectoryLookup(config);
+
+    config.adopt(loadInstanceConfig(change(instanceYaml(['acme/platform']))));
+
+    // A memo that ignored the credentials would keep minting tokens as the old App
+    expect(createDirectoryLookup(config)).not.toBe(first);
+  });
+
   it('is still a memo when nothing about it changed', () => {
     const config = configFor(['acme/platform']);
 
@@ -597,6 +614,7 @@ interface FakeGithub {
 async function startFakeGithub(): Promise<FakeGithub> {
   const { privateKey } = await generateKeyPair('RS256');
   process.env.TEST_APP_KEY = await exportPKCS8(privateKey);
+  process.env.TEST_OTHER_APP_KEY = await exportPKCS8((await generateKeyPair('RS256')).privateKey);
 
   const state: FakeGithub = {
     base: '',

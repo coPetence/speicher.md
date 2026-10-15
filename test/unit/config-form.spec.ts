@@ -278,6 +278,9 @@ describe('a width asked for from a model', () => {
   });
 });
 
+const GITHUB_APP_STORED =
+  'Speicher writes it when it creates the GitHub App, and the card links to the App from it';
+
 const OMITTED_FROM_FORM: Record<string, string> = {
   'auth.providers.<key>.type':
     "a provider's kind is chosen when it is added and is not a setting " +
@@ -296,6 +299,10 @@ const OMITTED_FROM_FORM: Record<string, string> = {
   'forges.<key>.token':
     'a whole-forge token applies to no driver that is built — `git` repositories ' +
     'carry their own, and that is where the form offers it',
+  'auth.providers.<key>.app.client_id': GITHUB_APP_STORED,
+  'auth.providers.<key>.app.slug': GITHUB_APP_STORED,
+  'auth.providers.<key>.app.owner_account': GITHUB_APP_STORED,
+  'auth.providers.<key>.app.owner_is_organization': GITHUB_APP_STORED,
 };
 
 describe('coverage of the schema', () => {

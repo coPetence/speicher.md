@@ -114,8 +114,8 @@ const CONTRACT: Record<string, Contract> = {
   'GET /-/config/:section/:member/:app/manifest/callback': {
     covered:
       'github-app-manifest.spec.ts. It is where GitHub sends the browser back with ' +
-      'a code, and it answers with the page of the source or provider, filled with ' +
-      'the App GitHub created.',
+      'a code. It saves the page with the App GitHub created and redirects to where ' +
+      'the App is installed, or answers with the page when the save is refused.',
   },
   'POST /-/config/:section/:member/:entry': {
     covered:

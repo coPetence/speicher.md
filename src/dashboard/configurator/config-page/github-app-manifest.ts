@@ -3,6 +3,9 @@
 
  */
 
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
+
 import { Document } from 'yaml';
 
 import { GITHUB_CALLBACK_PATH } from '../../../auth/callback-url';
@@ -20,13 +23,18 @@ import {
   manifestFormUrl,
 } from '../../../forge/github/manifest';
 import { webhookPath, webhookUrl } from '../../../forge/webhook-url';
-import { writeAt } from '../config-form/document';
+import { choiceName } from '../config-form/config-fields';
+import { setNodeAt } from '../config-form/document';
 import { memberSectionId } from '../config-form/members';
+import type { Uploads } from '../config-form/upload';
 
 const FLOW_MARK = 'github-app:';
 
-// Holds the base URL of a GitHub Enterprise Server while the browser is on GitHub; empty for GitHub.com
-export const GITHUB_APP_BASE_URL_COOKIE = 'speicher_github_app_base_url';
+// Holds the page's form, sealed, while the browser is on GitHub
+export const GITHUB_APP_FORM_COOKIE = 'speicher_github_app_form';
+
+// Browsers keep a cookie of up to 4096 bytes, its name and attributes included
+const MAX_SEALED_FORM = 3800;
 
 /**
  * githubAppPath returns the path the flow of one App on a config page starts at.
@@ -69,9 +77,12 @@ export interface ManifestTarget {
   kind: string;
   // The base URL of a GitHub Enterprise Server; undefined for GitHub.com
   baseUrl?: string;
+  // The form name of the page's switch between creating the App and entering it manually
+  switchName: string;
   manifest: (urls: ManifestUrls) => AppManifest;
-  values: (app: ConvertedApp) => [string[], string | undefined][];
-  createdNotice: (installUrl: string) => string;
+  values: (app: ConvertedApp) => [string[], string][];
+  stored?: (app: ConvertedApp) => [string[], unknown][];
+  unsavedNotice: (installUrl: string) => string;
 }
 
 export interface ManifestHandoff {
@@ -82,6 +93,11 @@ export interface ManifestHandoff {
   owner: string;
   // The config page the flow started on
   configPageUrl: string;
+}
+
+export interface CarriedForm {
+  body: Record<string, string | string[]>;
+  parts: Record<string, string>;
 }
 
 /**
@@ -98,6 +114,7 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
     member: 'new',
     kind: 'github',
     baseUrl: baseUrl || undefined,
+    switchName: choiceName(`forges.${forgeId}.app`),
     manifest: ({ origin, redirectUrl, setupUrl }) => {
       const hook = webhookUrl(forgeId) ?? `${origin}${webhookPath(forgeId)}`;
       return appManifest({
@@ -110,14 +127,13 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
       });
     },
     values: (app) => [
-      [['base_url'], baseUrl || undefined],
       [['app_id'], String(app.id)],
       [['private_key'], app.pem],
       // An App created without a webhook has no secret, and the source needs one
       [['webhook_secret'], app.webhook_secret ?? mintToken(32)],
     ],
-    createdNotice: (installUrl) =>
-      `App successfully created. You can now [install the App](${installUrl}) on the repositories Speicher.md should be able to read. The App's credentials are filled in below. To store them, save this page.`,
+    unsavedNotice: (installUrl) =>
+      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the repositories Speicher.md should be able to read.`,
   };
 }
 
@@ -135,6 +151,7 @@ export function identityProviderTarget(providerId: string, baseUrl = ''): Manife
     member: 'new',
     kind: 'github',
     baseUrl: baseUrl || undefined,
+    switchName: choiceName(`auth.providers.${providerId}.app`),
     manifest: ({ origin, redirectUrl, setupUrl }) =>
       appManifest({
         purpose: 'identity-provider',
@@ -144,12 +161,25 @@ export function identityProviderTarget(providerId: string, baseUrl = ''): Manife
         setupUrl,
       }),
     values: (app) => [
-      [['base_url'], baseUrl || undefined],
       [['client_id'], app.client_id],
       [['client_secret'], app.client_secret],
     ],
-    createdNotice: (installUrl) =>
-      `App successfully created. You can now [install the App](${installUrl}) on the organization whose members should be able to sign in, so Speicher.md can read their teams. The App's credentials are filled in below. To store them, save this page.`,
+    stored: (app) =>
+      app.slug && app.owner
+        ? [
+            [
+              ['app'],
+              {
+                client_id: app.client_id,
+                slug: app.slug,
+                owner_account: app.owner.accountName,
+                owner_is_organization: app.owner.isOrganization,
+              },
+            ],
+          ]
+        : [],
+    unsavedNotice: (installUrl) =>
+      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the organization whose members should be able to sign in, so Speicher.md can read their teams.`,
   };
 }
 
@@ -167,15 +197,15 @@ export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarge
     member: 'either',
     kind: 'github',
     baseUrl: baseUrl || undefined,
+    switchName: choiceName(`auth.providers.${providerId}.directory.app`),
     manifest: ({ origin, redirectUrl, setupUrl }) =>
       appManifest({ purpose: 'directory', homepage: origin, redirectUrl, setupUrl }),
     values: (app) => [
-      [['directory', 'type'], 'github'],
       [['directory', 'app_id'], String(app.id)],
       [['directory', 'private_key'], app.pem],
     ],
-    createdNotice: (installUrl) =>
-      `App successfully created. You can now [install the App](${installUrl}) on every organization whose members and teams Speicher.md should look up. The App's id and private key are filled in below. To store them, save this page.`,
+    unsavedNotice: (installUrl) =>
+      `App successfully created, but this page could not be saved yet. The App's id and private key are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on every organization whose members and teams Speicher.md should look up.`,
   };
 }
 
@@ -189,16 +219,59 @@ export const MANIFEST_TARGETS: Record<
 };
 
 /**
- * fillWithApp writes the App's values into the target in a configuration document.
+ * carryForm returns the parts of a submitted page that are carried to GitHub and back.
  *
- * @param doc the configuration document the page is built from
+ * @param body the submitted form
+ * @param uploads the files picked on the page
+ */
+export function carryForm(body: Record<string, unknown>, uploads: Uploads): CarriedForm {
+  const carried: CarriedForm = { body: {}, parts: {} };
+  for (const [name, value] of Object.entries(body)) {
+    if (typeof value === 'string') carried.body[name] = value;
+    else if (Array.isArray(value)) {
+      carried.body[name] = value.filter((one): one is string => typeof one === 'string');
+    }
+  }
+  for (const [name, bytes] of uploads.parts) carried.parts[name] = bytes.toString('base64');
+  return carried;
+}
+
+/**
+ * uploadsOf returns the files picked on the page, as the page submitted them.
+ *
+ * @param form the carried form
+ */
+export function uploadsOf(form: CarriedForm): Uploads {
+  const parts = new Map<string, Buffer>();
+  for (const [name, base64] of Object.entries(form.parts)) {
+    parts.set(name, Buffer.from(base64, 'base64'));
+  }
+  return { parts, refusal: null };
+}
+
+/**
+ * appFields returns the App's credentials as the page's form submits them.
+ *
  * @param target what the App was created for
  * @param app the App GitHub created
  */
-export function fillWithApp(doc: Document, target: ManifestTarget, app: ConvertedApp): void {
-  for (const [path, value] of target.values(app)) {
-    writeAt(doc, [...target.path, ...path], value);
-  }
+export function appFields(target: ManifestTarget, app: ConvertedApp): Record<string, string> {
+  return Object.fromEntries(
+    target.values(app).map(([path, value]) => [[...target.path, ...path].join('.'), value]),
+  );
+}
+
+/**
+ * writeStoredValues writes the App's values that are not on the page's form into the member.
+ *
+ * @param doc the configuration document
+ * @param target what the App was created for
+ * @param app the App GitHub created
+ */
+export function writeStoredValues(doc: Document, target: ManifestTarget, app: ConvertedApp): boolean {
+  const stored = target.stored?.(app) ?? [];
+  for (const [path, value] of stored) setNodeAt(doc, [...target.path, ...path], value);
+  return stored.length > 0;
 }
 
 export class GithubAppManifestService {
@@ -211,28 +284,39 @@ export class GithubAppManifestService {
   }
 
   /**
-   * start stores the state of a new flow and builds the manifest of the target's App.
+   * start stores the state of a new flow, seals the page's form for the cookie, and builds the manifest of the target's App.
    *
    * @param tenantId the tenant the target belongs to
    * @param target what the App is created for
    * @param owner the organization the App is created on. If it is empty, the App is created on the person's own account
    * @param origin the address of this instance, which GitHub sends the browser back to
+   * @param form the page's form, carried to GitHub and back
    */
   async start(
     tenantId: string,
     target: ManifestTarget,
     owner: string,
     origin: string,
-  ): Promise<ManifestHandoff> {
+    form: CarriedForm,
+  ): Promise<{ handoff: ManifestHandoff; sealedForm: string }> {
+    // The cookie holds the form sealed with this key, and only the flow's row holds the key
+    const key = randomBytes(32);
+    const sealedForm = seal(form, key);
+    if (sealedForm.length > MAX_SEALED_FORM) {
+      throw new GithubAppManifestError(
+        'This page holds more than Speicher can carry to GitHub and back. Save the page first, then create the App.',
+      );
+    }
+
     const configPageUrl = `/-/config/${target.sectionId}`;
     const state = mintToken(24);
     await LoginFlow.create({
       tenant_id: tenantId,
-      provider: flowMark(target),
+      provider: flowMark(target.sectionId, target.app),
       state,
-      // A manifest flow has no nonce and no verifier; the columns are filled as a sign-in fills them
+      // A manifest flow has no nonce; its verifier column holds the key to the carried form
       nonce: mintToken(24),
-      code_verifier: mintToken(24),
+      code_verifier: key.toString('base64url'),
       redirect_to: configPageUrl,
       names_first_admin: false,
       expires_at: new Date(Date.now() + FLOW_TTL_MS),
@@ -245,30 +329,35 @@ export class GithubAppManifestService {
       setupUrl: `${origin}${configPageUrl}`,
     });
     return {
-      manifestPostUrl: manifestFormUrl(web, owner, state),
-      manifest,
-      web,
-      owner,
-      configPageUrl,
+      handoff: {
+        manifestPostUrl: manifestFormUrl(web, owner, state),
+        manifest,
+        web,
+        owner,
+        configPageUrl,
+      },
+      sealedForm,
     };
   }
 
   /**
-   * complete checks the state GitHub sent back, and exchanges the code for the App GitHub created.
+   * claim checks the state GitHub sent back, ends the flow, and opens the form the page carried.
    *
-   * @param tenantId the tenant the target belongs to
-   * @param target what the App is created for
-   * @param code the code from GitHub's redirect
+   * @param tenantId the tenant the page belongs to
+   * @param sectionId the config page the App is created for
+   * @param app which App of the page
    * @param state the state from GitHub's redirect
+   * @param sealedForm the form from the cookie
    */
-  async complete(
+  async claim(
     tenantId: string,
-    target: ManifestTarget,
-    code: string,
+    sectionId: string,
+    app: string,
     state: string,
-  ): Promise<ConvertedApp> {
+    sealedForm: string,
+  ): Promise<CarriedForm> {
     const flow = await LoginFlow.findOne({
-      where: { tenant_id: tenantId, state, provider: flowMark(target) },
+      where: { tenant_id: tenantId, state, provider: flowMark(sectionId, app) },
     });
     if (!flow) {
       throw new GithubAppManifestError(
@@ -282,6 +371,22 @@ export class GithubAppManifestService {
       );
     }
 
+    const form = open(sealedForm, Buffer.from(flow.code_verifier, 'base64url'));
+    if (!form) {
+      throw new GithubAppManifestError(
+        'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
+      );
+    }
+    return form;
+  }
+
+  /**
+   * convert exchanges the code GitHub sent back for the App GitHub created.
+   *
+   * @param target what the App is created for
+   * @param code the code from GitHub's redirect
+   */
+  async convert(target: ManifestTarget, code: string): Promise<ConvertedApp> {
     try {
       return await convertManifestCode(githubHosts(target.baseUrl).api, code, this.fetchImpl);
     } catch (err) {
@@ -300,8 +405,45 @@ export class GithubAppManifestService {
 /**
  * flowMark returns what a flow's LoginFlow holds as its provider: the page and the App the flow belongs to.
  *
- * @param target what the App is created for
+ * @param sectionId the config page the App is created for
+ * @param app which App of the page
  */
-function flowMark(target: ManifestTarget): string {
-  return `${FLOW_MARK}${target.sectionId}/${target.app}`;
+function flowMark(sectionId: string, app: string): string {
+  return `${FLOW_MARK}${sectionId}/${app}`;
+}
+
+/**
+ * seal compresses and encrypts the carried form, so the cookie reveals nothing without the key.
+ *
+ * @param form the carried form
+ * @param key the flow's key
+ */
+function seal(form: CarriedForm, key: Buffer): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const sealed = Buffer.concat([
+    cipher.update(deflateRawSync(JSON.stringify(form))),
+    cipher.final(),
+  ]);
+  return Buffer.concat([iv, cipher.getAuthTag(), sealed]).toString('base64url');
+}
+
+/**
+ * open decrypts a sealed form. It returns null when the form was not sealed with this key, or was changed.
+ *
+ * @param sealedForm the form from the cookie
+ * @param key the flow's key
+ */
+function open(sealedForm: string, key: Buffer): CarriedForm | null {
+  try {
+    const raw = Buffer.from(sealedForm, 'base64url');
+    const decipher = createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
+    decipher.setAuthTag(raw.subarray(12, 28));
+    const json = inflateRawSync(
+      Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]),
+    );
+    return JSON.parse(json.toString('utf8')) as CarriedForm;
+  } catch {
+    return null;
+  }
 }

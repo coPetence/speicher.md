@@ -13,6 +13,7 @@ import {
   at,
   choice,
   copyValue,
+  githubAppLinksItem,
   githubAppManifest,
   secretField,
   textField,
@@ -91,7 +92,13 @@ export function appCard(root: Obj, id: string): Card {
       notes: [],
       cards: [],
       addOps: [],
-      items: credentials,
+      items: [
+        ...credentials,
+        githubAppLinksItem({
+          lookup: base,
+          baseUrl: scalarString(at(root, [...base, 'base_url'])),
+        }),
+      ],
     };
   }
 
