@@ -99,6 +99,7 @@ export interface ConfigSectionPayload extends ConfigCommon {
   saved: { version: number; applied_at: Date } | null;
   error: string | null;
   problems: string[];
+  notice?: string;
   // True when the section is in a draft state awaiting save
   pending: boolean;
   // Where the page scrolls to after a round trip added or removed an entry: the path

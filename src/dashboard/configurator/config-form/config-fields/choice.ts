@@ -24,8 +24,8 @@ export interface ChoiceItem {
   label: string;
   // Form name the radio buttons submit the checked option under, `choice:<followed path>`
   name: string;
-  // Drawn between the switch and the options' fields
-  follows: Field;
+  // Drawn between the switch and the options' fields; absent when no field decides the option
+  follows?: Field;
   selected: string;
   options: ChoiceOption[];
 }
@@ -40,13 +40,47 @@ export function belongsToChoiceOption(option: ChoiceOption, value: string): bool
   return option.pattern ? new RegExp(`^(?:${option.pattern})$`, 'u').test(value) : false;
 }
 
-export function choice(label: string, options: ChoiceOption[], follows: Field): ChoiceItem {
+export interface ChoiceSwitch {
+  name: string;
+  selected: string;
+}
+
+/**
+ * choiceName returns the form name the radio buttons of a choice submit the checked option under.
+ *
+ * @param name the followed field's path, or the name of a switch no field decides
+ */
+export function choiceName(name: string): string {
+  return `choice:${name}`;
+}
+
+/**
+ * choice builds a switch between sets of fields.
+ *
+ * @param label the name of the switch for screen readers
+ * @param options the options of the choice
+ * @param follows the field whose value decides the checked option, or the name and checked option of a switch no field decides
+ */
+export function choice(
+  label: string,
+  options: ChoiceOption[],
+  follows: Field | ChoiceSwitch,
+): ChoiceItem {
+  if (!('path' in follows)) {
+    return {
+      kind: 'choice',
+      label,
+      name: choiceName(follows.name),
+      selected: follows.selected,
+      options,
+    };
+  }
   const value = 'value' in follows ? follows.value.trim() : '';
   const selected = options.find((option) => belongsToChoiceOption(option, value)) ?? options[0];
   return {
     kind: 'choice',
     label,
-    name: `choice:${follows.path}`,
+    name: choiceName(follows.path),
     follows:
       'placeholder' in follows && selected?.placeholder
         ? { ...follows, placeholder: selected.placeholder }

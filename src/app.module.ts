@@ -26,6 +26,7 @@ import { ConfigPageService } from './dashboard/configurator/config-page/config-p
 import { ConfigWatcher } from './config/watcher';
 import { SectionChecks } from './dashboard/configurator/config-page/checks';
 import { ConfigSaveService } from './dashboard/configurator/config-page/save';
+import { GithubAppManifestService } from './dashboard/configurator/config-page/github-app-manifest';
 import { BlobStore } from './assets/blob-store';
 import { GraphDirectoryDeps } from './auth/directory/graph';
 import { DIRECTORY_DEPS } from './auth/directory/lookup';
@@ -162,6 +163,7 @@ import { SearchService } from './content-reader/search/search.service';
         watcher: ConfigWatcher,
       ) => new ConfigSaveService(config, page, checks, watcher),
     },
+    { provide: GithubAppManifestService, useFactory: () => new GithubAppManifestService() },
     { provide: Mailer, inject: [ConfigService], useFactory: (c: ConfigService) => new Mailer(c) },
     {
       provide: OidcService,

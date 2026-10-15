@@ -21,7 +21,7 @@ import { getNewestConfigVersion } from '../../../config/loader';
 import { loadInstanceConfig } from '../../../config/parser';
 import { stampBrandImages } from './brand-stamp';
 import { shapeControls } from '../config-form/collections';
-import { loadDocument } from '../config-form/document';
+import { dottedPath, loadDocument } from '../config-form/document';
 import { inlineBrandImages } from '../config-form/brand-inline';
 import { exportConfig } from '../config-form/export';
 import { CONFIG_NAV_SECTIONS, CONFIG_SECTIONS, buildSections } from '../config-form/fields';
@@ -33,7 +33,7 @@ import {
   memberOf,
   memberPosition,
 } from '../config-form/members';
-import { FormSection } from '../config-form/model';
+import { FormSection, allFields } from '../config-form/model';
 import { displayYaml } from '../config-form/redact';
 import {
   ConfigBackup,
@@ -44,6 +44,28 @@ import {
   ConfigState,
 } from './payloads';
 import { UNCLAIMED_YAML } from '../../setup/unclaimed';
+
+/**
+ * copies any unsaved secrets from the edited document into the payload
+ *
+ * @param payload the page that is sent back
+ * @param edited the document the page is drawn from
+ * @param storedYaml the stored document
+ */
+export function carryUnsavedSecrets(
+  payload: ConfigSectionPayload,
+  edited: Document,
+  storedYaml: string,
+): void {
+  if (!payload.section) return;
+  const stored = loadDocument(storedYaml);
+  for (const field of allFields([payload.section])) {
+    if (field.kind !== 'secret' || !field.secretHidden) continue;
+    const path = dottedPath(field.path);
+    const value = edited.getIn(path);
+    if (typeof value === 'string' && value !== stored.getIn(path)) field.unsaved = value;
+  }
+}
 
 export class ConfigPageService {
   constructor(private readonly config: ConfigService) {}
@@ -214,7 +236,20 @@ export class ConfigPageService {
     return payload;
   }
 
-  draftPayload(state: ConfigState, sectionId: string, kind: string): ConfigSectionPayload | null {
+  /**
+   * draftPayload builds the page of a member that is not stored yet.
+   *
+   * @param state the stored configuration
+   * @param sectionId the page of the new member, e.g. `sources/gh`
+   * @param kind the kind the member is created as, e.g. `github`
+   * @param fill writes values into the new member before the page is built, e.g. the credentials of a GitHub App. The page holds them as unsaved work
+   */
+  draftPayload(
+    state: ConfigState,
+    sectionId: string,
+    kind: string,
+    fill?: (doc: Document) => void,
+  ): ConfigSectionPayload | null {
     const member = memberOf(sectionId);
     if (!state.doc || !member || !canCreateMember(member, kind)) return null;
 
@@ -241,6 +276,7 @@ export class ConfigPageService {
     }
     // Insert a placeholder entry for the new member so the form has fields to render
     seedMemberInto(doc, member, kind);
+    fill?.(doc);
 
     const hint: KindHint | undefined =
       member.section === 'identity' ? { provider: member.id, kind } : undefined;
@@ -249,6 +285,10 @@ export class ConfigPageService {
     if (!payload.section) return null;
     // Track what kind is being created so the UI can show the right defaults
     if (memberCollectionOf(member.section)?.kinds) payload.creating_kind = kind;
+    if (fill) {
+      carryUnsavedSecrets(payload, doc, state.storedYaml);
+      payload.holds_work = true;
+    }
     return payload;
   }
 

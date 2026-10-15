@@ -163,7 +163,7 @@ function contentSecurityPolicy(nonce: string, options: HtmlOptions): string {
 
     `style-src 'self' 'nonce-${nonce}'`,
     `script-src 'nonce-${nonce}'`,
-    "form-action 'self'",
+    ["form-action 'self'", ...(options.formActions ?? [])].join(' '),
     `frame-src ${options.embedsFrames ? "'self'" : "'none'"}`,
     `frame-ancestors ${options.framedBySelf ? "'self'" : "'none'"}`,
     "base-uri 'none'",
@@ -214,6 +214,9 @@ export interface HtmlOptions {
   varyAccept?: boolean;
 
   embedsFrames?: boolean;
+
+  /** formActions are the origins outside this instance a form on the page may post to */
+  formActions?: string[];
 
   framedBySelf?: boolean;
   /** noStore sends the page with `private, no-store`, so no cache keeps a copy of it. */

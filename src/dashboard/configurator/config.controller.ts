@@ -12,8 +12,11 @@
 import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+import { originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
+import { FLOW_TTL_MS } from '../../auth/github.service';
 import { ResolvedCaller } from '../../authz/caller';
+import { env } from '../../common/env';
 import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
 import { BRAND_LOGO, checkBrandBytes } from '../../config/brand';
 import { brandImagesByHash } from '../../config/brand-store';
@@ -27,6 +30,8 @@ import {
 import { ConfigWatcher } from '../../config/watcher';
 import { sendBrandImage } from '../../content-reader/assets.controller';
 import { sendHtml } from '../../content-reader/views';
+import { DashboardResponder, wantsJson } from '../respond';
+import { isPreviewableTemplate, renderTemplatePreview } from '../ui/template-preview';
 import { sendConfigBackup } from '../ui/views/config-backup/config-backup';
 import { sendConfigEnvironment } from '../ui/views/config-environment/config-environment';
 import {
@@ -34,25 +39,39 @@ import {
   sendConfigHistory,
   summarise,
 } from '../ui/views/config-history/config-history';
-import { sendConfigSection } from '../ui/views/config-section/config-section';
 import { sendConfig } from '../ui/views/config-overview/config-overview';
+import { sendConfigSection } from '../ui/views/config-section/config-section';
+import { sendGithubAppManifest } from '../ui/views/github-app-manifest/github-app-manifest';
+import { submitted } from './config-form/decode/body';
 import { diffConfigVersions } from './config-form/diff';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
-import { entryHrefFor, isMemberId, memberOf, memberSectionId } from './config-form/members';
+import {
+  SHORT_ID_HINT,
+  entryHrefFor,
+  isMemberId,
+  memberOf,
+  memberSectionId,
+} from './config-form/members';
 import { readUploads } from './config-form/upload';
-import { ConfigPageService } from './config-page/config-page.service';
 import { SectionChecks } from './config-page/checks';
+import { ConfigPageService } from './config-page/config-page.service';
+import {
+  GITHUB_APP_BASE_URL_COOKIE,
+  GithubAppManifestError,
+  GithubAppManifestService,
+  contentSourceTarget,
+  fillWithApp,
+  githubAppCallbackPath,
+} from './config-page/github-app-manifest';
 import { stampEntryOrigins } from './config-page/origins';
-import { ConfigSaveService, provenanceOf } from './config-page/save';
 import {
   ConfigBackupPayload,
   ConfigEnvironmentPayload,
   ConfigOverviewPayload,
   ConfigSectionPayload,
 } from './config-page/payloads';
+import { ConfigSaveService, provenanceOf } from './config-page/save';
 import { stampUsage } from './member-usage';
-import { DashboardResponder, wantsJson } from '../respond';
-import { isPreviewableTemplate, renderTemplatePreview } from '../ui/template-preview';
 
 @Controller('-')
 export class ConfigController {
@@ -63,6 +82,7 @@ export class ConfigController {
     private readonly saves: ConfigSaveService,
     private readonly watcher: ConfigWatcher,
     private readonly respond: DashboardResponder,
+    private readonly manifests: GithubAppManifestService,
   ) {}
 
   /** Config overview page: all section summaries */
@@ -443,7 +463,6 @@ export class ConfigController {
         return { uploads, body: req.body as Record<string, unknown> };
       },
     });
-
     switch (outcome.kind) {
       case 'page':
         return this.sectionAnswer(
@@ -462,6 +481,121 @@ export class ConfigController {
       case 'notFound':
         return this.respond.notFound(req, res);
     }
+  }
+
+  /** Hand the browser over to GitHub to create the App of a new GitHub source */
+  @Post('config/sources/:member/github-app/manifest')
+  async startGithubAppManifest(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('member') member: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    if (!caller.isAdmin || !isMemberId('sources', member)) return this.respond.notFound(req, res);
+    const sectionId = memberSectionId('sources', member);
+
+    // Nothing is saved here: the page is saved once GitHub filled in the App's credentials
+    await readUploads(req, res);
+    const body = req.body as Record<string, unknown>;
+    // A new source is created under the short id typed on its page
+    const forgeId = (submitted(body, `newname:${sectionId}`) ?? '').trim() || member;
+    const baseUrl = (submitted(body, `forges.${member}.base_url`) ?? '').trim();
+    try {
+      if (this.config.configSource !== 'database') {
+        throw new GithubAppManifestError(new ConfigReadOnlyError(this.config.sourcePath).message);
+      }
+      if (!isMemberId('sources', forgeId)) {
+        throw new GithubAppManifestError(
+          `"${forgeId}" cannot be the short id of a content source. ${SHORT_ID_HINT}`,
+        );
+      }
+      const target = contentSourceTarget(forgeId, baseUrl);
+      const handoff = await this.manifests.start(
+        caller.tenantId,
+        target,
+        (submitted(body, 'github-app:owner') ?? '').trim(),
+        originOf(req),
+      );
+
+      res.cookie(GITHUB_APP_BASE_URL_COOKIE, baseUrl, {
+        httpOnly: true,
+        secure: !env('SPEICHER_INSECURE_COOKIES'),
+        sameSite: 'lax',
+        path: githubAppCallbackPath(target.sectionId),
+        maxAge: FLOW_TTL_MS,
+      });
+      sendGithubAppManifest(res, handoff);
+    } catch (err) {
+      if (!(err instanceof GithubAppManifestError)) throw err;
+      return this.manifestRefused(req, res, caller, sectionId, err);
+    }
+  }
+
+  /** Where GitHub sends the browser back after it created a source's App */
+  @Get('config/sources/:member/github-app/manifest/callback')
+  async completeGithubAppManifest(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('member') member: string,
+    @Query('code') code?: string,
+    @Query('state') state?: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    if (!caller.isAdmin || !isMemberId('sources', member)) return this.respond.notFound(req, res);
+    const sectionId = memberSectionId('sources', member);
+
+    const baseUrl: unknown = req.cookies?.[GITHUB_APP_BASE_URL_COOKIE];
+    res.clearCookie(GITHUB_APP_BASE_URL_COOKIE, { path: githubAppCallbackPath(sectionId) });
+    try {
+      if (typeof code !== 'string' || typeof state !== 'string') {
+        throw new GithubAppManifestError(
+          'GitHub sent the browser back without a code. To create the App, start again on this page.',
+        );
+      }
+      if (typeof baseUrl !== 'string') {
+        throw new GithubAppManifestError(
+          'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
+        );
+      }
+      const configState = await this.page.state(caller);
+      if (configState.doc?.hasIn(['forges', member])) {
+        throw new GithubAppManifestError(
+          `The content source "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new source, start again with another short id.`,
+        );
+      }
+
+      const target = contentSourceTarget(member, baseUrl);
+      const app = await this.manifests.complete(caller.tenantId, target, code, state);
+      const payload = this.page.draftPayload(configState, sectionId, target.kind, (doc) =>
+        fillWithApp(doc, target, app),
+      );
+      if (!payload) return this.respond.notFound(req, res);
+      payload.notice = `App successfully created. You can now [install the App](${app.html_url}/installations/new) on the repositories Speicher.md should be able to read. The App's credentials are filled in below. To store them, save this page.`;
+      return this.sectionAnswer(req, res, caller, sectionId, payload);
+    } catch (err) {
+      if (!(err instanceof GithubAppManifestError)) throw err;
+      return this.manifestRefused(req, res, caller, sectionId, err);
+    }
+  }
+
+  /** The page the App is created for, with the reason the manifest flow stopped */
+  private async manifestRefused(
+    req: Request,
+    res: Response,
+    caller: ResolvedCaller,
+    sectionId: string,
+    err: GithubAppManifestError,
+  ): Promise<void> {
+    const state = await this.page.state(caller);
+    let payload = await this.page.sectionPayload(state, sectionId);
+    // A new source is not stored yet, so its page is a draft
+    if (!payload.section) {
+      const draft = this.page.draftPayload(state, sectionId, 'github');
+      if (!draft) return this.respond.notFound(req, res);
+      payload = draft;
+    }
+    payload.error = err.message;
+    this.sectionAnswer(req, res, caller, sectionId, payload, 400);
   }
 
   private overviewAnswer(

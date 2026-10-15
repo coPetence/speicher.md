@@ -10,6 +10,7 @@
     class="spr-card spr-card-<%= it.depth %><%= card.titleIsKey ? ' spr-card-key' : '' %>"
     <% if (it.landing && (card.removeOp === 'remove:' + it.landing || card.items.some(function (item) { return item.path === it.landing }))) { %>id="spr-landing"<% } %>
     <% if (card.shownWith) { %>data-spr-shown-with="<%= card.shownWith %>"<% } %>
+    <% if (card.shownWhen) { %>data-spr-shown-when="<%= card.shownWhen %>"<% } %>
     <% if (card.hidden) { %>hidden<% } %>
   >
     <header>

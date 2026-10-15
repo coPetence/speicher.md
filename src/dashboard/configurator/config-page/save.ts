@@ -24,7 +24,7 @@ import { sectionOf } from '../config-form/sections';
 import { Uploads, fillUploads } from '../config-form/upload';
 import { stampUsage } from '../member-usage';
 import { SectionChecks, stampUnsavedHostKeys } from './checks';
-import { ConfigPageService } from './config-page.service';
+import { ConfigPageService, carryUnsavedSecrets } from './config-page.service';
 import { stampEntryOrigins } from './origins';
 import { ConfigSectionPayload } from './payloads';
 
@@ -58,29 +58,6 @@ export interface SaveRequest {
 
 function pageOf(sectionId: string, payload: ConfigSectionPayload, status?: number): SaveOutcome {
   return { kind: 'page', sectionId, payload, status };
-}
-
-/**
- * Hands every secret of the page that the edited document holds and the stored one
- * does not back to the page, which carries it in a hidden input.
- *
- * @param payload the page that is sent back
- * @param edited the document the page is drawn from
- * @param storedYaml the stored document
- */
-function carryUnsavedSecrets(
-  payload: ConfigSectionPayload,
-  edited: Document,
-  storedYaml: string,
-): void {
-  if (!payload.section) return;
-  const stored = loadDocument(storedYaml);
-  for (const field of allFields([payload.section])) {
-    if (field.kind !== 'secret' || !field.secretHidden) continue;
-    const path = dottedPath(field.path);
-    const value = edited.getIn(path);
-    if (typeof value === 'string' && value !== stored.getIn(path)) field.unsaved = value;
-  }
 }
 
 /**
@@ -525,6 +502,16 @@ export class ConfigSaveService {
         if (!(err instanceof ConfigError)) throw err;
         return pageOf(sectionId, refused(payload, err), 400);
       }
+    }
+
+    // Check if the stored config is the same as the one we are trying to save. If so, we don't need to save it again.
+    if (toStore === state.storedYaml) {
+      if (json) {
+        payload.pending = false;
+        payload.holds_work = false;
+        return pageOf(sectionId, payload);
+      }
+      return { kind: 'redirect', href: `/-/config/${landing}` };
     }
 
     try {

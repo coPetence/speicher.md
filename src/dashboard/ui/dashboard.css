@@ -7,6 +7,7 @@
 @import '../../global-ui/components/config-fields/template/template.css';
 @import '../../global-ui/components/config-fields/copy-value/copy-value.css';
 @import '../../global-ui/components/config-fields/choice/choice.css';
+@import '../../global-ui/components/config-fields/github-app-manifest/github-app-manifest.css';
 @import '../../global-ui/components/config-fields/known-hosts/known-hosts.css';
 @import '../../global-ui/components/info/info.css';
 @import '../../global-ui/components/note/note.css';

@@ -1509,6 +1509,55 @@ function filter(value: string): void {
   box().dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+describe('a card shown with an option of a choice', () => {
+  function renderSource(): HTMLFormElement {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/sources/gh?kind=github"
+              data-spr-config="sources/gh">
+          <div class="spr-choice">
+            <div class="spr-choice-switch" role="radiogroup">
+              <label><input type="radio" name="choice:forges.gh.app" value="create" checked>Create on GitHub</label>
+              <label><input type="radio" name="choice:forges.gh.app" value="manual">Enter manually</label>
+            </div>
+          </div>
+          <section class="spr-card spr-card-1" data-spr-shown-with="choice:forges.gh.app"
+                   data-spr-shown-when="manual" hidden>
+            <header><h4>Simpler URLs</h4></header>
+            <input name="forges.gh.default_repository_owner" value="">
+          </section>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    return document.querySelector('form') as HTMLFormElement;
+  }
+
+  const card = () => document.querySelector('section.spr-card') as HTMLElement;
+  const option = (value: string) =>
+    document.querySelector(`input[value="${value}"]`) as HTMLInputElement;
+  const pick = (value: string) => {
+    option(value).checked = true;
+    option(value).dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  it('stays hidden while the App is created on GitHub', () => {
+    renderSource();
+    run();
+    expect(card().hidden).toBe(true);
+  });
+
+  it('shows while the App is entered manually, and hides again', () => {
+    renderSource();
+    run();
+    pick('manual');
+    expect(card().hidden).toBe(false);
+    pick('create');
+    expect(card().hidden).toBe(true);
+  });
+});
+
 describe('the transport of a git remote', () => {
   const URL_PATH = 'forges.onprem.repos.0.url';
 

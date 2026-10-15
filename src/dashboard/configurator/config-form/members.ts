@@ -56,7 +56,7 @@ export function kindOf(value: string): ProviderKind | undefined {
 
 export const SHORT_ID = new RegExp('^[A-Za-z0-9][A-Za-z0-9\\-]{0,31}$');
 export const SHORT_ID_HINT =
-  'Letters, digits and hyphens, starting with a letter or digit. Up to 32 characters';
+  'The short id may only contain letters, digits and hyphens. It must start with a letter or a digit, and it can be up to 32 characters long.';
 
 /**
  * Produce the initial config fields for a new provider of the given kind
