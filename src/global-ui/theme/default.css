@@ -2330,4 +2330,23 @@
     height: 1em;
     margin-right: 0.35em;
   }
+
+  .spr-main a > .spr-icon.spr-link-external {
+    width: 0.75em;
+    height: 0.75em;
+    margin: 0 0 0 0.2em;
+    vertical-align: -0.05em;
+  }
+
+  .spr-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 }
