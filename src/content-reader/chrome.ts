@@ -28,6 +28,7 @@ export type RouteChrome = Pick<
   | 'faviconUrl'
   | 'faviconType'
   | 'brandNameShown'
+  | 'brandNameAlign'
   | 'searchIcon'
   | 'attribution'
 >;
@@ -42,6 +43,7 @@ export type ChromeConfig = Pick<
   | 'faviconUrl'
   | 'faviconType'
   | 'brandShowName'
+  | 'brandNameAlign'
   | 'attribution'
   | 'hasContentSource'
 >;
@@ -85,6 +87,7 @@ export function pageChrome(
     faviconType: config.faviconType,
 
     brandNameShown: config.brandLogoUrl ? config.brandShowName : true,
+    brandNameAlign: config.brandNameAlign,
     searchIcon: searchIcon(),
 
     search: config.hasContentSource,

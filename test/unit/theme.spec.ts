@@ -569,11 +569,33 @@ describe('the base stylesheet', () => {
     expect(RULES).toMatch(/--spr-brand-mark-size:\s*[\d.]+em/);
   });
 
+  it('moves the name below the logo in one piece instead of breaking it', () => {
+    const brand = /\.spr-brand\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(brand).toMatch(/flex-wrap:\s*wrap/);
+    expect(brand).toMatch(/min-width:\s*0/);
+    const name = /(?:^|\n)\s*\.spr-brand-name\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(name).toMatch(/white-space:\s*nowrap/);
+    expect(name).toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it('sets the name on the logo’s bottom edge by its baseline', () => {
+    const rule = /\.spr-brand\[data-align='bottom'\]\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(rule).toMatch(/align-items:\s*last baseline/);
+  });
+
+  it('ends the name at its baseline, so the logo stays where centring puts it', () => {
+    const name =
+      /\.spr-brand\[data-align='bottom'\] > \.spr-brand-name\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(name).toMatch(/text-box:\s*trim-end cap alphabetic/);
+    expect(/\.spr-brand\s*\{([^}]*)\}/.exec(RULES)?.[1]).toMatch(/align-content:\s*center/);
+  });
+
   it('sizes the brand logo from tokens, and only its height', () => {
     const rule = /\.spr-brand img\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
     expect(rule).not.toBe('');
     expect(rule).toMatch(/height:\s*var\(--spr-brand-logo-height\)/);
-    expect(rule).toMatch(/max-width:\s*var\(--spr-brand-logo-max-width\)/);
+    expect(rule).toMatch(/max-width:\s*min\(var\(--spr-brand-logo-max-width\),\s*100%\)/);
+    expect(rule).toMatch(/object-fit:\s*contain/);
     expect(rule).toMatch(/width:\s*auto/);
     expect(rule).toMatch(/display:\s*block/);
   });

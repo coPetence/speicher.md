@@ -1,6 +1,7 @@
 import type { Request } from 'express';
 
 import { ResolvedCaller } from '../../src/authz/caller';
+import type { ChromeConfig } from '../../src/content-reader/chrome';
 import {
   accountChrome,
   brandMark,
@@ -38,6 +39,7 @@ const CHROME = {
   faviconUrl: '/favicon.ico',
   faviconType: 'image/svg+xml',
   brandShowName: true,
+  brandNameAlign: 'center' as const,
   attribution: true,
   hasContentSource: true,
 };
@@ -356,7 +358,11 @@ describe('the brand in the header', () => {
     expect(brandMark()).toContain('<svg');
   });
 
-  function withLogo(showName: boolean): string {
+  function brandOpenTag(html: string): string {
+    return /<a class="spr-brand" href="\/"[^>]*>/.exec(html)?.[0] ?? '';
+  }
+
+  function withLogo(showName: boolean, align: 'center' | 'bottom' = 'center'): string {
     return brandAnchor(
       renderPage('<h1>A page</h1>', {
         title: 'A page',
@@ -365,10 +371,46 @@ describe('the brand in the header', () => {
           ...CHROME,
           brandLogoUrl: '/-/brand/abc123.svg',
           brandShowName: showName,
+          brandNameAlign: align,
         }),
       }),
     );
   }
+
+  function openTagWith(over: Partial<ChromeConfig>): string {
+    return brandOpenTag(
+      renderPage('<h1>A page</h1>', {
+        title: 'A page',
+        nonce: 'test-nonce',
+        ...pageChrome(request('/handbook/introduction', undefined), { ...CHROME, ...over }),
+      }),
+    );
+  }
+
+  it('wraps the name in its own element, so the sheet can keep it in one piece', () => {
+    expect(withLogo(true)).toContain('<span class="spr-brand-name">Acme Engineering Docs</span>');
+  });
+
+  it('sets the name on the bottom edge of the logo when asked', () => {
+    expect(
+      openTagWith({ brandLogoUrl: '/-/brand/abc123.svg', brandNameAlign: 'bottom' }),
+    ).toContain('data-align="bottom"');
+  });
+
+  it('centres the name on the logo by default', () => {
+    expect(openTagWith({ brandLogoUrl: '/-/brand/abc123.svg' })).not.toContain('data-align');
+  });
+
+  it('ignores the alignment when there is no logo or no name beside it', () => {
+    expect(openTagWith({ brandNameAlign: 'bottom' })).not.toContain('data-align');
+    expect(
+      openTagWith({
+        brandLogoUrl: '/-/brand/abc123.svg',
+        brandShowName: false,
+        brandNameAlign: 'bottom',
+      }),
+    ).not.toContain('data-align');
+  });
 
   it('keeps the name beside a logo, because a logo is often a symbol', () => {
     const anchor = withLogo(true);

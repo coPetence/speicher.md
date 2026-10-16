@@ -231,7 +231,11 @@ export interface BrandConfig {
   icon?: string;
   // Whether to show the brand name next to the logo in the header
   show_name?: boolean;
+  // How the brand name lines up with the logo beside it
+  name_align?: BrandNameAlign;
 }
+
+export type BrandNameAlign = 'center' | 'bottom';
 
 export interface PublicConfig {
   repos: string[];

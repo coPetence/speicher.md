@@ -106,6 +106,14 @@ export function brandingSection(root: Obj): SectionSource {
           ),
         ],
       }),
+      selectField(root, ['brand', 'name_align'], 'brand.name_align', 'Name alignment', {
+        fallback: 'center',
+        options: [
+          { value: 'center', label: 'Centered on the logo' },
+          { value: 'bottom', label: 'On the bottom edge of the logo' },
+        ],
+        help: 'where the header name sits next to the logo',
+      }),
       templateField(root, ['theme', 'template'], 'theme.template', 'Theme', {
         fallback: DEFAULT_TEMPLATE,
         options: templateOptions(at(root, ['theme', 'template'])),

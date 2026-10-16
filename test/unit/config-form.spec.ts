@@ -1676,6 +1676,12 @@ describe('attached fields', () => {
     ).toEqual(['brand.show_name']);
   });
 
+  it('puts the name alignment right after the header name, so it sits beside it', () => {
+    const branding = buildSections(loadDocument(FULL)).find((s) => s.id === 'branding')!;
+    const paths = branding.fields.map((f) => f.path);
+    expect(paths.indexOf('brand.name_align')).toBe(paths.indexOf('brand.name') + 1);
+  });
+
   it('is written by a save like any other field', () => {
     const doc = loadDocument(FULL);
     applyForm(doc, { 'brand.name': 'Acme Docs' }, 'branding');
