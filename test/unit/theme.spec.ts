@@ -285,25 +285,77 @@ describe('the base stylesheet', () => {
   // Every reader template is swapped into the same `.spr-main`, and every one
   // of them is laid out on the reserved grid — so each has to hand it exactly
   // one item to place, or its paragraphs land in the cells.
-  // The aside starts under the page's heading: the article is a two-row subgrid,
-  // head over body, and the aside takes the body's row. Keyed on the head the
-  // content page draws, since a subgrid of two rows would stack any other
-  // template's children into its last row.
-  it('starts the related column under the page\u2019s heading', () => {
-    const article =
-      /\.spr-article:has\(> \.spr-article-head\)\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
-    expect(article).toMatch(/grid-row:\s*1 \/ span 2/);
-    expect(article).toMatch(/grid-template-rows:\s*subgrid/);
-    // Or a short page's two rows stretch to the scroller's height, and the head's
-    // row opens a gap under the title.
+  // The aside starts level with the page's title. Article and aside share one
+  // row, so a long aside next to a short page cannot stretch a heading row and
+  // open a gap under the title.
+  it('starts the related column level with the page\u2019s title', () => {
+    expect(RULES).not.toMatch(/grid-template-rows:\s*subgrid/);
+    // Or a short page's row stretches to the scroller's height.
     expect(declarationsOfBase(ARTICLE_MAIN)).toMatch(/align-content:\s*start/);
-    expect(/> \.spr-main > \.spr-aside\s*\{([^}]*)\}/.exec(RULES)?.[1]).toMatch(/grid-row:\s*2/);
-    const page = readFileSync(
-      join(__dirname, '../../src/content-reader/views/content-page/content-page.eta'),
-      'utf8',
+    const aside = /> \.spr-main > \.spr-aside\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(aside).toMatch(/grid-row:\s*1;/);
+    expect(aside).toMatch(/align-self:\s*start/);
+  });
+
+  it('puts the room to scroll the last line up after the related pages', () => {
+    expect(RULES).toMatch(
+      /@media not all and \(min-width: 80rem\) \{\s*\.spr-article:has\(\+ \.spr-aside\) \{\s*padding-bottom: 0;\s*\}\s*\.spr-article \+ \.spr-aside \{\s*padding-bottom: 20vh;/,
     );
-    expect(page.indexOf('<div class="spr-article-head">')).toBeLessThan(page.indexOf('<h1'));
-    expect(page.indexOf('<div class="spr-article-body">')).toBeGreaterThan(page.indexOf('<h1'));
+  });
+
+  // A hidden box still widens the scroll area, so a preview that were only
+  // invisible would scroll the page sideways from a link near the right edge.
+  it('takes a hidden preview out of the layout', () => {
+    const base = /a\[data-spr-preview\]::after\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(base).toMatch(/display:\s*none/);
+    expect(base).toMatch(/transition-behavior:\s*allow-discrete/);
+    const hover = /a\[data-spr-preview\]:hover::after\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(hover).toMatch(/display:\s*block/);
+    const now = /a\[data-spr-preview\]:focus-visible::after[^{]*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+    expect(now).toMatch(/display:\s*block/);
+  });
+
+  // Placed against the pane rather than the link, so the browser sees when a
+  // preview would leave it and tries the next placement. Guarded, so a browser
+  // without anchor positioning keeps the preview at the link's start.
+  describe('keeping a preview inside the pane', () => {
+    const block =
+      /@supports \(anchor-scope: all\) and \(position-try-fallbacks: flip-inline\) \{([\s\S]*?)\n {2}\}\n/.exec(
+        RULES,
+      )?.[1] ?? '';
+
+    it('anchors each preview to its own link', () => {
+      const link = ruleFor(block, 'a[data-spr-preview]');
+      expect(link).toMatch(/position:\s*static/);
+      expect(link).toMatch(/anchor-name:\s*--spr-preview/);
+      expect(link).toMatch(/anchor-scope:\s*--spr-preview/);
+      expect(ruleFor(block, '.spr-pane')).toMatch(/position:\s*relative/);
+    });
+
+    it('tries the other side, then above, then the pane’s full width', () => {
+      const preview = ruleFor(block, 'a[data-spr-preview]::after').replace(/\s+/g, ' ');
+      expect(preview).toContain('position-anchor: --spr-preview');
+      expect(preview).toContain('position-area: block-end span-inline-end');
+      expect(preview).toContain(
+        'position-try-fallbacks: flip-inline, flip-block, flip-block flip-inline, --spr-preview-full, --spr-preview-full flip-block',
+      );
+    });
+
+    // Chrome never accepts the option written as `position-area: block-end span-all`
+    it('writes the full-width option with insets from the anchor', () => {
+      const full = /@position-try --spr-preview-full \{([^}]*)\}/.exec(block)?.[1] ?? '';
+      expect(full).toMatch(/position-area:\s*none/);
+      expect(full).toMatch(/top:\s*anchor\(bottom\)/);
+      expect(full).toMatch(/left:\s*var\(--spr-space-4\)/);
+      expect(full).toMatch(/right:\s*var\(--spr-space-4\)/);
+    });
+
+    it('keeps the link-relative preview outside the guard', () => {
+      expect(declarationsOfBase('a[data-spr-preview]')).toMatch(/position:\s*relative/);
+      const base = /a\[data-spr-preview\]::after\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
+      expect(base).toMatch(/max-width:\s*var\(--spr-preview-width\)/);
+      expect(base).toMatch(/left:\s*0/);
+    });
   });
 
   it('wraps every reader template in the article, before any aside', () => {
@@ -384,6 +436,12 @@ describe('the base stylesheet', () => {
       expect(inWide('.spr-pane > .spr-toolbar')).toContain(
         `margin-block: calc(${space(4)} - ${space(3)}) 0`,
       );
+      // An offset would draw the search box below the logo's row and over the page.
+      expect(inWide('.spr-toolbar')).not.toMatch(/(^|[\s;])top:/);
+      // The card clips 2.4px above the box, so the ring must sit on the border.
+      expect(
+        inWide(".spr-pane > .spr-toolbar .spr-search input[type='search']:focus-visible"),
+      ).toMatch(/outline-offset:\s*0/);
     });
 
     it('ends the toolbar the same distance from the right', () => {
@@ -567,6 +625,10 @@ describe('the base stylesheet', () => {
     expect(mark).toMatch(/width:\s*var\(--spr-brand-mark-size\)/);
     expect(mark).toMatch(/height:\s*var\(--spr-brand-mark-size\)/);
     expect(RULES).toMatch(/--spr-brand-mark-size:\s*[\d.]+em/);
+  });
+
+  it('breaks a word longer than the column instead of letting it overflow', () => {
+    expect(declarationsOfBase('.spr-article')).toMatch(/overflow-wrap:\s*break-word/);
   });
 
   it('moves the name below the logo in one piece instead of breaking it', () => {
