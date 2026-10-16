@@ -33,31 +33,47 @@ export class StatusService {
     caller: ResolvedCaller,
     scope: 'all' | string[],
     query = '',
+    states: readonly RepoState[] = DEFAULT_REPO_STATES,
   ): Promise<StatusPayload> {
     const rows = await this.repo.repoStatusRows(caller.tenantId, scope);
 
     const pages = await this.reports.countPagesByRepo(caller.tenantId, scope);
 
     const staleAfterMs = parseDuration(this.config.notify.stale_after ?? '6h');
-    const all: RepoStatus[] = rows.map((row) => ({
-      namespace: row.namespace,
-      slug: row.slug,
-      forge_key: row.forge_key,
-      forge_type: row.forge_type,
-      last_sha: row.last_sha,
-      last_run_at: row.last_run_at,
-      last_status: row.last_status,
-      // Public error for maintainers, full error for admins
-      last_error: caller.isAdmin ? row.last_error : row.last_error_public,
-      // Period between POLL checks
-      poll_interval_ms: row.poll_interval_ms,
-      documents: pages.get(row.id) ?? 0,
-      dropped_grants: Number(row.dropped_grants),
-      stale:
-        row.last_run_at === null ||
-        Date.now() - new Date(row.last_run_at).getTime() >
-          Math.max(staleAfterMs, 2 * (row.poll_interval_ms ?? 0)),
-    }));
+    const all: RepoStatus[] = rows.map((row) => {
+      // A repo not synced yet may still have a config, so only a synced one counts
+      const unpublished = !row.has_config && row.last_run_at !== null;
+      const stale =
+        !unpublished &&
+        (row.last_run_at === null ||
+          Date.now() - new Date(row.last_run_at).getTime() >
+            Math.max(staleAfterMs, 2 * (row.poll_interval_ms ?? 0)));
+      return {
+        namespace: row.namespace,
+        slug: row.slug,
+        forge_key: row.forge_key,
+        forge_type: row.forge_type,
+        last_sha: row.last_sha,
+        last_run_at: row.last_run_at,
+        last_status: row.last_status,
+        // Public error for maintainers, full error for admins
+        last_error: caller.isAdmin ? row.last_error : row.last_error_public,
+        // Period between POLL checks
+        poll_interval_ms: row.poll_interval_ms,
+        documents: pages.get(row.id) ?? 0,
+        dropped_grants: Number(row.dropped_grants),
+        stale,
+        state: unpublished
+          ? 'unpublished'
+          : row.last_run_at === null
+            ? 'never-synced'
+            : row.last_status === 'failed'
+              ? 'failed'
+              : stale
+                ? 'stale'
+                : 'ok',
+      };
+    });
 
     const needle = query.trim().toLowerCase();
     return {
@@ -76,7 +92,14 @@ export class StatusService {
         stale: all.filter((r) => r.stale && r.last_status !== 'failed').length,
         dropped_grants: all.reduce((n, r) => n + r.dropped_grants, 0),
       },
-      repos: needle === '' ? all : all.filter((repo) => repoMatchText(repo).includes(needle)),
+      repos: all.filter(
+        (repo) =>
+          states.includes(repo.state) && (needle === '' || repoMatchText(repo).includes(needle)),
+      ),
+      states: REPO_STATES.filter((state) => states.includes(state)),
+      state_counts: Object.fromEntries(
+        REPO_STATES.map((state) => [state, all.filter((repo) => repo.state === state).length]),
+      ) as Record<RepoState, number>,
       instance: caller.isAdmin ? await this.instanceSummary(caller) : null,
     };
   }
@@ -129,7 +152,9 @@ export class StatusService {
     if (!repoId) return null;
 
     const run = await this.repo.runOf(repoId, runId, caller.isAdmin);
-    return run ? { namespace, slug, run } : null;
+    if (!run) return null;
+    const pages = await this.reports.countPagesByRepo(caller.tenantId, [repoId]);
+    return { namespace, slug, run, published_pages: pages.get(repoId) ?? 0 };
   }
 
   async operableRepoId(
@@ -215,6 +240,21 @@ export interface RepoStatus {
   documents: number;
   dropped_grants: number;
   stale: boolean;
+  state: RepoState;
+}
+
+export const REPO_STATES = ['ok', 'failed', 'stale', 'never-synced', 'unpublished'] as const;
+export type RepoState = (typeof REPO_STATES)[number];
+
+export const DEFAULT_REPO_STATES: readonly RepoState[] = REPO_STATES.filter(
+  (state) => state !== 'unpublished',
+);
+
+export function repoStatesFrom(value: unknown): readonly RepoState[] {
+  const asked = (Array.isArray(value) ? value : [value]).filter((state): state is RepoState =>
+    (REPO_STATES as readonly unknown[]).includes(state),
+  );
+  return asked.length > 0 ? asked : DEFAULT_REPO_STATES;
 }
 
 export interface InstanceSummary {
@@ -246,6 +286,8 @@ export interface StatusPayload {
   query: string;
   totals: StatusTotals;
   repos: RepoStatus[];
+  states: RepoState[];
+  state_counts: Record<RepoState, number>;
   instance: InstanceSummary | null;
 }
 
@@ -263,6 +305,7 @@ export interface RunPayload {
   namespace: string;
   slug: string;
   run: RunRow;
+  published_pages: number;
 }
 
 export interface RepoConfigSummary {

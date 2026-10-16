@@ -123,7 +123,7 @@
     margin: 0;
   }
 
-  .spr-note > .spr-problems {
+  .spr-note > .spr-sync-problems {
     margin-block: var(--spr-space-2) 0;
     padding-inline-start: var(--spr-space-4);
   }
@@ -1247,6 +1247,199 @@
     min-width: 0;
   }
 
+  .spr-sync-problems {
+    margin: 0;
+    color: var(--spr-fg);
+  }
+
+  p.spr-sync-problems,
+  .spr-sync-problems > summary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spr-space-2);
+  }
+
+  /* Beside the first line, which is the one that says what failed */
+  .spr-sync-problems .spr-icon {
+    flex: none;
+    align-self: flex-start;
+    width: 1.1em;
+    height: 1.1em;
+    margin: calc((1lh - 1.1em) / 2) 0 0;
+    color: var(--spr-status-fail);
+  }
+
+  /* A repository and its problems read as one row */
+  .spr-table tr:has(+ .spr-row-note) > * {
+    border-bottom-width: 0;
+  }
+
+  .spr-sync-problems > summary {
+    width: fit-content;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .spr-sync-problems > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .spr-sync-problems > summary::after {
+    content: '';
+    align-self: center;
+    width: 0.4em;
+    height: 0.4em;
+    margin-inline-start: var(--spr-space-1);
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+  }
+
+  .spr-sync-problems[open] > summary::after {
+    transform: rotate(45deg);
+  }
+
+  .spr-sync-problems ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-1);
+    margin: var(--spr-space-2) 0 0;
+    padding-inline-start: calc(1.1em + var(--spr-space-2));
+    list-style: none;
+  }
+
+  .spr-sync-problems li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-sync-problems code {
+    flex: none;
+    color: var(--spr-muted);
+  }
+
+  /* Git's own errors keep their lines */
+  .spr-sync-problems span {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .spr-filter-menu {
+    position: relative;
+    flex: none;
+  }
+
+  .spr-filter-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(1lh + 2 * var(--spr-space-2) + 2 * var(--spr-border));
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+    color: var(--spr-fg);
+    white-space: nowrap;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .spr-filter-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .spr-filter-menu > summary:hover,
+  .spr-filter-menu[open] > summary {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-filter-menu > summary .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  /* Some state is left out, so the list is narrower than the instance */
+  .spr-filter-menu[data-spr-active] > summary {
+    background: color-mix(in oklab, var(--spr-accent) 12%, var(--spr-surface));
+    color: var(--spr-accent);
+  }
+
+  /* Centred under the button it drops from */
+  .spr-filter-panel {
+    position: absolute;
+    top: calc(100% + var(--spr-space-2));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-3);
+    min-width: var(--spr-menu-width);
+    padding: var(--spr-space-3) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-surface);
+  }
+
+  .spr-filter-panel fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .spr-filter-panel legend {
+    margin-bottom: var(--spr-space-2);
+    padding: 0;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+  }
+
+  .spr-filter-panel > button {
+    width: 100%;
+  }
+
+  /* `.spr-form button` outranks `.spr-primary`, so the accent is restated here */
+  .spr-filter .spr-filter-panel > .spr-primary {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-filter .spr-filter-panel > .spr-primary:hover {
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  /* An option row, not the uppercase caption `.spr-form label` would make it */
+  .spr-filter .spr-filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin: 0;
+    color: var(--spr-fg);
+    font-size: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .spr-filter .spr-filter-option input {
+    margin: 0;
+  }
+
+  .spr-filter-count {
+    margin-left: auto;
+    padding-left: var(--spr-space-4);
+    color: var(--spr-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
   .spr-index-add-link {
     text-decoration: none;
   }
@@ -1296,6 +1489,12 @@
 
   .spr-filter[data-spr-live] .spr-filter-go {
     display: none;
+  }
+
+  @media (scripting: enabled) {
+    .spr-filter .spr-filter-go {
+      display: none;
+    }
   }
 
   .spr-steps {

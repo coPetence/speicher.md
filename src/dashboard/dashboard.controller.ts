@@ -24,7 +24,7 @@ import { ConfigPageService } from './configurator/config-page/config-page.servic
 import { buildSections } from './configurator/config-form/fields';
 import { searchDashboard } from './search/search';
 import { DashboardResponder, dashboardNavOptions, wantsJson } from './respond';
-import { StatusService } from './status.service';
+import { StatusService, repoStatesFrom } from './status.service';
 
 /** Parses a count query param; null when absent or not a non-negative integer */
 function countFromQuery(raw: string | undefined): number | null {
@@ -194,6 +194,7 @@ export class DashboardController {
     @Req() req: Request,
     @Res() res: Response,
     @Query('q') q?: string,
+    @Query('state') state?: string | string[],
     @Query('reembedding') reembedding?: string,
     @Query('discovering') discovering?: string,
   ): Promise<void> {
@@ -206,7 +207,12 @@ export class DashboardController {
       req,
       res,
       caller.isAdmin,
-      await this.status.statusPayload(caller, scope, typeof q === 'string' ? q : ''),
+      await this.status.statusPayload(
+        caller,
+        scope,
+        typeof q === 'string' ? q : '',
+        repoStatesFrom(state),
+      ),
       { reembedding: countFromQuery(reembedding), discovering: countFromQuery(discovering) },
     );
   }

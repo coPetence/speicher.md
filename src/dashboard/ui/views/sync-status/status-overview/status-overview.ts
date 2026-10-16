@@ -1,10 +1,16 @@
 import type { Request, Response } from 'express';
 
 import { forgeMark } from '../../../../configurator/config-form/members';
-import { Level, repoLevel } from '../../../levels';
+import { Level } from '../../../levels';
 import { markSprite, renderMarkRef } from '../../../provider-marks';
 import { DashboardResponder } from '../../../../respond';
-import { StatusPayload, repoMatchText } from '../../../../status.service';
+import {
+  DEFAULT_REPO_STATES,
+  REPO_STATES,
+  RepoState,
+  StatusPayload,
+  repoMatchText,
+} from '../../../../status.service';
 import { approximateDuration, isoOf, relativeTime } from '../../../../../common/time';
 import { emptyStateArt } from '../../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../../content-reader/icons';
@@ -43,8 +49,29 @@ export function sendStatus(
         scope: data.scope,
         query: data.query,
         tiles: statusTiles(data),
+        total: data.totals.repositories,
+        state_filter: REPO_STATES.map((state) => ({
+          value: state,
+          ...STATE_DISPLAY[state],
+          count: data.state_counts[state],
+          checked: data.states.includes(state),
+        })),
+        // Every state but all of them is a narrowing, the default included
+        state_filtered: data.states.length < REPO_STATES.length,
+        // Carried by the links that clear the text, so they keep the states
+        states_query: sameStates(data.states, DEFAULT_REPO_STATES)
+          ? ''
+          : data.states.map((state) => `state=${state}`).join('&'),
+        all_states_query: REPO_STATES.map((state) => `state=${state}`).join('&'),
+        default_hides_all:
+          data.repos.length === 0 &&
+          data.totals.repositories > 0 &&
+          data.state_counts.unpublished === data.totals.repositories &&
+          sameStates(data.states, DEFAULT_REPO_STATES),
+        filter_icon: renderInlineIcon('funnel', 'spr-icon'),
+        problem_icon: renderInlineIcon('circle-x', 'spr-icon'),
         repos: data.repos.map((repo) => {
-          const level = repoLevel(repo.last_status, repo.stale);
+          const { label, level } = STATE_DISPLAY[repo.state];
           return {
             name: `${repo.namespace}/${repo.slug}`,
             href: `/-/status/${encodeURIComponent(repo.namespace)}/${encodeURIComponent(repo.slug)}`,
@@ -61,12 +88,7 @@ export function sendStatus(
             */
             search: repoMatchText(repo),
 
-            state:
-              repo.last_run_at === null
-                ? 'never synced'
-                : repo.stale && level === 'warn'
-                  ? 'stale'
-                  : repo.last_status,
+            state: label,
             lastRun: relativeTime(repo.last_run_at),
             lastRunAt: isoOf(repo.last_run_at),
 
@@ -75,7 +97,8 @@ export function sendStatus(
             documents: repo.documents,
             droppedGrants: repo.dropped_grants,
 
-            error: repo.last_error,
+            problems: repo.last_error ? problemsOf(repo.last_error) : [],
+            problemSummary: repo.last_error ? problemSummary(problemsOf(repo.last_error)) : '',
           };
         }),
         /*
@@ -109,6 +132,53 @@ export function sendStatus(
   });
 }
 
+const STATE_DISPLAY: Record<RepoState, { label: string; level: Level }> = {
+  ok: { label: 'ok', level: 'ok' },
+  failed: { label: 'failed', level: 'fail' },
+  stale: { label: 'stale', level: 'warn' },
+  'never-synced': { label: 'never synced', level: 'warn' },
+  unpublished: { label: 'not published', level: 'idle' },
+};
+
+interface Problem {
+  location: string | null;
+  message: string;
+}
+
+const PROBLEM_LINE = /^(\S+?)\s{2,}(\S.*)$/;
+
+/** Splits a repo's error into its problems */
+export function problemsOf(error: string): Problem[] {
+  const lines = error
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+  const matches = lines.map((line) => PROBLEM_LINE.exec(line));
+  if (lines.length > 0 && matches.every((match) => match !== null)) {
+    return matches.map((match) => ({ location: match![1], message: match![2] }));
+  }
+  return [{ location: null, message: error.trim() }];
+}
+
+/** The line a list of problems folds into, e.g. `2 problems in .speicher.yaml` */
+export function problemSummary(problems: Problem[]): string {
+  const files = [
+    ...new Set(
+      problems.flatMap((problem) =>
+        problem.location ? [problem.location.replace(/:\d+$/, '')] : [],
+      ),
+    ),
+  ];
+  const count = `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}`;
+  if (files.length === 1) return `${count} in ${files[0]}`;
+  if (files.length > 1) return `${count} in ${files.length} files`;
+  return count;
+}
+
+function sameStates(a: readonly RepoState[], b: readonly RepoState[]): boolean {
+  return a.length === b.length && a.every((state) => b.includes(state));
+}
+
 /**
  * The mark on each summary tile: what is being counted, never how it is going.
  *
@@ -133,6 +203,7 @@ interface StatusTile {
   level: Level;
   iconHtml: string;
   href?: string;
+  tone?: 'blue' | 'violet';
 }
 
 /** Derives the summary tiles for the status page from the payload */
@@ -176,8 +247,8 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
     "nothing is failing" is what the whole page says by having no red on it.
   */
   return [
-    tile('Repositories', repositories, 'idle', STAT_ICONS.repositories),
-    tile('Pages', pages, 'idle', STAT_ICONS.pages),
+    { ...tile('Repositories', repositories, 'idle', STAT_ICONS.repositories), tone: 'blue' },
+    { ...tile('Pages', pages, 'idle', STAT_ICONS.pages), tone: 'violet' },
     tile('Failed', failed, failed > 0 ? 'fail' : 'idle', STAT_ICONS.failed),
     tile('Stale', stale, stale > 0 ? 'warn' : 'idle', STAT_ICONS.stale),
     tile(
