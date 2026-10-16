@@ -92,11 +92,33 @@ export function runView(namespace: string, slug: string, run: RunRow) {
   };
 }
 
-/** Says which subtrees still serve their previous version, or null when none do */
-function failedSubtreesNote(subtrees: string[]): Note | null {
+export function failedSubtreesNote(
+  subtrees: string[],
+  publishedPages: number,
+  isAdmin: boolean,
+): Note | null {
   if (subtrees.length === 0) return null;
-  const paths = subtrees.map((path) => `<code>${escapeHtml(path || '/')}</code>`).join(', ');
-  return { level: 'fail', html: `Serving the previous version under ${paths}.` };
+  const because = isAdmin
+    ? 'because of the problems listed under Findings'
+    : 'because of problems in this commit';
+
+  if (subtrees.includes('')) {
+    return {
+      level: 'fail',
+      text:
+        publishedPages > 0
+          ? `None of the changes in this commit were published, ${because}. Readers still see the pages from the last successful sync.`
+          : `Nothing from this repository is published yet, ${because}. No earlier sync has succeeded, so there is no previous version to show instead.`,
+    };
+  }
+
+  const paths = subtrees.map((path) => `<code>${escapeHtml(path)}</code>`);
+  const listed =
+    paths.length === 1 ? paths[0] : `${paths.slice(0, -1).join(', ')} and ${paths.at(-1)}`;
+  return {
+    level: 'fail',
+    html: `The pages under ${listed} were not updated, ${because}. Readers still see what was published there before.`,
+  };
 }
 
 /** An instant a person reads and can match against a log line: minutes, in UTC */
@@ -132,7 +154,11 @@ export function sendRun(
         */
         show_findings: isAdmin,
         run: runView(answer.namespace, answer.slug, answer.run),
-        failed_subtrees_note: failedSubtreesNote(answer.run.stats?.failed_subtrees ?? []),
+        failed_subtrees_note: failedSubtreesNote(
+          answer.run.stats?.failed_subtrees ?? [],
+          answer.published_pages,
+          isAdmin,
+        ),
       }),
   });
 }

@@ -1,9 +1,8 @@
 
 <ul class="spr-stats">
   <% it.tiles.forEach(function (tile) { %>
-  <li class="spr-stat spr-stat-<%= tile.level %>">
-    <%~ tile.iconHtml || '' %>
-    <span class="spr-stat-value"><%= tile.value %></span>
+  <li class="spr-stat spr-stat-<%= tile.level %><%= tile.tone ? ' spr-stat-tone-' + tile.tone : '' %>">
+    <span class="spr-stat-head"><%~ tile.iconHtml || '' %><span class="spr-stat-value"><%= tile.value %></span></span>
     <% if (tile.href) { %>
     <a class="spr-stat-label spr-stat-link" href="<%= tile.href %>"><%= tile.label %></a>
     <% } else { %>

@@ -6,7 +6,7 @@
 
 <%
 
-  const filterRenders = it.repos.length > 0 || it.query;
+  const filterRenders = it.total > 0;
   const discoverRenders = it.instance && it.instance.forges.length > 0;
 %>
 <% if (filterRenders || discoverRenders) { %>
@@ -22,6 +22,22 @@
              placeholder="Repository or source"
              autocomplete="off" spellcheck="false">
     </span>
+    <details class="spr-filter-menu"<%= it.state_filtered ? ' data-spr-active' : '' %>>
+      <summary aria-label="Filter" title="Filter"><%~ it.filter_icon || '' %></summary>
+      <div class="spr-filter-panel">
+        <fieldset>
+          <legend>State</legend>
+          <% it.state_filter.forEach(function (option) { %>
+          <label class="spr-filter-option">
+            <input type="checkbox" name="state" value="<%= option.value %>"<%= option.checked ? ' checked' : '' %>>
+            <span><%= option.label %></span>
+            <span class="spr-filter-count"><%= option.count %></span>
+          </label>
+          <% }) %>
+        </fieldset>
+        <button type="submit" class="spr-primary">Apply</button>
+      </div>
+    </details>
     <button type="submit" class="spr-filter-go">Filter</button>
   </form>
   <% } %>
@@ -69,10 +85,22 @@
         <td class="spr-num"><%= repo.documents %></td>
         <td class="spr-num"><%= repo.droppedGrants %></td>
       </tr>
-      <% if (repo.error) { %>
-      
-      <tr class="spr-row-note">
-        <td colspan="6"><%~ include('@note', { level: 'fail', text: repo.error }) %></td>
+      <% if (repo.problems.length > 0) { %>
+      <tr class="spr-row-note" data-spr-row="<%= repo.search %>">
+        <td colspan="6">
+          <% if (repo.problems.length > 1) { %>
+          <details class="spr-sync-problems">
+            <summary><%~ it.problem_icon || '' %><span><%= repo.problemSummary %></span></summary>
+            <ul>
+              <% repo.problems.forEach(function (problem) { %>
+              <li><% if (problem.location) { %><code><%= problem.location %></code><% } %><span><%= problem.message %></span></li>
+              <% }) %>
+            </ul>
+          </details>
+          <% } else { %>
+          <p class="spr-sync-problems"><%~ it.problem_icon || '' %><% if (repo.problems[0].location) { %><code><%= repo.problems[0].location %></code><% } %><span><%= repo.problems[0].message %></span></p>
+          <% } %>
+        </td>
       </tr>
       <% } %>
       <% }) %>
@@ -83,7 +111,19 @@
 <div class="spr-empty-state" data-spr-empty="none"
    <%= it.repos.length > 0 || it.query ? 'hidden' : '' %>>
   <%~ it.empty_art || '' %>
+  <% if (it.total === 0) { %>
   <p class="spr-empty">No repositories are configured.</p>
+  <% } else if (it.default_hides_all) { %>
+  <p class="spr-empty">
+    None of the <%= it.total %> repositories has a <code>.speicher.yaml</code> at its root yet.
+    <a href="/-/status?<%= it.all_states_query %>">Show them</a>
+  </p>
+  <% } else { %>
+  <p class="spr-empty">
+    No repository is in one of the selected states.
+    <a href="/-/status?<%= it.all_states_query %>">Show all states</a>
+  </p>
+  <% } %>
 </div>
 
 <div class="spr-empty-state" data-spr-empty="filtered"
@@ -91,7 +131,7 @@
   <%~ it.empty_art || '' %>
   <p class="spr-empty">
     No repository matches <code data-spr-needle><%= it.query %></code>.
-    <a href="/-/status">Show all</a>
+    <a href="/-/status<%= it.states_query ? '?' + it.states_query : '' %>">Show all</a>
   </p>
 </div>
 

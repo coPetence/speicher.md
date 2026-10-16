@@ -23,6 +23,32 @@ function mount(): void {
   mountNavFolds();
   // Live text filter on the repository table
   mountFilter(TABLE);
+  mountStateMenu();
+}
+
+function mountStateMenu(): void {
+  const menu = document.querySelector<HTMLDetailsElement>('form[data-spr-filter] .spr-filter-menu');
+  const form = menu?.closest('form');
+  if (!menu || !form) return;
+
+  let changed = false;
+  menu.addEventListener('change', () => {
+    changed = true;
+  });
+  menu.addEventListener('toggle', () => {
+    if (!menu.open && changed) form.requestSubmit();
+  });
+
+  addEventListener('click', (event) => {
+    if (menu.open && event.target instanceof Node && !menu.contains(event.target)) {
+      menu.open = false;
+    }
+  });
+  addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !menu.open) return;
+    menu.open = false;
+    menu.querySelector('summary')?.focus();
+  });
 }
 
 if (document.readyState === 'loading') {

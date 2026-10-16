@@ -19,6 +19,14 @@ function render(query = ''): void {
       <div class="spr-index-bar">
         <form class="spr-form spr-filter" method="get" action="/-/status" data-spr-filter>
           <input id="filter-status" type="search" name="q" value="${query}" aria-label="Find a repository">
+          <details class="spr-filter-menu">
+            <summary>State</summary>
+            <div class="spr-filter-panel">
+              <label class="spr-filter-option"><input type="checkbox" name="state" value="ok" checked> ok</label>
+              <label class="spr-filter-option"><input type="checkbox" name="state" value="unpublished"> not published</label>
+              <button type="submit">Apply</button>
+            </div>
+          </details>
           <button type="submit" class="spr-filter-go">Filter</button>
         </form>
         <form method="post" action="/-/discover" class="spr-form spr-index-op">
@@ -110,6 +118,49 @@ describe('the status page filter', () => {
 
     filter('');
     expect(shown()).toEqual(['handbook', 'specs']);
+  });
+
+  describe('the state menu', () => {
+    const menu = () => document.querySelector('.spr-filter-menu') as HTMLDetailsElement;
+    const form = () => document.querySelector('form[data-spr-filter]') as HTMLFormElement;
+    // The toggle event is queued, so it lands after the current task
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('asks the server once it closes on a changed choice, since the page lacks those rows', async () => {
+      render();
+      run();
+      const submit = jest.spyOn(form(), 'requestSubmit').mockImplementation(() => undefined);
+      filter('hand');
+      menu().open = true;
+      await settle();
+
+      const option = document.querySelector('input[value="unpublished"]') as HTMLInputElement;
+      option.checked = true;
+      option.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(submit).not.toHaveBeenCalled();
+
+      document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await settle();
+
+      expect(menu().open).toBe(false);
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(new FormData(form()).getAll('state')).toEqual(['ok', 'unpublished']);
+      expect(new FormData(form()).get('q')).toBe('hand');
+    });
+
+    it('closes on Escape without asking anything when nothing changed', async () => {
+      render();
+      run();
+      const submit = jest.spyOn(form(), 'requestSubmit').mockImplementation(() => undefined);
+      menu().open = true;
+      await settle();
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await settle();
+
+      expect(menu().open).toBe(false);
+      expect(submit).not.toHaveBeenCalled();
+    });
   });
 
   it('does nothing on a page with no table to narrow', () => {

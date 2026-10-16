@@ -26,6 +26,10 @@
     display: none;
   }
 
+  .spr-note + .spr-note {
+    margin-block-start: var(--spr-space-3);
+  }
+
   @media (forced-colors: active) {
     .spr-note {
       border: 1px solid CanvasText;

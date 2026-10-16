@@ -262,6 +262,60 @@ describe('the repository list', () => {
     const res = await page('ops', '/-/status?q=nosuchrepository');
     expect(res.text).toContain('action="/-/discover"');
   });
+
+  describe('the state filter, with a repository that has no .speicher.yaml', () => {
+    const setConfig = (hasConfig: boolean) =>
+      getSequelize().query(
+        `UPDATE repos SET has_config = :hasConfig, last_run_at = now() - interval '2 days'
+          WHERE id = :repoId`,
+        { replacements: { hasConfig, repoId: harness.repos.fieldkit } },
+      );
+
+    beforeAll(() => setConfig(false));
+    afterAll(() => setConfig(true));
+
+    const slugs = (body: { repos: { slug: string }[] }) => body.repos.map((repo) => repo.slug);
+
+    it('leaves it out by default, and counts it in its state', async () => {
+      const res = await json('ops', '/-/status');
+      expect(slugs(res.body)).not.toContain('fieldkit');
+      expect(slugs(res.body)).toContain('handbook');
+      expect(res.body.states).toEqual(['ok', 'failed', 'stale', 'never-synced']);
+      expect(res.body.state_counts.unpublished).toBe(1);
+      expect(res.body.totals.repositories).toBe(slugs(res.body).length + 1);
+    });
+
+    it('narrows to the states asked for, and shows it as not published rather than stale', async () => {
+      const res = await json('ops', '/-/status?state=unpublished');
+      expect(slugs(res.body)).toEqual(['fieldkit']);
+      expect(res.body.repos[0]).toMatchObject({ state: 'unpublished', stale: false });
+
+      const html = await page('ops', '/-/status?state=unpublished');
+      expect(html.text).toMatch(/name="state" value="unpublished" checked/);
+      expect(html.text).toMatch(/name="state" value="ok">/);
+      expect(html.text).toContain('not published');
+    });
+
+    it('marks the menu active while any state is left out, the default included', async () => {
+      const narrowed = await page('ops', '/-/status');
+      expect(narrowed.text).toMatch(/class="spr-filter-menu" data-spr-active/);
+
+      const every = 'state=ok&state=failed&state=stale&state=never-synced&state=unpublished';
+      const all = await page('ops', `/-/status?${every}`);
+      expect(all.text).not.toContain('data-spr-active');
+      expect(slugs((await json('ops', `/-/status?${every}`)).body)).toContain('fieldkit');
+    });
+
+    it('falls back to the default for a state it does not know', async () => {
+      const res = await json('ops', '/-/status?state=sideways');
+      expect(res.body.states).toEqual(['ok', 'failed', 'stale', 'never-synced']);
+    });
+
+    it('keeps the states when the text filter is cleared', async () => {
+      const res = await page('ops', '/-/status?q=nosuchrepository&state=unpublished');
+      expect(res.text).toContain('href="/-/status?state=unpublished"');
+    });
+  });
 });
 
 describe('a maintainer', () => {

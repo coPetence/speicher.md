@@ -18,7 +18,7 @@ export class DashboardRepository {
   async repoStatusRows(tenantId: string, scope: 'all' | string[]): Promise<StatusRow[]> {
     return getSequelize().query<StatusRow>(
       `SELECT r.id, r.namespace, r.slug, r.last_sha, r.last_run_at, r.last_status,
-              r.last_error, r.last_error_public, r.poll_interval_ms,
+              r.last_error, r.last_error_public, r.poll_interval_ms, r.has_config,
               f.key AS forge_key, f.type AS forge_type,
               COALESCE((
                 SELECT (s.stats ->> 'dropped_grants')
@@ -188,6 +188,7 @@ export interface StatusRow {
   last_error: string | null;
   last_error_public: string | null;
   poll_interval_ms: number | null;
+  has_config: boolean;
   dropped_grants: string;
   /** The content source the repository came from, and its kind
    *
