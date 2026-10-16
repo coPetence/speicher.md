@@ -69,6 +69,11 @@ export interface ForgeDriver {
   listRepos(installationId: string): Promise<RemoteRepo[]>;
   getRepo(forgeRepoId: string, installationId?: string): Promise<RemoteRepo | null>;
 
+  /**
+   * Whether the default branch has a root `.speicher.yaml` or `.speicher.yml`
+   */
+  hasRootConfig?(repo: RemoteRepo): Promise<boolean | null>;
+
   /** Fetch the repo into a bare mirror, returning its default branch head sha */
   fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string>;
 
