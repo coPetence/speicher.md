@@ -11,13 +11,13 @@
  * the trigger demands it
  */
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
 
 import { Logger, rootLogger } from '../common/logger';
+import { makeTempDir } from '../common/temp-dir';
 import { Repo, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { RemoteRepo } from '../forge/driver';
@@ -77,7 +77,7 @@ export class SyncService {
       return null;
     }
 
-    const workingTree = await fs.mkdtemp(join(tmpdir(), `speicher-${remote.forgeRepoId}-`));
+    const workingTree = await makeTempDir(remote.forgeRepoId);
     try {
       await driver.checkout(mirrorDir, head, workingTree);
 

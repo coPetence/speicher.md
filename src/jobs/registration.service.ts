@@ -10,7 +10,6 @@
  */
 
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
@@ -20,6 +19,7 @@ import { groupReach } from '../auth/directory/lookup';
 import { TwoAudienceError } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { parsePrincipal } from '../common/principals';
+import { makeTempDir } from '../common/temp-dir';
 import { slugify } from '../common/slug';
 import { ConfigService } from '../config/config.service';
 import { RoutingService } from '../content-reader/routing';
@@ -336,7 +336,7 @@ export class RegistrationService {
     const mirrorDir = join(MIRROR_ROOT, driver.key, `${remote.forgeRepoId}.git`);
     await driver.fetchInto(remote, mirrorDir);
 
-    const workingTree = await fs.mkdtemp(join(tmpdir(), `speicher-pr-${remote.forgeRepoId}-`));
+    const workingTree = await makeTempDir(`pr-${remote.forgeRepoId}`);
     try {
       await driver.checkout(mirrorDir, sha, workingTree);
       const directory = await this.forges.directoryFor(driver.key);
