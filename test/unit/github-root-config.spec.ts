@@ -58,8 +58,14 @@ describe('asking GitHub for a root config', () => {
     expect(await driver.hasRootConfig(REPO)).toBe(false);
   });
 
-  it('cannot tell when GitHub refuses, so the caller fetches as before', async () => {
+  it('says no for a 404, which a listed repo only answers when it is empty', async () => {
     const { driver } = driverAnswering(404);
+
+    expect(await driver.hasRootConfig(REPO)).toBe(false);
+  });
+
+  it('cannot tell when GitHub fails otherwise, so the caller fetches as before', async () => {
+    const { driver } = driverAnswering(502);
 
     expect(await driver.hasRootConfig(REPO)).toBeNull();
   });

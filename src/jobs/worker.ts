@@ -15,6 +15,7 @@ import { Injectable } from '@nestjs/common';
 import { env } from '../common/env';
 import { Logger, rootLogger, runWithLogContext } from '../common/logger';
 import { sweepAbandonedTempDirs } from '../common/temp-dir';
+import { sweepAbandonedClones } from '../forge/git';
 import { ConfigService } from '../config/config.service';
 import { stableStringify } from '../config/resolution-hash';
 import { sweepBrandImages } from '../config/brand-store';
@@ -82,11 +83,13 @@ export class Worker {
     if (this.running) return;
     this.running = true;
 
-    // sweep working trees and credential files from a previously stopped process
-    const swept = await sweepAbandonedTempDirs().catch((err: Error) => {
-      this.log.warn('could not remove abandoned temporary directories', { error: err.message });
-      return [];
-    });
+    // sweep working trees, credential files and unfinished clones from a previously stopped process
+    const swept = await Promise.all([sweepAbandonedTempDirs(), sweepAbandonedClones()])
+      .then((lists) => lists.flat())
+      .catch((err: Error) => {
+        this.log.warn('could not remove abandoned temporary directories', { error: err.message });
+        return [];
+      });
     if (swept.length > 0) {
       this.log.info('removed temporary directories a stopped process left behind', {
         count: swept.length,

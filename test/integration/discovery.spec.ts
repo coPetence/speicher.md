@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -21,6 +21,7 @@ import { GithubDriver } from '../../src/forge/github/github.driver';
 import { ForgeRegistry } from '../../src/forge/registry';
 import { DELIVERY_DEDUPE_WINDOW_MS } from '../../src/forge/webhook.controller';
 import { IngestService } from '../../src/ingest/ingest.service';
+import { isConfigFilename } from '../../src/ingest/paths';
 import { JobQueue } from '../../src/jobs/queue';
 import { RegistrationService } from '../../src/jobs/registration.service';
 import { SyncService } from '../../src/jobs/sync.service';
@@ -164,6 +165,11 @@ class OriginBackedGithubDriver extends GithubDriver {
   override async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
     await ensureMirror(mirrorDir, { authenticatedUrl: `file://${this.originDir}` });
     return resolveHead(mirrorDir, repo.defaultBranch);
+  }
+
+  // The fake API has no contents endpoint, so the origin's files answer instead
+  override async hasRootConfig(): Promise<boolean> {
+    return readdirSync(this.originDir).some(isConfigFilename);
   }
 }
 
