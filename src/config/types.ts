@@ -63,7 +63,6 @@ export interface GithubProviderConfig {
   app?: GithubProviderApp;
 }
 
-
 export interface GithubProviderApp {
   client_id: string;
   // The name of the App in its URLs, e.g. `speicher-md`
