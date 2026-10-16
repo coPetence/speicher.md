@@ -448,10 +448,7 @@ describe('the memoised lookup', () => {
 
   it.each([
     ['App id', (yaml: string) => yaml.replace(`app_id: '2'`, `app_id: '3'`)],
-    [
-      'private key',
-      (yaml: string) => yaml.replace('${TEST_APP_KEY}', '${TEST_OTHER_APP_KEY}'),
-    ],
+    ['private key', (yaml: string) => yaml.replace('${TEST_APP_KEY}', '${TEST_OTHER_APP_KEY}')],
     ['GitHub host', (yaml: string) => yaml.replace(gh.base, 'https://ghe.acme.test')],
   ])('is rebuilt when the %s changes', (_what, change) => {
     const config = configFor(['acme/platform']);

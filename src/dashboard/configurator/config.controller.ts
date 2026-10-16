@@ -45,13 +45,7 @@ import { sendGithubAppManifest } from '../ui/views/github-app-manifest/github-ap
 import { submitted } from './config-form/decode/body';
 import { diffConfigVersions } from './config-form/diff';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
-import {
-  entryHrefFor,
-  isMemberId,
-  memberOf,
-  memberSectionId,
-  nounOf,
-} from './config-form/members';
+import { entryHrefFor, isMemberId, memberOf, memberSectionId, nounOf } from './config-form/members';
 import { readUploads } from './config-form/upload';
 import { SectionChecks } from './config-page/checks';
 import { ConfigPageService } from './config-page/config-page.service';

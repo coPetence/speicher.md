@@ -8,11 +8,7 @@ import { renderHelp } from '../../../../global-ui/help-markup';
 import { missingHostKeysText, unreadableLinesText } from '../../../../global-ui/known-hosts-notes';
 import type { Note } from '../../../../global-ui/note';
 import { loadNotes, versionNotes } from '../../config-notes';
-import {
-  memberOf,
-  memberPosition,
-  nounOf,
-} from '../../../configurator/config-form/members';
+import { memberOf, memberPosition, nounOf } from '../../../configurator/config-form/members';
 import { allFields, cardItems } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
 import type { SaveVerdict } from '../../../../config/classification';

@@ -268,7 +268,11 @@ export function appFields(target: ManifestTarget, app: ConvertedApp): Record<str
  * @param target what the App was created for
  * @param app the App GitHub created
  */
-export function writeStoredValues(doc: Document, target: ManifestTarget, app: ConvertedApp): boolean {
+export function writeStoredValues(
+  doc: Document,
+  target: ManifestTarget,
+  app: ConvertedApp,
+): boolean {
   const stored = target.stored?.(app) ?? [];
   for (const [path, value] of stored) setNodeAt(doc, [...target.path, ...path], value);
   return stored.length > 0;

@@ -34,7 +34,10 @@ function fakeGithub(body: unknown = ACME_APP, status = 200) {
 }
 
 /** The page of a section, as the configurator sends it, built from `config` */
-function pageOf(config: object, sectionId: string): { payload: ConfigSectionPayload; yaml: string } {
+function pageOf(
+  config: object,
+  sectionId: string,
+): { payload: ConfigSectionPayload; yaml: string } {
   const yaml = stringify(config);
   const section = sectionOf(loadDocument(yaml), sectionId)!;
   return { payload: { section } as ConfigSectionPayload, yaml };
@@ -106,7 +109,14 @@ describe('the links on the card of a content source', () => {
 
   it('are looked up from the App id and the private key', async () => {
     const { asked, fetchImpl } = fakeGithub();
-    const checks = new SectionChecks({} as ConfigService, null, null, undefined, undefined, fetchImpl);
+    const checks = new SectionChecks(
+      {} as ConfigService,
+      null,
+      null,
+      undefined,
+      undefined,
+      fetchImpl,
+    );
     const { payload, yaml } = pageOf(SOURCE, 'sources/gh');
 
     await checks.stampGithubAppLinks(payload, yaml);
@@ -120,7 +130,14 @@ describe('the links on the card of a content source', () => {
 
   it('are asked for once, then kept', async () => {
     const { asked, fetchImpl } = fakeGithub();
-    const checks = new SectionChecks({} as ConfigService, null, null, undefined, undefined, fetchImpl);
+    const checks = new SectionChecks(
+      {} as ConfigService,
+      null,
+      null,
+      undefined,
+      undefined,
+      fetchImpl,
+    );
 
     for (let view = 0; view < 2; view++) {
       const { payload, yaml } = pageOf(SOURCE, 'sources/gh');
@@ -132,7 +149,14 @@ describe('the links on the card of a content source', () => {
 
   it('are left out when GitHub cannot be asked', async () => {
     const { fetchImpl } = fakeGithub({ message: 'Bad credentials' }, 401);
-    const checks = new SectionChecks({} as ConfigService, null, null, undefined, undefined, fetchImpl);
+    const checks = new SectionChecks(
+      {} as ConfigService,
+      null,
+      null,
+      undefined,
+      undefined,
+      fetchImpl,
+    );
     const { payload, yaml } = pageOf(SOURCE, 'sources/gh');
 
     await checks.stampGithubAppLinks(payload, yaml);
@@ -150,7 +174,14 @@ describe('the links on the card of a content source', () => {
 describe('the links on the card of a GitHub directory', () => {
   it("are looked up on the provider's GitHub Enterprise Server", async () => {
     const { asked, fetchImpl } = fakeGithub();
-    const checks = new SectionChecks({} as ConfigService, null, null, undefined, undefined, fetchImpl);
+    const checks = new SectionChecks(
+      {} as ConfigService,
+      null,
+      null,
+      undefined,
+      undefined,
+      fetchImpl,
+    );
     const { payload, yaml } = pageOf(
       {
         auth: {

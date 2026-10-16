@@ -22,7 +22,7 @@ export async function bootTestApp(
   overrides: { token: unknown; value: unknown }[] = [],
 ): Promise<INestApplication> {
   const builder = Test.createTestingModule({ imports: [AppModule], controllers: extraControllers });
-  
+
   if (!overrides.some(({ token }) => token === GITHUB_APP_LOOKUP_FETCH)) {
     builder.overrideProvider(GITHUB_APP_LOOKUP_FETCH).useValue(offlineFetch);
   }
