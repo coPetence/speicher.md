@@ -318,6 +318,17 @@ describe('the loader and the running config', () => {
     expect(new ConfigService(loadInstanceConfig(yaml)).brandShowName).toBe(false);
   });
 
+  it('centres the name on the logo unless told to set it on the bottom edge', () => {
+    const config = new ConfigService(loadInstanceConfig(withLogo(dataUri('image/png', PNG))));
+    expect(config.brandNameAlign).toBe('center');
+
+    const yaml = MINIMAL.replace(
+      'version: 1',
+      `version: 1\nbrand:\n  name: Acme\n  name_align: bottom\n  logo: ${dataUri('image/png', PNG)}`,
+    );
+    expect(new ConfigService(loadInstanceConfig(yaml)).brandNameAlign).toBe('bottom');
+  });
+
   it('has no logo, and no URL, when the instance set none', () => {
     const config = new ConfigService(loadInstanceConfig(MINIMAL));
     expect(config.brandLogo).toBeNull();

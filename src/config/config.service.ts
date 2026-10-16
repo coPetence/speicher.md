@@ -28,6 +28,7 @@ import { LoadedInstanceConfig } from './parser';
 import {
   AnalyticsConfig,
   AssetsConfig,
+  BrandNameAlign,
   ConfigSource,
   EmbeddingConfig,
   ForgeConfig,
@@ -248,6 +249,10 @@ export class ConfigService {
 
   get brandShowName(): boolean {
     return this.instance.brand?.show_name ?? true;
+  }
+
+  get brandNameAlign(): BrandNameAlign {
+    return this.instance.brand?.name_align ?? 'center';
   }
 
   get brandLogoUrl(): string | null {

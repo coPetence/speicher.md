@@ -35,7 +35,7 @@
     <div class="spr-layout"<%~ it.nav && it.nav.length ? ' data-tree' : '' %><% if (it.tree) { %> data-spr-tree="<%= it.tree %>"<% } %><%~ it.article ? ' data-article' : '' %><%~ it.docked ? ' data-docked' : '' %>>
       <header class="spr-header">
         
-        <a class="spr-brand" href="/">
+        <a class="spr-brand" href="/"<% if (it.brandLogo && it.brandNameShown && it.brandNameAlign === 'bottom') { %> data-align="bottom"<% } %>>
           <% if (it.brandLogo) { %>
           
           <%
@@ -49,7 +49,7 @@
           <%~ it.brandMark || '' %>
           <% } %>
           <% if (it.brandNameShown) { %>
-          <span><%= it.brand %></span>
+          <span class="spr-brand-name"><%= it.brand %></span>
           <% } %>
         </a>
         <%~ it.progressBar || '' %>

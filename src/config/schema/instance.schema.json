@@ -236,6 +236,13 @@
           "description": "Whether the name is written beside the logo. On, because a logo is as often a symbol as a wordmark and a symbol alone leaves the header nameless. Turn it off for a logo that already spells the name, or the header says it twice. With no logo it decides nothing: the name is all there is.",
           "examples": [false]
         },
+        "name_align": {
+          "type": "string",
+          "enum": ["center", "bottom"],
+          "default": "center",
+          "description": "How the name lines up with the logo beside it. `center` centres the name on the logo's height. `bottom` sets the name's baseline on the logo's bottom edge.",
+          "examples": ["bottom"]
+        },
         "logo": {
           "type": "string",
           "maxLength": 90000,

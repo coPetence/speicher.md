@@ -1,4 +1,5 @@
 import type { ColourScheme } from '../../../config/palette';
+import type { BrandNameAlign } from '../../../config/types';
 import { renderTemplate } from '../../../content-reader/views';
 
 /** The reader's signed-in identity, shown in the header avatar */
@@ -98,6 +99,8 @@ export interface PageChrome {
   searchIcon?: string | null;
 
   brandNameShown?: boolean;
+
+  brandNameAlign?: BrandNameAlign;
 
   attribution?: boolean;
 }

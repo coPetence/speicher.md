@@ -243,12 +243,32 @@
 
   .spr-brand {
     min-block-size: var(--spr-bar-height);
+    min-width: 0;
+    max-width: 100%;
     font-weight: var(--spr-weight-strong);
     text-decoration: none;
     color: var(--spr-fg);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--spr-space-3);
+    align-content: center;
+    gap: var(--spr-space-2) var(--spr-space-3);
+  }
+  .spr-brand[data-align='bottom'] {
+    align-items: last baseline;
+  }
+
+  .spr-brand[data-align='bottom'] > .spr-brand-name {
+    line-height: 1;
+    text-box: trim-end cap alphabetic;
+  }
+
+  .spr-brand-name {
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .spr-brand-mark {
@@ -261,7 +281,9 @@
     display: block;
     height: var(--spr-brand-logo-height);
     width: auto;
-    max-width: var(--spr-brand-logo-max-width);
+    max-width: min(var(--spr-brand-logo-max-width), 100%);
+    object-fit: contain;
+    object-position: left center;
   }
 
   .spr-brand img.spr-brand-logo-dark {
