@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { makeTempDir } from '../common/temp-dir';
 
 /**
  * Credential material for a git remote
@@ -45,7 +46,7 @@ export async function withGitCredential<T>(
     throw new Error(`unsupported git transport in ${url.split('://')[0]}://`);
   }
 
-  const dir = await fs.mkdtemp(join(tmpdir(), 'speicher-git-cred-'));
+  const dir = await makeTempDir('git-cred');
   try {
     // Write credentials as files, mode 0600, so only this process reads them
     const keyPath = join(dir, 'deploy_key');
