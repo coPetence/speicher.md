@@ -83,6 +83,39 @@ describe('sanitisation', () => {
     expect(html).toContain('rel="noopener noreferrer nofollow"');
   });
 
+  it('opens an external web link in a new tab', () => {
+    for (const href of ['https://example.test/x', 'http://example.test/x', '//example.test/x']) {
+      const { html } = renderMarkdown(`[out](${href})\n`);
+      expect(html).toMatch(/<a [^>]*target="_blank"[^>]*>out</);
+    }
+  });
+
+  it('opens a link written as raw HTML in a new tab too, even when it names another target', () => {
+    const { html } = renderMarkdown('<a href="https://example.test/x" target="_self">out</a>\n');
+    expect(html.match(/target="[^"]*"/g)).toEqual(['target="_blank"']);
+  });
+
+  it('leaves a mail link, an in-page link and an internal link in the same tab', () => {
+    const { html } = renderMarkdown(
+      '[mail](mailto:ferdinand.duschka@copetence.de) [jump](#top) [page](./guide.md)\n',
+      { resolveLink: () => '/repo/guide' },
+    );
+    expect(html).not.toContain('target=');
+    expect(html).not.toContain('spr-link-external');
+  });
+
+  it('marks an external link with an icon and a note for screen readers', () => {
+    const { html } = renderMarkdown('[out](https://example.test/x)\n');
+    const link = /<a [^>]*>([\s\S]*?)<\/a>/.exec(html)?.[1] ?? '';
+    expect(link).toMatch(/^out<svg class="spr-icon spr-link-external"[^>]*aria-hidden="true">/);
+    expect(link).toMatch(/<span class="spr-visually-hidden"> \(opens in a new tab\)<\/span>$/);
+  });
+
+  it('keeps the mark out of the plain text that search reads', () => {
+    const { plain } = renderMarkdown('See [out](https://example.test/x).\n');
+    expect(plain).toBe('See out.');
+  });
+
   it('keeps ordinary formatting intact', () => {
     const { html } = renderMarkdown(
       '# Title\n\nSome **bold** and `code`.\n\n- one\n- two\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',

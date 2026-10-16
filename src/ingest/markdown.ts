@@ -13,6 +13,7 @@
 import MarkdownIt from 'markdown-it';
 import sanitizeHtml from 'sanitize-html';
 
+import { renderInlineIcon } from '../content-reader/icons';
 import { CALLOUT_CLASS, CALLOUT_LABEL_CLASS, installCallouts } from './callouts';
 import {
   FOOTNOTE_BACK_CLASS,
@@ -229,6 +230,23 @@ function isAbsolute(url: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
 }
 
+function isWebUrl(url: string): boolean {
+  return /^https?:/i.test(url) || url.startsWith('//');
+}
+
+const EXTERNAL_LINK_MARK = `${renderInlineIcon('external-link', 'spr-icon spr-link-external')}<span class="spr-visually-hidden"> (opens in a new tab)</span>`;
+
+/**
+ * Adds the external link mark to each link that opens in a new tab
+ */
+function markExternalLinks(html: string): string {
+  // Matches an <a> tag with target="_blank" and captures the tag up to its inner HTML (Group 1)
+  return html.replace(
+    /(<a\s[^>]*\btarget="_blank"[^>]*>[\s\S]*?)<\/a>/gi,
+    (_, opened: string) => `${opened}${EXTERNAL_LINK_MARK}</a>`,
+  );
+}
+
 /**
  * Parses markdown and returns sanitized HTML with link resolution
  *
@@ -245,7 +263,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
   const env: RenderEnv = { headings: new Map<string, number>(), mdx: emptyMdxDropped() };
   const rendered = (options.mdx ? mdxMarkdown : markdown).render(source, env);
 
-  const html = sanitizeHtml(rendered, {
+  const sanitized = sanitizeHtml(rendered, {
     allowedTags: [...ALLOWED_TAGS],
     allowedAttributes: {
       a: ['href', 'title', 'id', 'rel', 'target', 'data-broken', 'class', 'aria-label'],
@@ -297,10 +315,12 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
         if (!href || !isSafeUrl(href)) {
           return { tagName: 'span', attribs: anchor ? { id: anchor } : {} };
         }
-        if (isAbsolute(href) || href.startsWith('#')) {
-          return href.startsWith('#')
-            ? { tagName, attribs: rest }
-            : { tagName, attribs: { ...rest, rel: 'noopener noreferrer nofollow' } };
+        if (href.startsWith('#')) return { tagName, attribs: rest };
+        if (isAbsolute(href)) {
+          const secured = { ...rest, rel: 'noopener noreferrer nofollow' };
+          return isWebUrl(href)
+            ? { tagName, attribs: { ...secured, target: '_blank' } }
+            : { tagName, attribs: secured };
         }
 
         const kind: LinkKind =
@@ -337,8 +357,8 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
   });
 
   return {
-    html,
-    plain: htmlToPlainText(withoutFootnoteMarks(html)),
+    html: markExternalLinks(sanitized),
+    plain: htmlToPlainText(withoutFootnoteMarks(sanitized)),
     firstHeading: firstH1(source),
     brokenLinks,
     blockedImages,

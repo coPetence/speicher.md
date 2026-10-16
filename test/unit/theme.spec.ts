@@ -627,6 +627,17 @@ describe('the base stylesheet', () => {
     expect(RULES).toMatch(/--spr-brand-mark-size:\s*[\d.]+em/);
   });
 
+  it('sizes the external link mark against the text, also inside a heading', () => {
+    const mark = declarationsOfBase('.spr-main a > .spr-icon.spr-link-external');
+    expect(mark).toMatch(/width:\s*0\.75em/);
+    expect(mark).toMatch(/height:\s*0\.75em/);
+    // Comes after the heading icon rule, so it wins inside a heading too
+    expect(RULES.indexOf('.spr-main a > .spr-icon.spr-link-external')).toBeGreaterThan(
+      RULES.indexOf('.spr-main h1 .spr-icon'),
+    );
+    expect(declarationsOfBase('.spr-visually-hidden')).toMatch(/clip-path:\s*inset\(50%\)/);
+  });
+
   it('breaks a word longer than the column instead of letting it overflow', () => {
     expect(declarationsOfBase('.spr-article')).toMatch(/overflow-wrap:\s*break-word/);
   });

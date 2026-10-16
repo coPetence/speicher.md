@@ -184,9 +184,25 @@ describe('runCli', () => {
     expect(() => parseSyncRepoList(['gh', 'gl'])).toThrow(UsageError);
     expect(() => parseSyncRepoList(['--all'])).toThrow(/unknown argument/);
 
-    expect(parseSyncRepoContent(['copetence/handbook'])).toEqual({ repo: 'copetence/handbook' });
+    expect(parseSyncRepoContent(['copetence/handbook'])).toEqual({
+      repo: 'copetence/handbook',
+      force: false,
+    });
     expect(() => parseSyncRepoContent([])).toThrow(UsageError);
     expect(() => parseSyncRepoContent(['a', 'b'])).toThrow(UsageError);
+  });
+
+  it('takes --force for sync-repo-content on either side of the repository', () => {
+    const forced = { repo: 'copetence/handbook', force: true };
+    expect(parseSyncRepoContent(['copetence/handbook', '--force'])).toEqual(forced);
+    expect(parseSyncRepoContent(['--force', 'copetence/handbook'])).toEqual(forced);
+    expect(() => parseSyncRepoContent(['--force'])).toThrow(UsageError);
+    expect(() => parseSyncRepoContent(['copetence/handbook', '--forse'])).toThrow(
+      /unknown argument/,
+    );
+    expect(() => parseSyncRepoContent(['--forse', 'copetence/handbook'])).toThrow(
+      /unknown argument/,
+    );
   });
 
   it('lists every command it has, so help cannot describe a surface that left', () => {
