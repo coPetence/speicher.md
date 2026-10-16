@@ -101,7 +101,11 @@ export class Worker {
     const poll = this.options.pollIntervalMs ?? 1_000;
     this.timer = setInterval(() => void this.tick(), poll);
     this.reconcileTimerMs = this.reconcileTickMs;
-    this.reconcileTimer = setInterval(() => void this.reconcile(), this.reconcileTimerMs);
+    this.reconcileTimer = setInterval(() => {
+      void this.reconcile().catch((err: Error) => {
+        this.log.error('reconcile failed', { error: err.message });
+      });
+    }, this.reconcileTimerMs);
     this.log.info('worker started', {
       concurrency: this.maxConcurrency,
       reconcile_interval_ms: this.reconcileIntervalMs,
@@ -125,7 +129,11 @@ export class Worker {
     if (tick === this.reconcileTimerMs) return;
     clearInterval(this.reconcileTimer);
     this.reconcileTimerMs = tick;
-    this.reconcileTimer = setInterval(() => void this.reconcile(), tick);
+    this.reconcileTimer = setInterval(() => {
+      void this.reconcile().catch((err: Error) => {
+        this.log.error('reconcile failed', { error: err.message });
+      });
+    }, tick);
   }
 
   async stop(): Promise<void> {
@@ -258,6 +266,7 @@ export class Worker {
             kind: 'sync-repo-content',
             payload: { repoId, trigger: 'reconciler' },
             dedupeKey: `sync-repo-content:${repoId}`,
+            automatic: true,
           });
         }
 
@@ -374,13 +383,16 @@ export class Worker {
     this.reconciledVersion = this.config.configVersion;
     const tenant = await this.tenancy.defaultTenant();
     const due = await this.sync.dueForReconcile(this.reconcileIntervalMs);
+    let enqueued = 0;
     for (const { id, reason } of due) {
-      await this.queue.enqueue({
+      const added = await this.queue.enqueue({
         tenantId: tenant.id,
         kind: 'sync-repo-content',
         payload: { repoId: id, trigger: reason === 'grant-review' ? 'grant-review' : 'reconciler' },
         dedupeKey: `sync-repo-content:${id}`,
+        automatic: true,
       });
+      if (added) enqueued += 1;
     }
     if (this.config.instance.mail) {
       await this.queue.enqueue({
@@ -390,7 +402,7 @@ export class Worker {
         runAfterMs: 60_000,
       });
     }
-    if (due.length) this.log.info('reconciler enqueued syncs', { count: due.length });
+    if (enqueued) this.log.info('reconciler enqueued syncs', { count: enqueued });
 
     for (const forge of await this.forges.findRemovedForgeRows(tenant.id)) {
       await this.queue.enqueue({

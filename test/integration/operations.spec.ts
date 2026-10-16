@@ -85,6 +85,70 @@ describe('job queue', () => {
     expect(row.last_error).toBe('boom again');
   });
 
+  describe('an automatic enqueue', () => {
+    afterEach(async () => {
+      await getSequelize().query(
+        `DELETE FROM jobs WHERE dedupe_key LIKE 'sync-repo-content:auto-%'`,
+        { type: QueryTypes.DELETE },
+      );
+    });
+
+    it('does not revive a key whose newest job is dead, but an explicit one does', async () => {
+      await enqueueSync('auto-dead', false);
+      await setNewestStatus('auto-dead', 'dead');
+
+      expect(await enqueueSync('auto-dead', true)).toBe(false);
+      expect(await statusesOf('auto-dead')).toEqual(['dead']);
+
+      expect(await enqueueSync('auto-dead', false)).toBe(true);
+      expect(await statusesOf('auto-dead')).toEqual(['dead', 'pending']);
+    });
+
+    it('enqueues the key again once a later job is done', async () => {
+      await enqueueSync('auto-recovered', false);
+      await setNewestStatus('auto-recovered', 'dead');
+      await enqueueSync('auto-recovered', false);
+      await setNewestStatus('auto-recovered', 'done');
+
+      expect(await enqueueSync('auto-recovered', true)).toBe(true);
+      expect(await statusesOf('auto-recovered')).toEqual(['dead', 'done', 'pending']);
+    });
+
+    it('leaves the run time and payload of a pending retry alone', async () => {
+      await enqueueSync('auto-retry', false, { n: 1 });
+      await getSequelize().query(
+        `UPDATE jobs SET attempts = 1, run_after = now() + interval '10 minutes'
+          WHERE dedupe_key = 'sync-repo-content:auto-retry'`,
+        { type: QueryTypes.UPDATE },
+      );
+
+      expect(await enqueueSync('auto-retry', true, { n: 2 })).toBe(false);
+      let [job] = await pendingJobsOf('auto-retry');
+      expect(await isInTheFuture(job.run_after)).toBe(true);
+      expect(job.payload.n).toBe(1);
+
+      expect(await enqueueSync('auto-retry', false, { n: 3 })).toBe(true);
+      [job] = await pendingJobsOf('auto-retry');
+      expect(await isInTheFuture(job.run_after)).toBe(false);
+      expect(job.payload.n).toBe(3);
+    });
+
+    it('still debounces a pending job that has not run yet', async () => {
+      await queue.enqueue({
+        tenantId: harness.tenantId,
+        kind: 'sync-repo-content',
+        payload: { repoId: 'auto-fresh' },
+        dedupeKey: 'sync-repo-content:auto-fresh',
+        runAfterMs: 10 * 60 * 1000,
+      });
+
+      expect(await enqueueSync('auto-fresh', true)).toBe(true);
+      const jobs = await pendingJobsOf('auto-fresh');
+      expect(jobs).toHaveLength(1);
+      expect(await isInTheFuture(jobs[0].run_after)).toBe(false);
+    });
+  });
+
   it('reclaims a job whose worker died, once the visibility timeout passes', async () => {
     await queue.enqueue({ tenantId: harness.tenantId, kind: 'purge', payload: { repoId: 'z' } });
     const [job] = await queue.claim(1);
@@ -288,6 +352,43 @@ async function isInTheFuture(timestamp: string): Promise<boolean> {
     { type: QueryTypes.SELECT, replacements: { ts: timestamp } },
   );
   return rows[0].future;
+}
+
+function enqueueSync(
+  repoId: string,
+  automatic: boolean,
+  payload: Record<string, unknown> = {},
+): Promise<boolean> {
+  return queue.enqueue({
+    tenantId: harness.tenantId,
+    kind: 'sync-repo-content',
+    payload: { repoId, ...payload },
+    dedupeKey: `sync-repo-content:${repoId}`,
+    automatic,
+  });
+}
+
+async function setNewestStatus(repoId: string, status: string): Promise<void> {
+  await getSequelize().query(
+    `UPDATE jobs SET status = :status
+      WHERE id = (SELECT id FROM jobs WHERE dedupe_key = :key ORDER BY created_at DESC LIMIT 1)`,
+    { type: QueryTypes.UPDATE, replacements: { status, key: `sync-repo-content:${repoId}` } },
+  );
+}
+
+async function statusesOf(repoId: string): Promise<string[]> {
+  const rows = await getSequelize().query<{ status: string }>(
+    `SELECT status FROM jobs WHERE dedupe_key = :key ORDER BY created_at`,
+    { type: QueryTypes.SELECT, replacements: { key: `sync-repo-content:${repoId}` } },
+  );
+  return rows.map((row) => row.status);
+}
+
+async function pendingJobsOf(repoId: string) {
+  return getSequelize().query<{ run_after: string; payload: Record<string, unknown> }>(
+    `SELECT run_after, payload FROM jobs WHERE dedupe_key = :key AND status = 'pending'`,
+    { type: QueryTypes.SELECT, replacements: { key: `sync-repo-content:${repoId}` } },
+  );
 }
 
 async function jobRow(id: string) {

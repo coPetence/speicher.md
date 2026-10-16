@@ -79,6 +79,8 @@ export interface EnqueueOptions {
   /** Milliseconds from now to defer execution */
   runAfterMs?: number;
   maxAttempts?: number;
+  /** Set by callers that run on a timer (reconciler, discovery). An automatic enqueue adds nothing when the key's newest job is dead */
+  automatic?: boolean;
 }
 
 /** How long a worker can hold a claimed job before another worker may re-claim it */
@@ -90,23 +92,31 @@ export class JobQueue {
 
   constructor(private readonly sequelize: Sequelize = getSequelize()) {}
 
-  /** Insert or upsert a pending job */
-  async enqueue(options: EnqueueOptions): Promise<void> {
-    await this.sequelize.query(
+  /** Insert or upsert a pending job; returns whether a job was added or updated */
+  async enqueue(options: EnqueueOptions): Promise<boolean> {
+    const rows = await this.sequelize.query<{ id: string }>(
       `INSERT INTO jobs (tenant_id, kind, payload, dedupe_key, run_after, max_attempts)
-       VALUES (
+       SELECT
          :tenantId, :kind, CAST(:payload AS jsonb), :dedupeKey,
          now() + make_interval(secs => :delaySeconds), :maxAttempts
-       )
+        -- A dead job used up its attempts, so only an explicit trigger tries the key again
+        WHERE NOT (:automatic AND COALESCE((
+          SELECT status = 'dead' FROM jobs
+           WHERE tenant_id = :tenantId AND kind = :kind AND dedupe_key = :dedupeKey
+           ORDER BY created_at DESC
+           LIMIT 1
+        ), false))
        ON CONFLICT (tenant_id, kind, dedupe_key) WHERE status = 'pending' AND dedupe_key IS NOT NULL
        DO UPDATE SET
          -- Debounce: an already-queued job keeps the earlier of the two run times,
          -- so a burst does not push its own execution further and further out.
          run_after = LEAST(jobs.run_after, EXCLUDED.run_after),
          payload   = EXCLUDED.payload,
-         updated_at = now()`,
+         updated_at = now()
+        WHERE NOT (:automatic AND jobs.attempts > 0)
+       RETURNING id`,
       {
-        type: QueryTypes.INSERT,
+        type: QueryTypes.SELECT,
         replacements: {
           tenantId: options.tenantId,
           kind: options.kind,
@@ -114,9 +124,11 @@ export class JobQueue {
           dedupeKey: options.dedupeKey ?? null,
           delaySeconds: (options.runAfterMs ?? 0) / 1000,
           maxAttempts: options.maxAttempts ?? 5,
+          automatic: options.automatic ?? false,
         },
       },
     );
+    return rows.length > 0;
   }
 
   /** Claim up to `limit` jobs for exclusive processing */
@@ -157,7 +169,11 @@ export class JobQueue {
     );
   }
 
-  /** Mark a job as failed; dead-letter if max attempts reached, else exponential backoff */
+  /**
+   * Mark a job as failed; dead-letter if max attempts reached, else exponential backoff
+   *
+   * A dead-lettered job supersedes the other dead jobs with the same dedupe_key, so each key has at most one dead job
+   */
   async fail(job: JobRow, error: string): Promise<void> {
     if (job.attempts >= job.max_attempts) {
       await this.sequelize.query(
@@ -166,6 +182,13 @@ export class JobQueue {
            updated_at = now()
          WHERE id = :jobId`,
         { type: QueryTypes.UPDATE, replacements: { jobId: job.id, error } },
+      );
+      await this.sequelize.query(
+        `UPDATE jobs SET status = 'superseded', updated_at = now()
+          WHERE status = 'dead' AND id <> :jobId AND dedupe_key IS NOT NULL
+            AND (tenant_id, kind, dedupe_key) =
+                (SELECT tenant_id, kind, dedupe_key FROM jobs WHERE id = :jobId)`,
+        { type: QueryTypes.UPDATE, replacements: { jobId: job.id } },
       );
       this.log.error('job dead-lettered', { kind: job.kind, attempts: job.attempts, error });
       return;
