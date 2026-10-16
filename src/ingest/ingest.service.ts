@@ -188,9 +188,38 @@ export class IngestService {
   }
 
   /**
+   * Records a repo the forge reports without a root config, so it is never fetched
+   */
+  async recordUnpublished(repoId: string, trigger: SyncOptions['trigger']): Promise<void> {
+    const repo = await Repo.findByPk(repoId);
+    if (!repo) return;
+    const run = await SyncRun.create({
+      tenant_id: repo.tenant_id,
+      repo_id: repo.id,
+      sha: null,
+      trigger: trigger ?? 'manual',
+      status: 'running',
+    });
+    await this.markUnpublished(repo, run, null);
+  }
+
+  /**
    * Purges the repo and marks it as unpublished when no root config exists
    */
   private async finishUnpublished(repo: Repo, run: SyncRun, sha: string): Promise<SyncResult> {
+    await this.markUnpublished(repo, run, sha);
+    return {
+      status: 'ok',
+      runId: run.id,
+      sha,
+      findings: [],
+      stats: emptyStats(),
+      authorSummary: null,
+    };
+  }
+
+  /** Purges the repo's content and marks the repo and its run as unpublished */
+  private async markUnpublished(repo: Repo, run: SyncRun, sha: string | null): Promise<void> {
     await this.purgeRepo(repo.id);
     await run.update({ status: 'ok', finished_at: new Date(), stats: { unpublished: true } });
     await repo.update({
@@ -201,14 +230,6 @@ export class IngestService {
       last_error: null,
       last_error_public: null,
     });
-    return {
-      status: 'ok',
-      runId: run.id,
-      sha,
-      findings: [],
-      stats: emptyStats(),
-      authorSummary: null,
-    };
   }
 
   /**

@@ -11,6 +11,8 @@ import { ConfigError } from './errors';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export type LogFormat = 'json' | 'pretty';
+
 export type Entrypoint = 'web' | 'worker' | 'both';
 
 /**
@@ -78,6 +80,9 @@ const asLogLevel = (raw: string): LogLevel => {
     ? (level as LogLevel)
     : 'info';
 };
+
+const asLogFormat = (raw: string): LogFormat =>
+  raw.toLowerCase() === 'pretty' ? 'pretty' : 'json';
 
 const asConfigSource = (raw: string): 'file' | 'database' => {
   if (raw === 'file' || raw === 'database') return raw;
@@ -251,6 +256,16 @@ export const ENV_REGISTRY = {
     readBy: 'both',
     secret: false,
     alsoInScripts: true, // for tests
+  }),
+  SPEICHER_LOG_FORMAT: define({
+    description:
+      'The log format decides how each log line is written: `json` writes one JSON object per line, and `pretty` writes an aligned, coloured line.',
+    parse: asLogFormat,
+    fallback: 'json' as LogFormat,
+    required: false,
+    readBy: 'both',
+    secret: false,
+    alsoInScripts: true, // set by scripts/dev-env.ts
   }),
   SPEICHER_DEV_LOGIN: define({
     description:

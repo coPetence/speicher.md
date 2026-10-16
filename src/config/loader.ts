@@ -168,11 +168,18 @@ function announceBrandProblems(loaded: LoadedInstanceConfig): LoadedInstanceConf
   return loaded;
 }
 
+// The fallback last logged, so the watcher's poll does not repeat it every interval
+let announcedFallback = '';
+
 /** Log that an older config version was used because newer versions failed to load */
 function announceFallback(version: number, skipped: SkippedConfigVersion[]): void {
+  const lines = skipped.map((s) => `v${s.version}: ${s.problems.join('; ')}`);
+  const key = JSON.stringify([version, lines]);
+  if (key === announcedFallback) return;
+  announcedFallback = key;
   rootLogger.child('config').error('booted on an older instance config version', {
     running: version,
-    skipped: skipped.map((s) => `v${s.version}: ${s.problems.join('; ')}`),
+    skipped: lines,
   });
 }
 

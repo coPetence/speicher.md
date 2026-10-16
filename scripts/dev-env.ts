@@ -23,6 +23,7 @@ export function devEnv(): NodeJS.ProcessEnv {
     SPEICHER_CONFIG: given.SPEICHER_CONFIG ?? join(ROOT, 'test/fixtures/instance.yaml'),
     SPEICHER_ASSET_PATH: given.SPEICHER_ASSET_PATH ?? join(ROOT, 'var/assets'),
     SPEICHER_LOG_LEVEL: given.SPEICHER_LOG_LEVEL ?? 'info',
+    SPEICHER_LOG_FORMAT: given.SPEICHER_LOG_FORMAT ?? 'pretty',
     TEST_ENTRA_CLIENT_ID: given.TEST_ENTRA_CLIENT_ID ?? 'dev-client-id',
     TEST_ENTRA_CLIENT_SECRET: given.TEST_ENTRA_CLIENT_SECRET ?? 'dev-client-secret',
     TEST_GH_APP_ID: given.TEST_GH_APP_ID ?? '424242',

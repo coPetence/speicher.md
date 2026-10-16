@@ -51,6 +51,7 @@ Every variable is declared in `src/common/env.ts`, and this table is generated f
 | `SPEICHER_PUBLIC_MAX_AGE` | `60` | web | Cache-Control `max-age` in seconds for anonymous responses. Set to `0` to disable public caching. |
 | `SPEICHER_TRUST_PROXY` | `loopback` | web | Express `trust proxy` setting. Set to the proxy's address or `true` when running behind a reverse proxy so client IPs resolve correctly. |
 | `SPEICHER_LOG_LEVEL` | `info` | web + worker | Minimum log level to emit: `debug`, `info`, `warn`, or `error`. SQL queries are logged only at `debug` level. |
+| `SPEICHER_LOG_FORMAT` | `json` | web + worker | The log format decides how each log line is written: `json` writes one JSON object per line, and `pretty` writes an aligned, coloured line. |
 | `SPEICHER_DEV_LOGIN` | `false` | web | Show a development sign-in form that issues a session for any typed identity, without authentication. Never enable in production. |
 | `SPEICHER_INSECURE_COOKIES` | `false` | web | Omit the Secure flag on cookies, allowing them over HTTP. Never enable in production; without this flag, modern browsers refuse cookies over plain HTTP. |
 | `PORT` | `3000` | web | TCP port the HTTP server listens on. |

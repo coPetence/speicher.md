@@ -88,10 +88,18 @@ class LocalOriginDriver implements ForgeDriver {
   readonly hasInstallations = true;
   readonly key = 'gh';
   readonly checks: { sha: string; conclusion: string }[] = [];
+  // What the forge answers when asked for a root config; null means it cannot tell
+  rootConfig: boolean | null = null;
+  fetches = 0;
 
   constructor(private readonly originDir: string) {}
 
+  async hasRootConfig(): Promise<boolean | null> {
+    return this.rootConfig;
+  }
+
   async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
+    this.fetches += 1;
     await ensureMirror(mirrorDir, { authenticatedUrl: `file://${this.originDir}` });
     return resolveHead(mirrorDir, repo.defaultBranch);
   }
@@ -322,6 +330,57 @@ describe('the branch the forge reports', () => {
     expect(result?.status).toBe('ok');
     expect((await Repo.findByPk(fixture.repoId))!.branch).toBe('trunk');
     expect(await slugsOf(fixture.repoId)).toEqual(['']);
+  });
+});
+
+describe('a repo the forge reports without a root config', () => {
+  let fixture: Fixture;
+
+  beforeAll(async () => {
+    fixture = await buildFixture({
+      forgeRepoId: '90003',
+      slug: 'unrelated',
+      branch: 'main',
+      files: { 'README.md': '# Not documentation\n' },
+    });
+    fixture.driver.rootConfig = false;
+  });
+
+  it('is marked unpublished without being fetched or sent a check run', async () => {
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'reconciler');
+
+    expect(result).toBeNull();
+    expect(fixture.driver.fetches).toBe(0);
+    expect(fixture.driver.checks).toEqual([]);
+    const repo = await Repo.findByPk(fixture.repoId);
+    expect(repo!.has_config).toBe(false);
+    expect(repo!.last_run_at).not.toBeNull();
+    expect(repo!.last_status).toBe('ok');
+  });
+
+  it('is fetched and synced once the forge reports a config', async () => {
+    commit(fixture.originDir, 'publish it', {
+      '.speicher.yaml': REPO_CONFIG,
+      'docs/index.md': '# Now published\n',
+    });
+    fixture.driver.rootConfig = true;
+
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'webhook');
+
+    expect(result?.status).toBe('ok');
+    expect(fixture.driver.fetches).toBe(1);
+    expect((await Repo.findByPk(fixture.repoId))!.has_config).toBe(true);
+    expect(await slugsOf(fixture.repoId)).toEqual(['']);
+  });
+
+  it('is not asked again while it has a config, so a publishing repo costs no extra call', async () => {
+    fixture.driver.rootConfig = false;
+    commit(fixture.originDir, 'another page', { 'docs/02-more.md': '# More\n' });
+
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'webhook');
+
+    expect(result?.status).toBe('ok');
+    expect(fixture.driver.fetches).toBe(2);
   });
 });
 

@@ -5,6 +5,7 @@
  * and hands it to the ingest pipeline. Records check runs on the forge and sends
  * notifications on state change
  *
+ * A repo whose forge reports no root config is marked unpublished without being fetched
  * A repo whose namespace is no longer accepted is purged instead of synced
  * A repo whose SHA hasn't moved (and whose last sync was ok) is skipped unless
  * the trigger demands it
@@ -57,6 +58,12 @@ export class SyncService {
     const remote = await this.forges.remoteRepoFor(repo);
     if (!remote) {
       this.log.warn('repo is not reachable on the forge', { repo_id: repoId });
+      return null;
+    }
+
+    if (!repo.has_config && (await driver.hasRootConfig?.(remote)) === false) {
+      this.log.debug('no root .speicher.yaml, so the repo is not fetched', { repo_id: repoId });
+      await this.ingest.recordUnpublished(repoId, trigger);
       return null;
     }
 

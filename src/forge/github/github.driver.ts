@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import { Logger, rootLogger } from '../../common/logger';
 import { ForgeConfig } from '../../config/types';
+import { isConfigFilename } from '../../ingest/paths';
 import {
   ForgeAction,
   ForgeDriver,
@@ -114,6 +115,24 @@ export class GithubDriver implements ForgeDriver {
     } catch (err) {
       this.log.warn('could not read repo', {
         forge_repo_id: forgeRepoId,
+        error: (err as Error).message,
+      });
+      return null;
+    }
+  }
+
+  /** Look for a root config in the default branch's root listing */
+  async hasRootConfig(repo: RemoteRepo): Promise<boolean | null> {
+    if (!repo.installationId) return null;
+    try {
+      const entries = await this.api<{ name: string; type: string }[]>(
+        `/repos/${repo.namespace}/${repo.name}/contents?ref=${encodeURIComponent(repo.defaultBranch)}`,
+        repo.installationId,
+      );
+      return entries.some((entry) => entry.type === 'file' && isConfigFilename(entry.name));
+    } catch (err) {
+      this.log.warn('could not list the root of a repo', {
+        forge_repo_id: repo.forgeRepoId,
         error: (err as Error).message,
       });
       return null;
