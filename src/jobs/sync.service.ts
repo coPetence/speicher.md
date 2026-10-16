@@ -5,7 +5,7 @@
  * and hands it to the ingest pipeline. Records check runs on the forge and sends
  * notifications on state change
  *
- * A repo whose forge reports no root config is marked unpublished without being fetched
+ * A repo whose forge reports no root config or is empty is marked unpublished without being fetched. An unpublished repo keeps no mirror
  * A repo whose namespace is no longer accepted is purged instead of synced
  * A repo whose SHA hasn't moved (and whose last sync was ok) is skipped unless
  * the trigger demands it
@@ -21,7 +21,7 @@ import { makeTempDir } from '../common/temp-dir';
 import { Repo, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { RemoteRepo } from '../forge/driver';
-import { MIRROR_ROOT, commitAuthorEmail } from '../forge/git';
+import { EmptyRepositoryError, MIRROR_ROOT, commitAuthorEmail } from '../forge/git';
 import { ForgeRegistry } from '../forge/registry';
 import { IngestService, SyncResult } from '../ingest/ingest.service';
 import { NotifyService } from '../notify/notify.service';
@@ -61,19 +61,30 @@ export class SyncService {
       return null;
     }
 
+    const mirrorDir = join(MIRROR_ROOT, driver.key, `${remote.forgeRepoId}.git`);
+
     if (!repo.has_config && (await driver.hasRootConfig?.(remote)) === false) {
       this.log.debug('no root .speicher.yaml, so the repo is not fetched', { repo_id: repoId });
-      await this.ingest.recordUnpublished(repoId, trigger);
-      return null;
+      return this.recordUnpublished(repoId, trigger, mirrorDir);
     }
 
-    const mirrorDir = join(MIRROR_ROOT, driver.key, `${remote.forgeRepoId}.git`);
-    const head = await driver.fetchInto(remote, mirrorDir);
+    let head: string;
+    try {
+      head = await driver.fetchInto(remote, mirrorDir);
+    } catch (err) {
+      if (!(err instanceof EmptyRepositoryError)) throw err;
+      this.log.debug('the repo has no commits yet, so there is nothing to sync', {
+        repo_id: repoId,
+      });
+      return this.recordUnpublished(repoId, trigger, mirrorDir);
+    }
 
     const forced = trigger === 'grant-review' || trigger === 'rebuild';
     if (!forced && repo.last_sha === head && repo.last_status === 'ok') {
       this.log.debug('head unchanged, nothing to do', { repo_id: repoId, sha: head });
       await Repo.update({ last_run_at: new Date() }, { where: { id: repoId } });
+      // An unpublished repo was only fetched to see whether it changed
+      if (!repo.has_config) await fs.rm(mirrorDir, { recursive: true, force: true });
       return null;
     }
 
@@ -93,10 +104,22 @@ export class SyncService {
       });
 
       await this.report(repo, remote, head, result, mirrorDir);
+      if (result.unpublished) await fs.rm(mirrorDir, { recursive: true, force: true });
       return result;
     } finally {
       await fs.rm(workingTree, { recursive: true, force: true });
     }
+  }
+
+  /** Mark the repo unpublished without syncing it, and remove a mirror it no longer needs */
+  private async recordUnpublished(
+    repoId: string,
+    trigger: Parameters<SyncService['syncRepo']>[1],
+    mirrorDir: string,
+  ): Promise<null> {
+    await this.ingest.recordUnpublished(repoId, trigger);
+    await fs.rm(mirrorDir, { recursive: true, force: true });
+    return null;
   }
 
   /**

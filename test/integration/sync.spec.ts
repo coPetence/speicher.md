@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -55,6 +55,8 @@ function write(root: string, files: Record<string, string>): void {
 function createOrigin(branch: string, files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'speicher-origin-'));
   git(['init', '--quiet', `--initial-branch=${branch}`], dir);
+  // An origin without files stays without commits, like a repo created and never pushed to
+  if (Object.keys(files).length === 0) return dir;
   write(dir, files);
   git(['add', '-A'], dir);
   git(['commit', '--quiet', '-m', 'initial'], dir);
@@ -381,6 +383,44 @@ describe('a repo the forge reports without a root config', () => {
 
     expect(result?.status).toBe('ok');
     expect(fixture.driver.fetches).toBe(2);
+  });
+});
+
+describe('a repo with nothing to publish', () => {
+  const mirrorOf = (forgeRepoId: string) => join(MIRROR_ROOT, 'gh', `${forgeRepoId}.git`);
+
+  it('is recorded as unpublished when it has no commits, and keeps no mirror', async () => {
+    const fixture = await buildFixture({
+      forgeRepoId: '90004',
+      slug: 'never-pushed',
+      branch: 'main',
+      files: {},
+    });
+
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'reconciler');
+
+    expect(result).toBeNull();
+    expect(fixture.driver.fetches).toBe(1);
+    const repo = await Repo.findByPk(fixture.repoId);
+    expect(repo!.has_config).toBe(false);
+    expect(repo!.last_run_at).not.toBeNull();
+    expect(repo!.last_status).toBe('ok');
+    expect(existsSync(mirrorOf('90004'))).toBe(false);
+  });
+
+  it('drops its mirror once the walk finds no root config', async () => {
+    const fixture = await buildFixture({
+      forgeRepoId: '90005',
+      slug: 'no-config',
+      branch: 'main',
+      files: { 'README.md': '# Not documentation\n' },
+    });
+
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'reconciler');
+
+    expect(result?.unpublished).toBe(true);
+    expect(fixture.driver.fetches).toBe(1);
+    expect(existsSync(mirrorOf('90005'))).toBe(false);
   });
 });
 

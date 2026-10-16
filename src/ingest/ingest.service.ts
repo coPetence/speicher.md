@@ -57,6 +57,7 @@ export interface SyncResult {
   };
 
   authorSummary: string | null; // User-facing error message, null on success
+  unpublished?: true; // Set when the repo has no root config
 }
 
 /**
@@ -215,6 +216,7 @@ export class IngestService {
       findings: [],
       stats: emptyStats(),
       authorSummary: null,
+      unpublished: true,
     };
   }
 

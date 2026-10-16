@@ -131,6 +131,7 @@ export class GithubDriver implements ForgeDriver {
       );
       return entries.some((entry) => entry.type === 'file' && isConfigFilename(entry.name));
     } catch (err) {
+      if (err instanceof GithubApiError && err.status === 404) return false;
       this.log.warn('could not list the root of a repo', {
         forge_repo_id: repo.forgeRepoId,
         error: (err as Error).message,
@@ -208,9 +209,7 @@ export class GithubDriver implements ForgeDriver {
         'X-GitHub-Api-Version': '2022-11-28',
       },
     });
-    if (!response.ok) {
-      throw new Error(`GitHub ${path} -> ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new GithubApiError(path, response);
     return (await response.json()) as T;
   }
 
@@ -229,11 +228,19 @@ export class GithubDriver implements ForgeDriver {
       },
     });
     this.limiter.observe(installationId, response.headers);
-    if (!response.ok) {
-      throw new Error(`GitHub ${path} -> ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new GithubApiError(path, response);
     if (response.status === 204) return {} as T;
     return (await response.json()) as T;
+  }
+}
+
+class GithubApiError extends Error {
+  readonly status: number;
+
+  constructor(path: string, response: Response) {
+    super(`GitHub ${path} -> ${response.status} ${response.statusText}`);
+    this.name = 'GithubApiError';
+    this.status = response.status;
   }
 }
 
