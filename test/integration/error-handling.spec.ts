@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
 import { JobQueue } from '../../src/jobs/queue';
+import { SyncService } from '../../src/jobs/sync.service';
 import { Worker } from '../../src/jobs/worker';
 import { TenancyService } from '../../src/db/tenancy';
 import { closeSequelize } from '../../src/db/sequelize';
@@ -205,5 +206,56 @@ describe('a failed job', () => {
     });
     expect(failures[0].attempts).toBe(1);
     expect(String(failures[0].error)).toContain('uuid');
+  });
+});
+
+describe('a reconcile that fails on the timer', () => {
+  it('is logged, and does not reach the process as an unhandled rejection', async () => {
+    const worker = app.get(Worker);
+
+    // Keep the callbacks start() schedules, so the test runs the reconcile timer itself
+    const scheduled: { callback: () => void; ms: number }[] = [];
+    const intervals = jest.spyOn(global, 'setInterval').mockImplementation(((
+      callback: () => void,
+      ms: number,
+    ) => {
+      scheduled.push({ callback, ms });
+      return 0 as unknown as NodeJS.Timeout;
+    }) as typeof setInterval);
+    try {
+      await worker.start();
+    } finally {
+      intervals.mockRestore();
+    }
+    // The job poll runs every second; the reconcile timer runs every 5 s or more
+    const reconcileTimer = scheduled.find((timer) => timer.ms >= 5_000);
+    expect(reconcileTimer).toBeDefined();
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    const due = jest
+      .spyOn(app.get(SyncService), 'dueForReconcile')
+      .mockRejectedValue(new Error('the database went away'));
+    try {
+      reconcileTimer!.callback();
+      const deadline = Date.now() + 2_000;
+      while (
+        unhandled.length === 0 &&
+        !logLines().some((line) => line.msg === 'reconcile failed') &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    } finally {
+      due.mockRestore();
+      process.off('unhandledRejection', onUnhandled);
+      await worker.stop();
+    }
+
+    expect(unhandled).toEqual([]);
+    const failures = logLines().filter((line) => line.msg === 'reconcile failed');
+    expect(failures).toHaveLength(1);
+    expect(failures[0].error).toBe('the database went away');
   });
 });
