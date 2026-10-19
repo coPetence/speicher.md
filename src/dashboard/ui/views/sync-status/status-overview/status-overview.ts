@@ -10,6 +10,7 @@ import {
   FILTER_DIMENSIONS,
   FilterDimension,
   PageRange,
+  matchesFacets,
   repoFilterQuery,
   repoMatchText,
 } from '../../../../status/repo-filter';
@@ -67,12 +68,7 @@ export function sendStatus(
               : 'arrow-up-down',
           'spr-icon',
         ),
-        repos_matching: data.facet_rows.filter((row) =>
-          FILTER_DIMENSIONS.every(
-            (key) =>
-              data.filter[key].length === 0 || (data.filter[key] as string[]).includes(row[key]),
-          ),
-        ).length,
+        repos_matching: data.facet_rows.filter((row) => matchesFacets(row, data.filter)).length,
         default_hides_all:
           data.repos.length === 0 &&
           data.totals.repositories > 0 &&

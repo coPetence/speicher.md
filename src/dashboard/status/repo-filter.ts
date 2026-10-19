@@ -104,7 +104,13 @@ export function facetOptions(repos: RepoStatus[]): Record<FilterDimension, Facet
 }
 
 export function matchesFilter(repo: RepoStatus, filter: RepoFilter): boolean {
-  const facets = facetsOf(repo);
+  return matchesFacets(facetsOf(repo), filter);
+}
+
+export function matchesFacets(
+  facets: Record<FilterDimension, string>,
+  filter: RepoFilter,
+): boolean {
   return FILTER_DIMENSIONS.every(
     (key) => filter[key].length === 0 || (filter[key] as string[]).includes(facets[key]),
   );

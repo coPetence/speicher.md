@@ -1,12 +1,10 @@
 import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import type { CookieOptions } from 'express';
 import { callerOf } from '../auth/caller.middleware';
 import { createDirectoryLookup, groupReach } from '../auth/directory/lookup';
 import { ContentReports } from '../authz/content/reports';
 import { explainPath } from '../authz/explain';
-import { env } from '../common/env';
 import { splitPath } from '../common/slug';
 import { ConfigService } from '../config/config.service';
 import { RoutingService } from '../content-reader/routing';
@@ -18,12 +16,8 @@ import { ConfigPageService } from './configurator/config-page/config-page.servic
 import { DashboardRepository } from './dashboard.repository';
 import { DashboardResponder, dashboardNavOptions, wantsJson } from './respond';
 import { searchDashboard } from './search/search';
-import {
-  DEFAULT_REPO_FILTER,
-  repoFilterFrom,
-  repoFilterFromQuery,
-  repoFilterQuery,
-} from './status/repo-filter';
+import { rememberFilter, rememberedFilter } from './status/filter-cookie';
+import { DEFAULT_REPO_FILTER, repoFilterFrom } from './status/repo-filter';
 import { repoSortFrom } from './status/repo-sort';
 import { StatusService } from './status/status.service';
 import { AnalyticsPayload, sendAnalytics } from './ui/views/analytics/analytics';
@@ -34,20 +28,6 @@ import { sendLogs } from './ui/views/sync-status/logs/logs';
 import { sendRepo } from './ui/views/sync-status/repo-status/repo-status';
 import { sendRun } from './ui/views/sync-status/run-status/run-status';
 import { sendStatus } from './ui/views/sync-status/status-overview/status-overview';
-
-/** Remembers the status page's filter */
-export const STATUS_FILTER_COOKIE = 'speicher_status_filter';
-
-function statusFilterCookieOptions(): CookieOptions {
-  return {
-    httpOnly: true,
-    // Left off only for local development over plain HTTP
-    secure: !env('SPEICHER_INSECURE_COOKIES'),
-    sameSite: 'lax',
-    path: '/-/status',
-    maxAge: 180 * 24 * 60 * 60 * 1000,
-  };
-}
 
 /** Parses a count query param; null when absent or not a non-negative integer */
 function countFromQuery(raw: string | undefined): number | null {
@@ -224,17 +204,9 @@ export class DashboardController {
     const scope = await this.status.scopeFor(caller);
     if (scope !== 'all' && scope.length === 0) return this.respond.notFound(req, res);
 
-    const requestedFilters = repoFilterFrom(req.query as Record<string, unknown>);
-    const rememberedFilters = req.cookies?.[STATUS_FILTER_COOKIE] as string | undefined;
-    if (requestedFilters && repoFilterQuery(requestedFilters) !== rememberedFilters) {
-      res.cookie(
-        STATUS_FILTER_COOKIE,
-        repoFilterQuery(requestedFilters),
-        statusFilterCookieOptions(),
-      );
-    }
-    const filter =
-      requestedFilters ?? repoFilterFromQuery(rememberedFilters) ?? DEFAULT_REPO_FILTER;
+    const requested = repoFilterFrom(req.query as Record<string, unknown>);
+    if (requested) rememberFilter(req, res, requested);
+    const filter = requested ?? rememberedFilter(req) ?? DEFAULT_REPO_FILTER;
 
     sendStatus(
       this.respond,

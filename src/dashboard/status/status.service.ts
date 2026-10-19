@@ -3,6 +3,7 @@ import { ResolvedCaller } from '../../authz/caller';
 import { ContentReports } from '../../authz/content/reports';
 import { explainRepoRoot } from '../../authz/explain';
 import { parseDuration } from '../../common/time';
+import { isUuid } from '../../common/uuid';
 import { ConfigService } from '../../config/config.service';
 import { DashboardRepository, JobActivityRow } from '../dashboard.repository';
 import {
@@ -19,13 +20,11 @@ import {
   InstanceSummary,
   RepoConfigSummary,
   RepoRunsPayload,
+  RepoState,
   RepoStatus,
   RunPayload,
   StatusPayload,
 } from './status.types';
-
-// The shape `gen_random_uuid()` produces; anything else in the URL is no run
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Admin status page data assembly
@@ -67,7 +66,8 @@ export class StatusService {
 
     const staleAfterMs = parseDuration(this.config.notify.stale_after ?? '6h');
     const all: RepoStatus[] = rows.map((row) => {
-      const unpublished = !row.has_config && row.last_run_at !== null;
+      const unpublished =
+        !row.has_config && row.last_run_at !== null && row.last_status !== 'failed';
       const stale =
         !unpublished &&
         (row.last_run_at === null ||
@@ -88,15 +88,12 @@ export class StatusService {
         documents: pages.get(row.id) ?? 0,
         stale,
         activity: syncs.get(row.id) ?? null,
-        state: unpublished
-          ? 'unpublished'
-          : row.last_run_at === null
-            ? 'never-synced'
-            : row.last_status === 'failed'
-              ? 'failed'
-              : stale
-                ? 'stale'
-                : 'ok',
+        state: repoState({
+          unpublished,
+          neverSynced: row.last_run_at === null,
+          failed: row.last_status === 'failed',
+          stale,
+        }),
       };
     });
 
@@ -166,7 +163,7 @@ export class StatusService {
     slug: string,
     runId: string,
   ): Promise<RunPayload | null> {
-    if (!UUID.test(runId)) return null;
+    if (!isUuid(runId)) return null;
     const repoId = await this.operableRepoId(caller, namespace, slug);
     if (!repoId) return null;
 
@@ -228,4 +225,17 @@ export class StatusService {
       embedding: await this.embeddingSummary(caller.tenantId),
     };
   }
+}
+
+function repoState(facts: {
+  unpublished: boolean;
+  neverSynced: boolean;
+  failed: boolean;
+  stale: boolean;
+}): RepoState {
+  if (facts.unpublished) return 'unpublished';
+  if (facts.neverSynced) return 'never-synced';
+  if (facts.failed) return 'failed';
+  if (facts.stale) return 'stale';
+  return 'ok';
 }
