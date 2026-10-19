@@ -143,6 +143,24 @@ describe('an admin', () => {
     expect(tiles).toMatch(/<span class="spr-stat-label">Repositories<\/span>/);
   });
 
+  it('links Failed and Stale to the list showing only the repositories in that state', async () => {
+    const res = await page('ops', '/-/status?sort=pages-desc');
+    for (const [label, state] of [
+      ['Failed', 'failed'],
+      ['Stale', 'stale'],
+    ]) {
+      expect(res.text).toContain(
+        `<a class="spr-stat-label spr-stat-link" href="/-/status?f=1&amp;state=${state}&amp;sort=pages-desc">${label}</a>`,
+      );
+    }
+
+    const failed = await json('ops', '/-/status?f=1&state=failed');
+    expect(failed.body.filter).toMatchObject({ state: ['failed'], owner: [], source: [] });
+    expect(failed.body.repos.every((repo: { state: string }) => repo.state === 'failed')).toBe(
+      true,
+    );
+  });
+
   it('says nothing about dropped grants, which the run pages report', async () => {
     const res = await page('ops', '/-/status');
     expect(res.text).not.toContain('Dropped grants');
@@ -259,6 +277,12 @@ describe('the repository list', () => {
     const res = await page('ops', '/-/status');
     expect(res.text).toContain('href="#m-github"');
     expect(res.text.match(/<symbol id="m-github"/g)).toHaveLength(1);
+  });
+
+  it('starts with the heading, so the page begins at the same height with or without rows', async () => {
+    const res = await page('ops', '/-/status');
+    expect(res.text).toContain('<symbol id="m-github"');
+    expect(res.text).toMatch(/<main[^>]*>\s*<h1>Sync status<\/h1>/);
   });
 
   it('offers Discover on an instance whose table is empty', async () => {
