@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, promises, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -42,5 +42,27 @@ describe('the sweep when a worker starts', () => {
 
     expect(removed.sort()).toEqual([dead, ownEarlier, malformed].sort());
     expect(readdirSync(root).sort()).toEqual([running, unrelated].sort());
+  });
+
+  it('carries on past a directory it may not remove', async () => {
+    const locked = `speicher-tmp-${deadPid()}-locked-abc`;
+    const other = `speicher-tmp-${deadPid()}-other-abc`;
+    for (const name of [locked, other]) mkdirSync(join(root, name), { recursive: true });
+
+    const rm = promises.rm.bind(promises);
+    const spy = jest.spyOn(promises, 'rm').mockImplementation(async (path, options) => {
+      if (String(path).endsWith(locked)) {
+        throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+      }
+      return rm(path, options);
+    });
+    try {
+      const removed = await sweepAbandonedTempDirs(root);
+
+      expect(removed).toEqual([other]);
+      expect(readdirSync(root)).toEqual([locked]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

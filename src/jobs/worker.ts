@@ -126,7 +126,9 @@ export class Worker {
       reconcile_interval_ms: this.reconcileIntervalMs,
       reconcile_tick_ms: this.reconcileTickMs,
     });
-    await this.reconcile();
+    await this.reconcile().catch((err: Error) => {
+      this.log.error('reconcile failed', { error: err.message });
+    });
   }
 
   // Period that drives the reconcile timer: the finer of reconcileIntervalMs
