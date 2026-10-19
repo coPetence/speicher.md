@@ -7,8 +7,6 @@ export const PICK_ADD = 'add:';
 export const PICK_REMOVE = 'remove:';
 export const PICK_DRAWN = '__pick:';
 
-export type PickListSource = 'repositories';
-
 export type PickListNote = { level: 'info' | 'warn'; text: string } | null;
 
 export interface PickListEntry {
@@ -26,14 +24,14 @@ export interface PickListField extends FieldBase {
   values: string[];
   entries: PickListEntry[];
   options: PickListOption[];
-  source: PickListSource;
+  source: string;
   addLabel: string;
   searchLabel: string;
   empty: string;
 }
 
 export interface PickListOptions extends BaseOptions {
-  source: PickListSource;
+  source: string;
   addLabel: string;
   searchLabel: string;
   empty: string;
