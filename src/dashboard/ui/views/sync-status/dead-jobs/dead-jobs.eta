@@ -1,0 +1,74 @@
+<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: 'Dead jobs' }] }) %>
+
+<h1>Dead jobs</h1>
+<p class="spr-section-blurb"><%= it.intro %></p>
+<% if (it.toast) { %>
+<%~ include('@toast', it.toast) %>
+<% } %>
+<% if (it.dead.length === 0) { %>
+<p class="spr-empty">No job has been given up on.</p>
+<% } else { %>
+
+<form method="post" action="/-/jobs/retry" class="spr-dead-jobs" data-spr-dead-jobs>
+  <input type="hidden" name="page" value="<%= it.page %>" />
+  <div class="spr-form spr-index-op spr-page-actions">
+    <button type="submit" name="scope" value="all" class="spr-for-all"><%~ it.retry_icon || '' %>Retry all <%= it.total %></button>
+    <button type="submit" name="scope" value="selected" class="spr-for-selection"><%~ it.retry_icon || '' %>Retry selected</button>
+    <button type="submit" name="scope" value="selected" formaction="/-/jobs/delete" class="spr-remove spr-for-selection"><%~ it.delete_icon || '' %>Delete selected</button>
+  </div>
+
+  <div class="spr-scroll">
+    <table class="spr-table spr-rows">
+      <thead>
+        <tr>
+          <th scope="col" class="spr-select-col">
+            <span class="spr-clipped">Select</span>
+            <input type="checkbox" aria-label="Select all jobs on this page" data-spr-select-page hidden>
+          </th>
+          <th scope="col">Job</th>
+          <th scope="col">Repository</th>
+          <th scope="col">Error</th>
+          <th scope="col">Last run</th>
+          <th scope="col"><span class="spr-clipped">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% it.dead.forEach(function (row) { %>
+        <tr>
+          <td class="spr-select-col">
+            <input type="checkbox" name="ids" value="<%= row.id %>" aria-label="Select this <%= row.kind %> job">
+          </td>
+          <th scope="row" class="spr-job">
+            <code><%= row.kind %></code>
+            <% if (row.description) { %><%~ include('@info', { field: { path: 'job-' + row.id, label: row.kind, help: row.description } }) %><% } %>
+          </th>
+
+          <td>
+            <% if (row.repositoryHref) { %>
+            <a href="<%= row.repositoryHref %>"><%= row.repository %></a>
+            <% } else if (row.forge) { %>
+            <%= row.forge %> <small>content source</small>
+            <% } else { %>
+            —
+            <% } %>
+          </td>
+
+          <td class="spr-job-error"><%= row.error || '—' %></td>
+          <td><time datetime="<%= row.whenAt %>"><%= row.when %></time></td>
+          <td>
+            <div class="spr-form spr-index-op spr-job-actions">
+              <button type="submit" name="id" value="<%= row.id %>" aria-label="Retry" title="Retry"><%~ it.retry_icon || '' %></button>
+              <button type="submit" name="id" value="<%= row.id %>" formaction="/-/jobs/delete" class="spr-remove" aria-label="Delete" title="Delete"><%~ it.delete_icon || '' %></button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<% if (it.pages > 1) { %>
+<%~ include('@pager', { label: 'Pages of dead jobs', pager: it.pager, range: it.range, previousIcon: it.previous_icon, nextIcon: it.next_icon }) %>
+<% } %>
+<% } %>

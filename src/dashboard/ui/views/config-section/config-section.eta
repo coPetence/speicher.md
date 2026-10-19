@@ -44,10 +44,7 @@
 <% } %>
 
 <% if (it.saved) { %>
-<div class="spr-toast spr-note-ok">
-  <p class="spr-toast-text" role="status">Saved.</p>
-  <input class="spr-toast-dismiss" type="checkbox" aria-label="Dismiss">
-</div>
+<%~ include('@toast', { text: 'Saved.' }) %>
 <% } %>
 
 <% it.version_notes.forEach(function (note) { %><%~ include('@note', note) %><% }) %>

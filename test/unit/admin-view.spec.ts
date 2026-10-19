@@ -7,31 +7,39 @@ import { renderHelp } from '../../src/global-ui/help-markup';
 import { renderTemplate } from '../../src/content-reader/views';
 
 describe('the section list', () => {
-  it('offers the log to an admin only', () => {
-    expect(dashboardNav('status', true).html).toContain('href="/-/logs"');
-    expect(dashboardNav('status', false).html).not.toContain('/-/logs');
+  it('offers the dead jobs and the retired redirects to an admin only', () => {
+    for (const href of ['/-/dead-jobs', '/-/redirects']) {
+      expect(dashboardNav('status', true).html).toContain(`href="${href}"`);
+      expect(dashboardNav('status', false).html).not.toContain(href);
+    }
   });
 
-  it('files the log under Sync status, and opens that branch only from inside it', () => {
+  it('files both under Sync status, and opens that branch only from inside it', () => {
     const foldOf = (html: string, href: string) =>
       new RegExp(
         `<details class="spr-nav-fold" data-spr-fold="[a-z]+"( open)?>\\s*<summary[^>]*>\\s*<a href="${href}"`,
       ).exec(html);
     const onStatus = dashboardNav('status', true).html;
     expect(onStatus).toContain('spr-nav-branch');
-    expect(onStatus.indexOf('href="/-/status"')).toBeLessThan(onStatus.indexOf('href="/-/logs"'));
+    expect(onStatus.indexOf('href="/-/status"')).toBeLessThan(
+      onStatus.indexOf('href="/-/dead-jobs"'),
+    );
+    expect(onStatus.indexOf('href="/-/dead-jobs"')).toBeLessThan(
+      onStatus.indexOf('href="/-/redirects"'),
+    );
     expect(onStatus).toMatch(/href="\/-\/status" aria-current="page"/);
     expect(onStatus.match(/aria-current/g)).toHaveLength(1);
 
-    const onLogs = dashboardNav('logs', true).html;
-    expect(onLogs).toMatch(/href="\/-\/logs" aria-current="page"/);
-    expect(onLogs).not.toMatch(/href="\/-\/status" aria-current/);
-    expect(onLogs.match(/aria-current/g)).toHaveLength(1);
+    const onDeadJobs = dashboardNav('dead-jobs', true).html;
+    expect(onDeadJobs).toMatch(/href="\/-\/dead-jobs" aria-current="page"/);
+    expect(onDeadJobs).not.toMatch(/href="\/-\/status" aria-current/);
+    expect(onDeadJobs.match(/aria-current/g)).toHaveLength(1);
 
     // Elsewhere the branch is drawn folded shut — present, so it can be opened,
     // and closed, so the column says where the reader is.
     expect(foldOf(onStatus, '/-/status')?.[1]).toBe(' open');
-    expect(foldOf(onLogs, '/-/status')?.[1]).toBe(' open');
+    expect(foldOf(onDeadJobs, '/-/status')?.[1]).toBe(' open');
+    expect(foldOf(dashboardNav('redirects', true).html, '/-/status')?.[1]).toBe(' open');
     for (const elsewhere of ['explain', 'config'] as const) {
       const html = dashboardNav(elsewhere, true).html;
       expect(foldOf(html, '/-/status')).not.toBeNull();
@@ -80,7 +88,8 @@ describe('the section list', () => {
   it('hides the admin-only sections from a maintainer', () => {
     const maintainer = dashboardNav('status', false).html;
     expect(maintainer).not.toContain('/-/graph');
-    expect(maintainer).not.toContain('/-/logs');
+    expect(maintainer).not.toContain('/-/dead-jobs');
+    expect(maintainer).not.toContain('/-/redirects');
     expect(maintainer).not.toContain('/-/config');
     expect(dashboardNav('status', true).html).toContain('/-/graph');
     expect(dashboardNav('status', true).html).toContain('/-/config');
@@ -149,7 +158,7 @@ describe('the section list', () => {
       'group',
     );
 
-    for (const path of ['/-/logs', '/-/config', '/-/config/sourcesx']) {
+    for (const path of ['/-/dead-jobs', '/-/config', '/-/config/sourcesx']) {
       expect(setupSteps(configured, path).filter((step) => step.current)).toEqual([]);
     }
 
@@ -300,20 +309,21 @@ describe('the section list', () => {
     expect(html.match(/aria-current/g)).toHaveLength(1);
   });
 
-  it('keeps Logs and Configuration off the column, each for its own reason', () => {
+  it('keeps Dead jobs and Configuration off the column, each for its own reason', () => {
     const setup = dashboardNav('setup', true, {
       showSetup: true,
       hasContent: false,
     }).html;
-    expect(setup).not.toContain('/-/logs');
+    expect(setup).not.toContain('/-/dead-jobs');
+    expect(setup).not.toContain('/-/redirects');
 
-    const onLogs = dashboardNav('logs', true, {
+    const onDeadJobs = dashboardNav('dead-jobs', true, {
       showSetup: true,
       hasContent: false,
     }).html;
-    expect(onLogs).toContain('/-/logs');
-    expect(onLogs).toContain('href="/-/status"');
-    expect(onLogs.match(/aria-current/g)).toHaveLength(1);
+    expect(onDeadJobs).toContain('/-/dead-jobs');
+    expect(onDeadJobs).toContain('href="/-/status"');
+    expect(onDeadJobs.match(/aria-current/g)).toHaveLength(1);
     const onConfig = dashboardNav('config', true, {
       showSetup: true,
       hasContent: false,

@@ -36,6 +36,36 @@ export const JOB_KINDS = [
 
 export type JobKind = (typeof JOB_KINDS)[number];
 
+/** What each kind of job does, written like the CLI's help texts, for an operator reading a job's name */
+export const JOB_DESCRIPTIONS: Record<JobKind, string> = {
+  'sync-repo-content':
+    'Fetches the newest commit of one repository and rebuilds its pages, assets and search data from it. If the commit has not changed since the last successful sync, nothing is rebuilt. If the content source reports no .speicher.yaml at the root, the repository is marked as not published without being fetched.',
+  'sync-repo-list':
+    'Fetches the list of repositories from one content source and updates the repositories in the database to match it. New repositories are added and queued for a sync, renamed ones are updated, and repositories that are no longer configured are queued for removal.',
+  purge:
+    'Removes everything Speicher has published from one repository: its pages, assets and search data. This happens when the repository is deleted, archived, transferred or made private on GitHub, when the GitHub App loses access to it, or when it leaves the configuration.',
+  'purge-forge':
+    'Removes a content source that is no longer configured, together with everything published from its repositories, and cancels the jobs still queued for it. If the content source is configured again before the job runs, nothing is removed.',
+  'validate-pr':
+    'Checks the .speicher.yaml files of a pull request before it is merged and reports the result on the pull request.',
+  rename:
+    'Moves a repository that was renamed on its content source to its new address. The old address keeps redirecting to the new one, unless another repository already uses the new name.',
+  rebuild:
+    'Queues a sync of every repository, so all pages are rebuilt from their current commit even if the commit has not changed.',
+  reconcile:
+    'Queues the regular work that is due: the syncs of repositories whose poll interval has passed, the discovery of new repositories, notifications, and the cleanup of removed content sources, read statistics and brand images.',
+  notify:
+    'Emails the administrators about repositories that have not synced for longer than the configured limit, and sends them a digest of access grants that will expire soon.',
+  embed: 'Computes the embeddings for semantic search of every chunk that is missing an embedding.',
+  'analytics-maintenance':
+    'Applies the retention rules to the read statistics: older counts are merged into coarser periods and expired ones are deleted. If read statistics are turned off, all stored statistics are deleted.',
+  'brand-sweep':
+    'Deletes stored brand images, such as logos, that no stored configuration version refers to any more.',
+};
+
+/** How often a job is tried before it is given up on as dead, unless enqueued otherwise */
+export const DEFAULT_MAX_ATTEMPTS = 5;
+
 export const JOB_STATUSES = ['pending', 'running', 'done', 'dead', 'superseded'] as const;
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
@@ -123,7 +153,7 @@ export class JobQueue {
           payload: JSON.stringify(options.payload ?? {}),
           dedupeKey: options.dedupeKey ?? null,
           delaySeconds: (options.runAfterMs ?? 0) / 1000,
-          maxAttempts: options.maxAttempts ?? 5,
+          maxAttempts: options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
           automatic: options.automatic ?? false,
         },
       },
@@ -301,19 +331,33 @@ export class JobQueue {
     }
   }
 
-  /** Reset dead jobs back to pending; returns how many came back */
-  async retryDead(options: { tenantId: string; id?: string; kind?: JobKind }): Promise<number> {
+  /** Deletes the given dead jobs, so they no longer wait to be retried; returns how many it removed */
+  async deleteDead(options: { tenantId: string; ids: string[] }): Promise<number> {
+    if (options.ids.length === 0) return 0;
+    const removed = await this.sequelize.query<{ id: string }>(
+      `DELETE FROM jobs
+        WHERE tenant_id = :tenantId AND status = 'dead' AND id::text = ANY(ARRAY[:ids]::text[])
+        RETURNING id`,
+      { type: QueryTypes.SELECT, replacements: { tenantId: options.tenantId, ids: options.ids } },
+    );
+    return removed.length;
+  }
+
+  /** Reset dead jobs back to pending, all of them or the given ids; returns how many came back */
+  async retryDead(options: { tenantId: string; ids?: string[]; kind?: JobKind }): Promise<number> {
+    if (options.ids?.length === 0) return 0;
     const dead = await this.sequelize.query<{ id: string }>(
       `SELECT id FROM jobs
         WHERE tenant_id = :tenantId AND status = 'dead'
-          AND (:id::text IS NULL OR id::text = :id::text)
+          AND (:every OR id::text = ANY(ARRAY[:ids]::text[]))
           AND (:kind::text IS NULL OR kind = :kind::text)
         ORDER BY updated_at DESC`,
       {
         type: QueryTypes.SELECT,
         replacements: {
           tenantId: options.tenantId,
-          id: options.id ?? null,
+          every: options.ids === undefined,
+          ids: options.ids ?? [],
           kind: options.kind ?? null,
         },
       },

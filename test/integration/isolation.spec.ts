@@ -718,12 +718,15 @@ describe('/-/*: 404 for non-admins', () => {
     }
   });
 
-  it('404s /-/logs for everyone but an admin', async () => {
-    expect((await as('ops').get('/-/logs')).status).toBe(200);
-    for (const who of ['alice', 'bob', 'carol', 'dave', 'mallory', 'anonymous'] as const) {
-      expect((await as(who).get('/-/logs')).status).toBe(404);
-    }
-  });
+  it.each(['/-/dead-jobs', '/-/redirects', '/-/logs'])(
+    '404s %s for everyone but an admin',
+    async (path) => {
+      expect([200, 301]).toContain((await as('ops').get(path)).status);
+      for (const who of ['alice', 'bob', 'carol', 'dave', 'mallory', 'anonymous'] as const) {
+        expect((await as(who).get(path)).status).toBe(404);
+      }
+    },
+  );
 
   it('404s /-/analytics for everyone but an admin', async () => {
     expect((await as('ops').get('/-/analytics')).status).toBe(200);
@@ -774,7 +777,7 @@ describe('/-/*: 404 for non-admins', () => {
   });
 
   it('answers a route the caller may not have exactly as it answers one that is not there', async () => {
-    const denied = await as('alice').get('/-/logs');
+    const denied = await as('alice').get('/-/dead-jobs');
     const absent = await as('alice').get('/-/nothing-here');
     expect(denied.status).toBe(absent.status);
     expect(denied.headers['content-type']).toBe(absent.headers['content-type']);

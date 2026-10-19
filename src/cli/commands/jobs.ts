@@ -170,7 +170,7 @@ export const jobsCommand: Command = {
 
     const retried = await queue.retryDead({
       tenantId: tenant.id,
-      id: parsed.id ?? undefined,
+      ids: parsed.id ? [parsed.id] : undefined,
       kind: parsed.kind ?? undefined,
     });
     if (retried === 0) {

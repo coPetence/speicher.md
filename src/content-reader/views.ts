@@ -43,7 +43,7 @@ Object.assign(eta.config, {
   noteIcon: (level?: string) => renderIconRef(noteIconName(level)),
 });
 
-/** Every view is a folder holding `<name>.eta`, so `dashboard/ui/views/sync-status/logs` is `src/dashboard/ui/views/sync-status/logs/logs.eta` */
+/** Every view is a folder holding `<name>.eta`, so `dashboard/ui/views/sync-status/dead-jobs` is `src/dashboard/ui/views/sync-status/dead-jobs/dead-jobs.eta` */
 function templateSource(name: string): string {
   return readFileSync(join(VIEW_DIR, name, `${basename(name)}.eta`), 'utf8');
 }

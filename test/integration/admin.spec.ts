@@ -109,7 +109,13 @@ describe('an admin', () => {
   // article; a settings page carrying it would be laid out as one, which is what
   // moved every page under `/-/` the last time the reader's width was fixed.
   it('is never laid out as a reader article', async () => {
-    for (const where of ['/-/status', '/-/config', '/-/config/groups', '/-/logs']) {
+    for (const where of [
+      '/-/status',
+      '/-/config',
+      '/-/config/groups',
+      '/-/dead-jobs',
+      '/-/redirects',
+    ]) {
       const drawn = await page('ops', where);
       expect(drawn.status).toBe(200);
       expect(drawn.text).not.toContain('data-article');
@@ -124,9 +130,10 @@ describe('an admin', () => {
     expect(main).not.toContain('Semantic retrieval');
   });
 
-  it('reaches the section list, including the log', async () => {
+  it('reaches the section list, including the dead jobs and the retired redirects', async () => {
     const res = await page('ops', '/-/status');
-    expect(res.text).toContain('href="/-/logs"');
+    expect(res.text).toContain('href="/-/dead-jobs"');
+    expect(res.text).toContain('href="/-/redirects"');
     expect(res.text).toContain('href="/-/explain"');
     expect(res.text).toMatch(/href="\/-\/status" aria-current="page"/);
   });
@@ -138,7 +145,7 @@ describe('an admin', () => {
       res.text.indexOf('</ul>', res.text.indexOf('<ul class="spr-stats">')),
     );
     expect(tiles).toMatch(
-      /<a class="spr-stat-label spr-stat-link" href="\/-\/logs">Dead jobs<\/a>/,
+      /<a class="spr-stat-label spr-stat-link" href="\/-\/dead-jobs">Dead jobs<\/a>/,
     );
     expect(tiles).toMatch(/<span class="spr-stat-label">Repositories<\/span>/);
   });
@@ -520,9 +527,10 @@ describe('a maintainer', () => {
     );
   });
 
-  it('is not offered the log, or told anything about the instance', async () => {
+  it('is not offered the dead jobs, or told anything about the instance', async () => {
     const res = await page('alice', '/-/status');
-    expect(res.text).not.toContain('href="/-/logs"');
+    expect(res.text).not.toContain('href="/-/dead-jobs"');
+    expect(res.text).not.toContain('href="/-/redirects"');
     expect(res.text).not.toContain('Resolution hash');
     expect(res.text).not.toContain(harness.config.resolutionHash);
     expect(res.text).not.toContain('Dead jobs');
@@ -745,12 +753,12 @@ describe('explain, as a page', () => {
   });
 });
 
-describe('the logs page', () => {
-  it('renders both halves for an admin', async () => {
-    const res = await page('ops', '/-/logs');
+describe('the dead jobs page', () => {
+  it('renders for an admin, with the dead jobs and not the redirects', async () => {
+    const res = await page('ops', '/-/dead-jobs');
     expect(res.status).toBe(200);
-    expect(res.text).toContain('Retired redirects');
-    expect(res.text).toContain('Dead jobs');
+    expect(res.text).toContain('<h1>Dead jobs</h1>');
+    expect(res.text).not.toContain('Retired redirects</h');
   });
 
   it('lists a dead job by its error, with Retry all beside the heading', async () => {
@@ -767,43 +775,270 @@ describe('the logs page', () => {
       },
     );
     try {
-      const res = await page('ops', '/-/logs');
-      // One row: the heading and the control acting on everything under it
-      const head = /<div class="spr-section-head">([\s\S]*?)<\/div>/.exec(res.text)?.[1] ?? '';
-      expect(head).toContain('<h2>Dead jobs</h2>');
-      expect(head).toMatch(/<button type="submit"><svg class="spr-icon"[\s\S]*?<\/svg>Retry all 1/);
+      const res = await page('ops', '/-/dead-jobs');
+      // Under the introduction, before the table it acts on
+      expect(res.text).toMatch(
+        /<p class="spr-section-blurb">[\s\S]*?<\/p>\s*<form[^>]*>\s*<input type="hidden" name="page"[^>]*>\s*<div class="[^"]*spr-page-actions[^"]*">\s*<button type="submit" name="scope" value="all"[^>]*><svg class="spr-icon"[\s\S]*?<\/svg>Retry all 1/,
+      );
+      // A checkbox per row, and the buttons for what is ticked
+      expect(res.text).toMatch(
+        /<input type="checkbox" name="ids" value="[^"]+" aria-label="Select this sync-repo-content job">/,
+      );
+      expect(res.text).toMatch(
+        /<button type="submit" name="scope" value="selected"[^>]*>[\s\S]*?Retry selected/,
+      );
+      expect(res.text).toMatch(
+        /<button type="submit" name="scope" value="selected" formaction="\/-\/jobs\/delete"[^>]*>[\s\S]*?Delete selected/,
+      );
 
       expect(res.text).toContain('<th scope="col">Job</th>');
+      expect(res.text).toContain('<th scope="col">Repository</th>');
       expect(res.text).toContain('<th scope="col">Error</th>');
       expect(res.text).not.toContain('<th scope="col">Payload</th>');
+      // Always the same number, so it has no column
+      expect(res.text).not.toContain('<th scope="col" class="spr-num">Attempts</th>');
+      // What a job of this kind does, behind an info mark beside its name
+      expect(res.text).toMatch(
+        /<button[^>]*class="spr-info-mark"[^>]*aria-label="About sync-repo-content"/,
+      );
+      expect(res.text).toMatch(/role="tooltip"[^>]*>[\s\S]*?Fetches the newest commit of one/);
+      expect(res.text).toContain('href="/-/status/copetence/handbook"');
       // The error in its cell, escaped — it can quote a remote's own words
       expect(res.text).toContain(
         '<td class="spr-job-error">clone failed: Authentication failed for &lt;the remote&gt;</td>',
       );
       // The payload is the JSON's, not the page's
       expect(res.text).not.toContain('&quot;repoId&quot;');
-      expect((await json('ops', '/-/logs')).body.dead_jobs[0].payload.repoId).toBe(
+      expect((await json('ops', '/-/dead-jobs')).body.dead_jobs[0].payload.repoId).toBe(
         harness.repos.handbook,
       );
+      // Icons only, named for a screen reader
       expect(res.text).toMatch(
-        /<button type="submit"><svg class="spr-icon"[\s\S]*?<\/svg>Retry<\/button>/,
+        /<button type="submit" name="id" value="[^"]+" aria-label="Retry" title="Retry"><svg/,
+      );
+      expect(res.text).toMatch(
+        /<button type="submit" name="id" value="[^"]+" formaction="\/-\/jobs\/delete" class="spr-remove" aria-label="Delete" title="Delete"><svg/,
       );
     } finally {
       await getSequelize().query(`DELETE FROM jobs WHERE status = 'dead'`);
     }
   });
 
+  it('says what a dead job is', async () => {
+    const res = await page('ops', '/-/dead-jobs');
+    expect(res.text).toMatch(/<p class="spr-section-blurb">[^<]*failed 5 times in a row/);
+  });
+
+  describe('with more dead jobs than one page holds', () => {
+    beforeAll(() =>
+      getSequelize().query(
+        `INSERT INTO jobs (tenant_id, kind, payload, status, attempts, last_error, updated_at)
+         SELECT :tenantId, 'notify', '{}'::jsonb, 'dead', 5, 'boom ' || n,
+                now() - make_interval(secs => n)
+           FROM generate_series(1, 55) AS n`,
+        { replacements: { tenantId: harness.tenantId } },
+      ),
+    );
+    afterAll(() => getSequelize().query(`DELETE FROM jobs WHERE status = 'dead'`));
+
+    it('shows fifty, newest first, and the rest on the next page', async () => {
+      const first = await json('ops', '/-/dead-jobs');
+      expect(first.body).toMatchObject({ total: 55, page: 1, pages: 2, per_page: 50 });
+      expect(first.body.dead_jobs).toHaveLength(50);
+      expect(first.body.dead_jobs[0].last_error).toBe('boom 1');
+
+      const second = await json('ops', '/-/dead-jobs?page=2');
+      expect(second.body.dead_jobs).toHaveLength(5);
+      expect(second.body.dead_jobs[4].last_error).toBe('boom 55');
+    });
+
+    it('counts every page in Retry all, and links the pages to each other', async () => {
+      const res = await page('ops', '/-/dead-jobs');
+      expect(res.text).toMatch(/Retry all 55/);
+      expect(res.text).toContain('1–50 of 55');
+      expect(res.text).toContain('href="/-/dead-jobs?page=2" rel="next"');
+
+      const second = await page('ops', '/-/dead-jobs?page=2');
+      expect(second.text).toContain('51–55 of 55');
+      expect(second.text).toContain('href="/-/dead-jobs" rel="prev"');
+    });
+
+    it('shows the last page for a page past it', async () => {
+      expect((await json('ops', '/-/dead-jobs?page=99')).body.page).toBe(2);
+    });
+  });
+
+  it('deletes one dead job, and goes back to the page it was on', async () => {
+    const [job] = await getSequelize().query<{ id: string }>(
+      `INSERT INTO jobs (tenant_id, kind, payload, status, attempts, last_error)
+       VALUES (:tenantId, 'embed', '{}'::jsonb, 'dead', 5, 'gone') RETURNING id`,
+      { type: QueryTypes.SELECT, replacements: { tenantId: harness.tenantId } },
+    );
+    const res = await request(app.getHttpServer())
+      .post('/-/jobs/delete')
+      .set('Cookie', cookies.ops as string)
+      .set('Accept', 'text/html')
+      .type('form')
+      .send({ id: job.id, page: '2' });
+    expect(res.status).toBe(303);
+    expect(res.headers.location).toBe('/-/dead-jobs?deleted=1&page=2');
+
+    const [left] = await getSequelize().query<{ count: string }>(
+      `SELECT count(*) AS count FROM jobs WHERE id = :id`,
+      { type: QueryTypes.SELECT, replacements: { id: job.id } },
+    );
+    expect(Number(left.count)).toBe(0);
+    expect((await page('ops', '/-/dead-jobs?deleted=1')).text).toMatch(
+      /<div class="spr-toast[^"]*">\s*<p class="spr-toast-text" role="status">1 job\(s\) deleted\.<\/p>/,
+    );
+  });
+
+  describe('with jobs ticked', () => {
+    let ids: string[] = [];
+    beforeEach(async () => {
+      const rows = await getSequelize().query<{ id: string }>(
+        `INSERT INTO jobs (tenant_id, kind, payload, status, attempts, last_error)
+         SELECT :tenantId, 'embed', '{}'::jsonb, 'dead', 5, 'boom ' || n FROM generate_series(1, 3) AS n
+         RETURNING id`,
+        { type: QueryTypes.SELECT, replacements: { tenantId: harness.tenantId } },
+      );
+      ids = rows.map((row) => row.id);
+    });
+    afterEach(() =>
+      getSequelize().query(`DELETE FROM jobs WHERE id IN (:ids)`, { replacements: { ids } }),
+    );
+
+    const statusOf = async (id: string): Promise<string | undefined> => {
+      const [row] = await getSequelize().query<{ status: string }>(
+        `SELECT status FROM jobs WHERE id = :id`,
+        { type: QueryTypes.SELECT, replacements: { id } },
+      );
+      return row?.status;
+    };
+
+    const post = (path: string, body: string) =>
+      request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', cookies.ops as string)
+        .set('Accept', 'text/html')
+        .type('form')
+        .send(body);
+
+    it('retries only the ticked ones', async () => {
+      const res = await post('/-/jobs/retry', `scope=selected&ids=${ids[0]}&ids=${ids[1]}&page=1`);
+      expect(res.headers.location).toBe('/-/dead-jobs?retried=2');
+      expect([await statusOf(ids[0]), await statusOf(ids[1]), await statusOf(ids[2])]).toEqual([
+        'pending',
+        'pending',
+        'dead',
+      ]);
+    });
+
+    it('deletes only the ticked ones', async () => {
+      const res = await post('/-/jobs/delete', `scope=selected&ids=${ids[0]}&ids=${ids[2]}&page=2`);
+      expect(res.headers.location).toBe('/-/dead-jobs?deleted=2&page=2');
+      expect([await statusOf(ids[0]), await statusOf(ids[1]), await statusOf(ids[2])]).toEqual([
+        undefined,
+        'dead',
+        undefined,
+      ]);
+    });
+
+    it('retries nothing for an empty selection, not everything', async () => {
+      const res = await post('/-/jobs/retry', 'scope=selected');
+      expect(res.headers.location).toBe('/-/dead-jobs?retried=0');
+      expect(await statusOf(ids[0])).toBe('dead');
+    });
+
+    it('acts on the row whose button was pressed, whatever else is ticked', async () => {
+      const res = await post('/-/jobs/delete', `id=${ids[1]}&ids=${ids[0]}&ids=${ids[2]}`);
+      expect(res.headers.location).toBe('/-/dead-jobs?deleted=1');
+      expect([await statusOf(ids[0]), await statusOf(ids[1]), await statusOf(ids[2])]).toEqual([
+        'dead',
+        undefined,
+        'dead',
+      ]);
+    });
+
+    it('retries all of them with Retry all, whatever is ticked', async () => {
+      const res = await post('/-/jobs/retry', `scope=all&ids=${ids[0]}`);
+      expect(res.headers.location).toBe('/-/dead-jobs?retried=3');
+    });
+  });
+
+  it('deletes nothing that is not dead', async () => {
+    const [job] = await getSequelize().query<{ id: string }>(
+      `INSERT INTO jobs (tenant_id, kind, payload, status) VALUES (:tenantId, 'embed', '{}'::jsonb, 'pending')
+       RETURNING id`,
+      { type: QueryTypes.SELECT, replacements: { tenantId: harness.tenantId } },
+    );
+    try {
+      const res = await request(app.getHttpServer())
+        .post('/-/jobs/delete')
+        .set('Cookie', cookies.ops as string)
+        .set('Accept', 'application/json')
+        .send({ id: job.id });
+      expect(res.body).toEqual({ deleted: 0 });
+    } finally {
+      await getSequelize().query(`DELETE FROM jobs WHERE id = :id`, {
+        replacements: { id: job.id },
+      });
+    }
+  });
+
+  it('refuses a delete from anyone but an admin', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/-/jobs/delete')
+      .set('Cookie', cookies.alice as string)
+      .send({ id: '00000000-0000-0000-0000-000000000000' });
+    expect(res.status).toBe(404);
+  });
+
   it('offers no Retry all when nothing is dead', async () => {
-    const res = await page('ops', '/-/logs');
+    const res = await page('ops', '/-/dead-jobs');
     expect(res.text).toContain('No job has been given up on.');
     expect(res.text).not.toContain('Retry all');
   });
 
+  it('is where Retry leads back to, saying how many went back on the queue', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/-/jobs/retry')
+      .set('Cookie', cookies.ops as string)
+      .set('Accept', 'text/html');
+    expect(res.status).toBe(303);
+    expect(res.headers.location).toBe('/-/dead-jobs?retried=0');
+  });
+
   it('is the reader 404 for anyone else, page or JSON', async () => {
-    for (const res of [await page('alice', '/-/logs'), await json('alice', '/-/logs')]) {
+    for (const res of [await page('alice', '/-/dead-jobs'), await json('alice', '/-/dead-jobs')]) {
       expect(res.status).toBe(404);
       expect(res.headers['content-type']).toMatch(/text\/html/);
     }
+  });
+});
+
+describe('the retired redirects page', () => {
+  it('renders for an admin, with the redirects and not the dead jobs', async () => {
+    const res = await page('ops', '/-/redirects');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<h1>Retired redirects</h1>');
+    expect(res.text).not.toContain('Retry all');
+    expect((await json('ops', '/-/redirects')).body).toHaveProperty('retired_redirects');
+  });
+
+  it('is the reader 404 for anyone else, page or JSON', async () => {
+    for (const res of [await page('alice', '/-/redirects'), await json('alice', '/-/redirects')]) {
+      expect(res.status).toBe(404);
+    }
+  });
+});
+
+describe('the address both pages shared before', () => {
+  it('sends an admin on to the dead jobs, and anyone else to the reader 404', async () => {
+    const res = await page('ops', '/-/logs');
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe('/-/dead-jobs');
+    expect((await page('alice', '/-/logs')).status).toBe(404);
   });
 });
 
@@ -878,10 +1113,15 @@ describe('the admin pages themselves', () => {
   });
 
   it('load one island: the page\u2019s own, or the column\u2019s slide where it has none', async () => {
-    const logs = await page('ops', '/-/logs');
-    const logIslands = [...logs.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
-    expect(logIslands).toHaveLength(1);
-    expect(logIslands[0][1]).toMatch(/\/fold-[0-9a-f]+\.js$/);
+    const deadJobs = await page('ops', '/-/dead-jobs');
+    const deadJobIslands = [...deadJobs.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
+    expect(deadJobIslands).toHaveLength(1);
+    expect(deadJobIslands[0][1]).toMatch(/\/dead-jobs-[0-9a-f]+\.js$/);
+
+    const explain = await page('ops', '/-/explain');
+    const explainIslands = [...explain.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
+    expect(explainIslands).toHaveLength(1);
+    expect(explainIslands[0][1]).toMatch(/\/fold-[0-9a-f]+\.js$/);
 
     const status = await page('ops', '/-/status');
     const islands = [...status.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)].map(
@@ -900,7 +1140,7 @@ describe('the admin pages themselves', () => {
     expect(sheets).toHaveLength(2);
 
     expect(sheets[0]).toBe(stylesheetUrl(DEFAULT_TEMPLATE));
-    expect((await page('ops', '/-/logs')).text).toContain(sheets[0]);
+    expect((await page('ops', '/-/dead-jobs')).text).toContain(sheets[0]);
 
     expect(sheets[1]).toMatch(/\/-\/static\/sheet-dashboard-[0-9a-f]+\.css/);
     const reader = await request(app.getHttpServer())

@@ -1,0 +1,29 @@
+<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: 'Retired redirects' }] }) %>
+<h1>Retired redirects</h1>
+
+<% if (it.retired.length === 0) { %>
+<p class="spr-empty">No redirect has been retired.</p>
+<% } else { %>
+<div class="spr-scroll">
+  <table class="spr-table">
+    <thead>
+      <tr>
+        <th scope="col">Path</th>
+        <th scope="col">Was</th>
+        <th scope="col">Claimed by</th>
+        <th scope="col">Retired</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% it.retired.forEach(function (row) { %>
+      <tr>
+        <th scope="row"><code><%= row.oldPath %></code></th>
+        <td><%= row.repo %></td>
+        <td><%= row.claimedBy || '—' %></td>
+        <td><time datetime="<%= row.whenAt %>"><%= row.when %></time></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
