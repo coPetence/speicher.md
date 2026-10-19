@@ -27,7 +27,10 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'page:analytics':
     'reads, page views, traffic, popular pages, statistics, metrics, visitors, reach, ' +
     'most read, search misses',
-  'page:logs': 'boot, startup, errors, warnings, diagnostics, findings, what went wrong',
+  'page:dead-jobs':
+    'failed jobs, gave up, retry, stuck, worker errors, dead letter, logs, what went wrong',
+  'page:redirects':
+    'renamed repository, rename, moved, old path, old address, slug history, redirect gone',
   'page:config': 'settings, options, instance configuration, yaml, versions, history, preferences',
   'page:connections':
     'api keys, tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',

@@ -293,7 +293,7 @@ describe('the dashboard column', () => {
       <nav class="spr-nav"><ul class="spr-nav-root"><li class="spr-nav-branch">
         <details class="spr-nav-fold" open>
           <summary class="spr-nav-row"><a href="/-/status"><span>Sync status</span></a></summary>
-          <ul><li class="spr-nav-leaf"><a href="/-/logs"><span>Logs</span></a></li></ul>
+          <ul><li class="spr-nav-leaf"><a href="/-/dead-jobs"><span>Dead jobs</span></a></li></ul>
         </details>
       </li></ul></nav>`;
     run();

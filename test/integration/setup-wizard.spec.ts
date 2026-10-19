@@ -391,7 +391,7 @@ describe('the first run', () => {
   it('sends a claim session back to the wizard from anywhere else', async () => {
     const agent = await claim();
 
-    for (const path of ['/', '/-/status', '/-/graph', '/-/logs', '/handbook/anything']) {
+    for (const path of ['/', '/-/status', '/-/graph', '/-/dead-jobs', '/handbook/anything']) {
       const response = await agent.get(path);
       expect([response.status, response.headers.location]).toEqual([303, '/-/setup']);
     }

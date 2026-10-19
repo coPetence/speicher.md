@@ -154,8 +154,8 @@ export class DashboardRepository {
     );
   }
 
-  /** Dead jobs with repo context and forge key, for the logs page */
-  async deadJobs(tenantId: string): Promise<DeadJobRow[]> {
+  /** One page of dead jobs with repo context and forge key, newest first */
+  async deadJobs(tenantId: string, page: { limit: number; offset: number }): Promise<DeadJobRow[]> {
     return getSequelize().query<DeadJobRow>(
       `SELECT j.id, j.kind, j.payload, j.attempts, j.last_error, j.updated_at,
               r.namespace AS repo_namespace, r.slug AS repo_slug,
@@ -165,8 +165,9 @@ export class DashboardRepository {
                 ON r.tenant_id = j.tenant_id AND r.id::text = j.payload->>'repoId'
          LEFT JOIN forges f ON f.id = r.forge_id
         WHERE j.tenant_id = :tenantId AND j.status = 'dead'
-        ORDER BY j.updated_at DESC LIMIT 50`,
-      { type: QueryTypes.SELECT, replacements: { tenantId } },
+        ORDER BY j.updated_at DESC, j.id
+        LIMIT :limit OFFSET :offset`,
+      { type: QueryTypes.SELECT, replacements: { tenantId, ...page } },
     );
   }
 

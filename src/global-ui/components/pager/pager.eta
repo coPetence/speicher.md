@@ -1,0 +1,24 @@
+<nav class="spr-pager" aria-label="<%= it.label %>">
+  <% if (it.pager.previous) { %>
+  <a class="spr-pager-step" href="<%= it.pager.previous %>" rel="prev"><%~ it.previousIcon || '' %>Previous</a>
+  <% } else { %>
+  <span class="spr-pager-step" aria-disabled="true"><%~ it.previousIcon || '' %>Previous</span>
+  <% } %>
+  <ol class="spr-pager-pages">
+    <% it.pager.items.forEach(function (item) { %>
+    <% if (item.kind === 'gap') { %>
+    <li class="spr-pager-gap" aria-hidden="true">…</li>
+    <% } else if (item.current) { %>
+    <li><a class="spr-pager-page" href="<%= item.href %>" aria-current="page" aria-label="Page <%= item.number %>"><%= item.number %></a></li>
+    <% } else { %>
+    <li><a class="spr-pager-page" href="<%= item.href %>" aria-label="Page <%= item.number %>"><%= item.number %></a></li>
+    <% } %>
+    <% }) %>
+  </ol>
+  <% if (it.pager.next) { %>
+  <a class="spr-pager-step" href="<%= it.pager.next %>" rel="next">Next<%~ it.nextIcon || '' %></a>
+  <% } else { %>
+  <span class="spr-pager-step" aria-disabled="true">Next<%~ it.nextIcon || '' %></span>
+  <% } %>
+  <% if (it.range) { %><p class="spr-pager-range"><%= it.range %></p><% } %>
+</nav>

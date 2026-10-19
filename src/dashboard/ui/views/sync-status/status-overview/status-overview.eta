@@ -24,13 +24,8 @@
     </span>
     <details class="spr-modal spr-filter-modal"<%= it.filter_applied > 0 ? ' data-spr-active' : '' %>>
       <summary aria-label="Filter" title="Filter"><%~ it.filter_icon || '' %></summary>
-      <div class="spr-modal-panel spr-filter-dialog" role="dialog" aria-labelledby="filter-title"
+      <div class="spr-modal-panel spr-filter-dialog" role="dialog" aria-label="Filter repositories"
            data-spr-facets="<%= it.facet_rows %>">
-        <header class="spr-filter-dialog-head">
-          <h2 id="filter-title">Filter repositories</h2>
-          <p>See results in the sync-status page based on the filters you apply.</p>
-        </header>
-
         <div class="spr-filter-dialog-body">
           <div class="spr-filter-groups">
             <div class="spr-filter-groups-head">

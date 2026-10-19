@@ -1,0 +1,8 @@
+<%
+  const level = it.level || 'ok';
+%>
+<% /* A confirmation that fades out by itself; the cross is a checkbox, so it closes without a script */ %>
+<div class="spr-toast spr-note-<%= level %>">
+  <p class="spr-toast-text" role="<%= level === 'fail' ? 'alert' : 'status' %>"><%= it.text %></p>
+  <input class="spr-toast-dismiss" type="checkbox" aria-label="Dismiss">
+</div>

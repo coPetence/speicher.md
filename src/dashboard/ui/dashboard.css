@@ -19,6 +19,8 @@
 @import '../../global-ui/components/tile-badges/tile-badges.css';
 @import '../../global-ui/components/add-panel/add-panel.css';
 @import '../../global-ui/components/copy/copy.css';
+@import '../../global-ui/components/pager/pager.css';
+@import '../../global-ui/components/toast/toast.css';
 
 @layer speicher.base {
   .spr-pane > .spr-main {
@@ -420,6 +422,34 @@
     color: var(--spr-status-fail);
   }
 
+  .spr-index-op.spr-page-actions {
+    margin-block: 0 var(--spr-space-5);
+  }
+
+  .spr-main > .spr-section-blurb:has(+ .spr-dead-jobs) {
+    margin-block-end: var(--spr-space-4);
+  }
+
+  .spr-dead-jobs:not(:has(tbody input[type='checkbox']:checked)) .spr-for-selection,
+  .spr-dead-jobs:has(tbody input[type='checkbox']:checked) .spr-for-all {
+    display: none;
+  }
+
+  .spr-dead-jobs .spr-select-col input[type='checkbox'] {
+    font: inherit;
+    inline-size: 0.875em;
+    block-size: 0.875em;
+  }
+
+  .spr-job-actions {
+    flex-wrap: nowrap;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-job-actions button {
+    padding: var(--spr-space-2);
+  }
+
   .spr-spin {
     animation: spr-spin 1s linear infinite;
   }
@@ -752,118 +782,8 @@
     margin: var(--spr-space-6) 0;
   }
 
-  .spr-toast {
-    position: fixed;
-    display: flex;
-    align-items: center;
-    gap: var(--spr-space-4);
-    z-index: 2;
-    inset-inline-end: var(--spr-gutter);
-    inset-block-end: var(--spr-space-5);
-    min-inline-size: 14rem;
-    max-inline-size: calc(100% - 2 * var(--spr-gutter));
-    margin: 0;
-    padding: var(--spr-space-3) var(--spr-space-5);
-    background: var(--spr-status-accent);
-    color: var(--spr-bg);
-    border: var(--spr-border) solid var(--spr-status-accent);
-    border-radius: var(--spr-radius-lg);
-    font-weight: var(--spr-weight-strong);
-    animation: spr-toast 8s ease-out forwards;
-  }
-
-  .spr-toast-text {
-    flex: 1 1 auto;
-    margin: 0;
-  }
-
-  .spr-toast-dismiss {
-    appearance: none;
-    flex: none;
-    display: grid;
-    place-items: center;
-
-    inline-size: 2.25em;
-    block-size: 2.25em;
-    margin: -0.375em;
-    padding: 0;
-    border: var(--spr-border) solid transparent;
-    border-radius: var(--spr-radius);
-    background: none;
-    color: inherit;
-    opacity: 0.75;
-    cursor: pointer;
-    transition:
-      opacity var(--spr-transition),
-      border-color var(--spr-transition);
-  }
-
-  .spr-toast-dismiss::before {
-    content: '\00d7';
-    font-size: 1.25em;
-    line-height: 1;
-  }
-
-  .spr-toast-dismiss:hover {
-    border-color: currentcolor;
-    opacity: 1;
-  }
-
-  .spr-toast-dismiss:focus-visible {
-    outline: 2px solid currentcolor;
-    outline-offset: 2px;
-  }
-
-  .spr-toast:has(.spr-toast-dismiss:checked) {
-    display: none;
-  }
-
   .spr-main:has(.spr-config:not([data-spr-live])) .spr-toast {
     inset-block-end: 6rem;
-  }
-
-  @keyframes spr-toast {
-    from {
-      opacity: 0;
-      transform: translateY(var(--spr-space-4));
-    }
-
-    3%,
-    92% {
-      opacity: 1;
-      transform: none;
-    }
-
-    98% {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 0;
-      visibility: hidden;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .spr-toast {
-      animation-name: spr-toast-still;
-    }
-  }
-
-  @keyframes spr-toast-still {
-    from,
-    92% {
-      opacity: 1;
-    }
-
-    98% {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 0;
-      visibility: hidden;
-    }
   }
 
   .spr-history {
@@ -1397,26 +1317,11 @@
   .spr-modal-panel.spr-filter-dialog {
     width: min(42rem, calc(100vw - var(--spr-space-5) * 2));
     height: min(34rem, calc(100vh - var(--spr-space-8) * 2));
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     justify-items: stretch;
     gap: 0;
     padding: 0;
     overflow: hidden;
-  }
-
-  .spr-filter-dialog-head {
-    padding: var(--spr-space-5) var(--spr-space-6);
-    border-bottom: var(--spr-border) solid var(--spr-line);
-  }
-
-  .spr-filter-dialog-head h2 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .spr-filter-dialog-head p {
-    margin: var(--spr-space-1) 0 0;
-    color: var(--spr-muted);
   }
 
   .spr-filter-dialog-body {

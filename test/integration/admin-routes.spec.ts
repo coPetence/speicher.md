@@ -1,20 +1,20 @@
-import { RequestMethod } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
+import { RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import request from 'supertest';
 
-import { DashboardController } from '../../src/dashboard/dashboard.controller';
-import { ConfigController } from '../../src/dashboard/configurator/config.controller';
-import { ConnectionsController } from '../../src/dashboard/connections.controller';
-import { HealthController } from '../../src/health/health.controller';
 import { AuthController } from '../../src/auth/auth.controller';
-import { closeSequelize } from '../../src/db/sequelize';
-import { WebhookController } from '../../src/forge/webhook.controller';
-import { McpController } from '../../src/mcp/mcp.controller';
 import { BrandController, StaticController } from '../../src/content-reader/assets.controller';
 import { ReadController } from '../../src/content-reader/read.controller';
+import { ConfigController } from '../../src/dashboard/configurator/config.controller';
+import { ConnectionsController } from '../../src/dashboard/connections.controller';
+import { DashboardController } from '../../src/dashboard/dashboard.controller';
 import { SetupController } from '../../src/dashboard/setup/setup.controller';
 import { SetupWizardController } from '../../src/dashboard/setup/wizard.controller';
+import { closeSequelize } from '../../src/db/sequelize';
+import { WebhookController } from '../../src/forge/webhook.controller';
+import { HealthController } from '../../src/health/health.controller';
+import { McpController } from '../../src/mcp/mcp.controller';
 import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp, sessionCookieFor } from '../helpers/http';
 
@@ -54,7 +54,14 @@ const CONTRACT: Record<string, Contract> = {
   },
   'GET /-/graph': { both: '/-/graph' },
   'GET /-/explain': { both: '/-/explain?path=/handbook/commercial/pricing' },
-  'GET /-/logs': { both: '/-/logs' },
+  'GET /-/dead-jobs': { both: '/-/dead-jobs' },
+  'GET /-/redirects': { both: '/-/redirects' },
+  'GET /-/logs': {
+    exempt:
+      'A redirect, not a document: the address the dead jobs and retired redirects ' +
+      'shared before they became two pages, kept so a saved link still lands. It ' +
+      'answers 301 to /-/dead-jobs; asserted in admin.spec.ts.',
+  },
   'GET /-/analytics': { both: '/-/analytics' },
   'GET /-/connections': { both: '/-/connections' },
   'POST /-/connections/revoke': {
@@ -157,6 +164,11 @@ const CONTRACT: Record<string, Contract> = {
       'discovery.spec.ts. The same shape as the two above, and the one write here ' +
       'a maintainer may make: asserting it would enqueue a sync of a fixture ' +
       'repository as a side effect of a coverage test.',
+  },
+  'POST /-/jobs/delete': {
+    covered:
+      'admin.spec.ts. A form post that answers 303 to the page it came from, and ' +
+      'it writes: it removes the dead job it names, which admin.spec.ts seeds first.',
   },
   'POST /-/jobs/retry': {
     covered:

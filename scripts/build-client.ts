@@ -15,7 +15,17 @@ import * as esbuild from 'esbuild';
 const root = join(__dirname, '..');
 const outdir = join(root, 'dist', 'client');
 
-const ISLANDS = ['tree', 'covers', 'config', 'setup', 'history', 'status', 'repo-status', 'fold'];
+const ISLANDS = [
+  'tree',
+  'covers',
+  'config',
+  'setup',
+  'history',
+  'status',
+  'repo-status',
+  'dead-jobs',
+  'fold',
+];
 const THEME_DIR = join(root, 'src', 'global-ui', 'theme');
 const SCHEMES = ['light', 'dark'];
 const DARK_QUERY = '@media\\s*\\(\\s*prefers-color-scheme\\s*:\\s*dark\\s*\\)';

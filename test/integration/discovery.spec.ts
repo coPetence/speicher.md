@@ -345,7 +345,7 @@ describe('dead jobs', () => {
 
     expect(await queue.claim(1)).toEqual([]);
 
-    expect(await queue.retryDead({ tenantId, id: claimed.id })).toBe(1);
+    expect(await queue.retryDead({ tenantId, ids: [claimed.id] })).toBe(1);
     const [again] = await queue.claim(1);
     expect(again?.id).toBe(claimed.id);
     expect(again.attempts).toBe(1);
@@ -353,7 +353,7 @@ describe('dead jobs', () => {
   });
 
   it('are not confused with a running job by a mistyped id', async () => {
-    await expect(new JobQueue().retryDead({ tenantId, id: 'not-a-uuid' })).resolves.toBe(0);
+    await expect(new JobQueue().retryDead({ tenantId, ids: ['not-a-uuid'] })).resolves.toBe(0);
   });
 });
 

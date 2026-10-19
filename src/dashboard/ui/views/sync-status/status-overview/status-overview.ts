@@ -342,7 +342,7 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
       It is the one thing that panel said which nothing else on this page does, and
       it is a count of work that has stopped — which is what this row is for. Admin
       only, because `instance` is: whose jobs they are is instance-wide, and a
-      maintainer's tile would be counting somebody else's failures. `/-/logs` is
+      maintainer's tile would be counting somebody else's failures. `/-/dead-jobs` is
       where they can be retried, so the tile links there.
     */
     ...(payload.instance
@@ -352,7 +352,7 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
             payload.instance.dead_jobs,
             payload.instance.dead_jobs > 0 ? 'fail' : 'idle',
             STAT_ICONS.dead,
-            '/-/logs',
+            '/-/dead-jobs',
           ),
         ]
       : []),

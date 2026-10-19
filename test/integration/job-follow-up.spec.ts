@@ -124,7 +124,7 @@ describe('a job brought back to pending beside one with the same key', () => {
       dedupeKey: key,
     });
 
-    await expect(queue.retryDead({ tenantId: harness.tenantId, id: dead })).resolves.toBe(0);
+    await expect(queue.retryDead({ tenantId: harness.tenantId, ids: [dead] })).resolves.toBe(0);
     expect((await rowsFor(key)).map((row) => row.status)).toEqual(['superseded', 'pending']);
   });
 

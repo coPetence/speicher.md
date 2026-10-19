@@ -24,10 +24,27 @@ import { AnalyticsPayload, sendAnalytics } from './ui/views/analytics/analytics'
 import { sendGraph } from './ui/views/link-report/link-report';
 import { sendExplain } from './ui/views/path-access-check/path-access-check';
 import { sendDashboardSearch } from './ui/views/search/search';
-import { sendLogs } from './ui/views/sync-status/logs/logs';
+import { sendDeadJobs } from './ui/views/sync-status/dead-jobs/dead-jobs';
+import { sendRedirects } from './ui/views/sync-status/redirects/redirects';
 import { sendRepo } from './ui/views/sync-status/repo-status/repo-status';
 import { sendRun } from './ui/views/sync-status/run-status/run-status';
 import { sendStatus } from './ui/views/sync-status/status-overview/status-overview';
+
+const DEAD_JOBS_PER_PAGE = 50;
+
+function pageParam(raw: unknown): string {
+  const page = typeof raw === 'string' ? countFromQuery(raw) : null;
+  return page && page > 1 ? `&page=${page}` : '';
+}
+
+function jobIdsOf(
+  body: { id?: unknown; ids?: unknown; scope?: unknown } | undefined,
+): string[] | null {
+  if (typeof body?.id === 'string' && body.id !== '') return [body.id];
+  if (body?.scope !== 'selected') return null;
+  const ids = Array.isArray(body.ids) ? body.ids : [body.ids];
+  return ids.filter((id): id is string => typeof id === 'string' && id !== '');
+}
 
 /** Parses a count query param; null when absent or not a non-negative integer */
 function countFromQuery(raw: string | undefined): number | null {
@@ -143,13 +160,16 @@ export class DashboardController {
   async retryJobs(
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: { id?: unknown },
+    @Body() body: { id?: unknown; ids?: unknown; scope?: unknown; page?: unknown },
   ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    const id = typeof body?.id === 'string' && body.id !== '' ? body.id : undefined;
-    const retried = await this.queue.retryDead({ tenantId: caller.tenantId, id });
+    const ids = jobIdsOf(body);
+    const retried = await this.queue.retryDead({
+      tenantId: caller.tenantId,
+      ids: ids ?? undefined,
+    });
 
     res.setHeader('Vary', 'Accept');
     res.setHeader('Cache-Control', 'private, no-store');
@@ -157,7 +177,29 @@ export class DashboardController {
       res.status(200).json({ retried });
       return;
     }
-    res.redirect(303, `/-/logs?retried=${retried}`);
+    res.redirect(303, `/-/dead-jobs?retried=${retried}${pageParam(body?.page)}`);
+  }
+
+  /** Deletes the dead jobs given in the body, so they are no longer offered for retry */
+  @Post('jobs/delete')
+  async deleteJob(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: { id?: unknown; ids?: unknown; scope?: unknown; page?: unknown },
+  ): Promise<void> {
+    const caller = callerOf(req);
+    if (!caller.isAdmin) return this.respond.notFound(req, res);
+
+    const ids = jobIdsOf(body) ?? [];
+    const deleted = await this.queue.deleteDead({ tenantId: caller.tenantId, ids });
+
+    res.setHeader('Vary', 'Accept');
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (wantsJson(req)) {
+      res.status(200).json({ deleted });
+      return;
+    }
+    res.redirect(303, `/-/dead-jobs?deleted=${deleted}${pageParam(body?.page)}`);
   }
 
   /** Renders the admin search page over pages, config sections and settings */
@@ -347,28 +389,56 @@ export class DashboardController {
     sendExplain(this.respond, req, res, caller.isAdmin, asked, result);
   }
 
-  /** Renders the logs page: retired redirects and dead jobs */
-  @Get('logs')
-  async logs(
+  /** Renders the dead jobs page: the jobs the worker gave up on, each with a Retry */
+  @Get('dead-jobs')
+  async deadJobs(
     @Req() req: Request,
     @Res() res: Response,
     @Query('retried') retried?: string,
+    @Query('deleted') deleted?: string,
+    @Query('page') page?: string,
   ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    const [retiredRedirects, dead] = await Promise.all([
-      this.repo.retiredRedirects(caller.tenantId),
-      this.repo.deadJobs(caller.tenantId),
-    ]);
+    const total = await this.repo.deadJobCount(caller.tenantId);
+    const pages = Math.max(1, Math.ceil(total / DEAD_JOBS_PER_PAGE));
+    const current = Math.min(Math.max(1, countFromQuery(page) ?? 1), pages);
 
-    sendLogs(
+    sendDeadJobs(
       this.respond,
       req,
       res,
       caller.isAdmin,
-      { retired_redirects: retiredRedirects, dead_jobs: dead },
-      countFromQuery(retried),
+      {
+        dead_jobs: await this.repo.deadJobs(caller.tenantId, {
+          limit: DEAD_JOBS_PER_PAGE,
+          offset: (current - 1) * DEAD_JOBS_PER_PAGE,
+        }),
+        total,
+        page: current,
+        pages,
+        per_page: DEAD_JOBS_PER_PAGE,
+      },
+      { retried: countFromQuery(retried), deleted: countFromQuery(deleted) },
     );
+  }
+
+  /** Renders the retired redirects page: old paths that no longer lead to a renamed repo */
+  @Get('redirects')
+  async redirects(@Req() req: Request, @Res() res: Response): Promise<void> {
+    const caller = callerOf(req);
+    if (!caller.isAdmin) return this.respond.notFound(req, res);
+
+    sendRedirects(this.respond, req, res, caller.isAdmin, {
+      retired_redirects: await this.repo.retiredRedirects(caller.tenantId),
+    });
+  }
+
+  /** The address both pages shared before they were split; a bookmark lands on the jobs */
+  @Get('logs')
+  logs(@Req() req: Request, @Res() res: Response): void {
+    if (!callerOf(req).isAdmin) return this.respond.notFound(req, res);
+    res.redirect(301, '/-/dead-jobs');
   }
 }
