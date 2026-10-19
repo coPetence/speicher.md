@@ -16,8 +16,8 @@ export function mailSection(root: Obj): SectionSource {
   return {
     ...sectionHead('mail'),
     blurb:
-      'The relay this instance sends through: magic links, and every notice on ' +
-      '[Notifications](/-/config/notifications). Find out more in our ' +
+      'The relay this instance sends through: magic links, and every notice it sends. ' +
+      'Find out more in our ' +
       '[documentation](https://docs.speicher.md/operate/mail)',
     fields: [
       textField(root, ['mail', 'host'], 'mail.host', 'SMTP host'),

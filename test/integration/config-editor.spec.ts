@@ -249,11 +249,13 @@ describe('the overview', () => {
       'reading',
       'defaults',
       'mail',
-      'notifications',
       'storage',
-      'embedding',
     ]) {
       expect(page.text).toContain(`href="/-/config/${section}"`);
+    }
+    // Disabled for now, so not linked
+    for (const section of ['analytics', 'notifications', 'embedding']) {
+      expect(page.text).not.toContain(`href="/-/config/${section}"`);
     }
     expect(page.text).not.toContain('<form class="spr-config"');
     expect(page.text).not.toContain('Resolution hash');
@@ -359,13 +361,19 @@ describe('the form', () => {
     expect(await named('reading')).toContain('graph.enabled');
     expect(await named('mail')).toContain('mail.host');
     expect(await named('mail')).not.toContain('notify.stale_after');
+    expect(await named('storage')).toContain('assets.driver');
+    expect(await named('defaults')).toContain('defaults.sync.include');
+  });
+
+  // Notifications and Semantic retrieval are disabled for now
+  it.skip('renders a control for every setting on the disabled sections', async () => {
+    const named = async (section: string) => Object.keys((await open(section)).body);
+
     expect(await named('notifications')).toContain('notify.stale_after');
     expect(await named('notifications')).toContain('notify.expiry_warning');
     expect(await named('notifications')).not.toContain('mail.host');
     expect((await open('notifications')).html).toContain('name="notify.sync_failure"');
-    expect(await named('storage')).toContain('assets.driver');
     expect(await named('embedding')).toContain('embedding.model');
-    expect(await named('defaults')).toContain('defaults.sync.include');
   });
 
   it('offers no way to change a provider’s kind, which is not a setting', async () => {
@@ -592,7 +600,8 @@ describe('the branding section', () => {
   });
 
   it('asks on every other section too, rather than printing on some of them', async () => {
-    for (const section of ['reading', 'storage', 'defaults', 'notifications', 'analytics']) {
+    // Notifications and Read analytics are left out while they are disabled
+    for (const section of ['reading', 'storage', 'defaults']) {
       const { html } = await open(section);
       const form = html.slice(html.indexOf('<form class="spr-config"'));
       expect(form).toContain('class="spr-info-mark"');
@@ -2761,7 +2770,8 @@ describe('advanced settings', () => {
     expect(formBody(page.text)['forges.gh.base_url']).toBe(body['forges.gh.base_url']);
   });
 
-  it('draws no block on a page that has nothing to fold', async () => {
+  // Read analytics is disabled for now
+  it.skip('draws no block on a page that has nothing to fold', async () => {
     const { html } = await open('analytics');
     expect(html).not.toContain('spr-advanced');
   });
@@ -3356,7 +3366,8 @@ describe('adding and removing entries', () => {
   });
 });
 
-describe('the analytics section', () => {
+// Read analytics is disabled for now
+describe.skip('the analytics section', () => {
   it('breaks the row before the first box, and only there', async () => {
     const { html } = await open('analytics');
 
@@ -3391,7 +3402,8 @@ describe('the transport and the notices', () => {
     expect(html).not.toContain('href="/-/config/mail/');
   });
 
-  it('puts every notice on one page, a card each, reaching no transport control', async () => {
+  // Notifications is disabled for now
+  it.skip('puts every notice on one page, a card each, reaching no transport control', async () => {
     const { html } = await open('notifications');
 
     for (const name of [
@@ -3631,7 +3643,8 @@ describe('the transport and the notices', () => {
     expect(card('handbook')).toContain('<details class="spr-advanced" open>');
   });
 
-  it('saves one notice without touching the ones beside it', async () => {
+  // Notifications is disabled for now
+  it.skip('saves one notice without touching the ones beside it', async () => {
     await appendConfigVersion(harness.tenantId, {
       yaml: `${FIXTURE_YAML}\nnotify:\n  sync_failure: [admins, committer]\n  grant_expiry: [admins]\n`,
       resolutionHash: 'x',
@@ -3654,7 +3667,8 @@ describe('the transport and the notices', () => {
     expect(yaml).toContain('grant_expiry:');
   });
 
-  it('leaves the other block alone whichever of the two is saved', async () => {
+  // Notifications is disabled for now
+  it.skip('leaves the relay alone when the notices are saved', async () => {
     await appendConfigVersion(harness.tenantId, {
       yaml:
         `${FIXTURE_YAML}\nmail:\n  host: relay.example.test\n  from: Docs <docs@example.test>\n` +
@@ -3669,6 +3683,17 @@ describe('the transport and the notices', () => {
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
       'host: relay.example.test',
     );
+  });
+
+  it('leaves the notices alone when the relay is saved, even with their page disabled', async () => {
+    await appendConfigVersion(harness.tenantId, {
+      yaml:
+        `${FIXTURE_YAML}\nmail:\n  host: relay.example.test\n  from: Docs <docs@example.test>\n` +
+        `notify:\n  grant_expiry: [admins]\n`,
+      resolutionHash: 'x',
+      origin: 'admin',
+      appliedBy: null,
+    });
 
     const mail = await open('mail');
     await post('mail', { ...mail.body, 'mail.host': 'other.example.test', intent: 'apply' }).expect(
@@ -3677,6 +3702,18 @@ describe('the transport and the notices', () => {
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).toContain('host: other.example.test');
     expect(yaml).toContain('grant_expiry:');
+  });
+
+  it('404s a disabled section to an admin, as a page, as JSON and as a save', async () => {
+    for (const section of ['analytics', 'notifications', 'embedding']) {
+      await request(app.getHttpServer()).get(`/-/config/${section}`).set('cookie', ops).expect(404);
+      await request(app.getHttpServer())
+        .get(`/-/config/${section}`)
+        .set('cookie', ops)
+        .set('accept', 'application/json')
+        .expect(404);
+      await post(section, { intent: 'apply' }).expect(404);
+    }
   });
 
   it('404s the pages the split retired, and every other spelling of them', async () => {
@@ -3991,7 +4028,8 @@ describe('when the running version is not the newest', () => {
     expect(page.text).not.toContain('waits for a restart');
   });
 
-  it('names the keys holding a version back when it cannot be adopted', async () => {
+  // Saves on Semantic retrieval, which is disabled for now
+  it.skip('names the keys holding a version back when it cannot be adopted', async () => {
     const { body } = await open('embedding');
     const page = await landing(
       'embedding',

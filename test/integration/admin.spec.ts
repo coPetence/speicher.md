@@ -127,8 +127,18 @@ describe('an admin', () => {
   it('reaches the section list, including the dead jobs', async () => {
     const res = await page('ops', '/-/status');
     expect(res.text).toContain('href="/-/dead-jobs"');
-    expect(res.text).toContain('href="/-/explain"');
+    expect(res.text).toContain('href="/-/connections"');
     expect(res.text).toMatch(/href="\/-\/status" aria-current="page"/);
+  });
+
+  it('is not offered the disabled pages, and is answered 404 on each', async () => {
+    const res = await page('ops', '/-/status');
+    for (const path of ['/-/explain', '/-/graph', '/-/analytics']) {
+      expect(res.text).not.toContain(`href="${path}"`);
+      expect((await page('ops', path)).status).toBe(404);
+      expect((await json('ops', path)).status).toBe(404);
+    }
+    expect((await page('ops', '/-/explain?path=/handbook/commercial/pricing')).status).toBe(404);
   });
 
   it('links the tiles that count what is acted on elsewhere to that page', async () => {
@@ -737,7 +747,8 @@ describe('a maintainer', () => {
   });
 });
 
-describe('explain, as a page', () => {
+// Path Access Check is disabled for now
+describe.skip('explain, as a page', () => {
   it('is a form before it is an answer', async () => {
     const res = await page('ops', '/-/explain');
     expect(res.status).toBe(200);
@@ -1112,8 +1123,8 @@ describe('the admin pages themselves', () => {
   });
 
   it('load one island: the page\u2019s own, or the column\u2019s slide where it has none', async () => {
-    const explain = await page('ops', '/-/explain');
-    const plain = [...explain.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
+    const connections = await page('ops', '/-/connections');
+    const plain = [...connections.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
     expect(plain).toHaveLength(1);
     expect(plain[0][1]).toMatch(/\/fold-[0-9a-f]+\.js$/);
 

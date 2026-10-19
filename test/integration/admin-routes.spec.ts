@@ -52,15 +52,17 @@ const CONTRACT: Record<string, Contract> = {
       'but the address carries a run id minted by `gen_random_uuid()`, which a ' +
       'table of fixed paths cannot name; admin.spec.ts seeds the run it opens.',
   },
-  'GET /-/graph': { both: '/-/graph' },
-  'GET /-/explain': { both: '/-/explain?path=/handbook/commercial/pricing' },
+  // Disabled in DASHBOARD_SECTIONS for now: each answers 404, asserted in admin.spec.ts.
+  // Back to `both` when the page is switched on again.
+  'GET /-/graph': { exempt: 'Disabled for now; it answers 404.' },
+  'GET /-/explain': { exempt: 'Disabled for now; it answers 404.' },
   'GET /-/dead-jobs': { both: '/-/dead-jobs' },
   'GET /-/logs': {
     exempt:
       'A redirect, not a document: the old address of the dead jobs page, kept so ' +
       'a saved link still lands. It answers 301 to /-/dead-jobs; asserted in admin.spec.ts.',
   },
-  'GET /-/analytics': { both: '/-/analytics' },
+  'GET /-/analytics': { exempt: 'Disabled for now; it answers 404.' },
   'GET /-/connections': { both: '/-/connections' },
   'POST /-/connections/revoke': {
     covered:

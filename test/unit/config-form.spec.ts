@@ -42,6 +42,7 @@ import {
   freeMemberId,
   isConfigSection,
   isConfigSubsection,
+  isDisabledSection,
   seedProvider,
   withHttpsScheme,
 } from '../../src/dashboard/configurator/config-form/fields';
@@ -394,7 +395,7 @@ describe('one section at a time', () => {
     const built = buildSections(loadDocument(FULL));
     expect(
       built
-        .filter((section) => section.parent === null)
+        .filter((section) => section.parent === null && !isDisabledSection(section.id))
         .map((section) => [section.id, section.title]),
     ).toEqual(CONFIG_NAV_SECTIONS.map((entry) => [entry.id, entry.title]));
 
@@ -409,11 +410,12 @@ describe('one section at a time', () => {
 
     for (const section of [mail, notifications]) {
       expect(section.parent).toBeNull();
-      expect(isConfigSection(section.id)).toBe(true);
       expect(isConfigSubsection(section.id)).toBe(false);
       expect(section.entries).toEqual([]);
       expect(section.addOps).toEqual([]);
     }
+    // Notifications is disabled for now, so only the relay has a page
+    expect(isConfigSection('mail')).toBe(true);
 
     expect(allFields([mail]).map((f) => f.schemaPath)).toEqual([
       'mail.host',
@@ -1881,6 +1883,34 @@ describe('secrets', () => {
     const shown = displayYaml(FULL);
     expect(shown).not.toContain('data:image/png;base64');
     expect(shown).toContain(ELIDED);
+  });
+
+  it('still hides a secret whose section is disabled', () => {
+    expect(isDisabledSection('embedding')).toBe(true);
+    const literal = FULL.replace(
+      'api_key: ${TEST_ENTRA_CLIENT_SECRET}',
+      'api_key: a-real-embedding-key',
+    );
+    const shown = displayYaml(literal);
+    expect(shown).not.toContain('a-real-embedding-key');
+    expect(shown).toContain(REDACTED);
+  });
+});
+
+describe('a disabled section', () => {
+  const DISABLED = ['analytics', 'notifications', 'embedding'];
+
+  it('has no page and no place in the column', () => {
+    for (const id of DISABLED) {
+      expect(isDisabledSection(id)).toBe(true);
+      expect(isConfigSection(id)).toBe(false);
+      expect(CONFIG_NAV_SECTIONS.map((entry) => entry.id)).not.toContain(id);
+    }
+  });
+
+  it('is still built, so the secrets it names are still found', () => {
+    const built = buildSections(loadDocument(FULL)).map((section) => section.id);
+    for (const id of DISABLED) expect(built).toContain(id);
   });
 });
 
