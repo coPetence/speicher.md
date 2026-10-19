@@ -5,8 +5,9 @@ import { Logger, rootLogger } from '../../common/logger';
 import { backoffMs, parseDurationWithFallback, retryAfterHeaderToMs } from '../../common/time';
 import { ConfigService } from '../../config/config.service';
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
-import { githubHosts } from '../../forge/github/hosts';
-import { GithubTokenMinter } from '../../forge/github/tokens';
+import { githubHeaders } from '../../github/api';
+import { githubHosts } from '../../github/hosts';
+import { GithubTokenMinter } from '../../github/tokens';
 import { DirectoryUnavailableError } from '../../ingest/grants';
 import { splitTeam } from './github-config';
 import { DirectoryStatus, FetchLike } from './graph';
@@ -21,10 +22,6 @@ const PAGE_SIZE = 100;
 
 const PROBE_TTL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 3_000;
-
-// Supported until 10 March 2028
-// We use an older version because GitHub Enterprise servers often lag
-const API_VERSION = '2022-11-28';
 
 export interface GithubDirectoryDeps {
   fetch?: FetchLike;
@@ -139,7 +136,8 @@ export class GithubDirectory {
    *
    * Null -> could not say (unreachable)
    */
-  async groupsFor(subject: string): Promise<string[] | null> {
+  async groupsFor(subject: string, options: { fresh?: boolean } = {}): Promise<string[] | null> {
+    if (options.fresh) this.cache.delete(`teams:${subject}`);
     try {
       return await this.cached(`teams:${subject}`, async () => {
         const orgs = await this.reachable();
@@ -376,11 +374,7 @@ export class GithubDirectory {
       let response: Response;
       try {
         response = await this.fetch(`${this.apiBase}${path}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': API_VERSION,
-          },
+          headers: githubHeaders(token),
           ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
         });
       } catch (err) {

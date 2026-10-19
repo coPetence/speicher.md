@@ -1,8 +1,9 @@
 import { createHmac } from 'node:crypto';
 
+import { staleSessionsOf } from '../../src/auth/directory/webhook.controller';
 import { mapGithubEvent, verifyGithubSignature } from '../../src/forge/github/webhook';
 import { TokenBucket } from '../../src/forge/rate-limit';
-import { normalizePem } from '../../src/forge/github/tokens';
+import { normalizePem } from '../../src/github/tokens';
 
 const SECRET = 'a-webhook-secret';
 
@@ -63,6 +64,33 @@ describe('signature verification', () => {
       SECRET,
     );
     expect(result.deliveryId).toBe('d-9');
+  });
+
+  it('accepts nothing for a source without a secret, not even a delivery signed with an empty key', () => {
+    const { headers, body } = signed('{"a":1}', '');
+    expect(verifyGithubSignature(headers, body, '').valid).toBe(false);
+  });
+});
+
+describe('a delivery from a directory App', () => {
+  it('names the person whose membership of a team changed', () => {
+    expect(staleSessionsOf('membership', { member: { id: 4711 } })).toEqual({ subject: '4711' });
+  });
+
+  it('names the person who joined or left the organisation', () => {
+    expect(staleSessionsOf('organization', { membership: { user: { id: 4711 } } })).toEqual({
+      subject: '4711',
+    });
+  });
+
+  it('makes everybody stale when a team itself changes, or no person is named', () => {
+    expect(staleSessionsOf('team', { action: 'deleted' })).toBe('all');
+    expect(staleSessionsOf('organization', { action: 'renamed' })).toBe('all');
+  });
+
+  it('makes nobody stale for an event about something else', () => {
+    expect(staleSessionsOf('ping', {})).toBeNull();
+    expect(staleSessionsOf('push', {})).toBeNull();
   });
 });
 
@@ -163,10 +191,10 @@ describe('event mapping', () => {
     expect(actions.map((a) => a.kind)).toEqual(['discover', 'purge']);
   });
 
-  it('invalidates the team cache on membership changes', () => {
+  it('ignores team changes, which reach the directory App rather than the source', () => {
     for (const event of ['team', 'membership', 'organization']) {
       const actions = mapGithubEvent(event, { organization: { login: 'acme' } }, tracked);
-      expect(actions).toEqual([{ kind: 'invalidate-teams', namespace: 'acme' }]);
+      expect(actions.map((a) => a.kind)).toEqual(['ignore']);
     }
   });
 

@@ -33,6 +33,20 @@ function load(yaml: string) {
   return loadInstanceConfig(yaml);
 }
 
+describe('the webhook secret of a source', () => {
+  it('is optional for a GitHub App, which may have been created without a webhook', () => {
+    expect(() => load(MINIMAL.replace('    webhook_secret: s\n', ''))).not.toThrow();
+  });
+
+  it('is still required for a token-based forge', () => {
+    const gitlab = MINIMAL.replace(
+      'type: github\n    app_id: "1"\n    private_key: k\n    webhook_secret: s',
+      'type: gitlab\n    token: t',
+    );
+    expect(() => load(gitlab)).toThrow(/webhook_secret/);
+  });
+});
+
 describe('YAML 1.2 core schema, strictly', () => {
   it('rejects anchors', () => {
     expect(() => parseStrictYaml('a: &x 1\nb: 2\n')).toThrow(/anchor/);

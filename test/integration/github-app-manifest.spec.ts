@@ -16,7 +16,7 @@ import {
   GithubAppManifestService,
 } from '../../src/dashboard/configurator/config-page/github-app-manifest';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
-import type { AppManifest } from '../../src/forge/github/manifest';
+import type { AppManifest } from '../../src/github/app-manifest';
 import { FormBody, formBody } from '../helpers/form';
 import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp, sessionCookieFor } from '../helpers/http';
@@ -235,6 +235,27 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     }
   });
 
+  it('gives the App a webhook on a private address too, which only localhost is refused', async () => {
+    const before = process.env.SPEICHER_PUBLIC_URL;
+    process.env.SPEICHER_PUBLIC_URL = 'http://speicher.internal';
+    try {
+      const page = await request(app.getHttpServer())
+        .get('/-/config/sources/team?kind=github')
+        .set('cookie', ops)
+        .expect(200);
+      expect(page.text).toContain('may not be able to reach');
+
+      const response = await startFlow('team', formBody(page.text)).expect(200);
+      expect(manifestOf(response.text).hook_attributes).toEqual({
+        url: 'http://speicher.internal/-/hooks/team',
+        active: true,
+      });
+    } finally {
+      if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+      else process.env.SPEICHER_PUBLIC_URL = before;
+    }
+  });
+
   it('creates the App on the personal account when no organization is given', async () => {
     const response = await startFlow('team', await openNewSource('team')).expect(200);
     expect(manifestPostUrl(response.text).pathname).toBe('/settings/apps/new');
@@ -262,14 +283,23 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     expect(team.webhook_secret).toBe('from-github');
   });
 
-  it('gives the source a webhook secret when GitHub created the App without a webhook', async () => {
+  it('stores no webhook secret when GitHub created the App without a webhook, and says so', async () => {
     github.mockImplementation(
       async () =>
         new Response(JSON.stringify({ ...CONVERTED, webhook_secret: null }), { status: 201 }),
     );
     const { state, cookie } = await started('team', await openNewSource('team'));
     await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
-    expect((await stored()).doc.forges.team.webhook_secret).toEqual(expect.any(String));
+
+    const team = (await stored()).doc.forges.team;
+    expect(team.app_id).toBe(String(CONVERTED.id));
+    expect(team.webhook_secret).toBeUndefined();
+
+    const page = await request(app.getHttpServer())
+      .get('/-/config/sources/team')
+      .set('cookie', ops)
+      .expect(200);
+    expect(page.text).toContain('This source has no webhook secret');
   });
 
   it('creates the App on the GitHub Enterprise Server the page names', async () => {
@@ -311,7 +341,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     const { state, cookie } = await started('team', await openNewSource('team'));
 
     const unknown = await callback('team', 'code=the-code&state=made-up', cookie).expect(400);
-    expect(unknown.text).toContain('Speicher does not know this answer from GitHub');
+    expect(unknown.text).toContain('does not match an open request from this page');
     expect(github).not.toHaveBeenCalled();
 
     await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
@@ -467,6 +497,31 @@ describe('creating the directory App of an identity provider from a manifest', (
     expect(manifest.redirect_url).toMatch(
       /\/-\/config\/identity\/octo\/github-directory-app\/manifest\/callback$/,
     );
+    // The test instance answers on 127.0.0.1, which GitHub refuses as a webhook
+    expect(manifest.hook_attributes).toBeUndefined();
+  });
+
+  it('gives the directory App a webhook for team changes when the instance has a public URL', async () => {
+    await storeProvider('octo');
+    const before = process.env.SPEICHER_PUBLIC_URL;
+    process.env.SPEICHER_PUBLIC_URL = 'https://docs.acme.example';
+    try {
+      const response = await startFlow(
+        'octo',
+        await openProvider('octo'),
+        'identity',
+        'github-directory-app',
+      ).expect(200);
+      const manifest = manifestOf(response.text);
+      expect(manifest.hook_attributes).toEqual({
+        url: 'https://docs.acme.example/-/hooks/directory/octo',
+        active: true,
+      });
+      expect(manifest.default_events).toEqual(['membership', 'team', 'organization']);
+    } finally {
+      if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+      else process.env.SPEICHER_PUBLIC_URL = before;
+    }
   });
 
   it("saves the stored provider's directory lookup, and keeps its sign-in App", async () => {
@@ -487,7 +542,11 @@ describe('creating the directory App of an identity provider from a manifest', (
     ).expect(303);
     const octo = (await stored()).doc.auth.providers.octo;
     expect(octo.client_id).toBe('Iv1.abc');
-    expect(octo.directory).toMatchObject({ type: 'github', app_id: '4242' });
+    expect(octo.directory).toMatchObject({
+      type: 'github',
+      app_id: '4242',
+      webhook_secret: 'from-github',
+    });
     expect(octo.directory.private_key).toBe(PEM.trim());
   });
 

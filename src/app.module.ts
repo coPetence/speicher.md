@@ -30,7 +30,7 @@ import { GithubAppManifestService } from './dashboard/configurator/config-page/g
 import { BlobStore } from './assets/blob-store';
 import { GraphDirectoryDeps } from './auth/directory/graph';
 import { DIRECTORY_DEPS } from './auth/directory/lookup';
-import { GITHUB_APP_LOOKUP_FETCH } from './forge/github/app-links';
+import { GITHUB_APP_LOOKUP_FETCH } from './github/app-links';
 import { DashboardResponder } from './dashboard/respond';
 import { StatusService } from './dashboard/status/status.service';
 import { ApiKeyService } from './auth/api-key.service';

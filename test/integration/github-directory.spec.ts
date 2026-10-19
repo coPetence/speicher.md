@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { Server, createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
@@ -14,7 +15,9 @@ import {
 import { ConfigService } from '../../src/config/config.service';
 import { DirectoryConfig } from '../../src/config/types';
 import { loadInstanceConfig } from '../../src/config/parser';
+import { DirectoryWebhookController } from '../../src/auth/directory/webhook.controller';
 import { SESSION_COOKIE, SessionService } from '../../src/auth/session.service';
+import { TenancyService } from '../../src/db/tenancy';
 import { hashToken, mintToken } from '../../src/auth/tokens';
 import { Session } from '../../src/db/models';
 import { closeSequelize } from '../../src/db/sequelize';
@@ -582,6 +585,117 @@ describe('the groups on a session', () => {
 
     expect((await session.read())?.rawGroupIds).toEqual(['acme/readers']);
     expect(gh.seen).toEqual([]);
+  });
+
+  it('are read past the directory cache once a webhook marked them stale', async () => {
+    gh.teamMembers = new Map([['acme/platform', ['ada']]]);
+    const session = await signedIn({ groups: [], fetchedAgo: 2 * 3_600_000, cacheTtl: '40m' });
+    expect((await session.read())?.rawGroupIds).toEqual(['acme/platform']);
+
+    gh.teamMembers = new Map();
+    await Session.update(
+      { groups_fetched_at: null },
+      { where: { id: (await session.stored()).id } },
+    );
+
+    expect((await session.read())?.rawGroupIds).toEqual([]);
+  });
+});
+
+describe('a delivery from the directory App', () => {
+  const SECRET = 'directory-secret';
+
+  function controllerFor(secret: string | null): DirectoryWebhookController {
+    const yaml = instanceYaml(['acme/platform'], '1h').replace(
+      '        cache_ttl: 1h',
+      secret === null
+        ? '        cache_ttl: 1h'
+        : `        cache_ttl: 1h\n        webhook_secret: ${secret}`,
+    );
+    const tenancy = { resolveTenant: async () => ({ id: harness.tenantId, slug: 'test' }) };
+    return new DirectoryWebhookController(
+      new ConfigService(loadInstanceConfig(yaml)),
+      tenancy as unknown as TenancyService,
+    );
+  }
+
+  async function deliver(
+    controller: DirectoryWebhookController,
+    event: string,
+    payload: unknown,
+    options: { secret?: string; provider?: string } = {},
+  ): Promise<number> {
+    const body = Buffer.from(JSON.stringify(payload));
+    const signature = createHmac('sha256', options.secret ?? SECRET)
+      .update(body)
+      .digest('hex');
+    let status = 0;
+    const res = {
+      status: (code: number) => {
+        status = code;
+        return { end: () => undefined };
+      },
+    };
+    await controller.receive(options.provider ?? 'hub', { rawBody: body } as never, res as never, {
+      'x-github-event': event,
+      'x-hub-signature-256': `sha256=${signature}`,
+    });
+    return status;
+  }
+
+  async function sessionFor(subject: string): Promise<string> {
+    const row = await Session.create({
+      tenant_id: harness.tenantId,
+      token_hash: hashToken(mintToken()),
+      provider: 'hub',
+      subject,
+      email: null,
+      raw_group_ids: ['acme/platform'],
+      groups_fetched_at: new Date(),
+      expires_at: new Date(Date.now() + 3_600_000),
+    });
+    return row.id;
+  }
+
+  const fetchedAt = async (id: string) => (await Session.findByPk(id))!.groups_fetched_at;
+
+  it("marks only the named person's groups stale when their membership changes", async () => {
+    const ada = await sessionFor(ADA);
+    const other = await sessionFor('8812');
+
+    const status = await deliver(controllerFor(SECRET), 'membership', {
+      action: 'removed',
+      member: { id: Number(ADA), login: 'ada' },
+    });
+
+    expect(status).toBe(202);
+    expect(await fetchedAt(ada)).toBeNull();
+    expect(await fetchedAt(other)).not.toBeNull();
+  });
+
+  it('marks everybody on the provider stale when a team changes', async () => {
+    const ada = await sessionFor(ADA);
+    const other = await sessionFor('8813');
+
+    expect(await deliver(controllerFor(SECRET), 'team', { action: 'deleted' })).toBe(202);
+    expect(await fetchedAt(ada)).toBeNull();
+    expect(await fetchedAt(other)).toBeNull();
+  });
+
+  it('refuses a delivery signed with another secret, and changes nothing', async () => {
+    const ada = await sessionFor(ADA);
+    const status = await deliver(controllerFor(SECRET), 'team', {}, { secret: 'guessed' });
+
+    expect(status).toBe(401);
+    expect(await fetchedAt(ada)).not.toBeNull();
+  });
+
+  it('refuses every delivery when the directory has no secret', async () => {
+    expect(await deliver(controllerFor(null), 'team', {}, { secret: '' })).toBe(401);
+  });
+
+  it('is not found for a provider without a GitHub directory', async () => {
+    expect(await deliver(controllerFor(SECRET), 'team', {}, { provider: 'nobody' })).toBe(404);
   });
 });
 

@@ -4,6 +4,7 @@ import { ConfigService } from '../config/config.service';
 import { TenancyService } from '../db/tenancy';
 import { getSequelize } from '../db/sequelize';
 import { ForgeRegistry } from '../forge/registry';
+import { DirectoryWebhookController } from '../auth/directory/webhook.controller';
 import { WebhookController } from '../forge/webhook.controller';
 import { EmbedModule } from '../embed/embed.module';
 import { EmbedService } from '../embed/embed.service';
@@ -19,7 +20,7 @@ import { Worker } from './worker';
 
 @Module({
   imports: [IngestModule, EmbedModule],
-  controllers: [WebhookController],
+  controllers: [WebhookController, DirectoryWebhookController],
   providers: [
     { provide: JobQueue, useFactory: () => new JobQueue(getSequelize()) },
     {

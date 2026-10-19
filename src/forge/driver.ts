@@ -40,7 +40,6 @@ export type ForgeAction =
   | { kind: 'purge'; forgeRepoId: string; reason: string }
   | { kind: 'discover'; installationId: string }
   | { kind: 'purge-installation'; installationId: string }
-  | { kind: 'invalidate-teams'; namespace: string }
   | { kind: 'ignore'; reason: string };
 
 export interface ForgeDriver {

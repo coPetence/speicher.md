@@ -20,7 +20,7 @@ export function verifyGithubSignature(
   const deliveryId = headerValue(headers, 'x-github-delivery');
   const event = headerValue(headers, 'x-github-event');
 
-  if (!signature || !signature.startsWith('sha256=')) {
+  if (secret === '' || !signature || !signature.startsWith('sha256=')) {
     return { valid: false, deliveryId, event };
   }
 
@@ -169,16 +169,6 @@ export function mapGithubEvent(
       }
       return actions.length ? actions : [{ kind: 'ignore', reason: 'installation_repositories' }];
     }
-
-    case 'team':
-    case 'membership':
-    case 'organization':
-      return [
-        {
-          kind: 'invalidate-teams',
-          namespace: String(payload.organization?.login ?? ''),
-        },
-      ];
 
     case 'ping':
       return [{ kind: 'ignore', reason: 'ping' }];

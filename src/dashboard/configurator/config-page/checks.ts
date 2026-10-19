@@ -25,8 +25,8 @@ import {
   sshKeyscan,
 } from '../../../forge/host-keys';
 import { RemoteProber, probeRemote } from '../../../forge/git/probe';
-import { GithubAppLinks, githubAppLinks, lookupGithubApp } from '../../../forge/github/app-links';
-import { githubHosts } from '../../../forge/github/hosts';
+import { GithubAppLinks, githubAppLinks, lookupGithubApp } from '../../../github/app-links';
+import { githubHosts } from '../../../github/hosts';
 import { probeMail } from '../../../notify/mailer';
 import { applyForm } from '../config-form/apply';
 import type { GithubAppLinksItem, KnownHostsField, Obj } from '../config-form/config-fields';

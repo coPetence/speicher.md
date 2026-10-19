@@ -1941,7 +1941,10 @@ describe("a GitHub provider's addresses", () => {
   });
 
   it('leaves the addresses out once the provider has an App', () => {
-    expect(copyValues('identity/hub')).toEqual([]);
+    // Only its directory App's webhook URL is left to copy
+    expect(copyValues('identity/hub').map((value) => value.label)).toEqual([
+      'Directory webhook URL',
+    ]);
   });
 
   it('says nothing of the sort on a provider with no App to register them in', () => {

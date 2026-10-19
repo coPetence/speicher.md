@@ -18,7 +18,7 @@ import { getSequelize } from '../db/sequelize';
 import { tenancy } from '../db/tenancy';
 
 import { unclaimedInstanceConfig } from '../dashboard/setup/unclaimed';
-import { privateKeyProblem } from '../forge/github/tokens';
+import { privateKeyProblem } from '../github/tokens';
 import { instanceConfigHasBrandImageRefs, resolveBrandImagesForTenantId } from './brand-resolve';
 import { serversWithoutHostKey } from '../forge/host-keys';
 import { adminLockout } from './checks/admins';

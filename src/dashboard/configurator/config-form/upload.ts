@@ -11,7 +11,7 @@ import {
   parseBrandImage,
   sniffMediaType,
 } from '../../../config/brand';
-import { normalizePem } from '../../../forge/github/tokens';
+import { normalizePem } from '../../../github/tokens';
 
 import type { Field } from './config-fields';
 

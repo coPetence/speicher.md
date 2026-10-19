@@ -1,4 +1,4 @@
-import { GITHUB_API, GITHUB_WEB, githubHosts } from '../../src/forge/github/hosts';
+import { GITHUB_API, GITHUB_WEB, githubHosts } from '../../src/github/hosts';
 
 describe('the addresses of a GitHub instance', () => {
   it('are those of GitHub.com when no base URL is set', () => {

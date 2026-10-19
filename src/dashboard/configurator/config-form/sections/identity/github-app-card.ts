@@ -3,8 +3,8 @@ import {
   githubCallbackUrl,
   publicUrl,
 } from '../../../../../auth/callback-url';
-import { githubAppLinks } from '../../../../../forge/github/app-links';
-import { githubHosts } from '../../../../../forge/github/hosts';
+import { githubAppLinks } from '../../../../../github/app-links';
+import { githubHosts } from '../../../../../github/hosts';
 
 import type { CardItem, Obj } from '../../config-fields';
 import {
@@ -23,7 +23,7 @@ import { memberSectionId } from '../../members';
 import type { Card } from '../../model';
 
 const GITHUB_APP_SIGN_IN_NOTE =
-  'This will create a GitHub App, not an OAuth App. Only members of the organization you create the App on will be able to sign in, and if you create it on your personal account, only you will be able to sign in. To let every GitHub user sign in, create an OAuth App on GitHub and enter its details manually. Find out more in our [documentation](https://docs.speicher.md/access/identity/github).';
+  'This will create a GitHub App, not an OAuth App. Only members of the organization you create the App on will be able to sign in, and if you create it on your personal account, only you will be able to sign in. To let every GitHub user sign in, create an OAuth App on GitHub and enter its details manually. Find out more in our [documentation](https://docs.speicher.md/configuration/identity-providers/github).';
 
 /**
  * providerAppSetupName returns the name of the switch between creating a provider's App on GitHub and entering its details manually.

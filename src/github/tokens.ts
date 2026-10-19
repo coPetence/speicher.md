@@ -2,7 +2,8 @@ import { createPrivateKey } from 'node:crypto';
 
 import { SignJWT } from 'jose';
 
-import { Logger, rootLogger } from '../../common/logger';
+import { Logger, rootLogger } from '../common/logger';
+import { githubHeaders } from './api';
 
 interface CachedToken {
   token: string;
@@ -52,11 +53,7 @@ export class GithubTokenMinter {
       `${this.apiBase}/app/installations/${encodeURIComponent(installationId)}/access_tokens`,
       {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
+        headers: githubHeaders(jwt),
       },
     );
     if (!response.ok) {

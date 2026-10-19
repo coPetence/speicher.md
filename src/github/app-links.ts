@@ -2,6 +2,7 @@
  * The links to a GitHub App's pages
  */
 
+import { githubHeaders } from './api';
 import { GITHUB_WEB } from './hosts';
 import { GithubTokenMinter } from './tokens';
 
@@ -53,11 +54,7 @@ export async function lookupGithubApp(
 ): Promise<{ slug: string; owner: GithubAppOwner }> {
   const jwt = await new GithubTokenMinter(appId, privateKey, api, fetchImpl).appJwt();
   const response = await fetchImpl(`${api}/app`, {
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
+    headers: githubHeaders(jwt),
     signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
   });
   if (!response.ok) {

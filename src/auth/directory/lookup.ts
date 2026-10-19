@@ -15,7 +15,7 @@ export interface Directory {
   subjectExists(subject: string): Promise<boolean>;
   groupSize(groupId: string): Promise<number | null>;
   probe(): Promise<DirectoryStatus>;
-  groupsFor?(subject: string): Promise<string[] | null>;
+  groupsFor?(subject: string, options?: { fresh?: boolean }): Promise<string[] | null>;
 }
 
 /**
@@ -166,7 +166,7 @@ export async function refreshGroupIds(
 
   const lookup = createDirectoryLookup(config, deps);
   const client = lookup instanceof Directories ? lookup.clientFor(providerId) : undefined;
-  return client?.groupsFor ? client.groupsFor(subject) : null;
+  return client?.groupsFor ? client.groupsFor(subject, { fresh: fetchedAt === null }) : null;
 }
 
 export const DIRECTORY_DEPS = Symbol('DIRECTORY_DEPS');
