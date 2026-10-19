@@ -25,7 +25,6 @@ import { sendGraph } from './ui/views/link-report/link-report';
 import { sendExplain } from './ui/views/path-access-check/path-access-check';
 import { sendDashboardSearch } from './ui/views/search/search';
 import { sendDeadJobs } from './ui/views/sync-status/dead-jobs/dead-jobs';
-import { sendRedirects } from './ui/views/sync-status/redirects/redirects';
 import { sendRepo } from './ui/views/sync-status/repo-status/repo-status';
 import { sendRun } from './ui/views/sync-status/run-status/run-status';
 import { sendStatus } from './ui/views/sync-status/status-overview/status-overview';
@@ -424,18 +423,7 @@ export class DashboardController {
     );
   }
 
-  /** Renders the retired redirects page: old paths that no longer lead to a renamed repo */
-  @Get('redirects')
-  async redirects(@Req() req: Request, @Res() res: Response): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    sendRedirects(this.respond, req, res, caller.isAdmin, {
-      retired_redirects: await this.repo.retiredRedirects(caller.tenantId),
-    });
-  }
-
-  /** The address both pages shared before they were split; a bookmark lands on the jobs */
+  /** The old address of the dead jobs page; a bookmark still lands on the jobs */
   @Get('logs')
   logs(@Req() req: Request, @Res() res: Response): void {
     if (!callerOf(req).isAdmin) return this.respond.notFound(req, res);

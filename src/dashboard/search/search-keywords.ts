@@ -29,8 +29,6 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
     'most read, search misses',
   'page:dead-jobs':
     'failed jobs, gave up, retry, stuck, worker errors, dead letter, logs, what went wrong',
-  'page:redirects':
-    'renamed repository, rename, moved, old path, old address, slug history, redirect gone',
   'page:config': 'settings, options, instance configuration, yaml, versions, history, preferences',
   'page:connections':
     'api keys, tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',

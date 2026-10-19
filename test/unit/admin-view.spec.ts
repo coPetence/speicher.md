@@ -7,14 +7,16 @@ import { renderHelp } from '../../src/global-ui/help-markup';
 import { renderTemplate } from '../../src/content-reader/views';
 
 describe('the section list', () => {
-  it('offers the dead jobs and the retired redirects to an admin only', () => {
-    for (const href of ['/-/dead-jobs', '/-/redirects']) {
-      expect(dashboardNav('status', true).html).toContain(`href="${href}"`);
-      expect(dashboardNav('status', false).html).not.toContain(href);
-    }
+  it('offers the dead jobs to an admin only', () => {
+    expect(dashboardNav('status', true).html).toContain('href="/-/dead-jobs"');
+    expect(dashboardNav('status', false).html).not.toContain('/-/dead-jobs');
   });
 
-  it('files both under Sync status, and opens that branch only from inside it', () => {
+  it('has no page for retired redirects', () => {
+    expect(dashboardNav('status', true).html).not.toContain('/-/redirects');
+  });
+
+  it('files the dead jobs under Sync status, and opens that branch only from inside it', () => {
     const foldOf = (html: string, href: string) =>
       new RegExp(
         `<details class="spr-nav-fold" data-spr-fold="[a-z]+"( open)?>\\s*<summary[^>]*>\\s*<a href="${href}"`,
@@ -23,9 +25,6 @@ describe('the section list', () => {
     expect(onStatus).toContain('spr-nav-branch');
     expect(onStatus.indexOf('href="/-/status"')).toBeLessThan(
       onStatus.indexOf('href="/-/dead-jobs"'),
-    );
-    expect(onStatus.indexOf('href="/-/dead-jobs"')).toBeLessThan(
-      onStatus.indexOf('href="/-/redirects"'),
     );
     expect(onStatus).toMatch(/href="\/-\/status" aria-current="page"/);
     expect(onStatus.match(/aria-current/g)).toHaveLength(1);
@@ -39,7 +38,6 @@ describe('the section list', () => {
     // and closed, so the column says where the reader is.
     expect(foldOf(onStatus, '/-/status')?.[1]).toBe(' open');
     expect(foldOf(onDeadJobs, '/-/status')?.[1]).toBe(' open');
-    expect(foldOf(dashboardNav('redirects', true).html, '/-/status')?.[1]).toBe(' open');
     for (const elsewhere of ['explain', 'config'] as const) {
       const html = dashboardNav(elsewhere, true).html;
       expect(foldOf(html, '/-/status')).not.toBeNull();
@@ -89,7 +87,6 @@ describe('the section list', () => {
     const maintainer = dashboardNav('status', false).html;
     expect(maintainer).not.toContain('/-/graph');
     expect(maintainer).not.toContain('/-/dead-jobs');
-    expect(maintainer).not.toContain('/-/redirects');
     expect(maintainer).not.toContain('/-/config');
     expect(dashboardNav('status', true).html).toContain('/-/graph');
     expect(dashboardNav('status', true).html).toContain('/-/config');
@@ -315,7 +312,6 @@ describe('the section list', () => {
       hasContent: false,
     }).html;
     expect(setup).not.toContain('/-/dead-jobs');
-    expect(setup).not.toContain('/-/redirects');
 
     const onDeadJobs = dashboardNav('dead-jobs', true, {
       showSetup: true,
