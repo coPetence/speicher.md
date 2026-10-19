@@ -223,7 +223,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
       const response = await startFlow('team', await openNewSource('team')).expect(200);
       const manifest = manifestOf(response.text);
       expect(manifest.hook_attributes).toEqual({
-        url: 'https://docs.acme.example/-/hooks/team',
+        url: 'https://docs.acme.example/-/hooks/forge/team',
         active: true,
       });
       expect(manifest.redirect_url).toBe(
@@ -247,7 +247,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
 
       const response = await startFlow('team', formBody(page.text)).expect(200);
       expect(manifestOf(response.text).hook_attributes).toEqual({
-        url: 'http://speicher.internal/-/hooks/team',
+        url: 'http://speicher.internal/-/hooks/forge/team',
         active: true,
       });
     } finally {

@@ -4,12 +4,14 @@ import { env } from '../common/env';
  * Path segment used as the NestJS controller prefix for incoming webhooks
  */
 export const WEBHOOK_ROUTE = '-/hooks';
+export const FORGE_WEBHOOK_PREFIX = 'forge';
+export const DIRECTORY_WEBHOOK_PREFIX = 'directory';
 
 /**
  * Server-relative path for a forge's webhook endpoint
  */
 export function webhookPath(forgeKey: string): string {
-  return `/${WEBHOOK_ROUTE}/${encodeURIComponent(forgeKey)}`;
+  return `/${WEBHOOK_ROUTE}/${FORGE_WEBHOOK_PREFIX}/${encodeURIComponent(forgeKey)}`;
 }
 
 /**
@@ -26,7 +28,7 @@ export function webhookUrl(forgeKey: string): string | null {
  * Server-relative path for the webhook of an identity provider's directory App
  */
 export function directoryWebhookPath(providerId: string): string {
-  return `/${WEBHOOK_ROUTE}/directory/${encodeURIComponent(providerId)}`;
+  return `/${WEBHOOK_ROUTE}/${DIRECTORY_WEBHOOK_PREFIX}/${encodeURIComponent(providerId)}`;
 }
 
 /**

@@ -22,7 +22,8 @@ import { TenancyService } from '../db/tenancy';
 import { JobQueue } from '../jobs/queue';
 import { ForgeAction, ForgeDriver } from './driver';
 import { ForgeRegistry } from './registry';
-import { WEBHOOK_ROUTE } from './webhook-url';
+import { readSignedDelivery } from './signed-delivery';
+import { FORGE_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from './webhook-url';
 
 export const DELIVERY_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 
@@ -38,7 +39,7 @@ export class WebhookController {
     initModels();
   }
 
-  @Post(':forge')
+  @Post(`${FORGE_WEBHOOK_PREFIX}/:forge`)
   @HttpCode(202)
   async receive(
     @Param('forge') forgeKey: string,
@@ -53,22 +54,16 @@ export class WebhookController {
       return;
     }
 
-    const rawBody = req.rawBody;
-    if (!rawBody) {
-      this.log.error('raw body is unavailable; signature cannot be verified');
-      res.status(400).end();
-      return;
-    }
-
-    const verification = driver.verifyWebhook(headers, rawBody);
-    if (!verification.valid) {
-      this.log.warn('rejected an unsigned or mis-signed delivery', {
-        forge: forgeKey,
-        event: verification.event,
-      });
-      res.status(401).end();
-      return;
-    }
+    const delivery = readSignedDelivery(
+      req,
+      res,
+      headers,
+      (h, body) => driver.verifyWebhook(h, body),
+      this.log,
+      { forge: forgeKey },
+    );
+    if (!delivery) return;
+    const { verification, payload } = delivery;
 
     const tenant = await this.tenancy.resolveTenant(req);
     const forgeRow = await this.forges.forgeRowByKey(tenant.id, forgeKey);
@@ -110,14 +105,6 @@ export class WebhookController {
     }
 
     res.status(202).end();
-
-    let payload: Record<string, unknown>;
-    try {
-      payload = JSON.parse(rawBody.toString('utf8'));
-    } catch {
-      this.log.warn('delivery body is not JSON', { delivery_id: verification.deliveryId });
-      return;
-    }
 
     const actions = driver.mapEvent(verification.event ?? '', payload);
 

@@ -12,7 +12,8 @@ import { GithubProviderConfig, providerType } from '../../config/types';
 import { Session, initModels } from '../../db/models';
 import { TenancyService } from '../../db/tenancy';
 import { verifyGithubSignature } from '../../forge/github/webhook';
-import { WEBHOOK_ROUTE } from '../../forge/webhook-url';
+import { readSignedDelivery } from '../../forge/signed-delivery';
+import { DIRECTORY_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from '../../forge/webhook-url';
 
 export type StaleSessions = { subject: string } | 'all' | null;
 
@@ -55,7 +56,7 @@ export class DirectoryWebhookController {
     initModels();
   }
 
-  @Post('directory/:provider')
+  @Post(`${DIRECTORY_WEBHOOK_PREFIX}/:provider`)
   async receive(
     @Param('provider') providerId: string,
     @Req() req: RawBodyRequest<Request>,
@@ -72,34 +73,16 @@ export class DirectoryWebhookController {
       return;
     }
 
-    if (!req.rawBody) {
-      this.log.error('raw body is unavailable; signature cannot be verified');
-      res.status(400).end();
-      return;
-    }
-
-    const verification = verifyGithubSignature(
+    const delivery = readSignedDelivery(
+      req,
+      res,
       headers,
-      req.rawBody,
-      directory.webhook_secret ?? '',
+      (h, body) => verifyGithubSignature(h, body, directory.webhook_secret ?? ''),
+      this.log,
+      { provider: providerId },
     );
-    if (!verification.valid) {
-      this.log.warn('rejected an unsigned or mis-signed delivery', {
-        provider: providerId,
-        event: verification.event,
-      });
-      res.status(401).end();
-      return;
-    }
-
-    let payload: Record<string, unknown>;
-    try {
-      payload = JSON.parse(req.rawBody.toString('utf8'));
-    } catch {
-      this.log.warn('delivery body is not JSON', { delivery_id: verification.deliveryId });
-      res.status(400).end();
-      return;
-    }
+    if (!delivery) return;
+    const { verification, payload } = delivery;
 
     const stale = staleSessionsOf(verification.event ?? '', payload);
     if (stale === null) {

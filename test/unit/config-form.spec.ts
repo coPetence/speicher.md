@@ -2034,13 +2034,13 @@ describe("a GitHub source's webhook URL", () => {
 
   it('offers the absolute URL to copy, from the declared public URL and the forge id', () => {
     const [webhook] = withPublicUrl('https://docs.acme.example/', () => copyValues('sources/gh'));
-    expect(webhook.text).toBe('https://docs.acme.example/-/hooks/gh');
+    expect(webhook.text).toBe('https://docs.acme.example/-/hooks/forge/gh');
     expect(webhook.note).toContain('**Webhook URL**');
   });
 
   it('offers the path to copy when no public URL is declared, for the browser to complete', () => {
     const [webhook] = withPublicUrl(undefined, () => copyValues('sources/gh'));
-    expect(webhook.text).toBe('/-/hooks/gh');
+    expect(webhook.text).toBe('/-/hooks/forge/gh');
     // One sentence for both: the browser completes the path, and without it the reader does
     expect(webhook.note).toContain('**Webhook URL**');
     expect(webhook.note).toContain('If only a path without a host is shown');
