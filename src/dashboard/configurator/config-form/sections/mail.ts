@@ -7,10 +7,10 @@
  * links are the first of them rather than the owner
  */
 
-import { SECRET_HELP, numberField, secretField, textField } from '../config-fields';
 import type { Obj } from '../config-fields';
-import { sectionHead } from './registry';
+import { SECRET_HELP, numberField, secretField, textField } from '../config-fields';
 import type { SectionSource } from './registry';
+import { sectionHead } from './registry';
 
 export function mailSection(root: Obj): SectionSource {
   return {
@@ -18,7 +18,7 @@ export function mailSection(root: Obj): SectionSource {
     blurb:
       'The relay this instance sends through: magic links, and every notice it sends. ' +
       'Find out more in our ' +
-      '[documentation](https://docs.speicher.md/operate/mail)',
+      '[documentation](https://docs.speicher.md/configuration/mail-transport)',
     fields: [
       textField(root, ['mail', 'host'], 'mail.host', 'SMTP host'),
       numberField(root, ['mail', 'port'], 'mail.port', 'Port', {
