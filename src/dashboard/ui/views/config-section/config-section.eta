@@ -440,43 +440,6 @@
 <% } %>
 
 <% if (!fieldsFirst) renderFields() %>
-<% it.section.cards.forEach(function (card) { %><%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon }) %><% }) %>
-<%
-  const ordinary = it.section.fields.filter(function (f) { return !f.advanced });
-  const advanced = it.section.fields.filter(function (f) { return f.advanced });
-  const paired = ordinary.filter(function (f) { return f.kind !== 'template' });
-  const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
-%>
-<% const showsId = it.editable && it.creating && it.section.renameOp %>
-<% if (showsId || paired.length > 0) { %>
-<div class="spr-fields">
-  <% if (showsId) { %>
-  <div class="spr-field spr-field-text">
-    <div class="spr-field-head">
-      <label for="f-member-id">Short id</label>
-      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', help: it.member_id_help } }) %>
-    </div>
-    <input
-      id="f-member-id"
-      name="newname:<%= it.section_id %>"
-      type="text"
-      value="<%= it.section_title %>"
-      pattern="<%= it.section.renamePattern %>"
-      title="<%= it.section.renameHint %>"
-      spellcheck="false"
-      autocomplete="off"
-      required
-    >
-  </div>
-  <% } %>
-  <% paired.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
-</div>
-<% } %>
-<% if (gallery.length > 0) { %>
-<div class="spr-fields spr-fields-wide">
-  <% gallery.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
-</div>
-<% } %>
 <%
   // An Add button with `beforeCard` is drawn before that card, every other one after the last card
   const inlineAdds = it.editable ? it.section.addOps.filter(function (a) { return !a.opensPage }) : [];
