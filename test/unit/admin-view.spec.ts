@@ -1,6 +1,6 @@
 import { elapsed, isoOf, relativeTime } from '../../src/common/time';
 import { nextSetupPage, setupSteps } from '../../src/dashboard/setup/steps';
-import { repoLevel, runLevel, severityLevel } from '../../src/dashboard/ui/levels';
+import { runLevel, severityLevel } from '../../src/dashboard/ui/levels';
 import { dashboardNav } from '../../src/dashboard/ui/views/nav-tree/nav-tree';
 import { openDashboardFolds } from '../../src/dashboard/dashboard-sections';
 import { renderHelp } from '../../src/global-ui/help-markup';
@@ -390,19 +390,8 @@ describe('the section list', () => {
   });
 });
 
-describe('the state of a repository', () => {
-  it('reads a failure as a failure, whatever the clock says', () => {
-    expect(repoLevel('failed', false)).toBe('fail');
-    expect(repoLevel('failed', true)).toBe('fail');
-  });
-
-  it('treats silence as its own problem', () => {
-    expect(repoLevel('ok', true)).toBe('warn');
-    expect(repoLevel('ok', false)).toBe('ok');
-  });
-
+describe('the level of a run or a finding', () => {
   it('says nothing it does not know', () => {
-    expect(repoLevel('never', false)).toBe('idle');
     expect(runLevel('running')).toBe('idle');
     expect(severityLevel('reject')).toBe('fail');
     expect(severityLevel('warn')).toBe('warn');

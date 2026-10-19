@@ -266,6 +266,35 @@ describe('the repository list', () => {
     expect(res.text).toContain('action="/-/discover"');
   });
 
+  describe('a repository whose first sync failed', () => {
+    const setFirstSync = (failed: boolean) =>
+      getSequelize().query(
+        `UPDATE repos SET has_config = :hasConfig, last_status = :status, last_run_at = now()
+          WHERE id = :repoId`,
+        {
+          replacements: {
+            hasConfig: !failed,
+            status: failed ? 'failed' : 'ok',
+            repoId: harness.repos.fieldkit,
+          },
+        },
+      );
+
+    beforeAll(() => setFirstSync(true));
+    afterAll(() => setFirstSync(false));
+
+    it('is shown as failed by default, not hidden as not published', async () => {
+      const res = await json('ops', '/-/status');
+      const fieldkit = res.body.repos.find((repo: { slug: string }) => repo.slug === 'fieldkit');
+      expect(fieldkit).toMatchObject({ state: 'failed' });
+    });
+
+    it('is listed under the filter the Failed tile links to', async () => {
+      const res = await json('ops', '/-/status?f=1&state=failed');
+      expect(res.body.repos.map((repo: { slug: string }) => repo.slug)).toContain('fieldkit');
+    });
+  });
+
   describe('the filter, with a repository that has no .speicher.yaml', () => {
     const setConfig = (hasConfig: boolean) =>
       getSequelize().query(
