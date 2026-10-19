@@ -30,7 +30,7 @@ import { BlobStore } from './assets/blob-store';
 import { GraphDirectoryDeps } from './auth/directory/graph';
 import { DIRECTORY_DEPS } from './auth/directory/lookup';
 import { DashboardResponder } from './dashboard/respond';
-import { StatusService } from './dashboard/status.service';
+import { StatusService } from './dashboard/status/status.service';
 import { ApiKeyService } from './auth/api-key.service';
 import { OauthController } from './auth/oauth/oauth.controller';
 import { OauthMetadataController } from './auth/oauth/metadata.controller';

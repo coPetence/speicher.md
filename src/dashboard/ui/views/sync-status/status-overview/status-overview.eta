@@ -22,20 +22,64 @@
              placeholder="Repository or source"
              autocomplete="off" spellcheck="false">
     </span>
-    <details class="spr-filter-menu"<%= it.state_filtered ? ' data-spr-active' : '' %>>
+    <details class="spr-modal spr-filter-modal"<%= it.filter_applied > 0 ? ' data-spr-active' : '' %>>
       <summary aria-label="Filter" title="Filter"><%~ it.filter_icon || '' %></summary>
-      <div class="spr-filter-panel">
-        <fieldset>
-          <legend>State</legend>
-          <% it.state_filter.forEach(function (option) { %>
-          <label class="spr-filter-option">
-            <input type="checkbox" name="state" value="<%= option.value %>"<%= option.checked ? ' checked' : '' %>>
-            <span><%= option.label %></span>
-            <span class="spr-filter-count"><%= option.count %></span>
-          </label>
-          <% }) %>
-        </fieldset>
-        <button type="submit" class="spr-primary">Apply</button>
+      <div class="spr-modal-panel spr-filter-dialog" role="dialog" aria-labelledby="filter-title"
+           data-spr-facets="<%= it.facet_rows %>">
+        <header class="spr-filter-dialog-head">
+          <h2 id="filter-title">Filter repositories</h2>
+          <p>See results in the sync-status page based on the filters you apply.</p>
+        </header>
+
+        <div class="spr-filter-dialog-body">
+          <div class="spr-filter-groups">
+            <div class="spr-filter-groups-head">
+              <span>Filters</span>
+              <button type="button" class="spr-filter-clear" data-spr-filter-clear>
+                <span data-spr-applied><%= it.filter_applied %></span> applied<%~ it.clear_icon || '' %>
+              </button>
+            </div>
+            <% it.filter_groups.forEach(function (group, index) { %>
+            <button type="button" class="spr-filter-group" data-spr-group="<%= group.key %>"<%= index === 0 ? ' aria-current="true"' : '' %>>
+              <%~ group.icon %><span><%= group.label %></span>
+              <span class="spr-filter-group-count" data-spr-group-count><%= group.selected > 0 ? group.selected : '' %></span>
+              <%~ it.chevron_icon || '' %>
+            </button>
+            <% }) %>
+          </div>
+
+          <div class="spr-filter-panels">
+            <% it.filter_groups.forEach(function (group) { %>
+            <fieldset class="spr-choices spr-filter-choices" data-spr-group-panel="<%= group.key %>">
+              <legend class="spr-filter-choices-head">
+                <%~ group.icon %><span><%= group.label %></span>
+                <span class="spr-filter-selected"><span data-spr-selected><%= group.selected %></span> selected</span>
+                <button type="button" class="spr-filter-all" data-spr-select-all>Select all</button>
+              </legend>
+              <% if (group.searchable) { %>
+              <input type="search" class="spr-filter-search" placeholder="Search…"
+                     aria-label="Search <%= group.label.toLowerCase() %>" data-spr-option-search
+                     autocomplete="off" spellcheck="false">
+              <% } %>
+              <% group.options.forEach(function (option) { %>
+              <label data-spr-option="<%= option.label.toLowerCase() %>">
+                <input type="checkbox" name="<%= group.key %>" value="<%= option.value %>"<%= option.checked ? ' checked' : '' %>>
+                <span><%= option.label %></span>
+                <span class="spr-filter-count"><%= option.count %></span>
+              </label>
+              <% }) %>
+            </fieldset>
+            <% }) %>
+          </div>
+        </div>
+
+        <footer class="spr-filter-dialog-foot">
+          <span>Results: <strong data-spr-results><%= it.repos_matching %></strong></span>
+          <button type="button" class="spr-filter-cancel" data-spr-filter-cancel>Cancel</button>
+          <button type="submit" class="spr-primary">Apply filters</button>
+        </footer>
+        <input type="hidden" name="f" value="1">
+        <% if (it.sort !== 'name') { %><input type="hidden" name="sort" value="<%= it.sort %>"><% } %>
       </div>
     </details>
     <button type="submit" class="spr-filter-go">Filter</button>
@@ -51,21 +95,24 @@
 </div>
 <% } %>
 
-<% if (it.discovering_note) { %>
-<%~ include('@note', it.discovering_note) %>
-<% } %>
+<div data-spr-activity<%= it.busy ? ' data-spr-busy' : '' %>>
+  <% if (it.discovering_note) { %>
+  <%~ include('@note', it.discovering_note) %>
+  <% } %>
+</div>
 
 
 <div class="spr-scroll"<%= it.repos.length === 0 ? ' hidden' : '' %>>
   <table class="spr-table" data-spr-rows>
     <thead>
       <tr>
-        <th scope="col">Repository</th>
+        <th scope="col"<%~ it.sort === 'name' ? ' aria-sort="ascending"' : '' %>><a class="spr-sort" href="<%= it.sort_name_href %>">Repository</a></th>
         <th scope="col">State</th>
         <th scope="col">Last sync</th>
         <th scope="col">Commit</th>
-        <th scope="col" class="spr-num">Pages</th>
-        <th scope="col" class="spr-num">Dropped grants</th>
+        <th scope="col" class="spr-num"<%~ it.sort === 'pages-desc' ? ' aria-sort="descending"' : it.sort === 'pages-asc' ? ' aria-sort="ascending"' : '' %>>
+          <a class="spr-sort" href="<%= it.sort_pages_href %>"<%= it.sort === 'name' ? '' : ' data-spr-sorted' %>><%~ it.sort_pages_icon %>Pages</a>
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -74,7 +121,11 @@
       <tr data-spr-row="<%= repo.search %>">
         
         <th scope="row"><%~ repo.markHtml || '' %><a href="<%= repo.href %>"><%= repo.name %></a></th>
-        <td><%~ include('@badge', { level: repo.level, label: repo.state }) %></td>
+        <td>
+          <%~ include('@badge', { level: repo.level, label: repo.state }) %>
+          <% if (repo.activity === 'syncing') { %><span class="spr-activity"><%~ it.syncing_icon || '' %>syncing</span><% } %>
+          <% if (repo.activity === 'queued') { %><span class="spr-activity"><%~ it.queued_icon || '' %>queued</span><% } %>
+        </td>
         
         
         <td>
@@ -83,13 +134,12 @@
         </td>
         <td><code><%= repo.sha %></code></td>
         <td class="spr-num"><%= repo.documents %></td>
-        <td class="spr-num"><%= repo.droppedGrants %></td>
       </tr>
       <% if (repo.problems.length > 0) { %>
       <tr class="spr-row-note" data-spr-row="<%= repo.search %>">
-        <td colspan="6">
+        <td colspan="5">
           <% if (repo.problems.length > 1) { %>
-          <details class="spr-sync-problems">
+          <details class="spr-sync-problems" data-spr-repo="<%= repo.name %>">
             <summary><%~ it.problem_icon || '' %><span><%= repo.problemSummary %></span></summary>
             <ul>
               <% repo.problems.forEach(function (problem) { %>
@@ -116,12 +166,12 @@
   <% } else if (it.default_hides_all) { %>
   <p class="spr-empty">
     None of the <%= it.total %> repositories has a <code>.speicher.yaml</code> at its root yet.
-    <a href="/-/status?<%= it.all_states_query %>">Show them</a>
+    <a href="/-/status?f=1">Show them</a>
   </p>
   <% } else { %>
   <p class="spr-empty">
-    No repository is in one of the selected states.
-    <a href="/-/status?<%= it.all_states_query %>">Show all states</a>
+    No repository matches the filter.
+    <a href="/-/status?f=1">Clear the filter</a>
   </p>
   <% } %>
 </div>
@@ -131,7 +181,7 @@
   <%~ it.empty_art || '' %>
   <p class="spr-empty">
     No repository matches <code data-spr-needle><%= it.query %></code>.
-    <a href="/-/status<%= it.states_query ? '?' + it.states_query : '' %>">Show all</a>
+    <a href="/-/status">Show all</a>
   </p>
 </div>
 

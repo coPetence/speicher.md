@@ -1269,6 +1269,46 @@
     color: var(--spr-status-fail);
   }
 
+  .spr-activity {
+    margin-inline-start: var(--spr-space-2);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+    white-space: nowrap;
+  }
+
+  .spr-activity .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0 var(--spr-space-1) 0 0;
+    vertical-align: middle;
+  }
+
+  .spr-table thead .spr-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-1);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .spr-table thead .spr-sort:hover {
+    color: var(--spr-fg);
+  }
+
+  .spr-table thead .spr-sort .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+    opacity: 0.5;
+  }
+
+  .spr-table thead .spr-sort[data-spr-sorted] .spr-icon {
+    width: 1em;
+    height: 1em;
+    color: var(--spr-accent);
+    opacity: 1;
+  }
+
   /* A repository and its problems read as one row */
   .spr-table tr:has(+ .spr-row-note) > * {
     border-bottom-width: 0;
@@ -1325,119 +1365,257 @@
     overflow-wrap: anywhere;
   }
 
-  .spr-filter-menu {
-    position: relative;
-    flex: none;
-  }
-
-  .spr-filter-menu > summary {
-    display: inline-flex;
+  /* The funnel that opens the filter, tinted while the filter narrows the list */
+  .spr-filter-modal > summary {
     align-items: center;
     justify-content: center;
     min-height: calc(1lh + 2 * var(--spr-space-2) + 2 * var(--spr-border));
     padding: var(--spr-space-2) var(--spr-space-3);
     border: var(--spr-border) solid var(--spr-line);
-    border-radius: var(--spr-radius);
     background: var(--spr-surface);
     color: var(--spr-fg);
-    white-space: nowrap;
-    list-style: none;
-    cursor: pointer;
   }
 
-  .spr-filter-menu > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .spr-filter-menu > summary:hover,
-  .spr-filter-menu[open] > summary {
+  .spr-filter-modal > summary:hover,
+  .spr-filter-modal[open] > summary {
     border-color: var(--spr-accent);
   }
 
-  .spr-filter-menu > summary .spr-icon {
+  .spr-filter-modal > summary .spr-icon {
     width: 1em;
     height: 1em;
     margin: 0;
   }
 
-  /* Some state is left out, so the list is narrower than the instance */
-  .spr-filter-menu[data-spr-active] > summary {
+  .spr-filter-modal[data-spr-active] > summary {
     background: color-mix(in oklab, var(--spr-accent) 12%, var(--spr-surface));
     color: var(--spr-accent);
   }
 
-  /* Centred under the button it drops from */
-  .spr-filter-panel {
-    position: absolute;
-    top: calc(100% + var(--spr-space-2));
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spr-space-3);
-    min-width: var(--spr-menu-width);
-    padding: var(--spr-space-3) var(--spr-space-4);
-    border: var(--spr-border) solid var(--spr-line);
-    border-radius: var(--spr-radius-lg);
-    background: var(--spr-surface);
+  .spr-modal-panel.spr-filter-dialog {
+    width: min(40rem, calc(100vw - var(--spr-space-5) * 2));
+    height: min(34rem, calc(100vh - var(--spr-space-8) * 2));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    justify-items: stretch;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
-  .spr-filter-panel fieldset {
+  .spr-filter-dialog-head {
+    padding: var(--spr-space-5) var(--spr-space-6);
+    border-bottom: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-filter-dialog-head h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .spr-filter-dialog-head p {
+    margin: var(--spr-space-1) 0 0;
+    color: var(--spr-muted);
+  }
+
+  .spr-filter-dialog-body {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .spr-filter-groups {
     display: flex;
     flex-direction: column;
     gap: var(--spr-space-2);
-    margin: 0;
-    padding: 0;
-    border: 0;
+    padding: var(--spr-space-4);
+    border-right: var(--spr-border) solid var(--spr-line);
+    overflow: auto;
   }
 
-  .spr-filter-panel legend {
+  .spr-filter-groups-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: var(--spr-space-2);
-    padding: 0;
-    color: var(--spr-muted);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  /* `.spr-form button` would make these plain buttons, so each is restated */
+  .spr-filter .spr-filter-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-1);
+    padding: var(--spr-space-1) var(--spr-space-3);
+    border: 0;
+    border-radius: 999px;
+    background: var(--spr-accent);
+    color: var(--spr-bg);
     font-size: var(--spr-font-size-label);
+    font-weight: var(--spr-weight-strong);
   }
 
-  .spr-filter-panel > button {
+  .spr-filter .spr-filter-clear .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-filter .spr-filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
     width: 100%;
+    padding: var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    text-align: left;
   }
 
-  /* `.spr-form button` outranks `.spr-primary`, so the accent is restated here */
-  .spr-filter .spr-filter-panel > .spr-primary {
+  .spr-filter .spr-filter-group:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-filter .spr-filter-group[aria-current='true'] {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+  }
+
+  .spr-filter-group .spr-icon {
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
+
+  .spr-filter-group-count {
+    margin-left: auto;
+    font-size: var(--spr-font-size-label);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .spr-filter-panels {
+    padding: var(--spr-space-4) var(--spr-space-5);
+    background: var(--spr-bg);
+    overflow: auto;
+  }
+
+  .spr-choices.spr-filter-choices {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--spr-space-1);
+  }
+
+  .spr-filter-dialog:not([data-spr-live]) .spr-filter-choices + .spr-filter-choices {
+    margin-top: var(--spr-space-6);
+  }
+
+  .spr-choices > legend.spr-filter-choices-head {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin-bottom: var(--spr-space-3);
+    padding-bottom: var(--spr-space-3);
+    border-bottom: var(--spr-border) solid var(--spr-line);
+    color: var(--spr-fg);
+    font-size: inherit;
+    font-weight: var(--spr-weight-strong);
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  .spr-filter-choices-head .spr-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
+
+  .spr-filter-selected {
+    margin-left: auto;
+    color: var(--spr-muted);
+    font-weight: normal;
+  }
+
+  .spr-filter .spr-filter-all,
+  .spr-filter .spr-filter-dialog .spr-primary {
     border-color: var(--spr-accent);
     background: var(--spr-accent);
     color: var(--spr-bg);
     font-weight: var(--spr-weight-strong);
   }
 
-  .spr-filter .spr-filter-panel > .spr-primary:hover {
+  .spr-filter .spr-filter-all:hover,
+  .spr-filter .spr-filter-dialog .spr-primary:hover {
     background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
   }
 
-  /* An option row, not the uppercase caption `.spr-form label` would make it */
-  .spr-filter .spr-filter-option {
-    display: flex;
-    align-items: center;
-    gap: var(--spr-space-2);
-    margin: 0;
-    color: var(--spr-fg);
-    font-size: inherit;
-    letter-spacing: normal;
-    text-transform: none;
-    white-space: nowrap;
-    cursor: pointer;
+  .spr-filter .spr-modal-panel .spr-filter-search {
+    flex: none;
+    width: 100%;
+    margin-bottom: var(--spr-space-2);
+    padding-inline-start: var(--spr-space-3);
   }
 
-  .spr-filter .spr-filter-option input {
-    margin: 0;
+  .spr-modal-panel .spr-filter-choices label {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-2) var(--spr-space-1);
+  }
+
+  .spr-modal-panel .spr-filter-choices label[hidden] {
+    display: none;
   }
 
   .spr-filter-count {
     margin-left: auto;
-    padding-left: var(--spr-space-4);
     color: var(--spr-muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  .spr-filter-dialog-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-4);
+    padding: var(--spr-space-4) var(--spr-space-6);
+    border-top: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-filter-dialog-foot > span {
+    margin-right: auto;
+  }
+
+  .spr-filter .spr-filter-cancel {
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+  }
+
+  .spr-filter-dialog[data-spr-live] [data-spr-group-panel]:not([data-spr-current]) {
+    display: none;
+  }
+
+  .spr-filter-dialog:not([data-spr-live]) .spr-filter-groups {
+    display: none;
+  }
+
+  .spr-filter-dialog:not([data-spr-live]) .spr-filter-dialog-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media not all and (min-width: 40rem) {
+    .spr-filter-dialog-body {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .spr-filter-groups {
+      border-right: 0;
+      border-bottom: var(--spr-border) solid var(--spr-line);
+    }
   }
 
   .spr-index-add-link {

@@ -11,17 +11,16 @@
 
 const LIVE = 'data-spr-live';
 
-export function mountFilter(tableSelector: string): void {
+export function mountFilter(tableSelector: string): (() => void) | null {
   const form = document.querySelector<HTMLFormElement>('form[data-spr-filter]');
-  if (!form) return;
+  if (!form) return null;
 
   const box = form.querySelector<HTMLInputElement>('input[name="q"]');
   const table = document.querySelector<HTMLElement>(tableSelector);
-  if (!box || !table) return;
+  if (!box || !table) return null;
 
-  if (box.value.trim() !== '') return;
+  if (box.value.trim() !== '') return null;
 
-  const rows = [...table.querySelectorAll<HTMLElement>('tr[data-spr-row]')];
   const scroll = table.closest<HTMLElement>('.spr-scroll') ?? table;
 
   const emptyNone = document.querySelector<HTMLElement>('[data-spr-empty="none"]');
@@ -34,7 +33,8 @@ export function mountFilter(tableSelector: string): void {
     const typed = box.value.trim();
     const needle = typed.toLowerCase();
     let shown = 0;
-    for (const row of rows) {
+    // Read each time, because the rows may have been swapped since the last time
+    for (const row of table.querySelectorAll<HTMLElement>('tr[data-spr-row]')) {
       const hit = needle === '' || (row.dataset.sprRow ?? '').includes(needle);
       row.hidden = !hit;
       if (hit) shown++;
@@ -52,4 +52,5 @@ export function mountFilter(tableSelector: string): void {
   box.addEventListener('search', apply);
 
   apply();
+  return apply;
 }

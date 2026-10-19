@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { runLevel, severityLevel } from '../../../levels';
 import { DashboardResponder } from '../../../../respond';
 import { RunRow } from '../../../../dashboard.repository';
-import { RunPayload } from '../../../../status.service';
+import { RunPayload } from '../../../../status/status.types';
 import { elapsed, isoOf, relativeTime } from '../../../../../common/time';
 import { renderInlineIcon } from '../../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../../content-reader/views';
