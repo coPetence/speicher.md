@@ -14,6 +14,7 @@ import { ForgeConfig } from '../../config/types';
 import { githubHeaders } from '../../github/api';
 import { githubHosts } from '../../github/hosts';
 import { GithubTokenMinter } from '../../github/tokens';
+import { isConfigFilename } from '../../ingest/paths';
 import type { WebhookVerification } from '../../webhooks/signed-delivery';
 import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
 import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
