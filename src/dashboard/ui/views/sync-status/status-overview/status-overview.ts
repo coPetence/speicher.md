@@ -203,6 +203,14 @@ function sortHref(data: StatusPayload, sort: RepoSort): string {
   return `/-/status?${params.toString()}`;
 }
 
+function stateHref(data: StatusPayload, state: RepoState): string {
+  const params = new URLSearchParams(
+    repoFilterQuery({ state: [state], owner: [], source: [], pages: [] }),
+  );
+  if (data.sort !== 'name') params.set('sort', data.sort);
+  return `/-/status?${params.toString()}`;
+}
+
 const PAGE_RANGE_LABELS: Record<PageRange, string> = {
   none: 'No pages',
   '1-9': '1-9',
@@ -334,8 +342,20 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
           tile('Queued', payload.instance.queued_jobs, 'idle', STAT_ICONS.queued),
         ]
       : []),
-    tile('Failed', failed, failed > 0 ? 'fail' : 'idle', STAT_ICONS.failed),
-    tile('Stale', stale, stale > 0 ? 'warn' : 'idle', STAT_ICONS.stale),
+    tile(
+      'Failed',
+      failed,
+      failed > 0 ? 'fail' : 'idle',
+      STAT_ICONS.failed,
+      stateHref(payload, 'failed'),
+    ),
+    tile(
+      'Stale',
+      stale,
+      stale > 0 ? 'warn' : 'idle',
+      STAT_ICONS.stale,
+      stateHref(payload, 'stale'),
+    ),
     /*
       Dead jobs, as a figure rather than as a line in a panel of instance facts.
 
