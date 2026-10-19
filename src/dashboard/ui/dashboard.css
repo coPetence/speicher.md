@@ -10,6 +10,7 @@
 @import '../../global-ui/components/config-fields/github-app-manifest/github-app-manifest.css';
 @import '../../global-ui/components/config-fields/github-app-links/github-app-links.css';
 @import '../../global-ui/components/config-fields/known-hosts/known-hosts.css';
+@import '../../global-ui/components/config-fields/pick-list/pick-list.css';
 @import '../../global-ui/components/info/info.css';
 @import '../../global-ui/components/note/note.css';
 @import '../../global-ui/components/select/select.css';
@@ -719,12 +720,44 @@
 
   .spr-config-actions {
     position: sticky;
-    bottom: 0;
+    bottom: var(--spr-space-5);
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
     gap: var(--spr-space-3);
-    padding: var(--spr-space-5) 0;
-    background: var(--spr-bg);
-    border-top: var(--spr-border) solid var(--spr-line);
+    margin-block-start: var(--spr-space-6);
+    padding: var(--spr-space-4) var(--spr-space-5);
+    background: var(--spr-bar-bg);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    z-index: 1;
+  }
+
+  @media (scripting: enabled) {
+    .spr-config:not([data-spr-live]) .spr-config-actions {
+      animation: spr-config-bar-wait 0s 1s both;
+    }
+  }
+
+  @keyframes spr-config-bar-wait {
+    from {
+      visibility: hidden;
+    }
+
+    to {
+      visibility: visible;
+    }
+  }
+
+  .spr-config-actions .spr-config-check {
+    border-color: color-mix(in oklab, var(--spr-fg) 30%, transparent);
+  }
+
+  .spr-config-actions .spr-primary {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
   }
 
   .spr-config[data-spr-live] .spr-config-actions {
@@ -782,8 +815,10 @@
     margin: var(--spr-space-6) 0;
   }
 
-  .spr-main:has(.spr-config:not([data-spr-live])) .spr-toast {
-    inset-block-end: 6rem;
+  @media (scripting: none) {
+    .spr-main:has(.spr-config:not([data-spr-live])) .spr-toast {
+      inset-block-end: 6rem;
+    }
   }
 
   .spr-history {

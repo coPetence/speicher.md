@@ -74,6 +74,16 @@ export class ContentReports {
     return new Map(rows.map((r) => [r.repo_id, Number(r.pages)]));
   }
 
+  async reposReadableBy(tenantId: string, principal: string): Promise<Set<string>> {
+    const rows = await this.sequelize.query<{ repo_id: string }>(
+      `SELECT DISTINCT d.repo_id
+         FROM documents d
+        WHERE d.tenant_id = :tenantId AND :principal = ANY (d.effective_principals)`,
+      { type: QueryTypes.SELECT, replacements: { tenantId, principal } },
+    );
+    return new Set(rows.map((row) => row.repo_id));
+  }
+
   /**
    * Full link graph report for the admin dashboard
    *

@@ -63,46 +63,18 @@
 
 <% if (it.verdict) { %>
 <section class="spr-verdict">
-  <h2>What this change does</h2>
   <% if (it.verdict.effect === 'none') { %>
   <%~ include('@note', { level: 'idle', text: 'Nothing differs from the version in force, so saving stores no new version.' }) %>
   <% } else { %>
     <% if (it.restart_note) { %>
     <%~ include('@note', it.restart_note) %>
     <% } else { %>
-    <%~ include('@note', { level: 'ok', text: 'Applies to the next request. No restart needed.' }) %>
+    <%~ include('@note', { level: 'ok', text: 'Save to apply the changes. No restart required.' }) %>
     <% } %>
 
     <% if (it.verdict.rebuild) { %>
-    <%~ include('@note', { level: 'warn', html: md('This changes how access resolves, so saving enqueues a **full rebuild** of every repository. The rebuild runs in the background: until it finishes, readers see pages materialised under the old rules.') }) %>
+    <%~ include('@note', { level: 'warn', html: md('This changes how access resolves, so saving enqueues a **full rebuild** of every repository.') }) %>
     <% } %>
-
-    <div class="spr-scroll">
-      <table class="spr-table">
-        <thead>
-          <tr>
-            <th scope="col">Setting</th>
-            <th scope="col">Applies</th>
-            <th scope="col">Rebuild</th>
-            <th scope="col">Why</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% it.verdict.changed.forEach(function (change) { %>
-          <tr>
-            <th scope="row"><code><%= change.key %></code></th>
-            <td>
-              <%~ include('@badge', { level: change.requiresRestart ? 'warn' : 'ok', label: change.requiresRestart ? 'on restart' : 'per request' }) %>
-            </td>
-            <td>
-              <%~ include('@badge', { level: change.affectsResolution ? 'warn' : 'ok', label: change.affectsResolution ? 'resolution' : 'no' }) %>
-            </td>
-            <td><%= change.note %></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
   <% } %>
 </section>
 <% } %>
@@ -166,7 +138,7 @@
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
 <% }) } %>
 
-<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes } %>
+<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon } %>
 
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <div class="spr-table-head">

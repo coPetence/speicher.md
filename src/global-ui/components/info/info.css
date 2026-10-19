@@ -72,6 +72,22 @@
   .spr-info-mark {
     position: relative;
   }
+
+  .spr-info-mark-icon {
+    border-color: transparent;
+    background: none;
+  }
+
+  .spr-info-mark > .spr-icon {
+    inline-size: 1em;
+    block-size: 1em;
+    margin: 0;
+  }
+
+  .spr-info-mark-warn,
+  .spr-info:hover > .spr-info-mark-warn {
+    color: var(--spr-status-warn);
+  }
   .spr-info-mark::after {
     content: '';
     display: none;

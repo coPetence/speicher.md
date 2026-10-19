@@ -83,7 +83,7 @@ function rendered(field: Field): string | string[] | undefined {
   if (field.kind === 'boolean' || field.kind === 'membership') {
     return field.checked ? 'on' : undefined;
   }
-  if (field.kind === 'checkboxes') return field.values;
+  if (field.kind === 'checkboxes' || field.kind === 'pick-list') return field.values;
   if (field.kind === 'file') return undefined;
   return field.value;
 }
@@ -1894,6 +1894,43 @@ describe('secrets', () => {
     const shown = displayYaml(literal);
     expect(shown).not.toContain('a-real-embedding-key');
     expect(shown).toContain(REDACTED);
+  });
+});
+
+describe('a pick list', () => {
+  const reposOf = (body: Record<string, unknown>) => {
+    const doc = loadDocument(FULL);
+    applyForm(doc, body, 'public');
+    return doc.toJS().public?.repos as string[] | undefined;
+  };
+
+  it('keeps the list when the body carries none of its controls', () => {
+    expect(reposOf({})).toEqual(['copetence/speicher-docs']);
+  });
+
+  it('adds the picked value once, after the kept ones', () => {
+    expect(
+      reposOf({
+        'public.repos': 'copetence/speicher-docs',
+        'add:public.repos': 'copetence/handbook',
+      }),
+    ).toEqual(['copetence/speicher-docs', 'copetence/handbook']);
+    expect(
+      reposOf({
+        'public.repos': 'copetence/speicher-docs',
+        'add:public.repos': 'copetence/speicher-docs',
+      }),
+    ).toEqual(['copetence/speicher-docs']);
+  });
+
+  it('writes an empty list when the last entry is removed', () => {
+    expect(
+      reposOf({
+        'public.repos': 'copetence/speicher-docs',
+        'remove:public.repos': 'copetence/speicher-docs',
+        'add:public.repos': '',
+      }),
+    ).toEqual([]);
   });
 });
 

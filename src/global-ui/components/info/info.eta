@@ -1,17 +1,16 @@
-
 <% const id = 'help-' + it.field.path.replace(/[^a-z0-9]+/gi, '-') %>
   <span class="spr-info">
-    <button 
-      class="spr-info-mark" 
-      type="button" 
+    <button
+      class="spr-info-mark<%= it.level ? ' spr-info-mark-' + it.level : '' %><%= it.mark ? ' spr-info-mark-icon' : '' %>"
+      type="button"
       aria-label="About <%= it.field.label %>"
       aria-describedby="<%= id %>"
     >
-      i
+      <%~ it.mark || 'i' %>
     </button>
-    <span 
-      class="spr-info-note" 
-      role="tooltip" 
+    <span
+      class="spr-info-note"
+      role="tooltip"
       id="<%= id %>"><%~ md(it.field.help) %>
     </span>
   </span>

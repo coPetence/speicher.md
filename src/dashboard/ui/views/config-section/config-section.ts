@@ -172,6 +172,7 @@ export function sendConfigSection(
         // for a picture rather than reading three sentences. Inline, for the
         // reason the plus and the pencil are.
         remove_icon: renderInlineIcon('trash-2', 'spr-icon'),
+        warn_icon: renderInlineIcon('triangle-alert', 'spr-icon'),
         // And the arrow in front of Reset. Its own mark rather than the bin:
         // a reset takes values out of the document without deleting anything an
         // operator named, and a row of bins is what a reader scans for when they

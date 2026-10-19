@@ -1281,11 +1281,28 @@ describe('the saved toast', () => {
     ];
     expect(selector).toContain(':has(.spr-config:not([data-spr-live]))');
     expect(body).toMatch(/inset-block-end/);
+    // Raised only without scripting, so it does not drop once the island arrives
+    expect(DASHBOARD).toMatch(
+      /@media \(scripting: none\)\s*\{\s*\.spr-main:has\(\.spr-config:not\(\[data-spr-live\]\)\) \.spr-toast/,
+    );
 
     const bar = declarationsOf('.spr-config[data-spr-live][data-spr-pending] .spr-config-actions');
     expect(Number(/z-index:\s*(\d+)/.exec(TOAST)?.[1])).toBeGreaterThan(
       Number(/z-index:\s*(\d+)/.exec(bar)?.[1]),
     );
+  });
+});
+
+describe('the save bar without the island', () => {
+  it('waits a moment before showing where the island will replace it', () => {
+    const scripted =
+      /@media \(scripting: enabled\)\s*\{([\s\S]*?)\n {2}\}/.exec(DASHBOARD)?.[1] ?? '';
+    expect(scripted).toContain('.spr-config:not([data-spr-live]) .spr-config-actions');
+    expect(scripted).toMatch(/animation:\s*spr-config-bar-wait 0s \d+(\.\d+)?s both/);
+
+    const frames = /@keyframes spr-config-bar-wait\s*\{([\s\S]*?)\n {2}\}/.exec(DASHBOARD)?.[1];
+    expect(frames).toMatch(/from\s*\{\s*visibility:\s*hidden/);
+    expect(frames).toMatch(/to\s*\{\s*visibility:\s*visible/);
   });
 });
 

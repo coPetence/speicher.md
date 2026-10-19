@@ -13,13 +13,21 @@ import type {
   FileField,
   MembershipField,
   NumberField,
+  PickListField,
   SecretField,
   SelectField,
   TemplateField,
   TextField,
   UrlField,
 } from '../config-fields';
-import { composeUnit, entraIssuerFor, withHttpsScheme } from '../config-fields';
+import {
+  PICK_ADD,
+  PICK_DRAWN,
+  PICK_REMOVE,
+  composeUnit,
+  entraIssuerFor,
+  withHttpsScheme,
+} from '../config-fields';
 import { sshRemoteUrl } from '../../../../forge/remote-url';
 import { Path, dottedPath, parseLines, writeAt, writeAtWithDefault } from '../document';
 import { FormBody, submitted, submittedList } from './body';
@@ -152,6 +160,28 @@ const decodeCheckboxes: Decoder<CheckboxesField> = (doc, body, field, path) => {
   return writeAt(doc, path, values);
 };
 
+const decodePickList: Decoder<PickListField> = (doc, body, field, path) => {
+  const added = `${PICK_ADD}${field.path}`;
+  const removed = `${PICK_REMOVE}${field.path}`;
+  const drawn = `${PICK_DRAWN}${field.path}`;
+
+  if ([field.path, added, removed, drawn].every((name) => !(name in body))) return false;
+
+  const dropped = new Set(submittedList(body, removed));
+  const picked = submittedList(body, added)
+    .map((value) => value.trim())
+    .filter((value) => value !== '');
+  const values = [
+    ...new Set([
+      ...submittedList(body, field.path).filter((value) => !dropped.has(value)),
+      ...picked,
+    ]),
+  ];
+
+  if (values.length === 0 && field.values.length === 0) return false;
+  return writeAt(doc, path, values);
+};
+
 const decodeMultiline: Decoder = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
@@ -280,6 +310,7 @@ const DECODERS: { [K in FieldKind]: Decoder<FieldOf<K>> } = {
   'known-hosts': decodeMultiline,
   lines: decodeLines,
   checkboxes: decodeCheckboxes,
+  'pick-list': decodePickList,
   file: decodeFile,
   membership: decodeMembership,
   duration: decodeAmount,
