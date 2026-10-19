@@ -313,7 +313,8 @@ describe('retention', () => {
   });
 });
 
-describe('the report', () => {
+// The Analytics page is disabled for now
+describe.skip('the report', () => {
   it('is the reader’s 404 for everyone who is not an administrator', async () => {
     for (const who of ['alice', 'bob'] as const) {
       const cookie = await sessionCookieFor(harness.tenantId, who);

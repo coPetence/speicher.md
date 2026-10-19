@@ -266,7 +266,8 @@ describe('the instance toggle', () => {
   });
 });
 
-describe('the operational report', () => {
+// The Link report page is disabled for now
+describe.skip('the operational report', () => {
   it('is the reader 404 for everyone who is not an admin', async () => {
     for (const who of ['alice', 'bob', 'carol', 'dave', 'mallory', 'anonymous'] as const) {
       await get('/-/graph', who).expect(404);

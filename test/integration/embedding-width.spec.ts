@@ -110,7 +110,8 @@ async function askAbout(
     .send({ ...body, intent: 'width' });
 }
 
-describe('the width lookup on the embedding page', () => {
+// Semantic retrieval is disabled for now
+describe.skip('the width lookup on the embedding page', () => {
   it("is drawn on the model box, with its answer's place beside it, for the island to find", async () => {
     const page = await request(app.getHttpServer())
       .get('/-/config/embedding')

@@ -180,6 +180,7 @@ export interface SectionIndexEntry {
   icon: string;
   // Id of the parent section for subsections
   parent?: string;
+  disabled?: boolean;
 }
 
 /**

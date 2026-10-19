@@ -2,7 +2,10 @@ import { elapsed, isoOf, relativeTime } from '../../src/common/time';
 import { nextSetupPage, setupSteps } from '../../src/dashboard/setup/steps';
 import { runLevel, severityLevel } from '../../src/dashboard/ui/levels';
 import { dashboardNav } from '../../src/dashboard/ui/views/nav-tree/nav-tree';
-import { openDashboardFolds } from '../../src/dashboard/dashboard-sections';
+import {
+  isDashboardSectionDisabled,
+  openDashboardFolds,
+} from '../../src/dashboard/dashboard-sections';
 import { renderHelp } from '../../src/global-ui/help-markup';
 import { renderTemplate } from '../../src/content-reader/views';
 
@@ -68,8 +71,8 @@ describe('the section list', () => {
   });
 
   it('marks the section the reader is on', () => {
-    const html = dashboardNav('explain', true).html;
-    expect(html).toMatch(/href="\/-\/explain" aria-current="page"/);
+    const html = dashboardNav('connections', true).html;
+    expect(html).toMatch(/href="\/-\/connections" aria-current="page"/);
     expect(html.match(/aria-current/g)).toHaveLength(1);
   });
 
@@ -85,10 +88,9 @@ describe('the section list', () => {
 
   it('hides the admin-only sections from a maintainer', () => {
     const maintainer = dashboardNav('status', false).html;
-    expect(maintainer).not.toContain('/-/graph');
     expect(maintainer).not.toContain('/-/dead-jobs');
     expect(maintainer).not.toContain('/-/config');
-    expect(dashboardNav('status', true).html).toContain('/-/graph');
+    expect(dashboardNav('status', true).html).toContain('/-/dead-jobs');
     expect(dashboardNav('status', true).html).toContain('/-/config');
   });
 
@@ -98,8 +100,6 @@ describe('the section list', () => {
       hasContent: false,
     }).html;
     expect(empty).not.toContain('/-/status');
-    expect(empty).not.toContain('/-/explain');
-    expect(empty).not.toContain('/-/graph');
     expect(empty).toContain('/-/config');
     expect(empty).toContain('/-/connections');
 
@@ -107,15 +107,21 @@ describe('the section list', () => {
       showSetup: false,
       hasContent: true,
     }).html;
-    for (const href of ['/-/status', '/-/explain', '/-/graph']) {
-      expect(stocked).toContain(href);
-    }
+    expect(stocked).toContain('/-/status');
   });
 
   it('draws a hidden section when it is the page you are on', () => {
-    expect(dashboardNav('graph', true, { showSetup: false, hasContent: false }).html).toContain(
-      '/-/graph',
+    expect(dashboardNav('status', true, { showSetup: false, hasContent: false }).html).toContain(
+      '/-/status',
     );
+  });
+
+  it('never draws a disabled section, not even from its own page', () => {
+    for (const id of ['explain', 'graph', 'analytics'] as const) {
+      expect(isDashboardSectionDisabled(id)).toBe(true);
+      expect(dashboardNav(id, true).html).not.toContain(`href="/-/${id}"`);
+      expect(dashboardNav('status', true).html).not.toContain(`href="/-/${id}"`);
+    }
   });
 
   it('shows only the first run, because it is the only thing worth doing yet', () => {
@@ -361,7 +367,9 @@ describe('the section list', () => {
     }).html;
     expect(inside).toContain('spr-nav-branch');
     expect(inside).toContain('href="/-/config/identity"');
-    expect(inside).toContain('href="/-/config/embedding"');
+    expect(inside).toContain('href="/-/config/reading"');
+    // Disabled for now, so not offered
+    expect(inside).not.toContain('href="/-/config/embedding"');
     expect(inside).not.toContain('spr-nav-toggle');
 
     expect(inside).toMatch(
@@ -369,7 +377,7 @@ describe('the section list', () => {
     );
 
     // Elsewhere the sections are there to be unfolded, and folded shut
-    const elsewhere = dashboardNav('explain', true).html;
+    const elsewhere = dashboardNav('connections', true).html;
     expect(elsewhere).toMatch(
       /<details class="spr-nav-fold" data-spr-fold="config">\s*<summary[^>]*>\s*<a href="\/-\/config"/,
     );

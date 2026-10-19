@@ -24,7 +24,12 @@ import { shapeControls } from '../config-form/collections';
 import { dottedPath, loadDocument } from '../config-form/document';
 import { inlineBrandImages } from '../config-form/brand-inline';
 import { exportConfig } from '../config-form/export';
-import { CONFIG_NAV_SECTIONS, CONFIG_SECTIONS, buildSections } from '../config-form/fields';
+import {
+  CONFIG_NAV_SECTIONS,
+  CONFIG_SECTIONS,
+  buildSections,
+  isDisabledSection,
+} from '../config-form/fields';
 import { memberExists, seedMemberInto } from '../config-form/member-edits';
 import {
   KindHint,
@@ -135,7 +140,7 @@ export class ConfigPageService {
         built.length > 0
           ? // Only top-level sections for the overview (entries shown on drill-down)
             built
-              .filter((section) => section.parent === null)
+              .filter((section) => section.parent === null && !isDisabledSection(section.id))
               .map((section) => ({
                 id: section.id,
                 title: section.title,

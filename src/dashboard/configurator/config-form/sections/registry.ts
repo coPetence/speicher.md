@@ -15,38 +15,44 @@ import type { FormSection, SectionEntry, SectionIndexEntry } from '../model';
 
 export const CONFIG_SECTIONS: SectionIndexEntry[] = [
   { id: 'identity', title: 'Identity Providers', icon: 'key-round' },
-  // Group-based access: internal groups and their sources
   { id: 'groups', title: 'Groups', icon: 'users' },
-  { id: 'admins', title: 'Administrators', icon: 'shield' },
-  // Public access to selected repositories
-  { id: 'public', title: 'Public access', icon: 'globe' },
   { id: 'sources', title: 'Content sources', icon: 'folder-git-2' },
+  { id: 'public', title: 'Public access', icon: 'globe' },
   { id: 'branding', title: 'Branding', icon: 'paintbrush' },
   { id: 'branding/logos', title: 'Logos', icon: 'image', parent: 'branding' },
-  // Colour palette and typeface overrides
   { id: 'branding/appearance', title: 'Colours and type', icon: 'palette', parent: 'branding' },
-  { id: 'reading', title: 'Reading experience', icon: 'book-open' },
-  // Page-view counting without recording who
-  { id: 'analytics', title: 'Read analytics', icon: 'chart-line' },
-  { id: 'defaults', title: 'Repository defaults', icon: 'sliders-horizontal' },
-  // The SMTP relay this instance sends through
-  { id: 'mail', title: 'Mail transport', icon: 'send' },
-  // Who is told what, over that relay
-  { id: 'notifications', title: 'Notifications', icon: 'bell' },
+  { id: 'admins', title: 'Administrators', icon: 'shield' },
   { id: 'storage', title: 'Asset storage', icon: 'hard-drive' },
-  { id: 'embedding', title: 'Semantic retrieval', icon: 'sparkles' },
+  { id: 'mail', title: 'Mail transport', icon: 'send' },
+  { id: 'defaults', title: 'Repository defaults', icon: 'sliders-horizontal' },
+  { id: 'reading', title: 'Reading experience', icon: 'book-open' },
+  { id: 'analytics', title: 'Read analytics', icon: 'chart-line', disabled: true },
+  { id: 'notifications', title: 'Notifications', icon: 'bell', disabled: true },
+  { id: 'embedding', title: 'Semantic retrieval', icon: 'sparkles', disabled: true },
 ];
 
 export const CONFIG_NAV_SECTIONS: SectionIndexEntry[] = CONFIG_SECTIONS.filter(
-  (section) => section.parent === undefined,
+  (section) => section.parent === undefined && !section.disabled,
 );
 
 export function isConfigSection(id: string): boolean {
-  return CONFIG_SECTIONS.some((section) => section.id === id && section.parent === undefined);
+  return CONFIG_SECTIONS.some(
+    (section) => section.id === id && section.parent === undefined && !section.disabled,
+  );
 }
 
 export function isConfigSubsection(id: string): boolean {
-  return CONFIG_SECTIONS.some((section) => section.id === id && section.parent !== undefined);
+  return CONFIG_SECTIONS.some(
+    (section) => section.id === id && section.parent !== undefined && !isDisabledSection(id),
+  );
+}
+
+/** Whether a section, or the section it is filed under, is switched off */
+export function isDisabledSection(id: string): boolean {
+  const root = id.split('/')[0];
+  return CONFIG_SECTIONS.some(
+    (section) => (section.id === id || section.id === root) && section.disabled === true,
+  );
 }
 
 export function sectionHead(id: string): Pick<FormSection, 'id' | 'title' | 'parent' | 'entries'> {

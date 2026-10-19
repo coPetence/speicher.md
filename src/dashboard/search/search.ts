@@ -15,7 +15,7 @@ import {
   dashboardSectionTitle,
   visibleDashboardSections,
 } from '../dashboard-sections';
-import { CONFIG_SECTIONS } from '../configurator/config-form/fields';
+import { CONFIG_SECTIONS, isDisabledSection } from '../configurator/config-form/fields';
 import type { Field } from '../configurator/config-form/config-fields';
 import { FormSection, SectionEntry, allFields } from '../configurator/config-form/model';
 import { SEARCHABLE_VALUES, SEARCH_KEYWORDS } from './search-keywords';
@@ -95,6 +95,7 @@ export function dashboardIndex(
   // Index config section pages (Identity, Groups, etc.)
   const configLabel = DASHBOARD_SECTIONS.find((section) => section.id === 'config')?.label ?? '';
   for (const entry of CONFIG_SECTIONS) {
+    if (isDisabledSection(entry.id)) continue;
     const parent = entry.parent
       ? (CONFIG_SECTIONS.find((section) => section.id === entry.parent)?.title ?? '')
       : '';
@@ -121,6 +122,7 @@ export function dashboardIndex(
 
   // Index fields and member entries per section
   for (const section of sections) {
+    if (isDisabledSection(section.id)) continue;
     const context = trailOf(sections, section.id).join(' › ');
 
     for (const field of allFields([section])) {

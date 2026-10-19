@@ -126,7 +126,23 @@ describe('what a query finds', () => {
     expect(hrefs('sso')).toContain('/-/config/identity');
     expect(hrefs('s3')).toContain('/-/config/storage');
     expect(hrefs('why can nobody see')).toEqual([]);
-    expect(hrefs('denied')).toContain('/-/explain');
+    expect(hrefs('gave up')).toContain('/-/dead-jobs');
+  });
+
+  it('never offers a disabled page, or a setting on one', () => {
+    for (const word of ['denied', 'reads', 'notify', 'embedding', 'link report']) {
+      const found = hrefs(word);
+      for (const disabled of [
+        '/-/explain',
+        '/-/graph',
+        '/-/analytics',
+        '/-/config/analytics',
+        '/-/config/notifications',
+        '/-/config/embedding',
+      ]) {
+        expect(found.filter((href) => href.split('#')[0] === disabled)).toEqual([]);
+      }
+    }
   });
 
   it('reaches a control, at the control', () => {
@@ -157,7 +173,8 @@ describe('what a query finds', () => {
     expect(two).toBeLessThan(one);
   });
 
-  it('puts the row the words name above the row that merely mentions them', () => {
+  // Ranks with Read analytics and Notifications, which are disabled for now
+  it.skip('puts the row the words name above the row that merely mentions them', () => {
     const hrefs = find('reads').map((hit) => hit.href);
     const byKeyword = hrefs.indexOf('/-/analytics');
     const byExplanation = hrefs.indexOf('/-/config/notifications#f-notify.stale_after');
@@ -241,10 +258,10 @@ describe('what the corpus never carries', () => {
   });
 
   it('offers no page the column would not draw', () => {
-    const bare = searchDashboard('graph', SECTIONS, { hasContent: false });
-    expect(bare.hits.map((hit) => hit.href)).not.toContain('/-/graph');
-    expect(searchDashboard('graph', SECTIONS, EVERYTHING).hits.map((h) => h.href)).toContain(
-      '/-/graph',
+    const bare = searchDashboard('sync status', SECTIONS, { hasContent: false });
+    expect(bare.hits.map((hit) => hit.href)).not.toContain('/-/status');
+    expect(searchDashboard('sync status', SECTIONS, EVERYTHING).hits.map((h) => h.href)).toContain(
+      '/-/status',
     );
   });
 

@@ -13,6 +13,7 @@ import { JobQueue } from '../jobs/queue';
 import { AnalyticsRepository } from './analytics/analytics.repository';
 import { buildSections } from './configurator/config-form/fields';
 import { ConfigPageService } from './configurator/config-page/config-page.service';
+import { isDashboardSectionDisabled } from './dashboard-sections';
 import { DashboardRepository } from './dashboard.repository';
 import { DashboardResponder, dashboardNavOptions, wantsJson } from './respond';
 import { searchDashboard } from './search/search';
@@ -300,7 +301,9 @@ export class DashboardController {
   @Get('graph')
   async graph(@Req() req: Request, @Res() res: Response): Promise<void> {
     const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
+    if (!caller.isAdmin || isDashboardSectionDisabled('graph')) {
+      return this.respond.notFound(req, res);
+    }
 
     sendGraph(
       this.respond,
@@ -316,7 +319,9 @@ export class DashboardController {
   @Get('analytics')
   async analytics(@Req() req: Request, @Res() res: Response): Promise<void> {
     const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
+    if (!caller.isAdmin || isDashboardSectionDisabled('analytics')) {
+      return this.respond.notFound(req, res);
+    }
 
     const settings = this.config.analytics;
     const since = new Date(Date.now() - DashboardController.ANALYTICS_WINDOW_DAYS * 86_400_000);
@@ -352,6 +357,7 @@ export class DashboardController {
     @Res() res: Response,
     @Query('path') path?: string,
   ): Promise<void> {
+    if (isDashboardSectionDisabled('explain')) return this.respond.notFound(req, res);
     const caller = callerOf(req);
     const scope = await this.status.scopeFor(caller);
     if (scope !== 'all' && scope.length === 0) return this.respond.notFound(req, res);

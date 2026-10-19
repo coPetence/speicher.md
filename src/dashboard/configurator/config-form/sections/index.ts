@@ -49,25 +49,23 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
         .filter((provider) => provider !== '')
         .map((provider) => groupProviderSection(root, name, provider)),
     ]),
-    adminsSection(root),
-    // One section per admin user
-    ...((at(root, ['admins', 'users']) as unknown[]) ?? []).map((_, index) =>
-      adminUserSection(root, index),
-    ),
-    publicSection(root),
     sourcesSection(root),
     // One section per forge
     ...forgeIds(root).map((id) => forgeSection(root, id)),
+    publicSection(root),
     brandingSection(root),
     logosSection(root),
-    // Subsection for colour and typeface overrides
     appearanceSection(root),
+    adminsSection(root),
+    ...((at(root, ['admins', 'users']) as unknown[]) ?? []).map((_, index) =>
+      adminUserSection(root, index),
+    ),
+    storageSection(root),
+    mailSection(root),
+    retrievalSection(root),
     readingSection(root),
     analyticsSection(root),
-    retrievalSection(root),
-    mailSection(root),
     notificationsSection(root),
-    storageSection(root),
     embeddingSection(root),
   ].map((section) => ({
     ...section,

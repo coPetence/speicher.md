@@ -3,7 +3,6 @@
  *
  * The nav column draws this list, and the admin search offers results from it, so a
  * page hidden from the column is never offered by search either. Chrome, not
- * access: every route answers the same whether or not its entry is shown.
  */
 export type DashboardSection =
   // The /-/ route id of each top-level page
@@ -27,6 +26,7 @@ export interface DashboardSectionEntry {
   needsContent?: boolean; // Shown only after a content source exists
   hiddenDuringSetup?: 'always' | 'unless-current'; // Held back during the first run
   parent?: DashboardSection; // Drawn as a leaf under this section, not as a peer
+  disabled?: boolean;
 }
 
 /**
@@ -90,6 +90,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     adminOnly: false,
     needsContent: true,
     hiddenDuringSetup: 'unless-current',
+    disabled: true,
   },
   // The link report, which draws from a content source
   {
@@ -100,6 +101,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     adminOnly: true,
     needsContent: true,
     hiddenDuringSetup: 'unless-current',
+    disabled: true,
   },
   // Read counts, the running instance's own record
   {
@@ -110,6 +112,7 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     adminOnly: true,
     needsContent: true,
     hiddenDuringSetup: 'unless-current',
+    disabled: true,
   },
   // The reader's own connections, open to any signed-in caller
   {
@@ -121,6 +124,11 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     hiddenDuringSetup: 'always',
   },
 ];
+
+/** Whether a section is switched off, so its route answers 404 */
+export function isDashboardSectionDisabled(id: DashboardSection): boolean {
+  return DASHBOARD_SECTIONS.some((section) => section.id === id && section.disabled === true);
+}
 
 /** The nav label for a section id, or '' when the id is absent */
 export function dashboardSectionTitle(id: DashboardSection): string {
@@ -148,6 +156,7 @@ export function visibleDashboardSections(
     currentDashboardSection === null ? null : dashboardBranchOf(currentDashboardSection);
   return DASHBOARD_SECTIONS.filter(
     (section) =>
+      !section.disabled &&
       (isAdmin || !section.adminOnly) &&
       (section.id !== 'setup' || showSetup || currentDashboardSection === 'setup') &&
       // Each gate lets the page the caller is on through, so none vanishes
