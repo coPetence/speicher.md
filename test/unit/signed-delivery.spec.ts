@@ -1,6 +1,5 @@
 import { rootLogger } from '../../src/common/logger';
-import type { WebhookVerification } from '../../src/forge/driver';
-import { readSignedDelivery } from '../../src/forge/signed-delivery';
+import { WebhookVerification, readSignedDelivery } from '../../src/webhooks/signed-delivery';
 
 function read(rawBody: Buffer | undefined, valid = true) {
   let status = 0;

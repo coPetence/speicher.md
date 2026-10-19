@@ -22,8 +22,8 @@ import { TenancyService } from '../db/tenancy';
 import { JobQueue } from '../jobs/queue';
 import { ForgeAction, ForgeDriver } from './driver';
 import { ForgeRegistry } from './registry';
-import { readSignedDelivery } from './signed-delivery';
-import { FORGE_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from './webhook-url';
+import { readSignedDelivery } from '../webhooks/signed-delivery';
+import { FORGE_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from '../webhooks/webhook-url';
 
 export const DELIVERY_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 

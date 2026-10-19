@@ -4,7 +4,7 @@
  * also offers to have GitHub create the App from a manifest
  */
 
-import { webhookPath, webhookUrl } from '../../../../../forge/webhook-url';
+import { webhookPath, webhookUrl } from '../../../../../webhooks/webhook-url';
 
 import type { CardItem, Obj } from '../../config-fields';
 import {

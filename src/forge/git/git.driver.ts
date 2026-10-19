@@ -12,13 +12,8 @@ import { join } from 'node:path';
 import { Logger, rootLogger } from '../../common/logger';
 import { ForgeConfig, GitRepoConfig, gitRepositoryOwner } from '../../config/types';
 import { GitCredential, GitInvocation, withGitCredential } from '../credential';
-import {
-  ForgeAction,
-  ForgeDriver,
-  RemoteInstallation,
-  RemoteRepo,
-  WebhookVerification,
-} from '../driver';
+import type { WebhookVerification } from '../../webhooks/signed-delivery';
+import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
 import { MIRROR_ROOT, checkoutTree, defaultBranchOf, ensureMirror, resolveHead } from '../git';
 
 /**

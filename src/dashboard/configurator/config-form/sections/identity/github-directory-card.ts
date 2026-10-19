@@ -2,7 +2,7 @@
  * The Directory card on a GitHub identity provider's page
  */
 
-import { directoryWebhookPath, directoryWebhookUrl } from '../../../../../forge/webhook-url';
+import { directoryWebhookPath, directoryWebhookUrl } from '../../../../../webhooks/webhook-url';
 import type { Obj } from '../../config-fields';
 import { at, choice, githubAppLinksItem, githubAppManifest } from '../../config-fields';
 import { scalarString } from '../../document';

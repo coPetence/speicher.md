@@ -11,19 +11,13 @@ import { join } from 'node:path';
 
 import { Logger, rootLogger } from '../../common/logger';
 import { ForgeConfig } from '../../config/types';
-import { isConfigFilename } from '../../ingest/paths';
-import {
-  ForgeAction,
-  ForgeDriver,
-  RemoteInstallation,
-  RemoteRepo,
-  WebhookVerification,
-} from '../driver';
-import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
-import { RateLimiter } from '../rate-limit';
 import { githubHeaders } from '../../github/api';
 import { githubHosts } from '../../github/hosts';
 import { GithubTokenMinter } from '../../github/tokens';
+import type { WebhookVerification } from '../../webhooks/signed-delivery';
+import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
+import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
+import { RateLimiter } from '../rate-limit';
 import { mapGithubEvent, verifyGithubSignature } from './webhook';
 
 export class GithubDriver implements ForgeDriver {

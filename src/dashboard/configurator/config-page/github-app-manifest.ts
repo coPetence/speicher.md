@@ -19,7 +19,7 @@ import {
   directoryWebhookUrl,
   webhookPath,
   webhookUrl,
-} from '../../../forge/webhook-url';
+} from '../../../webhooks/webhook-url';
 import {
   AppManifest,
   ConvertedApp,

@@ -9,7 +9,8 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { ForgeAction, WebhookVerification } from '../driver';
+import type { WebhookVerification } from '../../webhooks/signed-delivery';
+import { ForgeAction } from '../driver';
 
 export function verifyGithubSignature(
   headers: Record<string, string | string[] | undefined>,

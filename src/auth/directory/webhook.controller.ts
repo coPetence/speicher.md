@@ -12,8 +12,8 @@ import { GithubProviderConfig, providerType } from '../../config/types';
 import { Session, initModels } from '../../db/models';
 import { TenancyService } from '../../db/tenancy';
 import { verifyGithubSignature } from '../../forge/github/webhook';
-import { readSignedDelivery } from '../../forge/signed-delivery';
-import { DIRECTORY_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from '../../forge/webhook-url';
+import { readSignedDelivery } from '../../webhooks/signed-delivery';
+import { DIRECTORY_WEBHOOK_PREFIX, WEBHOOK_ROUTE } from '../../webhooks/webhook-url';
 
 export type StaleSessions = { subject: string } | 'all' | null;
 
