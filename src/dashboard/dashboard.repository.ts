@@ -170,20 +170,6 @@ export class DashboardRepository {
       { type: QueryTypes.SELECT, replacements: { tenantId, ...page } },
     );
   }
-
-  /** Retired slug redirects for a tenant, for the logs page */
-  async retiredRedirects(tenantId: string): Promise<RetiredRow[]> {
-    return getSequelize().query<RetiredRow>(
-      `SELECT h.old_slug, h.namespace, h.retired_at,
-              r.slug AS repo_slug, claimant.slug AS claimed_by
-         FROM repo_slug_history h
-         JOIN repos r ON r.id = h.repo_id
-         LEFT JOIN repos claimant ON claimant.id = h.retired_by_repo_id
-        WHERE h.tenant_id = :tenantId AND h.retired_at IS NOT NULL
-        ORDER BY h.retired_at DESC LIMIT 50`,
-      { type: QueryTypes.SELECT, replacements: { tenantId } },
-    );
-  }
 }
 
 /** Row shape for the repo status overview */
@@ -239,15 +225,6 @@ export interface RunRow {
         adminMessage?: string;
       }[]
     | null;
-}
-
-/** Row shape for a retired slug redirect */
-export interface RetiredRow {
-  old_slug: string;
-  namespace: string;
-  retired_at: Date;
-  repo_slug: string;
-  claimed_by: string | null;
 }
 
 /** Row shape for a dead job with resolved repo and forge context */

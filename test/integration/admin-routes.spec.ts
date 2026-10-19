@@ -55,12 +55,10 @@ const CONTRACT: Record<string, Contract> = {
   'GET /-/graph': { both: '/-/graph' },
   'GET /-/explain': { both: '/-/explain?path=/handbook/commercial/pricing' },
   'GET /-/dead-jobs': { both: '/-/dead-jobs' },
-  'GET /-/redirects': { both: '/-/redirects' },
   'GET /-/logs': {
     exempt:
-      'A redirect, not a document: the address the dead jobs and retired redirects ' +
-      'shared before they became two pages, kept so a saved link still lands. It ' +
-      'answers 301 to /-/dead-jobs; asserted in admin.spec.ts.',
+      'A redirect, not a document: the old address of the dead jobs page, kept so ' +
+      'a saved link still lands. It answers 301 to /-/dead-jobs; asserted in admin.spec.ts.',
   },
   'GET /-/analytics': { both: '/-/analytics' },
   'GET /-/connections': { both: '/-/connections' },

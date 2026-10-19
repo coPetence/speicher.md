@@ -718,15 +718,12 @@ describe('/-/*: 404 for non-admins', () => {
     }
   });
 
-  it.each(['/-/dead-jobs', '/-/redirects', '/-/logs'])(
-    '404s %s for everyone but an admin',
-    async (path) => {
-      expect([200, 301]).toContain((await as('ops').get(path)).status);
-      for (const who of ['alice', 'bob', 'carol', 'dave', 'mallory', 'anonymous'] as const) {
-        expect((await as(who).get(path)).status).toBe(404);
-      }
-    },
-  );
+  it.each(['/-/dead-jobs', '/-/logs'])('404s %s for everyone but an admin', async (path) => {
+    expect([200, 301]).toContain((await as('ops').get(path)).status);
+    for (const who of ['alice', 'bob', 'carol', 'dave', 'mallory', 'anonymous'] as const) {
+      expect((await as(who).get(path)).status).toBe(404);
+    }
+  });
 
   it('404s /-/analytics for everyone but an admin', async () => {
     expect((await as('ops').get('/-/analytics')).status).toBe(200);

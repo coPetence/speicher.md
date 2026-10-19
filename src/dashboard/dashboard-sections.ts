@@ -13,7 +13,6 @@ export type DashboardSection =
   | 'graph'
   | 'analytics'
   | 'dead-jobs'
-  | 'redirects'
   | 'config'
   | 'connections'
   | 'setup';
@@ -64,22 +63,12 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     needsContent: true,
     hiddenDuringSetup: 'unless-current',
   },
-  // Both hang off Sync status: a dead job is a sync that stopped, and a retired
-  // redirect is an old path a sync gave to another repository
+  // Hangs off Sync status: a dead job is a sync that stopped
   {
     id: 'dead-jobs',
     label: 'Dead jobs',
     href: '/-/dead-jobs',
     icon: 'octagon-x',
-    adminOnly: true,
-    hiddenDuringSetup: 'unless-current',
-    parent: 'status',
-  },
-  {
-    id: 'redirects',
-    label: 'Retired redirects',
-    href: '/-/redirects',
-    icon: 'signpost',
     adminOnly: true,
     hiddenDuringSetup: 'unless-current',
     parent: 'status',

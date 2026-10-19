@@ -40,17 +40,13 @@ afterAll(async () => {
 const get = (path: string) => request(app.getHttpServer()).get(path);
 
 describe('the operational surface', () => {
-  it.each([
-    '/-/status',
-    '/-/config',
-    '/-/dead-jobs',
-    '/-/redirects',
-    '/-/graph',
-    '/-/explain?path=/handbook',
-  ])('404s %s, whoever asks', async (path) => {
-    expect((await get(path).set('cookie', ops)).status).toBe(404);
-    expect((await get(path)).status).toBe(404);
-  });
+  it.each(['/-/status', '/-/config', '/-/dead-jobs', '/-/graph', '/-/explain?path=/handbook'])(
+    '404s %s, whoever asks',
+    async (path) => {
+      expect((await get(path).set('cookie', ops)).status).toBe(404);
+      expect((await get(path)).status).toBe(404);
+    },
+  );
 
   it('is not a 403 anywhere, because that would say the instance has one', async () => {
     const response = await get('/-/status').set('cookie', ops);

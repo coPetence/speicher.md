@@ -109,13 +109,7 @@ describe('an admin', () => {
   // article; a settings page carrying it would be laid out as one, which is what
   // moved every page under `/-/` the last time the reader's width was fixed.
   it('is never laid out as a reader article', async () => {
-    for (const where of [
-      '/-/status',
-      '/-/config',
-      '/-/config/groups',
-      '/-/dead-jobs',
-      '/-/redirects',
-    ]) {
+    for (const where of ['/-/status', '/-/config', '/-/config/groups', '/-/dead-jobs']) {
       const drawn = await page('ops', where);
       expect(drawn.status).toBe(200);
       expect(drawn.text).not.toContain('data-article');
@@ -130,10 +124,9 @@ describe('an admin', () => {
     expect(main).not.toContain('Semantic retrieval');
   });
 
-  it('reaches the section list, including the dead jobs and the retired redirects', async () => {
+  it('reaches the section list, including the dead jobs', async () => {
     const res = await page('ops', '/-/status');
     expect(res.text).toContain('href="/-/dead-jobs"');
-    expect(res.text).toContain('href="/-/redirects"');
     expect(res.text).toContain('href="/-/explain"');
     expect(res.text).toMatch(/href="\/-\/status" aria-current="page"/);
   });
@@ -530,7 +523,6 @@ describe('a maintainer', () => {
   it('is not offered the dead jobs, or told anything about the instance', async () => {
     const res = await page('alice', '/-/status');
     expect(res.text).not.toContain('href="/-/dead-jobs"');
-    expect(res.text).not.toContain('href="/-/redirects"');
     expect(res.text).not.toContain('Resolution hash');
     expect(res.text).not.toContain(harness.config.resolutionHash);
     expect(res.text).not.toContain('Dead jobs');
@@ -754,11 +746,10 @@ describe('explain, as a page', () => {
 });
 
 describe('the dead jobs page', () => {
-  it('renders for an admin, with the dead jobs and not the redirects', async () => {
+  it('renders for an admin', async () => {
     const res = await page('ops', '/-/dead-jobs');
     expect(res.status).toBe(200);
     expect(res.text).toContain('<h1>Dead jobs</h1>');
-    expect(res.text).not.toContain('Retired redirects</h');
   });
 
   it('lists a dead job by its error, with Retry all beside the heading', async () => {
@@ -1017,23 +1008,7 @@ describe('the dead jobs page', () => {
   });
 });
 
-describe('the retired redirects page', () => {
-  it('renders for an admin, with the redirects and not the dead jobs', async () => {
-    const res = await page('ops', '/-/redirects');
-    expect(res.status).toBe(200);
-    expect(res.text).toContain('<h1>Retired redirects</h1>');
-    expect(res.text).not.toContain('Retry all');
-    expect((await json('ops', '/-/redirects')).body).toHaveProperty('retired_redirects');
-  });
-
-  it('is the reader 404 for anyone else, page or JSON', async () => {
-    for (const res of [await page('alice', '/-/redirects'), await json('alice', '/-/redirects')]) {
-      expect(res.status).toBe(404);
-    }
-  });
-});
-
-describe('the address both pages shared before', () => {
+describe('the old address of the dead jobs', () => {
   it('sends an admin on to the dead jobs, and anyone else to the reader 404', async () => {
     const res = await page('ops', '/-/logs');
     expect(res.status).toBe(301);
@@ -1113,15 +1088,15 @@ describe('the admin pages themselves', () => {
   });
 
   it('load one island: the page\u2019s own, or the column\u2019s slide where it has none', async () => {
-    const deadJobs = await page('ops', '/-/dead-jobs');
-    const deadJobIslands = [...deadJobs.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
-    expect(deadJobIslands).toHaveLength(1);
-    expect(deadJobIslands[0][1]).toMatch(/\/dead-jobs-[0-9a-f]+\.js$/);
-
     const explain = await page('ops', '/-/explain');
-    const explainIslands = [...explain.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
-    expect(explainIslands).toHaveLength(1);
-    expect(explainIslands[0][1]).toMatch(/\/fold-[0-9a-f]+\.js$/);
+    const plain = [...explain.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
+    expect(plain).toHaveLength(1);
+    expect(plain[0][1]).toMatch(/\/fold-[0-9a-f]+\.js$/);
+
+    const deadJobs = await page('ops', '/-/dead-jobs');
+    const own = [...deadJobs.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)];
+    expect(own).toHaveLength(1);
+    expect(own[0][1]).toMatch(/\/dead-jobs-[0-9a-f]+\.js$/);
 
     const status = await page('ops', '/-/status');
     const islands = [...status.text.matchAll(/<script type="module"[^>]*src="([^"]+)"/g)].map(
