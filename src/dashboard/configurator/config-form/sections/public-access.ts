@@ -7,7 +7,7 @@ export function publicSection(root: Obj): SectionSource {
   return {
     ...sectionHead('public'),
     blurb:
-      'You can allow repositories to publish content to anonymous (public) readers. Adding a repository here does not publish the content, it just allows the repo to use the `public` grant in its `.speicher.yaml` files. Find out more in our [documentation](TODO:INSERT_DOCS_LINK)',
+      'You can allow repositories to publish content to anonymous (public) readers. Adding a repository here does not publish the content, it just allows the repo to use the `public` grant in its `.speicher.yaml` files. Find out more in our [documentation](https://docs.speicher.md/configuration/public-access)',
     fields: [
       pickListField(root, ['public', 'repos'], 'public.repos', 'Public repositories', {
         source: 'repositories',

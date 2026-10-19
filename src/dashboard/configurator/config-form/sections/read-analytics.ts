@@ -21,7 +21,7 @@ export function analyticsSection(root: Obj): SectionSource {
   return {
     ...sectionHead('analytics'),
     blurb:
-      'Count how often each page is read, without recording who read what. Find out more in our [documentation](https://docs.speicher.md/operate/read-analytics)',
+      'Count how often each page is read, without recording who read what. Find out more in our [documentation](https://docs.speicher.md/configuration/read-analytics)',
     fields: [
       booleanField(root, ['analytics', 'enabled'], 'analytics.enabled', 'Count total reads', {
         fallback: false,
