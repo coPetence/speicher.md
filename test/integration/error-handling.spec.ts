@@ -259,3 +259,25 @@ describe('a reconcile that fails on the timer', () => {
     expect(failures[0].error).toBe('the database went away');
   });
 });
+
+describe('a reconcile that fails when the worker starts', () => {
+  it('is logged, and the worker still starts', async () => {
+    const worker = app.get(Worker);
+    const intervals = jest
+      .spyOn(global, 'setInterval')
+      .mockImplementation((() => 0) as unknown as typeof setInterval);
+    const due = jest
+      .spyOn(app.get(SyncService), 'dueForReconcile')
+      .mockRejectedValue(new Error('the database went away'));
+    try {
+      await expect(worker.start()).resolves.toBeUndefined();
+    } finally {
+      due.mockRestore();
+      intervals.mockRestore();
+      await worker.stop();
+    }
+
+    const failures = logLines().filter((line) => line.msg === 'reconcile failed');
+    expect(failures.at(-1)?.error).toBe('the database went away');
+  });
+});
