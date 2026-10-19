@@ -1,11 +1,28 @@
-import { AuthzService } from '../authz/authz.service';
-import { ResolvedCaller } from '../authz/caller';
-import { ContentReports } from '../authz/content/reports';
-import { explainRepoRoot } from '../authz/explain';
-import { parseDuration } from '../common/time';
-import { ConfigService } from '../config/config.service';
-import { ConfigSource, SkippedConfigVersion } from '../config/types';
-import { DashboardRepository, RunRow } from './dashboard.repository';
+import { AuthzService } from '../../authz/authz.service';
+import { ResolvedCaller } from '../../authz/caller';
+import { ContentReports } from '../../authz/content/reports';
+import { explainRepoRoot } from '../../authz/explain';
+import { parseDuration } from '../../common/time';
+import { ConfigService } from '../../config/config.service';
+import { DashboardRepository, JobActivityRow } from '../dashboard.repository';
+import {
+  DEFAULT_REPO_FILTER,
+  RepoFilter,
+  facetOptions,
+  facetsOf,
+  matchesFilter,
+  repoMatchText,
+} from './repo-filter';
+import { RepoSort, sortRepos } from './repo-sort';
+import {
+  EmbeddingSummary,
+  InstanceSummary,
+  RepoConfigSummary,
+  RepoRunsPayload,
+  RepoStatus,
+  RunPayload,
+  StatusPayload,
+} from './status.types';
 
 // The shape `gen_random_uuid()` produces; anything else in the URL is no run
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,15 +50,23 @@ export class StatusService {
     caller: ResolvedCaller,
     scope: 'all' | string[],
     query = '',
-    states: readonly RepoState[] = DEFAULT_REPO_STATES,
+    filter: RepoFilter = DEFAULT_REPO_FILTER,
+    sort: RepoSort = 'name',
   ): Promise<StatusPayload> {
     const rows = await this.repo.repoStatusRows(caller.tenantId, scope);
+    const jobs = await this.repo.jobActivity(caller.tenantId);
+
+    const syncs = new Map<string, 'syncing' | 'queued'>();
+    for (const job of jobs) {
+      if (job.kind !== 'sync-repo-content' || !job.repo_id) continue;
+      if (job.activity === 'running') syncs.set(job.repo_id, 'syncing');
+      else if (!syncs.has(job.repo_id)) syncs.set(job.repo_id, 'queued');
+    }
 
     const pages = await this.reports.countPagesByRepo(caller.tenantId, scope);
 
     const staleAfterMs = parseDuration(this.config.notify.stale_after ?? '6h');
     const all: RepoStatus[] = rows.map((row) => {
-      // A repo not synced yet may still have a config, so only a synced one counts
       const unpublished = !row.has_config && row.last_run_at !== null;
       const stale =
         !unpublished &&
@@ -61,8 +86,8 @@ export class StatusService {
         // Period between POLL checks
         poll_interval_ms: row.poll_interval_ms,
         documents: pages.get(row.id) ?? 0,
-        dropped_grants: Number(row.dropped_grants),
         stale,
+        activity: syncs.get(row.id) ?? null,
         state: unpublished
           ? 'unpublished'
           : row.last_run_at === null
@@ -79,28 +104,24 @@ export class StatusService {
     return {
       scope: scope === 'all' ? 'admin' : 'maintainer',
       query: query.trim(),
-      /*
-        The tiles count what this instance holds, so they are computed before the
-        filter and never from `repos`. A filter narrows the list and nothing else —
-        a Failed count that fell to zero because somebody typed a name is a number
-        that answers a question nobody asked.
-      */
       totals: {
         repositories: all.length,
         pages: all.reduce((n, r) => n + r.documents, 0),
         failed: all.filter((r) => r.last_status === 'failed').length,
         stale: all.filter((r) => r.stale && r.last_status !== 'failed').length,
-        dropped_grants: all.reduce((n, r) => n + r.dropped_grants, 0),
       },
-      repos: all.filter(
-        (repo) =>
-          states.includes(repo.state) && (needle === '' || repoMatchText(repo).includes(needle)),
+      repos: sortRepos(
+        all.filter(
+          (repo) =>
+            matchesFilter(repo, filter) && (needle === '' || repoMatchText(repo).includes(needle)),
+        ),
+        sort,
       ),
-      states: REPO_STATES.filter((state) => states.includes(state)),
-      state_counts: Object.fromEntries(
-        REPO_STATES.map((state) => [state, all.filter((repo) => repo.state === state).length]),
-      ) as Record<RepoState, number>,
-      instance: caller.isAdmin ? await this.instanceSummary(caller) : null,
+      filter,
+      sort,
+      facets: facetOptions(all),
+      facet_rows: all.map(facetsOf),
+      instance: caller.isAdmin ? await this.instanceSummary(caller, jobs) : null,
     };
   }
 
@@ -139,14 +160,12 @@ export class StatusService {
     };
   }
 
-  /** One run of one repository, scoped exactly as the repository's own page */
   async runPayload(
     caller: ResolvedCaller,
     namespace: string,
     slug: string,
     runId: string,
   ): Promise<RunPayload | null> {
-    // Not a uuid is not a run; checked here so the cast in the query cannot throw
     if (!UUID.test(runId)) return null;
     const repoId = await this.operableRepoId(caller, namespace, slug);
     if (!repoId) return null;
@@ -182,8 +201,20 @@ export class StatusService {
     return { model: embedding.model, dimensions: embedding.dimensions, ...counts };
   }
 
-  private async instanceSummary(caller: ResolvedCaller): Promise<InstanceSummary> {
+  private async instanceSummary(
+    caller: ResolvedCaller,
+    jobs: JobActivityRow[],
+  ): Promise<InstanceSummary> {
     return {
+      running_jobs: jobs.filter((job) => job.activity === 'running').length,
+      queued_jobs: jobs.filter((job) => job.activity === 'queued').length,
+      discovering: [
+        ...new Set(
+          jobs.flatMap((job) =>
+            job.kind === 'sync-repo-list' && job.forge_key ? [job.forge_key] : [],
+          ),
+        ),
+      ].sort(),
       config_source: this.config.configSource,
       config_path: this.config.sourcePath,
       config_version: this.config.configVersion,
@@ -197,124 +228,4 @@ export class StatusService {
       embedding: await this.embeddingSummary(caller.tenantId),
     };
   }
-}
-
-export interface EmbeddingSummary {
-  model: string;
-  dimensions: number;
-  current: number;
-  stale: number;
-  pending: number;
-}
-
-/**
- * What the needle is matched against: what the first column *shows*.
- *
- * Exported because the page puts it on every row (`data-spr-row`) for the island to
- * narrow on. One function, so the answer a browser filters by cannot drift from the
- * one a round trip would have given.
- *
- * The name and the source that holds it, and deliberately not the state words. A
- * state is a badge somebody reads down the column, and matching on it would make
- * the answers depend on prose the template owns — the filter would then be two
- * ideas of what a row says, one of which drifts the day a word changes.
- */
-export function repoMatchText(repo: RepoStatus): string {
-  return [repo.namespace, repo.slug, repo.forge_key, repo.forge_type]
-    .filter((part): part is string => typeof part === 'string')
-    .join(' ')
-    .toLowerCase();
-}
-
-export interface RepoStatus {
-  namespace: string;
-  slug: string;
-  /** The content source's short id and kind, for the mark before the name */
-  forge_key: string | null;
-  forge_type: string | null;
-  last_sha: string | null;
-  last_run_at: Date | null;
-  last_status: string;
-  last_error: string | null;
-  poll_interval_ms: number | null;
-  documents: number;
-  dropped_grants: number;
-  stale: boolean;
-  state: RepoState;
-}
-
-export const REPO_STATES = ['ok', 'failed', 'stale', 'never-synced', 'unpublished'] as const;
-export type RepoState = (typeof REPO_STATES)[number];
-
-export const DEFAULT_REPO_STATES: readonly RepoState[] = REPO_STATES.filter(
-  (state) => state !== 'unpublished',
-);
-
-export function repoStatesFrom(value: unknown): readonly RepoState[] {
-  const asked = (Array.isArray(value) ? value : [value]).filter((state): state is RepoState =>
-    (REPO_STATES as readonly unknown[]).includes(state),
-  );
-  return asked.length > 0 ? asked : DEFAULT_REPO_STATES;
-}
-
-export interface InstanceSummary {
-  config_source: ConfigSource;
-  config_path: string | null;
-  config_version: number | null;
-  config_skipped: SkippedConfigVersion[];
-  resolution_hash: string;
-  forges: string[];
-  providers: string[];
-  theme: string;
-  stale_after: string;
-  dead_jobs: number;
-  embedding: EmbeddingSummary | null;
-}
-
-/** The instance-wide figures the tiles read, counted before any filter */
-export interface StatusTotals {
-  repositories: number;
-  pages: number;
-  failed: number;
-  stale: number;
-  dropped_grants: number;
-}
-
-export interface StatusPayload {
-  scope: 'admin' | 'maintainer';
-  /** The needle the caller asked for, echoed so page and JSON say the same thing */
-  query: string;
-  totals: StatusTotals;
-  repos: RepoStatus[];
-  states: RepoState[];
-  state_counts: Record<RepoState, number>;
-  instance: InstanceSummary | null;
-}
-
-export interface RepoRunsPayload {
-  namespace: string;
-  slug: string;
-  forge_type: string | null;
-  /** A content sync is running or due now; the page's island polls this */
-  syncing: boolean;
-  runs: RunRow[];
-  config: RepoConfigSummary | null;
-}
-
-export interface RunPayload {
-  namespace: string;
-  slug: string;
-  run: RunRow;
-  published_pages: number;
-}
-
-export interface RepoConfigSummary {
-  display_title: string | null;
-  has_cover: boolean;
-  maintainer_principals: string[];
-  has_config: boolean;
-  poll_interval_ms: number | null;
-  root_granted: string[] | null;
-  root_principals: string[] | null;
-  indexable: boolean | null;
 }

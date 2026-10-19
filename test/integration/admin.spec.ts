@@ -140,10 +140,13 @@ describe('an admin', () => {
     expect(tiles).toMatch(
       /<a class="spr-stat-label spr-stat-link" href="\/-\/logs">Dead jobs<\/a>/,
     );
-    expect(tiles).toMatch(
-      /<a class="spr-stat-label spr-stat-link" href="\/-\/graph">Dropped grants<\/a>/,
-    );
     expect(tiles).toMatch(/<span class="spr-stat-label">Repositories<\/span>/);
+  });
+
+  it('says nothing about dropped grants, which the run pages report', async () => {
+    const res = await page('ops', '/-/status');
+    expect(res.text).not.toContain('Dropped grants');
+    expect((await json('ops', '/-/status')).body.totals).not.toHaveProperty('dropped_grants');
   });
 
   it("is sent from the repository's table to the run's own page for its findings", async () => {
@@ -263,7 +266,7 @@ describe('the repository list', () => {
     expect(res.text).toContain('action="/-/discover"');
   });
 
-  describe('the state filter, with a repository that has no .speicher.yaml', () => {
+  describe('the filter, with a repository that has no .speicher.yaml', () => {
     const setConfig = (hasConfig: boolean) =>
       getSequelize().query(
         `UPDATE repos SET has_config = :hasConfig, last_run_at = now() - interval '2 days'
@@ -276,12 +279,14 @@ describe('the repository list', () => {
 
     const slugs = (body: { repos: { slug: string }[] }) => body.repos.map((repo) => repo.slug);
 
-    it('leaves it out by default, and counts it in its state', async () => {
+    const DEFAULT_STATES = ['ok', 'failed', 'stale', 'never-synced'];
+
+    it('leaves it out by default, and counts it among the states', async () => {
       const res = await json('ops', '/-/status');
       expect(slugs(res.body)).not.toContain('fieldkit');
       expect(slugs(res.body)).toContain('handbook');
-      expect(res.body.states).toEqual(['ok', 'failed', 'stale', 'never-synced']);
-      expect(res.body.state_counts.unpublished).toBe(1);
+      expect(res.body.filter).toEqual({ state: DEFAULT_STATES, owner: [], source: [], pages: [] });
+      expect(res.body.facets.state).toContainEqual({ value: 'unpublished', count: 1 });
       expect(res.body.totals.repositories).toBe(slugs(res.body).length + 1);
     });
 
@@ -296,25 +301,174 @@ describe('the repository list', () => {
       expect(html.text).toContain('not published');
     });
 
-    it('marks the menu active while any state is left out, the default included', async () => {
+    it('needs one value of each dimension, and every dimension it narrows', async () => {
+      const all = await json('ops', '/-/status?f=1');
+      const owners = all.body.facets.owner.map((option: { value: string }) => option.value);
+      expect(owners.length).toBeGreaterThan(1);
+
+      const one = await json('ops', `/-/status?owner=${owners[0]}`);
+      expect(one.body.repos.length).toBeGreaterThan(0);
+      expect(
+        one.body.repos.every((repo: { namespace: string }) => repo.namespace === owners[0]),
+      ).toBe(true);
+
+      const none = await json('ops', `/-/status?owner=${owners[0]}&pages=100%2B`);
+      expect(
+        none.body.repos.every(
+          (repo: { namespace: string; documents: number }) =>
+            repo.namespace === owners[0] && repo.documents >= 100,
+        ),
+      ).toBe(true);
+    });
+
+    it('shows everything for an applied filter with nothing ticked', async () => {
+      const res = await json('ops', '/-/status?f=1');
+      expect(slugs(res.body)).toContain('fieldkit');
+      expect(res.body.repos).toHaveLength(res.body.totals.repositories);
+    });
+
+    it('marks the filter button active while it narrows the list, the default included', async () => {
       const narrowed = await page('ops', '/-/status');
-      expect(narrowed.text).toMatch(/class="spr-filter-menu" data-spr-active/);
+      expect(narrowed.text).toMatch(/class="spr-modal spr-filter-modal" data-spr-active/);
 
-      const every = 'state=ok&state=failed&state=stale&state=never-synced&state=unpublished';
-      const all = await page('ops', `/-/status?${every}`);
+      const all = await page('ops', '/-/status?f=1');
       expect(all.text).not.toContain('data-spr-active');
-      expect(slugs((await json('ops', `/-/status?${every}`)).body)).toContain('fieldkit');
     });
 
-    it('falls back to the default for a state it does not know', async () => {
-      const res = await json('ops', '/-/status?state=sideways');
-      expect(res.body.states).toEqual(['ok', 'failed', 'stale', 'never-synced']);
+    it('ignores a value it does not know', async () => {
+      const res = await json('ops', '/-/status?state=sideways&pages=lots');
+      expect(res.body.filter.state).toEqual([]);
+      expect(res.body.filter.pages).toEqual([]);
     });
 
-    it('keeps the states when the text filter is cleared', async () => {
+    it('remembers an applied filter, and uses it when the address names none', async () => {
+      const applied = await json('ops', '/-/status?f=1&state=unpublished');
+      const setCookie = [applied.headers['set-cookie'] ?? []].flat().join(';');
+      const remembered = /speicher_status_filter=[^;]+/.exec(setCookie)?.[0];
+      expect(remembered).toBeDefined();
+
+      const later = await request(app.getHttpServer())
+        .get('/-/status')
+        .set('Cookie', `${cookies.ops}; ${remembered}`)
+        .set('Accept', 'application/json');
+      expect(later.body.filter.state).toEqual(['unpublished']);
+      expect(slugs(later.body)).toEqual(['fieldkit']);
+    });
+
+    it('keeps the filter when the text filter is cleared, since the address names none', async () => {
       const res = await page('ops', '/-/status?q=nosuchrepository&state=unpublished');
-      expect(res.text).toContain('href="/-/status?state=unpublished"');
+      expect(res.text).toContain('href="/-/status"');
     });
+  });
+
+  describe('the order', () => {
+    const pages = (body: { repos: { documents: number }[] }) =>
+      body.repos.map((repo) => repo.documents);
+
+    it('is by owner and name until a header asks otherwise', async () => {
+      const res = await json('ops', '/-/status?f=1');
+      expect(res.body.sort).toBe('name');
+      const names = res.body.repos.map(
+        (repo: { namespace: string; slug: string }) => `${repo.namespace}/${repo.slug}`,
+      );
+      expect(names).toEqual([...names].sort());
+    });
+
+    it('puts the most pages first, or the fewest', async () => {
+      const most = pages((await json('ops', '/-/status?f=1&sort=pages-desc')).body);
+      expect(new Set(most).size).toBeGreaterThan(1);
+      expect(most).toEqual([...most].sort((a, b) => b - a));
+
+      const fewest = pages((await json('ops', '/-/status?f=1&sort=pages-asc')).body);
+      expect(fewest).toEqual([...fewest].sort((a, b) => a - b));
+    });
+
+    it('falls back to the name for an order it does not know', async () => {
+      expect((await json('ops', '/-/status?sort=sideways')).body.sort).toBe('name');
+    });
+
+    it('turns the Pages header around, and keeps the filter and the needle in its link', async () => {
+      const first = await page('ops', '/-/status?state=ok&q=hand');
+      expect(first.text).toContain(
+        'href="/-/status?f=1&amp;state=ok&amp;q=hand&amp;sort=pages-desc"',
+      );
+
+      const sorted = await page('ops', '/-/status?state=ok&sort=pages-desc');
+      expect(sorted.text).toContain('href="/-/status?f=1&amp;state=ok&amp;sort=pages-asc"');
+      expect(sorted.text).toMatch(/aria-sort="descending"/);
+      expect(sorted.text).toContain('name="sort" value="pages-desc"');
+    });
+  });
+});
+
+describe('what the worker is doing', () => {
+  const insertJob = (
+    kind: string,
+    payload: Record<string, string>,
+    status: 'running' | 'pending',
+    runAfter = "now() - interval '1 second'",
+  ) =>
+    getSequelize().query(
+      `INSERT INTO jobs (tenant_id, kind, payload, status, run_after, locked_until)
+       VALUES (:tenantId, :kind, :payload::jsonb, :status, ${runAfter},
+               CASE WHEN :status = 'running' THEN now() + interval '5 minutes' END)`,
+      {
+        replacements: {
+          tenantId: harness.tenantId,
+          kind,
+          payload: JSON.stringify(payload),
+          status,
+        },
+      },
+    );
+
+  beforeAll(async () => {
+    await insertJob('sync-repo-content', { repoId: harness.repos.handbook }, 'running');
+    await insertJob('sync-repo-content', { repoId: harness.repos.specs }, 'pending');
+    await insertJob('sync-repo-list', { forgeKey: 'gh' }, 'pending');
+    // Scheduled for later, so nobody is waiting on it
+    await insertJob('sync-repo-list', { forgeKey: 'gl' }, 'pending', "now() + interval '1 hour'");
+  });
+
+  afterAll(() => getSequelize().query(`DELETE FROM jobs WHERE status IN ('running', 'pending')`));
+
+  it('counts the jobs running and due, and leaves the ones scheduled for later out', async () => {
+    const res = await json('ops', '/-/status');
+
+    expect(res.body.instance).toMatchObject({
+      running_jobs: 1,
+      queued_jobs: 2,
+      discovering: ['gh'],
+    });
+  });
+
+  it('marks each repository with what is happening to it', async () => {
+    const res = await json('ops', '/-/status');
+    const activity = Object.fromEntries(
+      res.body.repos.map((repo: { slug: string; activity: string | null }) => [
+        repo.slug,
+        repo.activity,
+      ]),
+    );
+
+    expect(activity).toMatchObject({ handbook: 'syncing', specs: 'queued' });
+  });
+
+  it('shows it on the page, and tells the island to look again soon', async () => {
+    const res = await page('ops', '/-/status');
+
+    expect(res.text).toContain('Running');
+    expect(res.text).toContain('Queued');
+    expect(res.text).toMatch(/class="spr-activity">[\s\S]*?syncing/);
+    expect(res.text).toContain('Speicher is discovering the repositories of gh.');
+    expect(res.text).toContain('data-spr-activity data-spr-busy');
+  });
+
+  it('shows a maintainer their repository’s activity, but not the instance’s jobs', async () => {
+    const res = await json('alice', '/-/status');
+
+    expect(res.body.instance).toBeNull();
+    expect(res.body.repos.some((repo: { activity: unknown }) => repo.activity !== null)).toBe(true);
   });
 });
 
@@ -344,7 +498,6 @@ describe('a maintainer', () => {
     expect(res.text).not.toContain(harness.config.resolutionHash);
     expect(res.text).not.toContain('Dead jobs');
     expect(res.text).toContain('Repositories');
-    expect(res.text).toMatch(/<span class="spr-stat-label">Dropped grants<\/span>/);
     expect(res.text).not.toContain('href="/-/graph"');
   });
 

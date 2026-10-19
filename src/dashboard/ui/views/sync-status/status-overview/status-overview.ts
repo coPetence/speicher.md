@@ -4,22 +4,25 @@ import { forgeMark } from '../../../../configurator/config-form/members';
 import { Level } from '../../../levels';
 import { markSprite, renderMarkRef } from '../../../provider-marks';
 import { DashboardResponder } from '../../../../respond';
+import { SYNCING_ICON } from '../repo-status/repo-status';
 import {
-  DEFAULT_REPO_STATES,
-  REPO_STATES,
-  RepoState,
-  StatusPayload,
+  DEFAULT_REPO_FILTER,
+  FILTER_DIMENSIONS,
+  FilterDimension,
+  PageRange,
+  repoFilterQuery,
   repoMatchText,
-} from '../../../../status.service';
+} from '../../../../status/repo-filter';
+import { RepoSort } from '../../../../status/repo-sort';
+import { RepoState, StatusPayload } from '../../../../status/status.types';
 import { approximateDuration, isoOf, relativeTime } from '../../../../../common/time';
 import { emptyStateArt } from '../../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../../content-reader/icons';
 import { renderTemplate } from '../../../../../content-reader/views';
 
-/** Counts shown in the banner after a redirect from a re-embed or a discovery */
+/** Counts shown in the banner after a redirect from a re-embed */
 export interface StatusBanners {
   reembedding: number | null;
-  discovering: number | null;
 }
 
 /** Asking a content source what it holds, on the button and nowhere else */
@@ -50,26 +53,41 @@ export function sendStatus(
         query: data.query,
         tiles: statusTiles(data),
         total: data.totals.repositories,
-        state_filter: REPO_STATES.map((state) => ({
-          value: state,
-          ...STATE_DISPLAY[state],
-          count: data.state_counts[state],
-          checked: data.states.includes(state),
-        })),
-        // Every state but all of them is a narrowing, the default included
-        state_filtered: data.states.length < REPO_STATES.length,
-        // Carried by the links that clear the text, so they keep the states
-        states_query: sameStates(data.states, DEFAULT_REPO_STATES)
-          ? ''
-          : data.states.map((state) => `state=${state}`).join('&'),
-        all_states_query: REPO_STATES.map((state) => `state=${state}`).join('&'),
+        filter_groups: filterGroups(data),
+        filter_applied: FILTER_DIMENSIONS.filter((key) => data.filter[key].length > 0).length,
+        facet_rows: JSON.stringify(data.facet_rows),
+        sort: data.sort,
+        sort_name_href: sortHref(data, 'name'),
+        sort_pages_href: sortHref(data, data.sort === 'pages-desc' ? 'pages-asc' : 'pages-desc'),
+        sort_pages_icon: renderInlineIcon(
+          data.sort === 'pages-desc'
+            ? 'arrow-down'
+            : data.sort === 'pages-asc'
+              ? 'arrow-up'
+              : 'arrow-up-down',
+          'spr-icon',
+        ),
+        repos_matching: data.facet_rows.filter((row) =>
+          FILTER_DIMENSIONS.every(
+            (key) =>
+              data.filter[key].length === 0 || (data.filter[key] as string[]).includes(row[key]),
+          ),
+        ).length,
         default_hides_all:
           data.repos.length === 0 &&
           data.totals.repositories > 0 &&
-          data.state_counts.unpublished === data.totals.repositories &&
-          sameStates(data.states, DEFAULT_REPO_STATES),
+          data.facets.state.find((option) => option.value === 'unpublished')?.count ===
+            data.totals.repositories &&
+          repoFilterQuery(data.filter) === repoFilterQuery(DEFAULT_REPO_FILTER),
         filter_icon: renderInlineIcon('funnel', 'spr-icon'),
+        clear_icon: renderInlineIcon('x', 'spr-icon'),
+        chevron_icon: renderInlineIcon('chevron-right', 'spr-icon'),
         problem_icon: renderInlineIcon('circle-x', 'spr-icon'),
+        syncing_icon: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
+        queued_icon: renderInlineIcon(QUEUED_ICON, 'spr-icon'),
+        busy:
+          data.repos.some((repo) => repo.activity !== null) ||
+          (data.instance !== null && data.instance.running_jobs + data.instance.queued_jobs > 0),
         repos: data.repos.map((repo) => {
           const { label, level } = STATE_DISPLAY[repo.state];
           return {
@@ -89,13 +107,13 @@ export function sendStatus(
             search: repoMatchText(repo),
 
             state: label,
+            activity: repo.activity,
             lastRun: relativeTime(repo.last_run_at),
             lastRunAt: isoOf(repo.last_run_at),
 
             pollEvery: repo.poll_interval_ms ? approximateDuration(repo.poll_interval_ms) : '',
             sha: repo.last_sha?.slice(0, 8) ?? '—',
             documents: repo.documents,
-            droppedGrants: repo.dropped_grants,
 
             problems: repo.last_error ? problemsOf(repo.last_error) : [],
             problemSummary: repo.last_error ? problemSummary(problemsOf(repo.last_error)) : '',
@@ -123,11 +141,11 @@ export function sendStatus(
                 text: `Re-embedding ${banners.reembedding} chunks for semantic search.`,
               },
         discovering_note:
-          banners.discovering === null
-            ? null
-            : {
-                text: `Discovering the repositories of ${banners.discovering} content ${banners.discovering === 1 ? 'source' : 'sources'}.`,
-              },
+          data.instance && data.instance.discovering.length > 0
+            ? {
+                text: `Speicher is discovering the repositories of ${listed(data.instance.discovering)}.`,
+              }
+            : null,
       }),
   });
 }
@@ -175,8 +193,72 @@ export function problemSummary(problems: Problem[]): string {
   return count;
 }
 
-function sameStates(a: readonly RepoState[], b: readonly RepoState[]): boolean {
-  return a.length === b.length && a.every((state) => b.includes(state));
+const QUEUED_ICON = 'clock';
+
+/** `gh`, `gh and gl`, `gh, gl and git` */
+function listed(items: string[]): string {
+  return items.length === 1 ? items[0] : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
+
+function sortHref(data: StatusPayload, sort: RepoSort): string {
+  const params = new URLSearchParams(repoFilterQuery(data.filter));
+  if (data.query) params.set('q', data.query);
+  if (sort !== 'name') params.set('sort', sort);
+  return `/-/status?${params.toString()}`;
+}
+
+const PAGE_RANGE_LABELS: Record<PageRange, string> = {
+  none: 'No pages',
+  '1-9': '1-9',
+  '10-99': '10-99',
+  '100+': '100 or more',
+};
+
+const FILTER_GROUPS: {
+  key: FilterDimension;
+  label: string;
+  icon: string;
+  label_of: (value: string) => string;
+  searchable: boolean;
+}[] = [
+  {
+    key: 'state',
+    label: 'State',
+    icon: 'circle-dot',
+    label_of: (value) => STATE_DISPLAY[value as RepoState].label,
+    searchable: false,
+  },
+  { key: 'owner', label: 'Owner', icon: 'users', label_of: (value) => value, searchable: true },
+  {
+    key: 'source',
+    label: 'Content source',
+    icon: 'database',
+    label_of: (value) => value,
+    searchable: true,
+  },
+  {
+    key: 'pages',
+    label: 'Pages',
+    icon: 'file-text',
+    label_of: (value) => PAGE_RANGE_LABELS[value as PageRange],
+    searchable: false,
+  },
+];
+
+function filterGroups(data: StatusPayload) {
+  return FILTER_GROUPS.map((group) => ({
+    key: group.key,
+    label: group.label,
+    searchable: group.searchable,
+    icon: renderInlineIcon(group.icon, 'spr-icon'),
+    selected: data.filter[group.key].length,
+    options: data.facets[group.key].map((option) => ({
+      value: option.value,
+      label: group.label_of(option.value),
+      count: option.count,
+      checked: (data.filter[group.key] as string[]).includes(option.value),
+    })),
+  }));
 }
 
 /**
@@ -190,9 +272,10 @@ function sameStates(a: readonly RepoState[], b: readonly RepoState[]): boolean {
 const STAT_ICONS = {
   repositories: 'book-marked',
   pages: 'file-text',
+  running: SYNCING_ICON,
+  queued: QUEUED_ICON,
   failed: 'circle-x',
   stale: 'clock-alert',
-  dropped: 'shield-x',
   dead: 'octagon-x',
 } as const;
 
@@ -208,7 +291,7 @@ interface StatusTile {
 
 /** Derives the summary tiles for the status page from the payload */
 function statusTiles(payload: StatusPayload): StatusTile[] {
-  const { repositories, pages, failed, stale, dropped_grants: dropped } = payload.totals;
+  const { repositories, pages, failed, stale } = payload.totals;
   // The instance's own figures, so a filtered list leaves every tile where it was
   const tile = (
     label: string,
@@ -223,14 +306,6 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
     iconHtml: renderInlineIcon(icon, 'spr-icon'),
     ...(href === undefined ? {} : { href }),
   });
-
-  /*
-    A tile links to the page where its count can be acted on, and only for a
-    caller who can open that page. `/-/logs` and `/-/graph` are administrator-only,
-    and `payload.instance` is the half of the payload only an administrator gets —
-    so a maintainer's tiles carry no link that would 404 on them.
-  */
-  const isAdmin = payload.instance !== null;
 
   /*
     A count of nothing is `idle`, never `ok`.
@@ -249,15 +324,22 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
   return [
     { ...tile('Repositories', repositories, 'idle', STAT_ICONS.repositories), tone: 'blue' },
     { ...tile('Pages', pages, 'idle', STAT_ICONS.pages), tone: 'violet' },
+    ...(payload.instance
+      ? [
+          {
+            ...tile('Running', payload.instance.running_jobs, 'idle', STAT_ICONS.running),
+            ...(payload.instance.running_jobs > 0
+              ? {
+                  tone: 'blue' as const,
+                  iconHtml: renderInlineIcon(STAT_ICONS.running, 'spr-icon spr-spin'),
+                }
+              : {}),
+          },
+          tile('Queued', payload.instance.queued_jobs, 'idle', STAT_ICONS.queued),
+        ]
+      : []),
     tile('Failed', failed, failed > 0 ? 'fail' : 'idle', STAT_ICONS.failed),
     tile('Stale', stale, stale > 0 ? 'warn' : 'idle', STAT_ICONS.stale),
-    tile(
-      'Dropped grants',
-      dropped,
-      dropped > 0 ? 'warn' : 'idle',
-      STAT_ICONS.dropped,
-      isAdmin ? '/-/graph' : undefined,
-    ),
     /*
       Dead jobs, as a figure rather than as a line in a panel of instance facts.
 

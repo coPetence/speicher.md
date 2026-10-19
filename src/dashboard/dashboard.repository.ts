@@ -12,20 +12,13 @@ import { getSequelize } from '../db/sequelize';
 export class DashboardRepository {
   /** Repo status overview rows for a tenant
    *
-   * Each row includes the repo's latest sync metadata and the most recent
-   * non-running run's dropped_grants
+   * Each row includes the repo's latest sync metadata
    * scope is 'all' (admin) or the subset of repo IDs the caller can operate */
   async repoStatusRows(tenantId: string, scope: 'all' | string[]): Promise<StatusRow[]> {
     return getSequelize().query<StatusRow>(
       `SELECT r.id, r.namespace, r.slug, r.last_sha, r.last_run_at, r.last_status,
               r.last_error, r.last_error_public, r.poll_interval_ms, r.has_config,
-              f.key AS forge_key, f.type AS forge_type,
-              COALESCE((
-                SELECT (s.stats ->> 'dropped_grants')
-                  FROM sync_runs s
-                 WHERE s.repo_id = r.id AND s.status <> 'running'
-                 ORDER BY s.started_at DESC LIMIT 1
-              ), '0') AS dropped_grants
+              f.key AS forge_key, f.type AS forge_type
          FROM repos r
          LEFT JOIN forges f ON f.id = r.forge_id
         WHERE r.tenant_id = :tenantId
@@ -146,6 +139,21 @@ export class DashboardRepository {
     return Number(row.count);
   }
 
+  /**
+   * Jobs running now, and jobs due to run, which wait only for a free worker slot
+   */
+  async jobActivity(tenantId: string): Promise<JobActivityRow[]> {
+    return getSequelize().query<JobActivityRow>(
+      `SELECT kind, payload->>'repoId' AS repo_id, payload->>'forgeKey' AS forge_key,
+              CASE WHEN status = 'running' AND locked_until >= now() THEN 'running'
+                   ELSE 'queued' END AS activity
+         FROM jobs
+        WHERE tenant_id = :tenantId
+          AND (status = 'running' OR (status = 'pending' AND run_after <= now()))`,
+      { type: QueryTypes.SELECT, replacements: { tenantId } },
+    );
+  }
+
   /** Dead jobs with repo context and forge key, for the logs page */
   async deadJobs(tenantId: string): Promise<DeadJobRow[]> {
     return getSequelize().query<DeadJobRow>(
@@ -178,6 +186,15 @@ export class DashboardRepository {
 }
 
 /** Row shape for the repo status overview */
+export interface JobActivityRow {
+  kind: string;
+  /** Set on a job about one repository, such as `sync-repo-content` */
+  repo_id: string | null;
+  /** Set on a job about one content source, such as `sync-repo-list` */
+  forge_key: string | null;
+  activity: 'running' | 'queued';
+}
+
 export interface StatusRow {
   id: string;
   namespace: string;
@@ -189,7 +206,6 @@ export interface StatusRow {
   last_error_public: string | null;
   poll_interval_ms: number | null;
   has_config: boolean;
-  dropped_grants: string;
   /** The content source the repository came from, and its kind
    *
    * A LEFT JOIN: the forge row is written by discovery, and a repository whose

@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { forgeMark } from '../../../../configurator/config-form/members';
 import { renderInlineMark } from '../../../provider-marks';
 import { DashboardResponder } from '../../../../respond';
-import { RepoRunsPayload } from '../../../../status.service';
+import { RepoRunsPayload } from '../../../../status/status.types';
 import { approximateDuration } from '../../../../../common/time';
 import { renderInlineIcon } from '../../../../../content-reader/icons';
 import { renderTemplate } from '../../../../../content-reader/views';
