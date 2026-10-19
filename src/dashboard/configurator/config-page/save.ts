@@ -18,7 +18,13 @@ import type { KnownHostsField } from '../config-form/config-fields';
 import { FETCH_HOST_KEYS_OP } from '../config-form/config-fields';
 import { dottedPath, loadDocument, serialise } from '../config-form/document';
 import { memberExists, renameMember, seedMemberInto } from '../config-form/member-edits';
-import { canCreateMember, isMemberId, memberOf, memberSectionId } from '../config-form/members';
+import {
+  canCreateMember,
+  entryHrefFor,
+  isMemberId,
+  memberOf,
+  memberSectionId,
+} from '../config-form/members';
 import { allFields } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { Uploads, fillUploads } from '../config-form/upload';
@@ -246,6 +252,43 @@ export class ConfigSaveService {
     }
   }
 
+  private async addAtOnce(
+    caller: ResolvedCaller,
+    json: boolean,
+    sectionId: string,
+    payload: ConfigSectionPayload,
+    doc: ReturnType<typeof loadDocument>,
+    id: string,
+  ): Promise<SaveOutcome> {
+    const noun = payload.section?.entryNoun ?? 'entry';
+    const hint = payload.section?.addOps.find((op) => op.savesAtOnce)?.nameHint;
+    const member = entryHrefFor(sectionId, id, '')
+      ? memberOf(memberSectionId(sectionId, id))
+      : null;
+
+    if (!member) {
+      const error = `"${id}" is not a short id a ${noun} may take${hint ? `: ${hint}` : '.'}`;
+      return pageOf(sectionId, { ...payload, error }, 400);
+    }
+    if (memberExists(doc, member)) {
+      return pageOf(
+        sectionId,
+        { ...payload, error: `There is already a ${noun} called "${id}".` },
+        400,
+      );
+    }
+
+    return this.save({
+      caller,
+      sectionId: memberSectionId(member.section, member.id),
+      json,
+      readBody: async () => ({
+        uploads: { parts: new Map(), refusal: null },
+        body: { intent: 'apply' },
+      }),
+    });
+  }
+
   async save({ caller, sectionId, kind, json, readBody }: SaveRequest): Promise<SaveOutcome> {
     const state = await this.page.state(caller);
     const payload = await this.page.sectionPayload(state, sectionId);
@@ -292,6 +335,24 @@ export class ConfigSaveService {
     if (body.intent === 'width' && sectionId === 'embedding') {
       return { kind: 'json', ...(await this.checks.probeWidth(doc, body)) };
     }
+
+    /*
+      A collection whose members are saved as they come and go — see
+      `AddOp.savesAtOnce`. Its add modal posts the new id here, and removing one
+      of its members stores the document rather than handing back a page with the
+      removal pending. Both still pass the loader below: a removal that would
+      lock everybody out is refused with its reason, exactly as Save would be.
+    */
+    const atOnce = payload.section?.addOps.find((op) => op.savesAtOnce);
+    if (atOnce && typeof body.add === 'string') {
+      return this.addAtOnce(caller, json, sectionId, payload, doc, body.add.trim());
+    }
+    const removing = `remove:${sectionId}.`;
+    const removesAtOnce =
+      atOnce !== undefined &&
+      typeof body.op === 'string' &&
+      body.op.startsWith(removing) &&
+      !body.op.slice(removing.length).includes('.');
 
     // A page for a member that does not exist yet brings it into existence, before
     // a single value is decoded — otherwise there is no section to decode against
@@ -442,9 +503,7 @@ export class ConfigSaveService {
       return this.rename(caller, json, sectionId, payload, edited, renameTo.trim());
     }
 
-    // Adding or removing an entry is a round trip, not a save: the operator has
-    // asked for somewhere to type, and an empty provider does not validate yet.
-    if (structural || hostKeys) {
+    if ((structural && !removesAtOnce) || hostKeys) {
       payload.landing = landingOf(doc, body.op);
       return pageOf(sectionId, payload);
     }
@@ -490,7 +549,7 @@ export class ConfigSaveService {
 
     payload.verdict = compareConfigs(this.config.loadedConfig, proposed);
 
-    if (body.intent !== 'apply') return pageOf(sectionId, payload);
+    if (body.intent !== 'apply' && !removesAtOnce) return pageOf(sectionId, payload);
 
     // Taken before the save, because `ConfigService` is mutable and the refresh
     // below adopts the new version into the very object this would be read from

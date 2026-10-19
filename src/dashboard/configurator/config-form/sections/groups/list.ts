@@ -61,6 +61,9 @@ export function groupsSection(root: Obj): SectionSource {
         typeOptions: [],
         // Navigates to the new group's detail page
         opensPage: true,
+        // A group is valid with nothing in it, so it is stored on add and on
+        // remove, with no Save to press afterwards
+        savesAtOnce: true,
       },
     ],
   };

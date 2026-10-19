@@ -87,7 +87,13 @@
 
   .spr-section-blurb {
     color: var(--spr-muted);
-    max-width: var(--spr-measure);
+    max-width: min(var(--spr-measure), 75%);
+  }
+
+  @media not all and (min-width: 48rem) {
+    .spr-section-blurb {
+      max-width: var(--spr-measure);
+    }
   }
 
   .spr-fields {
@@ -1105,8 +1111,51 @@
   }
 
   .spr-rows .spr-select-col input[type='checkbox'] {
-    font-size: 1.4em;
+    font-size: 1.15em;
     cursor: pointer;
+  }
+
+  .spr-rows {
+    background: var(--spr-bg);
+  }
+
+  .spr-rows th,
+  .spr-rows td {
+    border-right-width: 0;
+  }
+
+  .spr-rows thead th {
+    padding-block: var(--spr-space-2);
+    padding-inline: calc(var(--spr-space-2) + var(--spr-input-lead) + var(--spr-border));
+    color: var(--spr-accent);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-rows tbody td {
+    padding: var(--spr-space-1) var(--spr-space-2);
+  }
+
+  .spr-rows .spr-select-col {
+    padding-inline: var(--spr-space-4) var(--spr-space-2);
+  }
+
+  .spr-rows td input[type='text'] {
+    border-color: transparent;
+    background: transparent;
+    transition:
+      border-color var(--spr-transition),
+      background-color var(--spr-transition);
+  }
+
+  .spr-rows td input[type='text']:hover:not(:disabled) {
+    border-color: var(--spr-line);
+  }
+
+  .spr-rows td input[type='text']:focus {
+    border-color: var(--spr-accent);
+    background: var(--spr-bg);
+    outline: 1px solid var(--spr-accent);
+    outline-offset: 0;
   }
 
   .spr-table-head {
@@ -1252,22 +1301,89 @@
   }
 
   .spr-index-add-link,
-  .spr-index-add > summary {
+  .spr-index-add > summary,
+  .spr-modal-actions .spr-modal-submit:enabled {
     display: inline-flex;
     align-items: center;
     gap: var(--spr-space-2);
     padding: var(--spr-space-2) var(--spr-space-4);
-    border: var(--spr-border) solid var(--spr-line);
+    border: var(--spr-border) solid var(--spr-accent);
     border-radius: var(--spr-radius);
-    background: var(--spr-surface);
-    color: var(--spr-fg);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
     white-space: nowrap;
+    transition:
+      background-color var(--spr-transition),
+      border-color var(--spr-transition),
+      transform var(--spr-transition);
   }
 
   .spr-index-add-link:hover,
-  .spr-index-add > summary:hover {
-    border-color: var(--spr-accent);
+  .spr-index-add > summary:hover,
+  .spr-modal-actions .spr-modal-submit:enabled:hover {
+    border-color: color-mix(in oklab, var(--spr-accent) 92%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-accent) 92%, var(--spr-fg));
+    color: var(--spr-bg);
+  }
+
+  /* Lift and press only while closed: the open modal's backdrop is a fixed
+     pseudo-element of the summary, and a transform would pin it to the button */
+  .spr-index-add-link:hover,
+  .spr-index-add:not([open]) > summary:hover,
+  .spr-modal-actions .spr-modal-submit:enabled:hover {
+    transform: translateY(-1px);
+  }
+
+  .spr-index-add-link:active,
+  .spr-index-add:not([open]) > summary:active,
+  .spr-modal-actions .spr-modal-submit:enabled:active {
+    transform: scale(0.98);
+  }
+
+  /* Cancel is a word, not a second button: the muted text colour, and the
+     page's own text colour under the pointer */
+  .spr-modal-actions .spr-modal-cancel {
+    border-color: transparent;
+    background: transparent;
+    color: var(--spr-muted);
+    transition: color var(--spr-transition);
+  }
+
+  .spr-modal-actions .spr-modal-cancel:hover {
+    border-color: transparent;
     color: var(--spr-fg);
+  }
+
+  .spr-modal-panel .spr-note {
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .spr-modal > summary.spr-remove {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    color: var(--spr-muted);
+  }
+
+  .spr-modal > summary.spr-remove:hover {
+    border-color: var(--spr-status-fail);
+    color: var(--spr-status-fail);
+  }
+
+  .spr-modal-actions .spr-modal-danger:enabled {
+    border-color: var(--spr-status-fail);
+    background: var(--spr-status-fail);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+    transition:
+      background-color var(--spr-transition),
+      border-color var(--spr-transition);
+  }
+
+  .spr-modal-actions .spr-modal-danger:enabled:hover {
+    border-color: color-mix(in oklab, var(--spr-status-fail) 92%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-status-fail) 92%, var(--spr-fg));
   }
 
   .spr-index-add-link .spr-icon,

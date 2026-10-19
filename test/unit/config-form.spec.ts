@@ -334,6 +334,39 @@ describe('coverage of the schema', () => {
     expect(add.nameOptions!.every((option) => option.mark !== '')).toBe(true);
   });
 
+  it('asks which provider a source is from only when there is more than one', () => {
+    const many = buildSections(loadDocument(FULL)).find(
+      (section) => section.id === 'groups/engineering',
+    )!.addOps[0];
+    expect(many.href).toBeUndefined();
+    expect(many.nameOptions!.length).toBeGreaterThan(1);
+
+    const one = buildSections(
+      loadDocument(
+        'version: 1\nauth:\n  providers:\n    entra:\n      type: oidc\n' +
+          '      issuer: https://login.example.test/v2.0\n      client_id: c\n' +
+          'groups:\n  engineering: []\n',
+      ),
+    ).find((section) => section.id === 'groups/engineering')!.addOps[0];
+    expect(one.href).toBe('/-/config/groups/engineering/entra');
+  });
+
+  it('says what removing a group takes with it, and nothing for an empty one', () => {
+    const yaml =
+      'version: 1\nauth:\n  providers:\n    entra:\n      type: oidc\n' +
+      '      issuer: https://login.example.test/v2.0\n      client_id: c\n' +
+      'groups:\n  ops:\n    - provider: entra\n      id: grp-ops\n  empty: []\n' +
+      'admins:\n  groups: [ops]\n';
+    const warnings = (id: string) =>
+      buildSections(loadDocument(yaml)).find((section) => section.id === id)!.removeWarnings;
+
+    expect(warnings('groups/ops')).toEqual([
+      'Its sources from `entra` go with it, and nobody is a member any more.',
+      'Its members lose administrator access to this instance.',
+    ]);
+    expect(warnings('groups/empty')).toEqual([]);
+  });
+
   it('renders all three provider shapes and both forge shapes', () => {
     const paths = fieldsFor(FULL).map((f) => f.path);
     expect(paths).toContain('auth.providers.entra.issuer');

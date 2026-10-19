@@ -32,6 +32,49 @@
     </div>
   </details>
   <% } %>
+
+  <% if (it.editable && it.section && it.section.removeOp && it.section.parent && !it.creating) { %>
+  <%
+    const removeNoun = it.section.noun || 'entry';
+    const removeWarnings = it.section.removeWarnings || [];
+    const removeUsage = it.section.removeWarnings ? (it.usage || []) : [];
+  %>
+  <% if (removeWarnings.length > 0 || removeUsage.length > 0) { %>
+  <%/* Stored the moment it is pressed, so a member that still grants something asks first */%>
+  <details class="spr-modal spr-remove-confirm spr-page-op">
+    <summary class="spr-remove"><%~ it.remove_icon || '' %>Remove this <%= removeNoun %></summary>
+    <div class="spr-modal-panel">
+      <h2 class="spr-modal-title">Remove <%= it.section_title %>?</h2>
+      <% removeWarnings.forEach(function (line) { %>
+      <p class="spr-note spr-note-warn"><%~ it.warn_icon || '' %><%~ md(line) %></p>
+      <% }) %>
+      <% if (removeUsage.length > 0) { %>
+      <div class="spr-note spr-note-warn">
+        <p>
+          <%~ it.warn_icon || '' %>
+          <code>.speicher.yaml</code> files in these repositories name this <%= removeNoun %>, and stop granting through it:
+        </p>
+        <ul class="spr-problems">
+          <% removeUsage.forEach(function (repo) { %>
+          <li><code><%= repo.namespace %>/<%= repo.slug %></code> (<%= repo.pages %>
+            page<%= repo.pages === 1 ? '' : 's' %>)</li>
+          <% }) %>
+        </ul>
+      </div>
+      <% } %>
+      <p class="spr-help">This is saved as soon as you confirm.</p>
+      <div class="spr-modal-actions">
+        <button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel</button>
+        <button type="submit" name="op" value="<%= it.section.removeOp %>" form="config-form" class="spr-modal-danger"
+                formaction="/-/config/<%= it.section.parent %>">Remove this <%= removeNoun %></button>
+      </div>
+    </div>
+  </details>
+  <% } else { %>
+  <button type="submit" name="op" value="<%= it.section.removeOp %>" form="config-form" class="spr-remove spr-page-op"
+          formaction="/-/config/<%= it.section.parent %>"><%~ it.remove_icon || '' %>Remove this <%= removeNoun %></button>
+  <% } %>
+  <% } %>
 </div>
 <% if (it.section && it.section.blurb) { %>
 <p class="spr-section-blurb"><%~ md(it.section.blurb) %></p>
@@ -116,9 +159,23 @@
 %>
 <% const pageAdd = addOp; %>
 <%
-  const barRenders = it.section.layout === 'table' && (it.section.searchable || pageAdd);
+  const bareIndex = it.section.layout === 'table' && !it.section.tables && Boolean(it.empty_art)
+    && it.section.entries.length === 0 && !it.query;
+  const barRenders = it.section.layout === 'table' && (it.section.searchable || pageAdd) && !bareIndex;
 %>
-<% if (barRenders) { %>
+<% function renderPageAdd() { %>
+  <% if (pageAdd && pageAdd.href) { %>
+  <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
+    <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
+  </a>
+  <% } else if (pageAdd) { %>
+  <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
+    <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
+    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
+  </details>
+  <% } %>
+<% } %>
+<% function renderBar() { %>
 <div class="spr-index-bar">
   <% if (it.section.searchable) { %>
   <form class="spr-form spr-filter" method="get" role="search"
@@ -134,20 +191,19 @@
   </form>
   <% } %>
 
-  <% if (pageAdd && pageAdd.href) { %>
-  <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
-    <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
-  </a>
-  <% } else if (pageAdd) { %>
-  <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
-    <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
-    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
-  </details>
-  <% } %>
+  <% renderPageAdd() %>
 </div>
 <% } %>
+<%
+  const fieldsFirst = it.section.layout === 'table';
+  const barAfterFields = barRenders && fieldsFirst && !it.section.searchable
+    && (it.section.fields.length > 0 || Boolean(it.editable && it.creating && it.section.renameOp));
+%>
+<% if (barRenders && !barAfterFields) renderBar() %>
 
-<% if (pageAdd && !pageAdd.href) { %>
+<% if (pageAdd && !pageAdd.href && pageAdd.savesAtOnce) { %>
+<form id="add-member" method="post" enctype="multipart/form-data" action="/-/config/<%= it.section_id %>"></form>
+<% } else if (pageAdd && !pageAdd.href) { %>
 <form id="add-member" method="get" action="/-/config/<%= it.section_id %>"></form>
 <% } %>
 
@@ -166,6 +222,48 @@
 <% }) } %>
 
 <% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes } %>
+
+<%
+  const ordinary = it.section.fields.filter(function (f) { return !f.advanced });
+  const advanced = it.section.fields.filter(function (f) { return f.advanced });
+  const paired = ordinary.filter(function (f) { return f.kind !== 'template' });
+  const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
+%>
+<% function renderFields() { %>
+<% const showsId = it.editable && it.creating && it.section.renameOp %>
+<% if (showsId || paired.length > 0) { %>
+<div class="spr-fields">
+  <% if (showsId) { %>
+  <div class="spr-field spr-field-text">
+    <div class="spr-field-head">
+      <label for="f-member-id">Short id</label>
+      <%~ include('@info', { field: { path: 'member-id', label: 'Short id', help: it.member_id_help } }) %>
+    </div>
+    <input
+      id="f-member-id"
+      name="newname:<%= it.section_id %>"
+      type="text"
+      value="<%= it.section_title %>"
+      pattern="<%= it.section.renamePattern %>"
+      title="<%= it.section.renameHint %>"
+      spellcheck="false"
+      autocomplete="off"
+      required
+    >
+  </div>
+  <% } %>
+  <% paired.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
+<% if (gallery.length > 0) { %>
+<div class="spr-fields spr-fields-wide">
+  <% gallery.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
+<% } %>
+<%/* On a table page the fields say what the member is and the table what it draws from: a group's id and access lead its sources */%>
+<% if (fieldsFirst) renderFields() %>
+<% if (barAfterFields) renderBar() %>
 
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <div class="spr-table-head">
@@ -282,7 +380,8 @@
 <div class="spr-empty-state" data-spr-empty="none"
    <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
   <%~ it.empty_art %>
-  <p class="spr-empty"><%= it.empty_text %></p>
+  <p class="spr-empty">No <%= (it.section.entryNoun || 'entry') %>s here yet.</p>
+  <% if (bareIndex) { renderPageAdd() } %>
 </div>
 <% } else { %>
 <%~ include('@note', { level: 'idle', text: it.empty_text, data: { 'spr-empty': 'none' }, hidden: it.section.entries.length > 0 || it.query }) %>
@@ -340,6 +439,8 @@
 <% } %>
 <% } %>
 
+<% if (!fieldsFirst) renderFields() %>
+<% it.section.cards.forEach(function (card) { %><%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon }) %><% }) %>
 <%
   const ordinary = it.section.fields.filter(function (f) { return !f.advanced });
   const advanced = it.section.fields.filter(function (f) { return f.advanced });
@@ -412,12 +513,6 @@
 </div>
 <% } %>
 
-<% if (it.editable && it.section.removeOp && it.section.parent && !it.creating) { %>
-<div class="spr-danger">
-  <button type="submit" name="op" value="<%= it.section.removeOp %>" class="spr-remove"
-          formaction="/-/config/<%= it.section.parent %>"><%~ it.remove_icon || '' %>Remove this <%= it.section.noun || 'entry' %></button>
-</div>
-<% } %>
 
 <% if (it.editable) { %>
 <div class="spr-config-actions">

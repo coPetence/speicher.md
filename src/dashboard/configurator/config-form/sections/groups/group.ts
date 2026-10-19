@@ -22,6 +22,9 @@ import { matchFields, matchLine, personFields, sourceNoteFields } from './source
 export function groupSection(root: Obj, name: string): SectionSource {
   const ids = providerIds(root);
   const providers = groupProviders(root, name);
+  const isAdmin = ((at(root, ['admins', 'groups']) as unknown[]) ?? []).some(
+    (value) => scalarString(value) === name,
+  );
 
   return {
     id: memberSectionId('groups', name),
@@ -67,9 +70,22 @@ export function groupSection(root: Obj, name: string): SectionSource {
         typeOptions: [],
         // Navigates to the new source page
         opensPage: true,
+        // With one provider there is nothing to pick, so Add goes straight to it
+        ...(ids.length === 1
+          ? { href: `/-/config/${memberSectionId('groups', name, ids[0])}` }
+          : {}),
       },
     ],
     removeOp: `remove:groups.${name}`,
+    removeWarnings: [
+      ...(providers.length > 0
+        ? [
+            `Its sources from ${providers.map((p) => `\`${p || 'no provider'}\``).join(', ')} ` +
+              'go with it, and nobody is a member any more.',
+          ]
+        : []),
+      ...(isAdmin ? ['Its members lose administrator access to this instance.'] : []),
+    ],
     renameOp: `rename:groups.${name}`,
     renamePattern: GROUP_NAME.source.slice(1, -1),
     renameHint: GROUP_NAME_HINT,

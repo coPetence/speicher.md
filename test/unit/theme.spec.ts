@@ -1095,8 +1095,12 @@ describe('the admin stylesheet', () => {
   it('does not widen the reading measure to do it', () => {
     expect(DASHBOARD_RULES).not.toMatch(/--spr-measure\s*:/);
     for (const selector of ['.spr-help', '.spr-section-blurb', '.spr-empty']) {
-      expect(declarationsOf(selector)).toMatch(/max-width:\s*var\(--spr-measure\)/);
+      expect(declarationsOf(selector)).toMatch(/max-width:\s*(min\()?var\(--spr-measure\)/);
     }
+    // The blurb also keeps to three quarters of the column when a table widens the measure
+    expect(declarationsOf('.spr-section-blurb')).toMatch(
+      /max-width:\s*min\(var\(--spr-measure\),\s*75%\)/,
+    );
   });
 });
 

@@ -1,50 +1,19 @@
-/**
- * The drawing over a list or a page with nothing in it
- *
- * One vocabulary across all of them: what is drawn solid is what is there, and
- * what is drawn dotted is what would have been. A sheet with a heading and no
- * rows; a folder with no branch in it yet; a shield nobody holds; one person and
- * the two who have not been added. So a drawing says which thing is missing as
- * well as that something is, which is the only reason to have more than one
- *
- * Inline SVG for the reason the chart is. The colour is `currentColor`, so the
- * markup carries none and the sheet's `--spr-muted` is what makes it grey in both
- * schemes; the quieter parts are the same colour at lower opacity rather than a
- * second token every template would have to answer for. Geometry is in
- * presentation attributes, since a `style` attribute is what the CSP refuses
- *
- * No `id` anywhere in it: a page may draw several, and a clip path or a gradient
- * would be one name defined twice. That is also why whatever stands behind is
- * drawn as the part of its outline that shows, rather than whole and covered up
- */
-
-/** User units of every drawing; the sheet sizes it, the markup carries no dimensions */
+/* User units of every drawing; */
 const VIEW_BOX = '0 0 160 120';
 
-/** The ground it stands on */
 const GROUND =
   '<ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>';
 
-/** What is left floating round it, the same four marks on every drawing */
 const FLOATING =
   '<path d="M27 38v8M23 42h8" opacity="0.55"/>' +
   '<path d="M136 28v6M133 31h6" opacity="0.35"/>' +
   '<circle cx="134" cy="62" r="3" opacity="0.55"/>' +
   '<circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>';
 
-/** The body of whatever is in front: the line's own colour, barely there */
 const TINT = 'fill="currentColor" fill-opacity="0.06"';
 
-/** Whatever stands behind */
 const BEHIND = 'opacity="0.45"';
 
-/**
- * A line that is not there
- *
- * `pathLength` is what makes the dots land: a dash pattern repeats every seven
- * units, and a circle whose circumference is not a multiple of seven closes on
- * half a gap. Declaring the length as one that is lets the pattern meet itself
- */
 const absent = (pathLength?: number): string =>
   'stroke-dasharray="1 6" opacity="0.55"' +
   (pathLength === undefined ? '' : ` pathLength="${pathLength}"`);
@@ -143,8 +112,7 @@ const rendered = new Map<EmptyArt, string>();
  * Inline SVG of an empty state
  *
  * Hidden from assistive technology: it is always drawn beside the sentence that
- * says what is missing, and a picture announced ahead of that sentence is the
- * same thing said twice, the second time less precisely
+ * says what is missing
  */
 export function emptyStateArt(kind: EmptyArt = 'page'): string {
   const cached = rendered.get(kind);
@@ -166,15 +134,15 @@ export const SECTION_EMPTY_ART = [
   'groups',
 ] as const satisfies readonly EmptyArt[];
 
-/**
- * The drawing a configuration index has; the empty string for none
- *
- * Keyed on the id the route already holds, so a section gets its drawing with no
- * field added to the form's model — that model is what the JSON representation
- * serialises, and markup is not an answer a JSON caller asked for. An id with no
- * drawing keeps the plain note it had
- */
+const MEMBER_EMPTY_ART: ReadonlyMap<string, EmptyArt> = new Map([['groups', 'groups']]);
+
 export function sectionEmptyArt(sectionId: string): string {
-  const kind = SECTION_EMPTY_ART.find((id) => id === sectionId);
+  const [section, member, ...rest] = sectionId.split('/');
+  const kind =
+    member === undefined
+      ? SECTION_EMPTY_ART.find((id) => id === section)
+      : rest.length === 0 && member !== ''
+        ? MEMBER_EMPTY_ART.get(section)
+        : undefined;
   return kind === undefined ? '' : emptyStateArt(kind);
 }

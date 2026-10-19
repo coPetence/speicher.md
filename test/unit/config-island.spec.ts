@@ -916,6 +916,29 @@ describe('the save bar', () => {
     expect(document.activeElement).toBe(modal.querySelector('summary'));
   });
 
+  it('closes a modal from its Cancel and puts focus back where it came from', () => {
+    render();
+    const add = document.createElement('div');
+    add.innerHTML = `
+      <details class="spr-modal" open>
+        <summary>Add a group</summary>
+        <div class="spr-modal-panel">
+          <input name="add" value="ops">
+          <div class="spr-modal-actions">
+            <button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel</button>
+            <button type="submit" class="spr-modal-submit">Add a group</button>
+          </div>
+        </div>
+      </details>`;
+    document.body.append(add);
+    run();
+
+    const modal = document.querySelector('details.spr-modal') as HTMLDetailsElement;
+    (modal.querySelector('[data-spr-modal-close]') as HTMLButtonElement).click();
+    expect(modal.open).toBe(false);
+    expect(document.activeElement).toBe(modal.querySelector('summary'));
+  });
+
   it('leaves a page with no modal alone, and takes Escape from nobody', () => {
     render();
     run();
@@ -1751,6 +1774,40 @@ describe('a table that grows', () => {
 
     expect(rows('group')[1].hasAttribute('data-spr-trailing')).toBe(false);
     expect(rows('group')[2].hasAttribute('data-spr-trailing')).toBe(true);
+  });
+
+  it('takes the added row away again once the rows are empty, and the shape with it', () => {
+    type('groups.eng.1.id', 'grp-two');
+    expect(rows('group')).toHaveLength(3);
+
+    type('groups.eng.1.id', '');
+    expect(rows('group')).toHaveLength(2);
+    expect(rows('group')[1].hasAttribute('data-spr-trailing')).toBe(true);
+    expect(rows('group')[1].querySelector('input[type="checkbox"]')).toHaveProperty(
+      'dataset.sprIdle',
+      '',
+    );
+    expect(rows('person')[0].dataset.sprPosition).toBe('2');
+    expect(shape()).toBe('group');
+  });
+
+  it('keeps a placeholder\u2019s provider on it, and gives none to the row after', () => {
+    const trailing = rows('group')[1];
+    const carried = document.createElement('input');
+    carried.type = 'hidden';
+    carried.name = 'groups.eng.1.provider';
+    carried.value = 'entra';
+    trailing.querySelector('td')?.append(carried);
+
+    type('groups.eng.1.id', 'grp-two');
+    expect(rows('group')[1].querySelector('input[name="groups.eng.1.provider"]')).not.toBeNull();
+    expect(rows('group')[2].querySelector('input[type="hidden"][name$=".provider"]')).toBeNull();
+  });
+
+  it('never folds away a stored row, however empty it is left', () => {
+    type('groups.eng.0.id', '');
+    expect(rows('group')).toHaveLength(2);
+    expect(rows('group')[0].querySelector('input[name="select"]')).not.toBeNull();
   });
 
   it('numbers the unsaved rows in document order, across both tables', () => {

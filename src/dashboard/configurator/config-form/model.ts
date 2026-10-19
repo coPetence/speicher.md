@@ -47,6 +47,9 @@ export interface AddOp {
   opensPage?: boolean;
   // Direct URL instead of computing one from the op
   href?: string;
+  // Whether adding or removing a member is saved at once rather than left pending:
+  // the add posts, and the new member is stored before its page opens
+  savesAtOnce?: boolean;
   // Index of the section's card the button is drawn before, so that it can follow
   // the entries it adds to rather than the last card
   beforeCard?: number;
@@ -145,6 +148,8 @@ export interface FormSection {
   removeOp?: string | null;
   // Operation string to rename the section or member
   renameOp?: string | null;
+  // Removes confirmation dialog
+  removeWarnings?: string[];
   // Operation string that removes the stored values of this page's fields from the
   // document; null when none is stored, so no reset button is drawn
   resetOp?: string | null;

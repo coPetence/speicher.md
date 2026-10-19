@@ -68,9 +68,11 @@
     >
     <% } %>
     <div class="spr-modal-actions">
+      <button type="button" class="spr-modal-cancel" data-spr-modal-close>Cancel</button>
       <button
         type="submit"
         form="add-member"
+        class="spr-modal-submit"
       >
         <%= add.label %>
       </button>
