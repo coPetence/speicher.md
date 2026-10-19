@@ -12,17 +12,22 @@ import { GITHUB_CALLBACK_PATH } from '../../../auth/callback-url';
 import { FLOW_TTL_MS } from '../../../auth/github.service';
 import { mintToken } from '../../../auth/tokens';
 import { Logger, rootLogger } from '../../../common/logger';
-import { isPublicUrl } from '../../../common/public-url';
+import { isLocalhostUrl, isPublicUrl } from '../../../common/public-url';
 import { LoginFlow, initModels } from '../../../db/models';
-import { githubHosts } from '../../../forge/github/hosts';
+import {
+  directoryWebhookPath,
+  directoryWebhookUrl,
+  webhookPath,
+  webhookUrl,
+} from '../../../forge/webhook-url';
 import {
   AppManifest,
   ConvertedApp,
   appManifest,
   convertManifestCode,
   manifestFormUrl,
-} from '../../../forge/github/manifest';
-import { webhookPath, webhookUrl } from '../../../forge/webhook-url';
+} from '../../../github/app-manifest';
+import { githubHosts } from '../../../github/hosts';
 import { choiceName } from '../config-form/config-fields';
 import { setNodeAt } from '../config-form/document';
 import { memberSectionId } from '../config-form/members';
@@ -117,11 +122,12 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
     switchName: choiceName(`forges.${forgeId}.app`),
     manifest: ({ origin, redirectUrl, setupUrl }) => {
       const hook = webhookUrl(forgeId) ?? `${origin}${webhookPath(forgeId)}`;
+      console.log('hook', hook, isPublicUrl(hook));
       return appManifest({
         purpose: 'content-source',
         homepage: origin,
-        // GitHub refuses a webhook it cannot reach, e.g. on `localhost`
-        webhookUrl: isPublicUrl(hook) ? hook : undefined,
+        // GitHub refuses a webhook on `localhost`
+        webhookUrl: isLocalhostUrl(hook) ? undefined : hook,
         redirectUrl,
         setupUrl,
       });
@@ -129,8 +135,10 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
     values: (app) => [
       [['app_id'], String(app.id)],
       [['private_key'], app.pem],
-      // An App created without a webhook has no secret, and the source needs one
-      [['webhook_secret'], app.webhook_secret ?? mintToken(32)],
+      // An App created without a webhook has no secret, and the source then accepts no deliveries
+      ...(app.webhook_secret
+        ? [[['webhook_secret'], app.webhook_secret] as [string[], string]]
+        : []),
     ],
     unsavedNotice: (installUrl) =>
       `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the repositories Speicher.md should be able to read.`,
@@ -198,11 +206,24 @@ export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarge
     kind: 'github',
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`auth.providers.${providerId}.directory.app`),
-    manifest: ({ origin, redirectUrl, setupUrl }) =>
-      appManifest({ purpose: 'directory', homepage: origin, redirectUrl, setupUrl }),
+    manifest: ({ origin, redirectUrl, setupUrl }) => {
+      const hook =
+        directoryWebhookUrl(providerId) ?? `${origin}${directoryWebhookPath(providerId)}`;
+      return appManifest({
+        purpose: 'directory',
+        homepage: origin,
+        // GitHub refuses a webhook on `localhost`
+        webhookUrl: isLocalhostUrl(hook) ? undefined : hook,
+        redirectUrl,
+        setupUrl,
+      });
+    },
     values: (app) => [
       [['directory', 'app_id'], String(app.id)],
       [['directory', 'private_key'], app.pem],
+      ...(app.webhook_secret
+        ? [[['directory', 'webhook_secret'], app.webhook_secret] as [string[], string]]
+        : []),
     ],
     unsavedNotice: (installUrl) =>
       `App successfully created, but this page could not be saved yet. The App's id and private key are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on every organization whose members and teams Speicher.md should look up.`,
@@ -308,7 +329,7 @@ export class GithubAppManifestService {
     const sealedForm = seal(form, key);
     if (sealedForm.length > MAX_SEALED_FORM) {
       throw new GithubAppManifestError(
-        'This page holds more than Speicher can carry to GitHub and back. Save the page first, then create the App.',
+        'Your unsaved changes on this page are too large to keep while you create the App on GitHub. Save the page first, then create the App.',
       );
     }
 
@@ -365,7 +386,7 @@ export class GithubAppManifestService {
     });
     if (!flow) {
       throw new GithubAppManifestError(
-        'Speicher does not know this answer from GitHub, or has already used it. To create the App, start again on this page.',
+        'The from GitHub returned message does not match an open request from this page. It may already have been used. If the App is not shown on this page, delete the App that GitHub created in its settings on GitHub, then start again on this page.',
       );
     }
     await LoginFlow.destroy({ where: { id: flow.id } });

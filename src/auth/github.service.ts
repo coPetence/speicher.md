@@ -6,7 +6,8 @@ import { parseDurationWithFallback } from '../common/time';
 import { ConfigService } from '../config/config.service';
 import { GithubProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
-import { githubHosts } from '../forge/github/hosts';
+import { githubHeaders } from '../github/api';
+import { githubHosts } from '../github/hosts';
 import { CompletedLogin } from './login-result';
 import { safeRedirect } from './oidc.service';
 import { mintPkce, mintToken } from './tokens';
@@ -222,11 +223,7 @@ export class GithubAuthService {
   /** Authenticated REST call against the user's own token */
   private async api<T>(apiBase: string, token: string, path: string): Promise<T> {
     const response = await this.fetchImpl(`${apiBase}${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
+      headers: githubHeaders(token),
     });
     if (!response.ok) {
       throw new Error(`GitHub ${path} -> ${response.status} ${response.statusText}`);

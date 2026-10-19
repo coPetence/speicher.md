@@ -21,8 +21,9 @@ import {
 } from '../driver';
 import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
 import { RateLimiter } from '../rate-limit';
-import { githubHosts } from './hosts';
-import { GithubTokenMinter } from './tokens';
+import { githubHeaders } from '../../github/api';
+import { githubHosts } from '../../github/hosts';
+import { GithubTokenMinter } from '../../github/tokens';
 import { mapGithubEvent, verifyGithubSignature } from './webhook';
 
 export class GithubDriver implements ForgeDriver {
@@ -202,11 +203,7 @@ export class GithubDriver implements ForgeDriver {
   private async appApi<T>(path: string): Promise<T> {
     const jwt = await this.minter.appJwt();
     const response = await this.fetchImpl(`${this.apiBase}${path}`, {
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
+      headers: githubHeaders(jwt),
     });
     if (!response.ok) throw new GithubApiError(path, response);
     return (await response.json()) as T;
@@ -220,9 +217,7 @@ export class GithubDriver implements ForgeDriver {
       ...init,
       headers: {
         ...(init.headers as Record<string, string> | undefined),
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
+        ...githubHeaders(token),
         'Content-Type': 'application/json',
       },
     });

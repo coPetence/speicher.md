@@ -1,5 +1,6 @@
-import { isPublicUrl } from '../../src/common/public-url';
-import { appManifest, signInAppName } from '../../src/forge/github/manifest';
+import { isLocalhostUrl, isPublicUrl } from '../../src/common/public-url';
+import { appCard } from '../../src/dashboard/configurator/config-form/sections/content-sources/github-app-card';
+import { appManifest, signInAppName } from '../../src/github/app-manifest';
 
 describe('whether an address can be reached from the internet', () => {
   it.each([
@@ -34,6 +35,67 @@ describe('whether an address can be reached from the internet', () => {
   });
 });
 
+describe('whether an address is this machine', () => {
+  it.each([
+    'http://localhost:3000',
+    'http://docs.localhost',
+    'http://127.0.0.1:3000',
+    'http://127.1.2.3',
+    'http://[::1]:3000',
+  ])('takes %s as localhost', (url) => {
+    expect(isLocalhostUrl(url)).toBe(true);
+  });
+
+  it.each([
+    'https://docs.acme.example',
+    'http://speicher.local',
+    'http://speicher:3000',
+    'http://10.1.2.3',
+    'http://[fd00::1]',
+    'not a url',
+    '',
+  ])('takes %s as not localhost', (url) => {
+    expect(isLocalhostUrl(url)).toBe(false);
+  });
+});
+
+describe('the note beside the button that creates a source App', () => {
+  const noteFor = (publicUrl: string | undefined, baseUrl = ''): string => {
+    const before = process.env.SPEICHER_PUBLIC_URL;
+    if (publicUrl === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+    else process.env.SPEICHER_PUBLIC_URL = publicUrl;
+    try {
+      const forge = { type: 'github', ...(baseUrl ? { base_url: baseUrl } : {}) };
+      const found = JSON.stringify(appCard({ forges: { gh: forge } }, 'gh'));
+      return /"kind":"github-app-manifest"[^}]*"note":"([^"]*)"/.exec(found)?.[1] ?? '';
+    } finally {
+      if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+      else process.env.SPEICHER_PUBLIC_URL = before;
+    }
+  };
+
+  it('says nothing for a public address', () => {
+    expect(noteFor('https://docs.acme.example')).toBe('');
+  });
+
+  it('says the App gets no webhook on localhost, whatever GitHub it is created on', () => {
+    expect(noteFor('http://localhost:3000')).toContain('without a webhook');
+    expect(noteFor('http://localhost:3000', 'https://ghe.acme.example')).toContain(
+      'without a webhook',
+    );
+  });
+
+  it('warns that GitHub may not reach a private or unknown address', () => {
+    expect(noteFor('http://speicher.internal')).toContain('may not be able to reach');
+    expect(noteFor('http://10.1.2.3')).toContain('may not be able to reach');
+    expect(noteFor(undefined)).toContain('may not be able to reach');
+  });
+
+  it('does not warn for a GitHub Enterprise Server, which may run in the same network', () => {
+    expect(noteFor('http://speicher.internal', 'https://ghe.acme.example')).toBe('');
+  });
+});
+
 describe("a content source App's manifest", () => {
   const urls = {
     homepage: 'http://localhost:3000',
@@ -56,6 +118,34 @@ describe("a content source App's manifest", () => {
 
   it('has no webhook and no events when GitHub cannot reach the instance', () => {
     const manifest = appManifest({ purpose: 'content-source', ...urls });
+    expect(manifest.hook_attributes).toBeUndefined();
+    expect(manifest.default_events).toEqual([]);
+  });
+});
+
+describe("a directory App's manifest", () => {
+  const urls = {
+    homepage: 'https://docs.acme.example',
+    redirectUrl:
+      'https://docs.acme.example/-/config/identity/hub/github-directory-app/manifest/callback',
+    setupUrl: 'https://docs.acme.example/-/config/identity/hub',
+  };
+
+  it('subscribes to changes of teams and members when it has a webhook', () => {
+    const manifest = appManifest({
+      purpose: 'directory',
+      ...urls,
+      webhookUrl: 'https://docs.acme.example/-/hooks/directory/hub',
+    });
+    expect(manifest.hook_attributes).toEqual({
+      url: 'https://docs.acme.example/-/hooks/directory/hub',
+      active: true,
+    });
+    expect(manifest.default_events).toEqual(['membership', 'team', 'organization']);
+  });
+
+  it('has no webhook and no events without one', () => {
+    const manifest = appManifest({ purpose: 'directory', ...urls });
     expect(manifest.hook_attributes).toBeUndefined();
     expect(manifest.default_events).toEqual([]);
   });

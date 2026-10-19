@@ -1,0 +1,129 @@
+/**
+ * Webhook deliveries from the directory App of a GitHub identity provider
+ */
+
+import { Controller, Headers, Param, Post, Req, Res } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+import { Logger, rootLogger } from '../../common/logger';
+import { ConfigService } from '../../config/config.service';
+import { GithubProviderConfig, providerType } from '../../config/types';
+import { Session, initModels } from '../../db/models';
+import { TenancyService } from '../../db/tenancy';
+import { verifyGithubSignature } from '../../forge/github/webhook';
+import { WEBHOOK_ROUTE } from '../../forge/webhook-url';
+
+export type StaleSessions = { subject: string } | 'all' | null;
+
+/**
+ * staleSessionsOf returns whose groups a directory delivery may have changed.
+ *
+ * @param event the delivery's `X-GitHub-Event`
+ * @param payload the delivery's body
+ */
+export function staleSessionsOf(event: string, payload: Record<string, unknown>): StaleSessions {
+  const idOf = (user: unknown): string | null => {
+    const id = (user as { id?: unknown } | null | undefined)?.id;
+    return typeof id === 'number' ? String(id) : null;
+  };
+
+  switch (event) {
+    case 'membership': {
+      const subject = idOf(payload.member);
+      return subject ? { subject } : 'all';
+    }
+    case 'organization': {
+      const subject = idOf((payload.membership as { user?: unknown } | undefined)?.user);
+      return subject ? { subject } : 'all';
+    }
+    case 'team':
+      return 'all';
+    default:
+      return null;
+  }
+}
+
+@Controller(WEBHOOK_ROUTE)
+export class DirectoryWebhookController {
+  private readonly log: Logger = rootLogger.child('webhook.directory');
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly tenancy: TenancyService,
+  ) {
+    initModels();
+  }
+
+  @Post('directory/:provider')
+  async receive(
+    @Param('provider') providerId: string,
+    @Req() req: RawBodyRequest<Request>,
+    @Res() res: Response,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ): Promise<void> {
+    const provider = this.config.provider(providerId);
+    const directory =
+      provider && providerType(provider) === 'github'
+        ? (provider as GithubProviderConfig).directory
+        : undefined;
+    if (directory?.type !== 'github') {
+      res.status(404).end();
+      return;
+    }
+
+    if (!req.rawBody) {
+      this.log.error('raw body is unavailable; signature cannot be verified');
+      res.status(400).end();
+      return;
+    }
+
+    const verification = verifyGithubSignature(
+      headers,
+      req.rawBody,
+      directory.webhook_secret ?? '',
+    );
+    if (!verification.valid) {
+      this.log.warn('rejected an unsigned or mis-signed delivery', {
+        provider: providerId,
+        event: verification.event,
+      });
+      res.status(401).end();
+      return;
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(req.rawBody.toString('utf8'));
+    } catch {
+      this.log.warn('delivery body is not JSON', { delivery_id: verification.deliveryId });
+      res.status(400).end();
+      return;
+    }
+
+    const stale = staleSessionsOf(verification.event ?? '', payload);
+    if (stale === null) {
+      res.status(202).end();
+      return;
+    }
+
+    const tenant = await this.tenancy.resolveTenant(req);
+    const [count] = await Session.update(
+      { groups_fetched_at: null },
+      {
+        where: {
+          tenant_id: tenant.id,
+          provider: providerId,
+          ...(stale === 'all' ? {} : { subject: stale.subject }),
+        },
+      },
+    );
+    this.log.info('groups marked stale', {
+      provider: providerId,
+      event: verification.event,
+      scope: stale === 'all' ? 'all' : 'one person',
+      sessions: count,
+    });
+    res.status(202).end();
+  }
+}

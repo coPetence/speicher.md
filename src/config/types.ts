@@ -27,6 +27,7 @@ export interface DirectoryConfig {
   // github
   app_id?: string;
   private_key?: string;
+  webhook_secret?: string;
   cache_ttl?: string;
 }
 

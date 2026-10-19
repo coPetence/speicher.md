@@ -7,6 +7,7 @@
  * See https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
  */
 
+import { githubHeaders } from './api';
 import type { GithubAppOwner } from './app-links';
 
 const CONTENT_SOURCE_PERMISSIONS = {
@@ -33,6 +34,8 @@ const IDENTITY_PROVIDER_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets 
 const DIRECTORY_PERMISSIONS = {
   members: 'read',
 };
+
+const DIRECTORY_EVENTS = ['membership', 'team', 'organization'];
 
 const DIRECTORY_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets Speicher.md look up the members and teams of the organizations it is installed on. Speicher.md uses this to notice when someone leaves a team or the organization during their session, and to show how many people a team grant reaches.`;
 
@@ -71,6 +74,7 @@ export interface IdentityProviderAppOptions extends AppManifestBase {
 
 export interface DirectoryAppOptions extends AppManifestBase {
   purpose: 'directory';
+  webhookUrl?: string;
 }
 
 export type AppManifestOptions =
@@ -124,25 +128,28 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   if (options.purpose === 'directory') {
     return {
       ...base,
+      ...webhookOf(options.webhookUrl, DIRECTORY_EVENTS),
       name: 'Speicher.md Directory',
       description: DIRECTORY_DESCRIPTION,
       default_permissions: DIRECTORY_PERMISSIONS,
-      default_events: [],
     };
   }
-  const webhook = options.webhookUrl
-    ? {
-        hook_attributes: { url: options.webhookUrl, active: true },
-        default_events: CONTENT_SOURCE_EVENTS,
-      }
-    : { default_events: [] };
   return {
     ...base,
-    ...webhook,
+    ...webhookOf(options.webhookUrl, CONTENT_SOURCE_EVENTS),
     name: 'Speicher.md',
     description: CONTENT_SOURCE_DESCRIPTION,
     default_permissions: CONTENT_SOURCE_PERMISSIONS,
   };
+}
+
+function webhookOf(
+  url: string | undefined,
+  events: string[],
+): Pick<AppManifest, 'hook_attributes' | 'default_events'> {
+  return url
+    ? { hook_attributes: { url, active: true }, default_events: events }
+    : { default_events: [] };
 }
 
 /**
@@ -190,10 +197,7 @@ export async function convertManifestCode(
 ): Promise<ConvertedApp> {
   const response = await fetchImpl(`${api}/app-manifests/${encodeURIComponent(code)}/conversions`, {
     method: 'POST',
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
+    headers: githubHeaders(),
   });
   if (!response.ok) {
     throw new Error(`GitHub did not accept the code: ${response.status} ${response.statusText}`);

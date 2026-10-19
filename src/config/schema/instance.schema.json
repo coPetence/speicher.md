@@ -800,7 +800,8 @@
           "description": "Self-hosted forges only."
         },
         "webhook_secret": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional for github: an App can also be created without a secret. This means webhooks will be rejected and the instance will only update on a regular schedule."
         },
         "app_id": {
           "type": "string",
@@ -842,7 +843,7 @@
             }
           },
           "then": {
-            "required": ["app_id", "private_key", "webhook_secret"]
+            "required": ["app_id", "private_key"]
           }
         },
         {
@@ -1065,6 +1066,10 @@
         "private_key": {
           "type": "string",
           "description": "github. The PEM of the App named"
+        },
+        "webhook_secret": {
+          "type": "string",
+          "description": "github. This secret is used to sign the webhook deliveries of the App."
         },
         "cache_ttl": {
           "$ref": "#/$defs/duration",

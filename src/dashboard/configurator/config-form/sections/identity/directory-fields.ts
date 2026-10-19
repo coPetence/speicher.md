@@ -59,6 +59,17 @@ export function directoryFields(
               dropLabel: "Drop the App's .pem file here",
             },
           }),
+          secretField(
+            root,
+            [...d, 'webhook_secret'],
+            p('webhook_secret'),
+            'Directory webhook secret',
+            {
+              shownWith,
+              startsRow: true,
+              help: `${SECRET_HELP}\n\nThe directory webhook secret is the secret GitHub signs the webhook deliveries of the directory App with. It must match the secret under **Webhook** in the settings of the directory App.`,
+            },
+          ),
         ]
       : [
           textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {

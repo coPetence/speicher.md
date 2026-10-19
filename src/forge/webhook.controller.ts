@@ -229,11 +229,6 @@ export class WebhookController {
         return;
       }
 
-      case 'invalidate-teams':
-        // No side effect needed: the action signals the cache is stale
-        this.log.info('team cache invalidated', { namespace: action.namespace });
-        return;
-
       case 'ignore':
         this.log.debug('ignored delivery', { reason: action.reason });
         return;

@@ -11,7 +11,7 @@ import {
 import { loadDocument } from '../../src/dashboard/configurator/config-form/document';
 import { SectionChecks } from '../../src/dashboard/configurator/config-page/checks';
 import type { ConfigSectionPayload } from '../../src/dashboard/configurator/config-page/payloads';
-import { githubAppLinks, lookupGithubApp } from '../../src/forge/github/app-links';
+import { githubAppLinks, lookupGithubApp } from '../../src/github/app-links';
 
 const PEM = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
   type: 'pkcs1',

@@ -9,7 +9,7 @@ import { SESSION_COOKIE } from '../../src/auth/session.service';
 import { hashToken, mintToken } from '../../src/auth/tokens';
 import { ConfigService } from '../../src/config/config.service';
 import { Session, initModels } from '../../src/db/models';
-import { GITHUB_APP_LOOKUP_FETCH } from '../../src/forge/github/app-links';
+import { GITHUB_APP_LOOKUP_FETCH } from '../../src/github/app-links';
 import { PRINCIPALS, PrincipalName } from './harness';
 
 const offlineFetch = (async () => {
