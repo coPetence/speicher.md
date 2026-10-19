@@ -422,7 +422,7 @@ describe('a redelivery an operator asked for', () => {
       .digest('hex')}`;
 
     const response = await request(app.getHttpServer())
-      .post('/-/hooks/gh')
+      .post('/-/hooks/forge/gh')
       .set('content-type', 'application/json')
       .set('x-github-event', 'push')
       .set('x-github-delivery', deliveryId)

@@ -1240,9 +1240,9 @@ describe('the content sources section', () => {
     try {
       const { html } = await open('sources/gh');
       expect(html).toMatch(
-        /<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/gh<\/code>[\s\S]*?<p class="spr-help">\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\./,
+        /<span\s+class="spr-copyable"\s*>\s*<code>https:\/\/docs\.acme\.example\/-\/hooks\/forge\/gh<\/code>[\s\S]*?<p class="spr-help">\s*Enter this as the <strong>Webhook URL<\/strong> in the settings of your GitHub App\./,
       );
-      expect(html).toContain('data-spr-clipboard="https://docs.acme.example/-/hooks/gh"');
+      expect(html).toContain('data-spr-clipboard="https://docs.acme.example/-/hooks/forge/gh"');
       expect(html).toContain('data-spr-copy-status');
       expect(html).not.toContain('data-spr-origin-path');
     } finally {
@@ -1257,7 +1257,7 @@ describe('the content sources section', () => {
     try {
       const { html } = await open('sources/gh');
       expect(html).toMatch(/class="spr-copyable"\s*data-spr-origin-path/);
-      expect(html).toContain('data-spr-clipboard="/-/hooks/gh"');
+      expect(html).toContain('data-spr-clipboard="/-/hooks/forge/gh"');
       // One sentence that also reads right while only the path is shown
       expect(html).toContain(
         'If only a path without a host is shown, put the address of this instance in front of it.',

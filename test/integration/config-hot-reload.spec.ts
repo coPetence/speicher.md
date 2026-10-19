@@ -155,7 +155,7 @@ describe('a version that adds a forge', () => {
 
   const deliverToPartner = () =>
     request(app.getHttpServer())
-      .post('/-/hooks/partner')
+      .post('/-/hooks/forge/partner')
       .set('content-type', 'application/json')
       .set('x-github-event', 'push')
       .send('{}');
