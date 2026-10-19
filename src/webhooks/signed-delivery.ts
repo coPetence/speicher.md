@@ -2,9 +2,14 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { LogFields, Logger } from '../common/logger';
-import { WebhookVerification } from './driver';
 
 export type DeliveryHeaders = Record<string, string | string[] | undefined>;
+
+export interface WebhookVerification {
+  valid: boolean;
+  deliveryId: string | null;
+  event: string | null;
+}
 
 export interface SignedDelivery {
   verification: WebhookVerification;

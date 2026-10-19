@@ -1,3 +1,5 @@
+import type { WebhookVerification } from '../webhooks/signed-delivery';
+
 export interface RemoteRepo {
   /** A repo as the remote forge reports it; forgeRepoId stays stable across renames */
   forgeRepoId: string;
@@ -23,14 +25,6 @@ export interface RemoteInstallation {
   /** accountType is the forge's account kind, e.g. 'User' or 'Organization' */
   accountType: string;
   suspended: boolean;
-}
-
-export interface WebhookVerification {
-  valid: boolean;
-
-  /** deliveryId and event are null when the signature does not match */
-  deliveryId: string | null;
-  event: string | null;
 }
 
 export type ForgeAction =

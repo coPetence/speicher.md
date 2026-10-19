@@ -11,13 +11,8 @@ import { loadInstanceConfigFromFile } from '../../src/config/parser';
 import { migrateUp } from '../../src/db/migrate';
 import { Forge, Repo, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
-import {
-  ForgeAction,
-  ForgeDriver,
-  RemoteInstallation,
-  RemoteRepo,
-  WebhookVerification,
-} from '../../src/forge/driver';
+import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../../src/forge/driver';
+import type { WebhookVerification } from '../../src/webhooks/signed-delivery';
 import { checkoutTree, ensureMirror, resolveHead } from '../../src/forge/git';
 import { ForgeRegistry } from '../../src/forge/registry';
 import { IngestService } from '../../src/ingest/ingest.service';
