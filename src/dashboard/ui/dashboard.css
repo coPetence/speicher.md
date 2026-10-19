@@ -1393,7 +1393,7 @@
   }
 
   .spr-modal-panel.spr-filter-dialog {
-    width: min(40rem, calc(100vw - var(--spr-space-5) * 2));
+    width: min(42rem, calc(100vw - var(--spr-space-5) * 2));
     height: min(34rem, calc(100vh - var(--spr-space-8) * 2));
     grid-template-rows: auto minmax(0, 1fr) auto;
     justify-items: stretch;
@@ -1419,7 +1419,7 @@
 
   .spr-filter-dialog-body {
     display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-columns: 14rem minmax(0, 1fr);
     min-height: 0;
   }
 
@@ -1471,6 +1471,7 @@
     background: var(--spr-bg);
     color: var(--spr-fg);
     text-align: left;
+    white-space: nowrap;
   }
 
   .spr-filter .spr-filter-group:hover {
