@@ -1,0 +1,61 @@
+<%
+  const f = it.field;
+%>
+<% function noteOf(value, note, where) { %><% if (note) { %><%~ include('@info', { field: { path: 'pick-' + where + '-' + value, label: value, help: note.text }, level: note.level, mark: note.level === 'warn' ? it.warnIcon : '' }) %><% } %><% } %>
+<% function row(value, note, offered) { %>
+      <li<%= offered ? ' data-spr-offered' : '' %>>
+        <input type="hidden" name="<%= f.path %>" value="<%= value %>">
+        <span class="spr-pick-list-value">
+          <code><%= value %></code>
+          <% noteOf(value, note, 'row') %>
+        </span>
+        <% if (it.editable) { %>
+        <button
+          type="submit"
+          name="remove:<%= f.path %>"
+          value="<%= value %>"
+          class="spr-remove"
+          formnovalidate
+          aria-label="Remove <%= value %>"
+          title="Remove"
+        ><%~ it.removeIcon || '' %></button>
+        <% } %>
+      </li>
+<% } %>
+<% function choice(value, note) { %>
+          <label data-spr-pick-choice="<%= value.toLowerCase() %>">
+            <input type="checkbox" name="add:<%= f.path %>" value="<%= value %>" data-spr-transient>
+            <span class="spr-pick-list-value">
+              <code><%= value %></code>
+              <% noteOf(value, note, 'choice') %>
+            </span>
+          </label>
+<% } %>
+    <%~ include('@config-fields/label', it) %>
+    <input type="hidden" name="__pick:<%= f.path %>" value="">
+    <ul class="spr-pick-list"<%= f.entries.length === 0 ? ' hidden' : '' %>>
+      <% f.entries.forEach(function (entry) { row(entry.value, entry.note, entry.offered) }) %>
+    </ul>
+    <p class="spr-pick-list-empty"<%= f.entries.length === 0 ? '' : ' hidden' %>><%= f.empty %></p>
+    <% if (it.editable) { %>
+    <template data-spr-pick-row><% row('', null, true) %></template>
+    <template data-spr-pick-choice><% choice('', null) %></template>
+    <details class="spr-modal spr-pick-list-modal"<%= f.options.length === 0 ? ' hidden' : '' %>>
+      <summary id="f-<%= f.path %>" class="spr-pick-list-open"><%~ it.addIcon || '' %><%= f.addLabel %></summary>
+      <div class="spr-modal-panel spr-pick-list-dialog" role="dialog" aria-label="<%= f.addLabel %>">
+        <h2 class="spr-modal-title"><%= f.addLabel %></h2>
+        <input type="search" class="spr-pick-list-search" placeholder="<%= f.searchLabel %>"
+               aria-label="<%= f.searchLabel %>" autocomplete="off" spellcheck="false"
+               data-spr-pick-search data-spr-transient hidden>
+        <fieldset class="spr-choices spr-pick-list-choices">
+          <legend class="spr-clipped"><%= f.label %></legend>
+          <% f.options.forEach(function (option) { choice(option.value, option.note) }) %>
+        </fieldset>
+        <p class="spr-pick-list-none" hidden>Nothing matches the search.</p>
+        <div class="spr-modal-actions">
+          <button type="button" data-spr-pick-cancel hidden>Cancel</button>
+          <button type="submit" class="spr-primary" formnovalidate data-spr-pick-add>Add selected</button>
+        </div>
+      </div>
+    </details>
+    <% } %>

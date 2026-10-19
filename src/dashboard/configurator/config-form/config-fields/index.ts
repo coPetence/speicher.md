@@ -14,6 +14,7 @@ import type { LinesField } from './lines';
 import type { MembershipField } from './membership';
 import type { MultilineField } from './multiline';
 import type { NumberField } from './number';
+import type { PickListField } from './pick-list';
 import type { SecretField } from './secret';
 import type { SelectField } from './select';
 import type { TemplateField } from './template';
@@ -36,6 +37,7 @@ export type Field =
   | MultilineField
   | KnownHostsField
   | LinesField
+  | PickListField
   | FileField
   | AmountField;
 
@@ -71,6 +73,7 @@ export * from './lines';
 export * from './membership';
 export * from './multiline';
 export * from './number';
+export * from './pick-list';
 export * from './secret';
 export * from './select';
 export * from './template';

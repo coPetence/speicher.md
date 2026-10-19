@@ -1,0 +1,132 @@
+@layer speicher.base {
+  .spr-field-pick-list {
+    grid-column: 1 / -1;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-pick-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-bg);
+  }
+
+  .spr-pick-list > li {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-2) var(--spr-space-3);
+  }
+
+  .spr-pick-list > li + li {
+    border-top: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-pick-list-value {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--spr-space-2);
+    min-width: 0;
+  }
+
+  .spr-pick-list-value > code {
+    overflow-wrap: anywhere;
+  }
+
+  .spr-pick-list > li > .spr-remove {
+    flex: none;
+    padding: var(--spr-space-2);
+    line-height: 1;
+  }
+
+  .spr-pick-list > li > .spr-remove > .spr-icon {
+    inline-size: 1.1em;
+    block-size: 1.1em;
+    margin: 0;
+  }
+
+  .spr-pick-list-empty {
+    margin: 0;
+    color: var(--spr-muted);
+  }
+
+  .spr-pick-list-modal[hidden] {
+    display: none;
+  }
+
+  .spr-pick-list-modal > .spr-pick-list-open {
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-2) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+  }
+
+  .spr-pick-list-modal > .spr-pick-list-open:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-pick-list-open > .spr-icon {
+    width: 1em;
+    height: 1em;
+  }
+
+  .spr-modal-panel.spr-pick-list-dialog {
+    width: min(36rem, calc(100vw - var(--spr-space-8) * 2));
+    justify-items: stretch;
+  }
+
+  .spr-field .spr-pick-list-dialog > input.spr-pick-list-search {
+    inline-size: 100%;
+    max-inline-size: none;
+    padding-inline-start: var(--spr-space-3);
+  }
+
+  .spr-choices.spr-pick-list-choices {
+    display: grid;
+    gap: var(--spr-space-2);
+    max-height: 50vh;
+    overflow: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .spr-pick-list-choices > label {
+    align-items: center;
+    padding: var(--spr-space-3) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    cursor: pointer;
+  }
+
+  .spr-pick-list-choices > label:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-pick-list-choices > label:has(input:checked) {
+    border-color: var(--spr-accent);
+    background: color-mix(in oklab, var(--spr-accent) 12%, var(--spr-bg));
+  }
+
+  .spr-pick-list-dialog .spr-modal-actions .spr-primary {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+  }
+
+  .spr-pick-list-choices > label[hidden] {
+    display: none;
+  }
+
+  .spr-pick-list-none {
+    margin: 0;
+    color: var(--spr-muted);
+  }
+}

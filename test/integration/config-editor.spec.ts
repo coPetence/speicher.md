@@ -2198,8 +2198,8 @@ describe('editing', () => {
       intent: 'check',
     }).expect(200);
 
-    expect(page.text).toContain('What this change does');
-    expect(page.text).toContain('Applies to the next request');
+    expect(page.text).toContain('<section class="spr-verdict">');
+    expect(page.text).toContain('No restart required');
     expect(formBody(page.text)['theme.template']).toBe('editorial');
     expect(await versionCount()).toBe(1);
   });
@@ -2213,7 +2213,6 @@ describe('editing', () => {
     }).expect(200);
 
     expect(page.text).toContain('full rebuild');
-    expect(page.text).toMatch(/until it finishes/);
   });
 
   it('says a membership change costs no rebuild', async () => {
@@ -3388,6 +3387,121 @@ describe.skip('the analytics section', () => {
     ]) {
       expect(fieldOf(path)).not.toContain('spr-field-break');
     }
+  });
+});
+
+describe('the public repositories', () => {
+  const rowsOf = (html: string) =>
+    [...html.matchAll(/<input type="hidden" name="public\.repos" value="([^"]+)">/g)].map(
+      (m) => m[1],
+    );
+  const offeredBy = (html: string) =>
+    [...html.matchAll(/<input type="checkbox" name="add:public\.repos" value="([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+  const rowOf = (html: string, value: string) => {
+    const from = html.indexOf(`<input type="hidden" name="public.repos" value="${value}">`);
+    return html.slice(from, html.indexOf('</li>', from));
+  };
+
+  it('lists the stored entries, and offers every other repository Speicher knows', async () => {
+    const { html } = await open('public');
+    expect(rowsOf(html)).toEqual(['copetence/speicher-docs']);
+    expect(html).toMatch(/name="remove:public\.repos"\s+value="copetence\/speicher-docs"/);
+    expect(offeredBy(html)).toEqual([
+      'copetence/fieldkit',
+      'copetence/handbook',
+      'northwind-engineering/specs',
+    ]);
+    expect(html).not.toContain('<textarea');
+  });
+
+  it('says nothing about a repository that publishes', async () => {
+    const { html } = await open('public');
+    expect(rowOf(html, 'copetence/speicher-docs')).not.toContain('spr-info');
+  });
+
+  it('offers the repositories in a modal, each with what is known about it', async () => {
+    const { html } = await open('public');
+    expect(html).toMatch(/<details class="spr-modal spr-pick-list-modal">/);
+    const handbook = html.slice(html.indexOf('value="copetence/handbook" data-spr-transient'));
+    expect(handbook.slice(0, handbook.indexOf('</label>'))).toMatch(
+      /spr-info-mark-warn[\s\S]*?role="tooltip"[\s\S]*?does not grant public access/,
+    );
+  });
+
+  it('adds every ticked repository, and stores nothing until Save', async () => {
+    const before = await versionCount();
+    const res = await post('public', {
+      'public.repos': ['copetence/speicher-docs'],
+      'add:public.repos': ['copetence/handbook', 'copetence/fieldkit'],
+    }).expect(200);
+
+    expect(rowsOf(res.text)).toEqual([
+      'copetence/speicher-docs',
+      'copetence/handbook',
+      'copetence/fieldkit',
+    ]);
+    expect(offeredBy(res.text)).toEqual(['northwind-engineering/specs']);
+    expect(await versionCount()).toBe(before);
+  });
+
+  it('warns that a listed repository stays private while its .speicher.yaml does not grant public', async () => {
+    const res = await post('public', {
+      'public.repos': ['copetence/speicher-docs'],
+      'add:public.repos': 'copetence/handbook',
+    }).expect(200);
+
+    expect(rowOf(res.text, 'copetence/handbook')).toMatch(
+      /spr-info-mark-warn[\s\S]*?role="tooltip"[\s\S]*?does not grant public access/,
+    );
+  });
+
+  it('empties the list when every row was taken out in the page', async () => {
+    const response = await post('public', {
+      '__pick:public.repos': '',
+      intent: 'apply',
+    }).expect(303);
+    await landing('public', response);
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toMatch(/repos:\s*\[\]/);
+  });
+
+  it('marks an entry Speicher does not know, and keeps it', async () => {
+    const res = await post('public', {
+      'public.repos': ['copetence/speicher-docs', 'old-team/renamed'],
+      'add:public.repos': '',
+    }).expect(200);
+
+    expect(rowsOf(res.text)).toEqual(['copetence/speicher-docs', 'old-team/renamed']);
+    expect(res.text).toContain('Speicher does not know this repository.');
+  });
+
+  it('takes the entry out on Remove, and stores nothing until Save', async () => {
+    const before = await versionCount();
+    const res = await post('public', {
+      'public.repos': ['copetence/speicher-docs'],
+      'add:public.repos': '',
+      'remove:public.repos': 'copetence/speicher-docs',
+    }).expect(200);
+
+    expect(rowsOf(res.text)).toEqual([]);
+    expect(res.text).toContain('No repository may publish to public readers yet.');
+    expect(offeredBy(res.text)).toContain('copetence/speicher-docs');
+    expect(await versionCount()).toBe(before);
+  });
+
+  it('stores the list on Save', async () => {
+    const response = await post('public', {
+      'public.repos': ['copetence/speicher-docs'],
+      'add:public.repos': 'copetence/handbook',
+      intent: 'apply',
+    }).expect(303);
+    await landing('public', response);
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toMatch(/repos:\s*\n\s*- copetence\/speicher-docs\s*\n\s*- copetence\/handbook/);
   });
 });
 

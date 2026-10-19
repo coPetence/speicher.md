@@ -20,6 +20,7 @@ import { ConfigService } from '../../../config/config.service';
 import { getNewestConfigVersion } from '../../../config/loader';
 import { loadInstanceConfig } from '../../../config/parser';
 import { stampBrandImages } from './brand-stamp';
+import { stampPickListOptions } from './pick-list-stamp';
 import { shapeControls } from '../config-form/collections';
 import { dottedPath, loadDocument } from '../config-form/document';
 import { inlineBrandImages } from '../config-form/brand-inline';
@@ -238,6 +239,7 @@ export class ConfigPageService {
     );
     payload.openKind = offered ? openKind : '';
     await stampBrandImages(state.tenantId, payload);
+    await stampPickListOptions(state.tenantId, payload);
     return payload;
   }
 

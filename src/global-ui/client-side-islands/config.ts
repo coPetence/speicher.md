@@ -26,6 +26,7 @@ import { mountCopies } from './configurator/copy-from-sibling-field';
 import { mountOriginPaths } from './configurator/origin-before-path';
 import { mountSwatches } from './configurator/colour-swatch-picker';
 import { mountGrowingTables } from './configurator/growing-source-tables';
+import { mountPickLists } from './configurator/pick-list';
 import { mountChecks } from './configurator/live-connection-check';
 import { mountWidths } from './configurator/embedding-width-lookup';
 import { mountFragments } from './configurator/open-folded-on-fragment';
@@ -56,6 +57,7 @@ function mount(): void {
   mountWidths();
   mountSwatches();
   mountGrowingTables();
+  mountPickLists();
   mountFragments();
   mountKnownHostsTables();
   mountRepositoryIds();

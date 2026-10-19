@@ -7,6 +7,7 @@ import { rootLogger } from '../../../common/logger';
 import { brandRef } from '../../../config/brand';
 import { internBrandImage } from '../../../config/brand-store';
 import { stampBrandImages } from './brand-stamp';
+import { stampPickListOptions } from './pick-list-stamp';
 import { compareConfigs } from '../../../config/classification';
 import { ConfigService } from '../../../config/config.service';
 import { SaveActor, saveInstanceConfig, validateForSave } from '../../../config/loader';
@@ -326,6 +327,7 @@ export class ConfigSaveService {
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
 
     await stampBrandImages(caller.tenantId, payload);
+    await stampPickListOptions(caller.tenantId, payload);
     await stampEntryOrigins(caller.tenantId, payload);
     await this.checks.stampDirectoryStatus(payload, false);
     await this.checks.stampRepositoryStatus(payload, edited);

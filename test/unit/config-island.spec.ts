@@ -2425,3 +2425,141 @@ describe('Enter in a field', () => {
     expect(pressSave()).toBe(true);
   });
 });
+
+describe('a pick list', () => {
+  const row = (value: string, offered: boolean, note = '') => `
+    <li${offered ? ' data-spr-offered' : ''}>
+      <input type="hidden" name="public.repos" value="${value}">
+      <span class="spr-pick-list-value"><code>${value}</code>${note}</span>
+      <button type="submit" name="remove:public.repos" value="${value}" class="spr-remove">x</button>
+    </li>`;
+  const choice = (value: string, note: string) => `
+    <label data-spr-pick-choice="${value}">
+      <input type="checkbox" name="add:public.repos" value="${value}" data-spr-transient>
+      <span class="spr-pick-list-value"><code>${value}</code>${note}</span>
+    </label>`;
+
+  function renderPickList(): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/public" data-spr-config="public">
+          <div class="spr-field spr-field-pick-list">
+            <ul class="spr-pick-list">
+              ${row('copetence/speicher-docs', true)}
+              ${row('old-team/renamed', false)}
+            </ul>
+            <p class="spr-pick-list-empty" hidden>No repository may publish yet.</p>
+            <template data-spr-pick-row>${row('', true)}</template>
+            <template data-spr-pick-choice>${choice('', '')}</template>
+            <details class="spr-modal spr-pick-list-modal" open>
+              <summary>Add repositories</summary>
+              <div class="spr-modal-panel">
+                <input type="search" data-spr-pick-search data-spr-transient hidden>
+                <fieldset class="spr-choices spr-pick-list-choices">
+                  ${choice('copetence/fieldkit', '')}
+                  ${choice('copetence/handbook', '<span class="spr-info"><button class="spr-info-mark spr-info-mark-warn" type="button">!</button><span class="spr-info-note" role="tooltip">Stays private.</span></span>')}
+                </fieldset>
+                <p class="spr-pick-list-none" hidden>Nothing matches the search.</p>
+                <button type="button" data-spr-pick-cancel hidden>Cancel</button>
+                <button type="submit" data-spr-pick-add>Add selected</button>
+              </div>
+            </details>
+          </div>
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    run();
+  }
+
+  const listed = () =>
+    Array.from(document.querySelectorAll<HTMLInputElement>('ul input[name="public.repos"]')).map(
+      (input) => input.value,
+    );
+  const offered = () =>
+    Array.from(
+      document.querySelectorAll<HTMLInputElement>('fieldset input[name="add:public.repos"]'),
+    ).map((box) => box.value);
+  const shownChoices = () =>
+    Array.from(document.querySelectorAll<HTMLLabelElement>('fieldset label'))
+      .filter((label) => !label.hidden)
+      .map((label) => label.querySelector('input')!.value);
+  const modal = () => document.querySelector('details') as HTMLDetailsElement;
+  const tick = (value: string) => {
+    (document.querySelector(`fieldset input[value="${value}"]`) as HTMLInputElement).checked = true;
+  };
+  const click = (selector: string): boolean => {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.querySelector(selector)!.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it('shows the search box and Cancel, which only work with the script', () => {
+    renderPickList();
+    expect(document.querySelector('[data-spr-pick-search]')?.hasAttribute('hidden')).toBe(false);
+    expect(document.querySelector('[data-spr-pick-cancel]')?.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('narrows the repositories to the ones the search names', () => {
+    renderPickList();
+    const search = document.querySelector('[data-spr-pick-search]') as HTMLInputElement;
+    search.value = 'HAND';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(shownChoices()).toEqual(['copetence/handbook']);
+
+    search.value = 'nothing-like-this';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(shownChoices()).toEqual([]);
+    expect(document.querySelector('.spr-pick-list-none')?.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('adds every ticked repository as a row, with its note, without sending the page', () => {
+    renderPickList();
+    tick('copetence/handbook');
+    tick('copetence/fieldkit');
+
+    expect(click('[data-spr-pick-add]')).toBe(true);
+    expect(listed()).toEqual([
+      'copetence/speicher-docs',
+      'old-team/renamed',
+      'copetence/fieldkit',
+      'copetence/handbook',
+    ]);
+    expect(offered()).toEqual([]);
+    expect(modal().open).toBe(false);
+    expect(modal().hidden).toBe(true);
+
+    const added = document.querySelectorAll('ul li')[3];
+    expect(added.querySelector('.spr-info-mark-warn')).not.toBeNull();
+    expect(added.querySelector('[role="tooltip"]')?.textContent).toBe('Stays private.');
+    expect(added.querySelector('button[name^="remove:"]')?.getAttribute('value')).toBe(
+      'copetence/handbook',
+    );
+    expect(pending()).toBe(true);
+  });
+
+  it('adds nothing while nothing is ticked', () => {
+    renderPickList();
+    expect(click('[data-spr-pick-add]')).toBe(true);
+    expect(listed()).toEqual(['copetence/speicher-docs', 'old-team/renamed']);
+    expect(modal().open).toBe(true);
+  });
+
+  it('removes a row, and offers its repository again unless Speicher does not know it', () => {
+    renderPickList();
+
+    expect(click('button[value="copetence/speicher-docs"]')).toBe(true);
+    expect(click('button[value="old-team/renamed"]')).toBe(true);
+
+    expect(listed()).toEqual([]);
+    expect(offered()).toEqual([
+      'copetence/fieldkit',
+      'copetence/handbook',
+      'copetence/speicher-docs',
+    ]);
+    expect(document.querySelector('ul')?.hasAttribute('hidden')).toBe(true);
+    expect(document.querySelector('.spr-pick-list-empty')?.hasAttribute('hidden')).toBe(false);
+    expect(pending()).toBe(true);
+  });
+});

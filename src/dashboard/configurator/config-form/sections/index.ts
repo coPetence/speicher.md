@@ -24,12 +24,10 @@ import { groupProviderSection } from './groups/sources';
 import { identitySection, providerSection } from './identity';
 import { mailSection } from './mail';
 import { notificationsSection } from './notifications';
-import {
-  analyticsSection,
-  publicSection,
-  readingSection,
-  retrievalSection,
-} from './reading-settings';
+import { publicSection } from './public-access';
+import { analyticsSection } from './read-analytics';
+import { readingSection } from './reading-experience';
+import { repositoryDefaultsSection } from './repository-defaults';
 import { forgeSection } from './content-sources/content-source-page';
 import { sourcesSection } from './content-sources/content-sources-table-page';
 import { embeddingSection, storageSection } from './storage';
@@ -62,7 +60,7 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
     ),
     storageSection(root),
     mailSection(root),
-    retrievalSection(root),
+    repositoryDefaultsSection(root),
     readingSection(root),
     analyticsSection(root),
     notificationsSection(root),
