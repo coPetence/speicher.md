@@ -535,7 +535,8 @@ describe('the branding section', () => {
     const form = html.slice(html.indexOf('<form class="spr-config"'));
     expect(form).toContain('class="spr-info-mark"');
     expect(form).toContain('aria-describedby="help-theme-template"');
-    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(3);
+    expect(form).toContain('aria-describedby="help-brand-name-align"');
+    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(4);
     expect([...form.matchAll(/<p class="spr-help">/g)]).toHaveLength(0);
   });
 
