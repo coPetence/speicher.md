@@ -402,7 +402,7 @@ auth:
 
     const picker = await request(app.getHttpServer()).get('/api/auth/login?provider=').expect(200);
     expect(picker.text).toContain('Sign in with Company sign-in');
-    expect(picker.text).toContain('Sign in with Email me a link');
+    expect(picker.text).toContain('action="/api/auth/discover"');
   });
 });
 

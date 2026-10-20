@@ -13,7 +13,8 @@ import { TenancyService } from '../db/tenancy';
 import { nameFirstAdmin } from '../dashboard/setup/first-admin';
 import { SetupService } from '../dashboard/setup/setup.service';
 import { sendMagicLink } from './views/magic-link/magic-link';
-import { sendSignIn } from './views/sign-in/sign-in';
+import { sendMagicLinkSent } from './views/magic-link-sent/magic-link-sent';
+import { sendProviderChoice, sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
 import { GITHUB_CALLBACK_PATH, originOf } from './callback-url';
 import { callerOf } from './caller.middleware';
@@ -22,6 +23,7 @@ import { CompletedLogin } from './login-result';
 import { MagicLinkService } from './magic-link.service';
 import { OidcService, safeRedirect } from './oidc.service';
 import { SessionService } from './session.service';
+import { catchAllProviders, emailDomain, providersForEmail } from './sign-in-routing';
 import { mintToken } from './tokens';
 
 const BROWSER_BINDING_COOKIE = 'speicher_binding';
@@ -66,38 +68,102 @@ export class AuthController {
     const chosenProvider =
       providerId ?? (providers.length === 1 && !devLoginEnabled ? providers[0] : undefined);
     if (!chosenProvider || !this.config.provider(chosenProvider)) {
-      sendSignIn(req, res, this.config, safeRedirect(redirectTo));
+      sendSignIn(req, res, this.config, safeRedirect(redirectTo), {
+        formActions: this.signInFormActions(),
+      });
       return;
     }
 
-    const kind = providerType(this.config.provider(chosenProvider)!);
+    await this.startSignIn(req, res, tenant.id, chosenProvider, safeRedirect(redirectTo));
+  }
+
+  /**
+   * Find the providers for a typed email address and start the sign-in
+   */
+  @Post('discover')
+  async discover(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: { email?: unknown; provider?: unknown; redirect_to?: unknown },
+  ): Promise<void> {
+    const tenant = await this.tenancy.resolveTenant(req);
+    const redirectTo = safeRedirect(typeof body.redirect_to === 'string' ? body.redirect_to : '/');
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    if (emailDomain(email) === null) {
+      sendSignIn(req, res, this.config, redirectTo, {
+        notice: 'Enter your full email address.',
+        email,
+        formActions: this.signInFormActions(),
+      });
+      return;
+    }
+
+    const offered = providersForEmail(this.config, email);
+    const chosen = typeof body.provider === 'string' ? body.provider : undefined;
+    if (chosen !== undefined && offered.includes(chosen)) {
+      await this.startSignIn(req, res, tenant.id, chosen, redirectTo, email);
+      return;
+    }
+    if (offered.length === 1) {
+      await this.startSignIn(req, res, tenant.id, offered[0], redirectTo, email);
+      return;
+    }
+    if (offered.length === 0) {
+      const notice = catchAllProviders(this.config).length
+        ? 'No sign-in is set up for this address.'
+        : 'There is no way to sign in with this address. Ask your administrator which address to use.';
+      sendSignIn(req, res, this.config, redirectTo, {
+        notice,
+        email,
+        formActions: this.signInFormActions(),
+      });
+      return;
+    }
+    sendProviderChoice(req, res, this.config, offered, email, redirectTo, this.signInFormActions());
+  }
+
+  private signInFormActions(): string[] {
+    return this.config.providerShortIds.flatMap((id) => [
+      ...this.oidc.authorizationOrigins(id),
+      ...[this.github.authorizationOrigin(id)].filter((origin): origin is string => !!origin),
+    ]);
+  }
+
+  /**
+   * Start a sign-in with a provider
+   */
+  private async startSignIn(
+    req: Request,
+    res: Response,
+    tenantId: string,
+    providerId: string,
+    redirectTo: string,
+    email?: string,
+  ): Promise<void> {
+    const kind = providerType(this.config.provider(providerId)!);
     if (kind === 'magic-link') {
-      sendMagicLink(req, res, this.config, chosenProvider, safeRedirect(redirectTo));
+      if (email === undefined) {
+        sendMagicLink(req, res, this.config, providerId, redirectTo);
+      } else {
+        await this.sendMagicLinkTo(req, res, tenantId, providerId, email, redirectTo);
+      }
       return;
     }
     if (kind === 'github') {
-      await this.startRedirect(req, res, chosenProvider, redirectTo, () =>
-        this.github.authorizationUrl(
-          tenant.id,
-          chosenProvider,
-          this.githubCallbackUri(req),
-          safeRedirect(redirectTo),
-        ),
+      await this.startRedirect(req, res, providerId, redirectTo, () =>
+        this.github.authorizationUrl(tenantId, providerId, this.githubCallbackUri(req), redirectTo),
       );
       return;
     }
     if (kind !== 'oidc') {
-      sendSignIn(req, res, this.config, safeRedirect(redirectTo));
+      sendSignIn(req, res, this.config, redirectTo, { formActions: this.signInFormActions() });
       return;
     }
 
-    await this.startRedirect(req, res, chosenProvider, redirectTo, () =>
-      this.oidc.authorizationUrl(
-        tenant.id,
-        chosenProvider,
-        this.callbackUri(req),
-        safeRedirect(redirectTo),
-      ),
+    await this.startRedirect(req, res, providerId, redirectTo, () =>
+      this.oidc.authorizationUrl(tenantId, providerId, this.callbackUri(req), redirectTo, {
+        loginHint: email,
+      }),
     );
   }
 
@@ -121,13 +187,10 @@ export class AuthController {
         error: (err as Error).message,
       });
 
-      sendSignIn(
-        req,
-        res,
-        this.config,
-        safeRedirect(redirectTo),
-        `Could not reach the "${providerId}" sign-in provider.`,
-      );
+      sendSignIn(req, res, this.config, safeRedirect(redirectTo), {
+        notice: `Could not reach the "${providerId}" sign-in provider.`,
+        formActions: this.signInFormActions(),
+      });
     }
   }
 
@@ -225,16 +288,35 @@ export class AuthController {
   async requestMagicLink(
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: { email?: string; provider?: string },
+    @Body() body: { email?: unknown; provider?: unknown; redirect_to?: unknown },
   ): Promise<void> {
     const tenant = await this.tenancy.resolveTenant(req);
+    const requested = typeof body.provider === 'string' ? body.provider : undefined;
     const providerId =
-      body.provider ??
+      requested ??
       this.config.providerShortIds.find(
         (id) => providerType(this.config.provider(id)!) === 'magic-link',
       );
+    const redirectTo = safeRedirect(typeof body.redirect_to === 'string' ? body.redirect_to : '/');
+    await this.sendMagicLinkTo(
+      req,
+      res,
+      tenant.id,
+      providerId,
+      typeof body.email === 'string' ? body.email : '',
+      redirectTo,
+    );
+  }
 
-    if (providerId && typeof body.email === 'string' && body.email.includes('@')) {
+  private async sendMagicLinkTo(
+    req: Request,
+    res: Response,
+    tenantId: string,
+    providerId: string | undefined,
+    email: string,
+    redirectTo: string,
+  ): Promise<void> {
+    if (providerId && email.includes('@')) {
       if (await this.perIpOk(req)) {
         let binding = req.cookies?.[BROWSER_BINDING_COOKIE];
         if (typeof binding !== 'string' || !binding) {
@@ -248,19 +330,13 @@ export class AuthController {
           });
         }
         await this.magic
-          .request(tenant.id, providerId, body.email, originOf(req), binding)
+          .request(tenantId, providerId, email, originOf(req), binding, redirectTo)
           .catch((err) => this.log.error('magic link failed', { error: (err as Error).message }));
       }
     }
 
     // Always the same response so a valid address cannot be distinguished
-    sendSignInMessage(
-      req,
-      res,
-      this.config,
-      200,
-      'If this address is registered, a sign-in link has been sent. Check your inbox.',
-    );
+    sendMagicLinkSent(req, res, this.config, email.trim(), redirectTo);
   }
 
   /**
@@ -286,12 +362,12 @@ export class AuthController {
       return;
     }
     const binding = req.cookies?.[BROWSER_BINDING_COOKIE];
-    const identity = await this.magic.redeem(
+    const redeemed = await this.magic.redeem(
       tenant.id,
       token,
       typeof binding === 'string' ? binding : null,
     );
-    if (!identity) {
+    if (!redeemed) {
       sendSignInMessage(
         req,
         res,
@@ -302,9 +378,9 @@ export class AuthController {
       );
       return;
     }
-    await this.sessions.create(tenant.id, identity, [], res);
-    await this.noteAdminLogin(tenant.id, identity, []);
-    res.redirect(302, '/');
+    await this.sessions.create(tenant.id, redeemed.identity, [], res);
+    await this.noteAdminLogin(tenant.id, redeemed.identity, []);
+    res.redirect(302, redeemed.redirectTo);
   }
 
   @Post('logout')

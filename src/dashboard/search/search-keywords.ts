@@ -94,7 +94,8 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'field:auth.providers.<key>.client_secret': 'secret, credentials, app password',
   'field:auth.providers.<key>.groups_claim': 'group claim, roles claim, memberships, claim mapping',
   'field:auth.providers.<key>.subject_claim': 'oid, sub, unique identifier, claim mapping',
-  'field:auth.providers.<key>.domains': 'home realm discovery, which provider, email domain',
+  'field:auth.providers.<key>.domains':
+    'sign-in routing, home realm discovery, which provider, email domain',
   'field:auth.providers.<key>.session_ttl': 'how long signed in, logout, expiry, re-login',
   'field:auth.providers.<key>.same_browser': 'forwarded link, shared link, device',
   'field:auth.providers.<key>.directory.type': 'graph api, lookup, resolve email, group size',

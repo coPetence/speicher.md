@@ -28,6 +28,12 @@ export class GithubAuthService {
     initModels();
   }
 
+  authorizationOrigin(providerId: string): string | null {
+    const provider = this.config.provider(providerId);
+    if (!provider || providerType(provider) !== 'github') return null;
+    return new URL(githubHosts((provider as GithubProviderConfig).base_url).web).origin;
+  }
+
   /**
    * Build a GitHub authorization URL and save the login flow
    *

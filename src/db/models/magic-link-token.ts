@@ -9,6 +9,7 @@ export class MagicLinkToken extends Model {
   declare email: string;
   declare token_hash: string;
   declare browser_binding: string | null;
+  declare redirect_to: string | null;
   declare expires_at: Date;
   declare consumed_at: Date | null;
 }
@@ -22,6 +23,7 @@ export function initMagicLinkToken(sequelize: Sequelize): void {
       email: DataTypes.TEXT,
       token_hash: DataTypes.TEXT,
       browser_binding: DataTypes.TEXT,
+      redirect_to: DataTypes.TEXT,
       expires_at: DataTypes.DATE,
       consumed_at: DataTypes.DATE,
       created_at: DataTypes.DATE,

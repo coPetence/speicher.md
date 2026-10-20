@@ -25,7 +25,13 @@ import { MagicLinkProviderConfig, providerType } from '../config/types';
 import { MagicLinkToken, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { Mailer } from '../notify/mailer';
+import { safeRedirect } from './oidc.service';
 import { hashToken, mintToken, safeEqual } from './tokens';
+
+export interface RedeemedMagicLink {
+  identity: CallerIdentity;
+  redirectTo: string;
+}
 
 @Injectable()
 export class MagicLinkService {
@@ -50,6 +56,7 @@ export class MagicLinkService {
     email: string,
     origin: string,
     browserBinding: string | null,
+    redirectTo = '/',
   ): Promise<void> {
     const address = email.trim().toLowerCase();
     const provider = this.magicProvider(providerId);
@@ -73,6 +80,7 @@ export class MagicLinkService {
       token_hash: hashToken(token),
       browser_binding:
         provider.same_browser !== false && browserBinding ? hashToken(browserBinding) : null,
+      redirect_to: safeRedirect(redirectTo),
       expires_at: new Date(Date.now() + ttl),
     });
 
@@ -85,7 +93,7 @@ export class MagicLinkService {
   }
 
   /**
-   * Consume a token and return the caller identity, or null
+   * Consume a token and return the caller identity and the page to open, or null
    *
    * Refused when the optional browser binding does not match
    */
@@ -93,7 +101,7 @@ export class MagicLinkService {
     tenantId: string,
     token: string,
     browserBinding: string | null,
-  ): Promise<CallerIdentity | null> {
+  ): Promise<RedeemedMagicLink | null> {
     const row = await MagicLinkToken.findOne({
       where: {
         tenant_id: tenantId,
@@ -114,7 +122,15 @@ export class MagicLinkService {
       }
     }
 
-    return { provider: row.provider, subject: row.email, email: row.email, displayName: row.email };
+    return {
+      identity: {
+        provider: row.provider,
+        subject: row.email,
+        email: row.email,
+        displayName: row.email,
+      },
+      redirectTo: safeRedirect(row.redirect_to ?? '/'),
+    };
   }
 
   /**

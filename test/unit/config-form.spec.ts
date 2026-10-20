@@ -2119,6 +2119,51 @@ describe("a GitHub source's webhook URL", () => {
   });
 });
 
+describe("a provider's sign-in routing", () => {
+  const routing = (yaml: string, id: string) =>
+    cardItems([sectionOf(loadDocument(yaml), `identity/${id}`)!]).find(
+      (item): item is ChoiceItem =>
+        item.kind === 'choice' && item.name === `choice:auth.providers.${id}.routing`,
+    );
+
+  it.each(['entra', 'hub'])('is offered on the page of %s', (id) => {
+    expect(routing(FULL, id)).toBeDefined();
+  });
+
+  it('is for all email addresses while the provider names no domain', () => {
+    expect(routing(FULL, 'hub')?.selected).toBe('everyone');
+  });
+
+  it('is for some domains once the provider names one', () => {
+    const choice = routing(FULL, 'entra');
+    expect(choice?.selected).toBe('domains');
+    const [field] = fieldsOf(choice!.options.find((o) => o.value === 'domains')!.items);
+    expect(field.path).toBe('auth.providers.entra.domains');
+  });
+
+  it('removes the domains when switched to all email addresses', () => {
+    const doc = loadDocument(FULL);
+    applyForm(doc, { 'choice:auth.providers.entra.routing': 'everyone' }, 'identity/entra');
+    expect(loadInstanceConfig(serialise(doc)).raw.auth?.providers?.entra.domains).toBeUndefined();
+  });
+
+  it('keeps the domains when left on some domains', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        'choice:auth.providers.entra.routing': 'domains',
+        'auth.providers.entra.domains': 'example.test\npartner.test',
+      },
+      'identity/entra',
+    );
+    expect(loadInstanceConfig(serialise(doc)).raw.auth?.providers?.entra.domains).toEqual([
+      'example.test',
+      'partner.test',
+    ]);
+  });
+});
+
 describe("a GitHub identity provider's App setup", () => {
   const NEW_PROVIDER = 'auth:\n  providers:\n    octo:\n      type: github\n';
   const items = (yaml: string, id: string) =>
@@ -2137,7 +2182,11 @@ describe("a GitHub identity provider's App setup", () => {
 
   it('shows only the client id and secret once the provider has them', () => {
     const shown = items(FULL, 'hub');
-    expect(shown.some((item) => item.kind === 'choice')).toBe(false);
+    expect(
+      shown.some(
+        (item) => item.kind === 'choice' && item.name !== 'choice:auth.providers.hub.routing',
+      ),
+    ).toBe(false);
     expect(
       shown.some((item) => 'path' in item && item.path === 'auth.providers.hub.client_id'),
     ).toBe(true);
@@ -2171,7 +2220,11 @@ describe("a GitHub identity provider's App setup", () => {
     const field = (path: string) => section.fields.find((each) => each.path === path);
     expect(field('auth.providers.hub.session_ttl')?.advanced).toBe(true);
     expect(field('auth.default_provider')?.trailing).toBe(true);
-    expect(section.cards.map((card) => card.title)).toEqual(['GitHub App', DIRECTORY]);
+    expect(section.cards.map((card) => card.title)).toEqual([
+      'GitHub App',
+      DIRECTORY,
+      'Who should see this provider?',
+    ]);
   });
 
   it('turns the GitHub directory on with its App, and removes it without one', () => {

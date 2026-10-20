@@ -1109,6 +1109,12 @@
       scrollbar-width: thin;
     }
 
+    .spr-main:has(> .spr-signin-page) {
+      display: grid;
+      align-content: center;
+      padding-block-end: calc(var(--spr-space-7) + 12dvh);
+    }
+
     .spr-nav {
       scrollbar-gutter: stable both-edges;
       scrollbar-width: thin;
@@ -2103,6 +2109,31 @@
     text-decoration: none;
   }
 
+  button.spr-signin-option {
+    width: 100%;
+    font: inherit;
+    font-weight: var(--spr-weight-strong);
+    cursor: pointer;
+  }
+
+  .spr-signin-options form {
+    margin: 0;
+  }
+
+  .spr-signin-sent {
+    max-width: 22em;
+  }
+
+  .spr-signin-address {
+    color: var(--spr-fg);
+    overflow-wrap: anywhere;
+  }
+
+  .spr-signin-divider {
+    margin: 0;
+    color: var(--spr-muted);
+  }
+
   .spr-signin-option:hover {
     border-color: var(--spr-accent);
     text-decoration: none;
@@ -2124,6 +2155,27 @@
     width: 100%;
     max-width: calc(var(--spr-space-8) * 10);
     margin: 0;
+  }
+
+  .spr-form.spr-signin-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .spr-form.spr-signin-form input[type='email'] {
+    flex: 0 0 auto;
+  }
+
+  .spr-form.spr-signin-form button {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-form.spr-signin-form button:hover {
+    border-color: var(--spr-accent);
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
   }
 
   .spr-main:has(.spr-table) {
