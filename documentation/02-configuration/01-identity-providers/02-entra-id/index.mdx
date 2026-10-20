@@ -54,9 +54,9 @@ Now go to the **Entra App Registration → Certificates & secrets** and create a
 If your Entra ID configuration does not store the users email address in the `preferred_username` claim, update the Email Claim field according to your configuration.
 :::
 
-List the email domains that should use this identity provider in the `Email Domains` field.
-Example: if someone wants to sign in with a `@copetence.de` email they will just see identity providers that are configured for this email domain.
-This configuration is optional and will **not block** users with other email domains to login. Use it to show users only the sign-in options, that they are actually meant to use.
+Under **Who should see this provider?**, choose **Only these domains** and list the email domains that should use this identity provider.
+Example: if someone enters a `@copetence.de` address on the sign-in page, they are sent straight to the identity providers configured for this email domain.
+This configuration is optional and will **not block** users with other email domains from signing in. Use it to show users only the sign-in options they are actually meant to use.
 
 ![Screenshot: Speicher Entra ID Config](./assets/speicher-entra-id-config.png)
 

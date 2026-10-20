@@ -684,7 +684,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Home-realm discovery: send users at these domains here without a picker."
+          "description": "Offer this provider only for addresses at these domains. Absent means it is offered for every address."
         },
         "session_ttl": {
           "$ref": "#/$defs/duration",
@@ -721,6 +721,13 @@
           "type": "boolean",
           "default": true,
           "description": "Redeemable only in the browser that requested it. Breaks request-on-laptop-open-on-phone."
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Offer this provider only for addresses at these domains. Absent means it is offered for every address."
         }
       }
     },
@@ -1008,6 +1015,13 @@
           "$ref": "#/$defs/duration",
           "default": "8h",
           "description": "Team memberships are read once, at sign-in, so a team somebody has been taken out of keeps working for them until this expires and they sign in again."
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Offer this provider only for addresses at these domains. Absent means it is offered for every address."
         },
         "directory": {
           "$ref": "#/$defs/directory"

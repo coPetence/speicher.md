@@ -1,0 +1,5 @@
+<div class="spr-empty-state spr-empty-state-page spr-signin-page">
+  <h1>Check your email</h1>
+  <p class="spr-empty spr-signin-sent">We’ve sent you a temporary login link. Please check your inbox at <span class="spr-signin-address"><%= it.email %></span>.</p>
+  <p class="spr-empty"><a href="<%= it.otherAddressHref %>">Use a different address</a></p>
+</div>

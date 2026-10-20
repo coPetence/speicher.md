@@ -51,6 +51,7 @@ export interface MagicLinkProviderConfig {
   token_ttl?: string;
   session_ttl?: string;
   same_browser?: boolean;
+  domains?: string[];
 }
 
 export interface GithubProviderConfig {
@@ -60,6 +61,7 @@ export interface GithubProviderConfig {
   client_secret?: string;
   base_url?: string;
   session_ttl?: string;
+  domains?: string[];
   directory?: DirectoryConfig;
   app?: GithubProviderApp;
 }

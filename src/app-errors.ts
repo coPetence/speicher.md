@@ -15,8 +15,7 @@ import type { ErrorRequestHandler, Request, Response } from 'express';
 import { wantsJson } from './dashboard/respond';
 import { rootLogger } from './common/logger';
 import { ConfigService } from './config/config.service';
-import type { ChromeConfig } from './content-reader/chrome';
-import { sendNotFound } from './global-ui/global-views/not-found/not-found';
+import { NotFoundConfig, sendNotFound } from './global-ui/global-views/not-found/not-found';
 import { sendServerError } from './global-ui/global-views/server-error/server-error';
 
 const log = rootLogger.child('http');
@@ -35,7 +34,7 @@ function statusOf(exception: unknown): number {
  *  four-argument signature
  */
 export function respondToFailure(
-  config: ChromeConfig,
+  config: NotFoundConfig,
   exception: unknown,
   req: Request,
   res: Response,
@@ -93,7 +92,7 @@ export function respondToFailure(
 
 @Catch()
 export class UnhandledErrorFilter implements ExceptionFilter {
-  constructor(private readonly config: ChromeConfig) {}
+  constructor(private readonly config: NotFoundConfig) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();

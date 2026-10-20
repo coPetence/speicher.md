@@ -1,15 +1,35 @@
-
-<div class="spr-empty-state spr-empty-state-page spr-signin-page"><h1>Sign in</h1>
+<div class="spr-empty-state spr-empty-state-page spr-signin-page"><h1><%= it.askEmail ? 'Sign in with Email' : 'Sign in' %></h1>
   <% if (it.notice) { %><p class="spr-empty"><%= it.notice %></p><% } %>
-  <% if (it.options.length === 0) { %>
+  <% if (!it.askEmail && it.options.length === 0) { %>
     <p class="spr-empty">No sign-in provider is configured on this instance.</p>
-  <% } else { %>
+  <% } %>
+  <% if (it.askEmail) { %>
+    <form method="post" action="/api/auth/discover" class="spr-form spr-signin-form">
+      <input type="hidden" name="redirect_to" value="<%= it.redirectTo %>" />
+      <input type="email" name="email" required autocomplete="email" aria-label="Email address" placeholder="Enter your email address" value="<%= it.email %>" />
+      <button type="submit">Continue</button>
+    </form>
+    <% if (it.options.length > 0) { %><p class="spr-signin-divider">or</p><% } %>
+  <% } %>
+  <% if (it.options.length > 0) { %>
     <ul class="spr-signin-options">
       <% it.options.forEach(function (option) { %>
-      <li><a class="spr-signin-option" href="<%= option.href %>"><%~ option.mark %><span>Sign in with <%= option.name %></span></a></li>
+      <li>
+        <% if (option.href) { %>
+        <a class="spr-signin-option" href="<%= option.href %>"><%~ option.mark %><span>Sign in with <%= option.name %></span></a>
+        <% } else { %>
+        <form method="post" action="/api/auth/discover">
+          <input type="hidden" name="email" value="<%= it.email %>" />
+          <input type="hidden" name="redirect_to" value="<%= it.redirectTo %>" />
+          <input type="hidden" name="provider" value="<%= option.provider %>" />
+          <button type="submit" class="spr-signin-option"><%~ option.mark %><span>Sign in with <%= option.name %></span></button>
+        </form>
+        <% } %>
+      </li>
       <% }) %>
     </ul>
   <% } %>
+  <% if (it.otherAddressHref) { %><p class="spr-empty"><a href="<%= it.otherAddressHref %>">Use a different address</a></p><% } %>
 </div>
 <% if (it.devLogin) { %>
 <h2>Development sign-in</h2>

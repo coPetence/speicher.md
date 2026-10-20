@@ -15,7 +15,6 @@ import {
   booleanField,
   durationField,
   entraTenantField,
-  linesField,
   secretField,
   textField,
   urlField,
@@ -39,6 +38,7 @@ import type { Option, SectionEntry } from '../model';
 import { directoryFields } from './identity/directory-fields';
 import { githubAppCard } from './identity/github-app-card';
 import { githubDirectoryCard } from './identity/github-directory-card';
+import { signInRoutingCard } from './identity/sign-in-routing-card';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
@@ -212,7 +212,10 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     id: memberSectionId('identity', id),
     title: id,
     parent: 'identity',
-    cards: kind === 'github' ? [githubAppCard(root, id), githubDirectoryCard(root, id, kind)] : [],
+    cards: [
+      ...(kind === 'github' ? [githubAppCard(root, id), githubDirectoryCard(root, id, kind)] : []),
+      signInRoutingCard(root, id),
+    ],
     mark: kindOf(kind)?.mark ?? '',
     // The last remaining provider cannot be removed
     removeOp: providerIds(root).length > 1 ? `remove:auth.providers.${id}` : null,
@@ -273,10 +276,6 @@ function oidcFields(
         'address. To use the actual email address instead, add `email` as an optional claim ' +
         'under **App registrations** → your app → **Token configuration** → **Add optional ' +
         'claim**, and set this to `email`.',
-    }),
-    linesField(root, [...base, 'domains'], p('domains'), 'Email domains', {
-      help: 'The email domains are used for home-realm discovery: when several providers are configured, they decide which one signs in people with an address at these domains. For example, with `copetence.de` listed here, `example@copetence.de` is sent straight to this provider, even if another provider could sign in the same person. Please enter each domain on its own line.',
-      rows: 3,
     }),
     durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
       fallback: '8h',

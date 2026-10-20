@@ -37,32 +37,33 @@ export class OidcService {
     initModels();
   }
 
-  /**
-   * Returns the provider id whose domain list includes the email's domain, or null
-   */
-  providerForEmail(email: string): string | null {
-    const domain = email.toLowerCase().split('@')[1];
-    if (!domain) return null;
-    for (const id of this.config.providerShortIds) {
-      const provider = this.config.provider(id);
-      if (!provider || providerType(provider) !== 'oidc') continue;
-      const domains = (provider as OidcProviderConfig).domains ?? [];
-      if (domains.some((d) => d.toLowerCase() === domain)) return id;
-    }
-    return null;
+  authorizationOrigins(providerId: string): string[] {
+    const provider = this.config.provider(providerId);
+    if (!provider || providerType(provider) !== 'oidc') return [];
+    const issuer = normalizeIssuer((provider as OidcProviderConfig).issuer);
+    const endpoint = this.discovery.get(issuer)?.authorization_endpoint;
+    return [issuer, endpoint].flatMap((url) => {
+      if (!url) return [];
+      try {
+        return [new URL(url).origin];
+      } catch {
+        return [];
+      }
+    });
   }
 
   /**
    * Build an OIDC authorization URL with PKCE and save the login flow
    *
    * Stores state, nonce, code verifier and redirect target in LoginFlow, expiring 10 min
+   * A login hint, the address the person typed, saves them typing it again at the provider
    */
   async authorizationUrl(
     tenantId: string,
     providerId: string,
     redirectUri: string,
     redirectTo = '/',
-    options: { namesFirstAdmin?: boolean } = {},
+    options: { namesFirstAdmin?: boolean; loginHint?: string } = {},
   ): Promise<string> {
     const provider = this.oidcProvider(providerId);
     const meta = await this.discover(providerId, provider);
@@ -92,6 +93,7 @@ export class OidcService {
     url.searchParams.set('nonce', nonce);
     url.searchParams.set('code_challenge', challenge);
     url.searchParams.set('code_challenge_method', 'S256');
+    if (options.loginHint) url.searchParams.set('login_hint', options.loginHint);
     return url.toString();
   }
 

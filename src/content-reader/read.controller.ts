@@ -35,7 +35,7 @@ import { SetupService } from '../dashboard/setup/setup.service';
 import { landingCover } from './covers';
 import { ResolvedRoute, RoutingService, repoRefOf } from './routing';
 import { sendListing } from './views/folder-listing/folder-listing';
-import { sendNotFound } from '../global-ui/global-views/not-found/not-found';
+import { redirectToSignIn, sendNotFound } from '../global-ui/global-views/not-found/not-found';
 import { sendPage } from './views/content-page/content-page';
 import { sendRoot } from './views/repo-listing/repo-listing';
 import { sendSearch } from './views/search/search';
@@ -91,6 +91,8 @@ export class ReadController {
     }
 
     const repos = await this.pages.listVisibleRepos(caller.principals, caller.tenantId);
+    // Nothing is public, so we need sign in first
+    if (repos.length === 0 && redirectToSignIn(req, res, this.config)) return;
     sendRoot(req, res, this.config, this.routing, caller.identity !== null, repos);
   }
 
