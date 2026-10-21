@@ -152,8 +152,4 @@ export class SessionService {
       maxAge: undefined,
     });
   }
-
-  async purgeExpired(): Promise<number> {
-    return Session.destroy({ where: { expires_at: { [Op.lt]: new Date() } } });
-  }
 }

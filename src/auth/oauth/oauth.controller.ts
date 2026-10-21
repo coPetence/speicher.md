@@ -59,6 +59,7 @@ export class OauthController {
       this.config,
       checked.client.clientName ?? checked.client.clientId,
       query,
+      checked.redirectUri,
     );
   }
 

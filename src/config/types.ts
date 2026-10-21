@@ -42,6 +42,7 @@ export interface OidcProviderConfig {
   email_claim?: string;
   domains?: string[];
   session_ttl?: string;
+  connection_idle_ttl?: string;
   directory?: DirectoryConfig;
 }
 
@@ -61,6 +62,7 @@ export interface GithubProviderConfig {
   client_secret?: string;
   base_url?: string;
   session_ttl?: string;
+  connection_idle_ttl?: string;
   domains?: string[];
   directory?: DirectoryConfig;
   app?: GithubProviderApp;

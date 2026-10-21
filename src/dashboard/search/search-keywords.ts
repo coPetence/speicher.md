@@ -97,6 +97,8 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'field:auth.providers.<key>.domains':
     'sign-in routing, home realm discovery, which provider, email domain',
   'field:auth.providers.<key>.session_ttl': 'how long signed in, logout, expiry, re-login',
+  'field:auth.providers.<key>.connection_idle_ttl':
+    'mcp, claude, connector, reconnect, oauth, refresh token, ai tool',
   'field:auth.providers.<key>.same_browser': 'forwarded link, shared link, device',
   'field:auth.providers.<key>.directory.type': 'graph api, lookup, resolve email, group size',
   'field:auth.default_provider': 'which provider, primary login, default sign in',

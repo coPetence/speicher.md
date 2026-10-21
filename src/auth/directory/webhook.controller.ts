@@ -5,11 +5,12 @@
 import { Controller, Headers, Param, Post, Req, Res } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Op } from 'sequelize';
 
 import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { GithubProviderConfig, providerType } from '../../config/types';
-import { Session, initModels } from '../../db/models';
+import { OauthGrant, Session, initModels } from '../../db/models';
 import { TenancyService } from '../../db/tenancy';
 import { verifyGithubSignature } from '../../forge/github/webhook';
 import { readSignedDelivery } from '../../webhooks/signed-delivery';
@@ -91,21 +92,23 @@ export class DirectoryWebhookController {
     }
 
     const tenant = await this.tenancy.resolveTenant(req);
-    const [count] = await Session.update(
-      { groups_fetched_at: null },
-      {
-        where: {
-          tenant_id: tenant.id,
-          provider: providerId,
-          ...(stale === 'all' ? {} : { subject: stale.subject }),
-        },
-      },
+    const whose = {
+      tenant_id: tenant.id,
+      provider: providerId,
+      ...(stale === 'all' ? {} : { subject: stale.subject }),
+    };
+    const [count] = await Session.update({ groups_fetched_at: null }, { where: whose });
+    // Expiring the access token makes the client refresh, which re-reads the groups
+    const [connections] = await OauthGrant.update(
+      { access_expires_at: new Date() },
+      { where: { ...whose, revoked_at: { [Op.is]: null } } },
     );
     this.log.info('groups marked stale', {
       provider: providerId,
       event: verification.event,
       scope: stale === 'all' ? 'all' : 'one person',
       sessions: count,
+      connections,
     });
     res.status(202).end();
   }

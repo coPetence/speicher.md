@@ -32,6 +32,7 @@ export const JOB_KINDS = [
   'embed',
   'analytics-maintenance',
   'brand-sweep',
+  'auth-sweep',
 ] as const;
 
 export type JobKind = (typeof JOB_KINDS)[number];
@@ -53,7 +54,7 @@ export const JOB_DESCRIPTIONS: Record<JobKind, string> = {
   rebuild:
     'Queues a sync of every repository, so all pages are rebuilt from their current commit even if the commit has not changed.',
   reconcile:
-    'Queues the regular work that is due: the syncs of repositories whose poll interval has passed, the discovery of new repositories, notifications, and the cleanup of removed content sources, read statistics and brand images.',
+    'Queues the regular work that is due: the syncs of repositories whose poll interval has passed, the discovery of new repositories, notifications, and the cleanup of removed content sources, read statistics, brand images and expired sign-ins.',
   notify:
     'Emails the administrators about repositories that have not synced for longer than the configured limit, and sends them a digest of access grants that will expire soon.',
   embed: 'Computes the embeddings for semantic search of every chunk that is missing an embedding.',
@@ -61,6 +62,8 @@ export const JOB_DESCRIPTIONS: Record<JobKind, string> = {
     'Applies the retention rules to the read statistics: older counts are merged into coarser periods and expired ones are deleted. If read statistics are turned off, all stored statistics are deleted.',
   'brand-sweep':
     'Deletes stored brand images, such as logos, that no stored configuration version refers to any more.',
+  'auth-sweep':
+    'Deletes expired browser sessions, unused authorization codes, and connections of AI tools that have expired or were disconnected.',
 };
 
 /** How often a job is tried before it is given up on as dead, unless enqueued otherwise */

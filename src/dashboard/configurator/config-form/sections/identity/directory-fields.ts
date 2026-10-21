@@ -81,7 +81,7 @@ export function directoryFields(
             shownWith,
             required: true,
             sourceToCopyFrom: from('client_id'),
-            help: 'The directory client id is the application (client) id Speicher uses to look up users and groups in Microsoft Graph. The app registration needs the application permission `User.Read.All`.',
+            help: 'The directory client id is the application (client) id Speicher uses to look up users and groups in Microsoft Graph. The app registration needs the application permissions `User.Read.All` and `GroupMember.Read.All`.',
           }),
           secretField(
             root,
@@ -106,7 +106,18 @@ export function directoryFields(
     'Directory cache lifetime',
     { shownWith, fallback: '1h' },
   );
-  if (type === 'github') return [...credentials, cacheLifetime];
+  const connectionLifetime = durationField(
+    root,
+    [...base, 'connection_idle_ttl'],
+    'auth.providers.<key>.connection_idle_ttl',
+    'Connection idle lifetime',
+    {
+      shownWith,
+      fallback: '30d',
+      help: 'How long an AI tool connected over MCP stays connected without being used.',
+    },
+  );
+  if (type === 'github') return [...credentials, cacheLifetime, connectionLifetime];
 
   return [
     selectField(root, [...d, 'type'], p('type'), 'Directory lookup', {
@@ -119,5 +130,6 @@ export function directoryFields(
     }),
     ...credentials,
     cacheLifetime,
+    connectionLifetime,
   ];
 }

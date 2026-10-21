@@ -3,7 +3,7 @@ import { parseDurationWithFallback } from '../../common/time';
 import { isExpired } from '../../common/until';
 import { ConfigService } from '../../config/config.service';
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
-import { DirectoryLookup } from '../../ingest/grants';
+import { DirectoryLookup, DirectoryUnavailableError } from '../../ingest/grants';
 
 import { GithubDirectory, GithubDirectoryDeps } from './github';
 import { DirectoryStatus, GraphDirectory, GraphDirectoryDeps, entraPortalGroupUrl } from './graph';
@@ -63,7 +63,6 @@ function fingerprintOf(config: ConfigService): string {
   for (const id of config.providerShortIds) {
     const directory = directoryOf(config, id);
     if (!directory) continue;
-    const github = directory.type === 'github';
     parts.push([
       id,
       directory.type,
@@ -73,8 +72,10 @@ function fingerprintOf(config: ConfigService): string {
       directory.app_id ?? '',
       directory.private_key ?? '',
       directory.cache_ttl ?? '',
-      github ? ((config.provider(id) as GithubProviderConfig).base_url ?? '') : '',
-      github ? config.groupSourcesByProvider(id).join(',') : '',
+      directory.type === 'github'
+        ? ((config.provider(id) as GithubProviderConfig).base_url ?? '')
+        : '',
+      config.groupSourcesByProvider(id).join(','),
     ]);
   }
   return JSON.stringify(parts);
@@ -122,7 +123,10 @@ function build(
     if (!directory) continue;
 
     if (directory.type === 'graph') {
-      byProvider.set(shortId, new GraphDirectory(shortId, directory, deps));
+      byProvider.set(
+        shortId,
+        new GraphDirectory(shortId, directory, config.groupSourcesByProvider(shortId), deps),
+      );
       continue;
     }
     if (directory.type === 'github') {
@@ -167,6 +171,33 @@ export async function refreshGroupIds(
   const lookup = createDirectoryLookup(config, deps);
   const client = lookup instanceof Directories ? lookup.clientFor(providerId) : undefined;
   return client?.groupsFor ? client.groupsFor(subject, { fresh: fetchedAt === null }) : null;
+}
+
+/**
+ * Checks if sub still exists in the directory and returns its groups
+ *
+ * 'gone' -> deleted, disabled, or no longer in the organisation
+ * null -> no directory that can read groups, or it could not answer
+ */
+export async function recheckSubject(
+  config: ConfigService,
+  providerId: string,
+  subject: string,
+  deps?: DirectoryDeps,
+): Promise<{ groups: string[] } | 'gone' | null> {
+  const lookup = createDirectoryLookup(config, deps);
+  const client = lookup instanceof Directories ? lookup.clientFor(providerId) : undefined;
+  if (!client?.groupsFor) return null;
+
+  try {
+    if (!(await client.subjectExists(subject))) return 'gone';
+  } catch (err) {
+    if (err instanceof DirectoryUnavailableError) return null;
+    throw err;
+  }
+
+  const groups = await client.groupsFor(subject, { fresh: true });
+  return groups === null ? null : { groups };
 }
 
 export const DIRECTORY_DEPS = Symbol('DIRECTORY_DEPS');

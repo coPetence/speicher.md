@@ -19,6 +19,7 @@ import { sweepAbandonedClones } from '../forge/git';
 import { ConfigService } from '../config/config.service';
 import { stableStringify } from '../config/resolution-hash';
 import { sweepBrandImages } from '../config/brand-store';
+import { sweepExpiredAuth } from '../auth/expiry-sweep';
 import { purgeAnalytics, sweepAnalytics } from '../dashboard/analytics/retention';
 import { TenancyService } from '../db/tenancy';
 import { EmbedService } from '../embed/embed.service';
@@ -389,6 +390,14 @@ export class Worker {
         return;
       }
 
+      case 'auth-sweep': {
+        const swept = await sweepExpiredAuth();
+        if (swept.sessions || swept.codes || swept.connections) {
+          this.log.info('deleted expired sign-in state', { ...swept });
+        }
+        return;
+      }
+
       default:
         this.log.warn('unknown job kind', { kind: job.kind });
     }
@@ -462,6 +471,12 @@ export class Worker {
       tenantId: tenant.id,
       kind: 'brand-sweep',
       dedupeKey: 'brand-sweep',
+    });
+
+    await this.queue.enqueue({
+      tenantId: tenant.id,
+      kind: 'auth-sweep',
+      dedupeKey: 'auth-sweep',
     });
 
     this.rearmReconcileTimer();

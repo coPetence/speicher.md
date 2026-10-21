@@ -29,6 +29,10 @@ interface FakeGraph {
   authority: string;
   users: Map<string, { id: string; accountEnabled?: boolean; mail?: string }>;
   groups: Map<string, number>;
+  /** Group ids each user object id is a transitive member of */
+  memberOf: Map<string, string[]>;
+  /** The groupIds of each checkMemberGroups request */
+  batches: string[][];
   hits: { token: number; user: number; filter: number; count: number };
   fail: number | null;
   failReads: number | null;
@@ -41,6 +45,8 @@ async function startFakeGraph(): Promise<FakeGraph> {
   const state = {
     users: new Map<string, { id: string; accountEnabled?: boolean; mail?: string }>(),
     groups: new Map<string, number>(),
+    memberOf: new Map<string, string[]>(),
+    batches: [] as string[][],
     hits: { token: 0, user: 0, filter: 0, count: 0 },
     fail: null as number | null,
     failReads: null as number | null,
@@ -80,6 +86,21 @@ async function startFakeGraph(): Promise<FakeGraph> {
         return send(res, 200, 'application/json', JSON.stringify({ value: rows }));
       }
 
+      const checking = /^\/v1\.0\/users\/(.+)\/checkMemberGroups$/.exec(path)?.[1];
+      if (req.method === 'POST' && checking) {
+        const asked = (JSON.parse(await readBody(req)) as { groupIds: string[] }).groupIds;
+        state.batches.push(asked);
+        const found = state.users.get(decodeURIComponent(checking));
+        if (!found) return send(res, 404, 'application/json', '{}');
+        const held = state.memberOf.get(found.id) ?? [];
+        return send(
+          res,
+          200,
+          'application/json',
+          JSON.stringify({ value: asked.filter((id) => held.includes(id)) }),
+        );
+      }
+
       const user = /^\/v1\.0\/users\/(.+)$/.exec(path)?.[1];
       if (user) {
         state.hits.user += 1;
@@ -114,6 +135,8 @@ async function startFakeGraph(): Promise<FakeGraph> {
   return {
     users: state.users,
     groups: state.groups,
+    memberOf: state.memberOf,
+    batches: state.batches,
     hits: state.hits,
     sentToGraph: state.sentToGraph,
     sentToLogin: state.sentToLogin,
@@ -159,6 +182,8 @@ afterAll(async () => {
 beforeEach(() => {
   graph.users.clear();
   graph.groups.clear();
+  graph.memberOf.clear();
+  graph.batches.length = 0;
   graph.hits.token = 0;
   graph.hits.user = 0;
   graph.hits.filter = 0;
@@ -169,7 +194,7 @@ beforeEach(() => {
   graph.sentToLogin.length = 0;
 });
 
-function client(cacheTtl = '1h'): GraphDirectory {
+function client(cacheTtl = '1h', groupIds: string[] = []): GraphDirectory {
   return new GraphDirectory(
     'entra',
     {
@@ -179,6 +204,7 @@ function client(cacheTtl = '1h'): GraphDirectory {
       client_secret: 'graph-secret',
       cache_ttl: cacheTtl,
     },
+    groupIds,
     { graphBase: graph.base, authority: graph.authority, sleep: async () => {} },
   );
 }
@@ -307,6 +333,47 @@ describe('the Graph client', () => {
   it('gives up a size quietly, which is the one question that never throws', async () => {
     graph.fail = 503;
     expect(await client().groupSize('grp-eng')).toBeNull();
+  });
+});
+
+describe('the groups somebody is in now', () => {
+  it('are the configured ones they are a member of, and no others', async () => {
+    graph.users.set('oid-alice', { id: 'oid-alice' });
+    graph.memberOf.set('oid-alice', ['grp-eng', 'grp-unconfigured']);
+
+    expect(await client('1h', ['grp-com', 'grp-eng']).groupsFor('oid-alice')).toEqual(['grp-eng']);
+    expect(graph.batches).toEqual([['grp-com', 'grp-eng']]);
+  });
+
+  it('are asked about twenty at a time, the most Graph accepts', async () => {
+    const ids = Array.from({ length: 45 }, (_, i) => `grp-${String(i).padStart(2, '0')}`);
+    graph.users.set('oid-alice', { id: 'oid-alice' });
+    graph.memberOf.set('oid-alice', ['grp-03', 'grp-27', 'grp-44']);
+
+    expect(await client('1h', ids).groupsFor('oid-alice')).toEqual(['grp-03', 'grp-27', 'grp-44']);
+    expect(graph.batches.map((batch) => batch.length)).toEqual([20, 20, 5]);
+  });
+
+  it('are none for an account that is gone, which is an answer and not a failure', async () => {
+    expect(await client('1h', ['grp-eng']).groupsFor('oid-never')).toEqual([]);
+  });
+
+  it('are asked again when the caller wants them fresh', async () => {
+    graph.users.set('oid-alice', { id: 'oid-alice' });
+    const directory = client('1h', ['grp-eng']);
+
+    await directory.groupsFor('oid-alice');
+    await directory.groupsFor('oid-alice');
+    expect(graph.batches).toHaveLength(1);
+
+    graph.memberOf.set('oid-alice', ['grp-eng']);
+    expect(await directory.groupsFor('oid-alice', { fresh: true })).toEqual(['grp-eng']);
+    expect(graph.batches).toHaveLength(2);
+  });
+
+  it('cannot be said when Graph cannot be reached', async () => {
+    graph.failReads = 503;
+    expect(await client('1h', ['grp-eng']).groupsFor('oid-alice')).toBeNull();
   });
 });
 
