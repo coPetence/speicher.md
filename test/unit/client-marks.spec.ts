@@ -1,5 +1,5 @@
 import { markSprite } from '../../src/dashboard/ui/provider-marks';
-import { clientMark } from '../../src/dashboard/ui/views/connections/connections';
+import { clientMark } from '../../src/auth/oauth/client-marks';
 
 describe('the mark of a connected application', () => {
   it('is the vendor whose host publishes the client metadata', () => {

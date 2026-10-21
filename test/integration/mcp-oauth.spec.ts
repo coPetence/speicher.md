@@ -175,6 +175,33 @@ describe('the authorization request', () => {
     expect(res.text).toContain('claude.example');
   });
 
+  // Laid out like the other sign-in pages, a centred card with the button full width
+  it('draws the consent as a sign-in card, with no mark for an application it does not know', async () => {
+    const { challenge } = pkce();
+    const res = await request(app.getHttpServer())
+      .get('/api/auth/oauth/authorize')
+      .set('Cookie', aliceCookie)
+      .query(authorizeParams(challenge));
+
+    expect(res.text).toMatch(/class="spr-empty-state spr-empty-state-page spr-signin-page"/);
+    expect(res.text).toMatch(/class="spr-form spr-signin-form"/);
+    expect(res.text).toMatch(/<h1>Connect Test Agent<\/h1>/);
+  });
+
+  it('puts the application\u2019s mark in the heading when it is one it knows', async () => {
+    clientDocument.client_name = 'Claude';
+    const { challenge } = pkce();
+    const res = await request(app.getHttpServer())
+      .get('/api/auth/oauth/authorize')
+      .set('Cookie', aliceCookie)
+      .query(authorizeParams(challenge));
+
+    expect(res.text).toMatch(
+      /<h1><svg class="spr-icon spr-signin-mark"[^>]*><use href="#m-claude"\/><\/svg>Connect Claude<\/h1>/,
+    );
+    expect(res.text).toContain('<symbol id="m-claude"');
+  });
+
   // The consent post answers with a redirect to the client, and browsers hold that
   // redirect to the page's form-action
   it('lets its form land on the client it names, and nowhere else', async () => {

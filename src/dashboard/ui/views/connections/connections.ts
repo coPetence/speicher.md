@@ -2,32 +2,10 @@ import type { Request, Response } from 'express';
 
 import { DashboardResponder } from '../../../respond';
 import { isoOf, relativeTime, timeUntil } from '../../../../common/time';
+import { renderInlineIcon } from '../../../../content-reader/icons';
 import { renderTemplate } from '../../../../content-reader/views';
+import { clientMark } from '../../../../auth/oauth/client-marks';
 import { markSprite, renderMarkRef } from '../../provider-marks';
-
-const CLIENT_MARKS: { mark: string; hosts: string[]; name: RegExp }[] = [
-  { mark: 'claude', hosts: ['claude.ai', 'anthropic.com'], name: /\bclaude\b/i },
-  { mark: 'openai', hosts: ['openai.com', 'chatgpt.com'], name: /\b(chatgpt|openai|codex)\b/i },
-  { mark: 'gemini', hosts: ['gemini.google.com'], name: /\bgemini\b/i },
-  { mark: 'copilot', hosts: ['copilot.microsoft.com', 'githubcopilot.com'], name: /\bcopilot\b/i },
-  { mark: 'azureai', hosts: ['ai.azure.com'], name: /\b(azure ai|ai foundry|azure foundry)\b/i },
-  { mark: 'grok', hosts: ['x.ai', 'grok.com'], name: /\b(grok|xai)\b/i },
-  { mark: 'perplexity', hosts: ['perplexity.ai'], name: /\bperplexity\b/i },
-];
-
-export function clientMark(clientId: string, clientName: string | null): string | null {
-  let host = '';
-  try {
-    host = new URL(clientId).hostname.toLowerCase();
-  } catch {
-    // Not a URL
-  }
-  const byHost = CLIENT_MARKS.find(({ hosts }) =>
-    hosts.some((known) => host === known || host.endsWith(`.${known}`)),
-  );
-  if (byHost) return byHost.mark;
-  return CLIENT_MARKS.find(({ name }) => name.test(clientName ?? ''))?.mark ?? null;
-}
 
 /** The caller's OAuth grants, to JSON callers and the page alike */
 export interface ConnectionsPayload {
@@ -68,6 +46,7 @@ export function sendConnections(
           lastUsed: row.last_used_at ? relativeTime(row.last_used_at) : null,
           expires: row.expires_at ? timeUntil(row.expires_at) : null,
         })),
+        disconnect_icon: renderInlineIcon('unplug', 'spr-icon'),
         marks_sprite: markSprite(marks.filter((mark): mark is string => mark !== null)),
       });
     },

@@ -1088,6 +1088,10 @@
       scrollbar-width: thin;
     }
 
+    .spr-layout:not([data-docked]) > .spr-header > .spr-brand {
+      flex: 0 0 var(--spr-nav-width);
+    }
+
     .spr-pane > .spr-toolbar {
       margin-block: calc(var(--spr-space-4) - var(--spr-space-3)) 0;
       padding-inline: var(--spr-space-4);
