@@ -27,6 +27,7 @@ auth:
       type: oidc
       issuer: https://login.microsoftonline.com/a-tenant/v2.0
       client_id: sign-in-client
+      client_secret: sign-in-secret
       subject_claim: oid
 groups:
   platform-ops:

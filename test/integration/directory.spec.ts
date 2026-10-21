@@ -203,6 +203,7 @@ auth:
       type: oidc
       issuer: ${ENTRA_ISSUER}
       client_id: sign-in-client
+      client_secret: sign-in-secret
       subject_claim: oid
       directory:
         type: graph

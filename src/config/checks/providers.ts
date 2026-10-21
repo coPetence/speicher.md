@@ -1,4 +1,5 @@
 import { githubDirectoryProblems } from '../../auth/directory/github-config';
+import { entraProviderProblems } from '../../auth/entra-config';
 import { githubProviderProblems } from '../../auth/github-config';
 import { graphDirectoryProblems } from '../../auth/directory/graph-config';
 import { SETUP_PROVIDER } from '../../common/principals';
@@ -36,6 +37,7 @@ export function checkProviders(config: InstanceConfig, problems: string[]): void
   for (const id of ids) {
     const provider: ProviderConfig = providers[id];
     if (providerType(provider) === 'oidc') {
+      problems.push(...entraProviderProblems(id, provider as OidcProviderConfig));
       problems.push(...graphDirectoryProblems(id, provider as OidcProviderConfig));
     }
     if (providerType(provider) === 'github') {

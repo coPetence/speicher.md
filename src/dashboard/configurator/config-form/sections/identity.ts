@@ -146,7 +146,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
   if (kind === 'entra') {
     fields.push(
       entraTenantField(root, [...base, 'issuer'], p('issuer'), 'Directory (tenant) id', {
-        placeholder: '00000000-0000-0000-0000-000000000000',
+        required: true,
         pattern: ENTRA_TENANT_PATTERN,
         patternHint: ENTRA_TENANT_HINT,
         help:
@@ -160,6 +160,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
   } else if (kind === 'oidc') {
     fields.push(
       textField(root, [...base, 'issuer'], p('issuer'), 'Issuer URL', {
+        required: true,
         placeholder: 'https://auth.example.com/realms/<realm>',
         help:
           'The issuer URL identifies the OpenID Connect server people sign in with, for ' +
@@ -183,7 +184,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
           'forwarded mail is a working credential.',
       }),
     );
-  } else {
+  } else if (kind === 'github') {
     fields.push(
       // GitHub Enterprise base URL, only relevant for self-hosted installations
       urlField(root, [...base, 'base_url'], p('base_url'), 'Base URL', {
@@ -236,15 +237,18 @@ function oidcFields(
   p: (key: string) => string,
   kind: 'oidc' | 'entra',
 ): Field[] {
-  const entra = kind === 'entra';
+  const isEntra = kind === 'entra';
+
   return [
     textField(root, [...base, 'client_id'], p('client_id'), 'Client id', {
-      help: entra
+      required: true,
+      help: isEntra
         ? 'The application (client) id of the app registration. You can find it in the Azure portal under **Microsoft Entra ID** → **App registrations** → your app → **Overview**.'
         : '',
     }),
     secretField(root, [...base, 'client_secret'], p('client_secret'), 'Client secret', {
       help: SECRET_HELP,
+      required: isEntra,
     }),
     textField(root, [...base, 'subject_claim'], p('subject_claim'), 'Subject claim', {
       fallback: 'sub',
@@ -254,28 +258,17 @@ function oidcFields(
     textField(root, [...base, 'groups_claim'], p('groups_claim'), 'Groups claim', {
       fallback: 'groups',
       placeholder: 'groups',
-      help:
-        'The groups claim is the field in the sign-in token that lists the groups of the ' +
-        'person signing in. Most providers send it as `groups`, but only once it has been ' +
-        'turned on. In Microsoft Entra ID this is under **App registrations** → your app → ' +
-        '**Token configuration** → **Add groups claim**. Learn more about ' +
-        // TODO: docs/02-access/04-groups.md needs a section on providers that cannot send
-        // usable groups. Public identity providers such as Google put every user into one
-        // big pool, so access control through groups does not work there. It should go
-        // into detail about the alternatives: access by email or subject, i.e. a group
-        // defined in Speicher itself that names its people.
-        '[groups](https://docs.speicher.md/access/groups).',
+      // TODO update docs links
+      help: isEntra
+        ? 'The groups claim is the field in the sign-in token that lists the groups of the person signing in. In Microsoft Entra ID this is under **App registrations** → your app → **Token configuration** → **Add groups claim**. Learn more about [groups](https://docs.speicher.md/configuration/identity-providers/entra-id#2-emit-the-groups-claim).'
+        : 'The groups claim is the field in the sign-in token that lists the groups of the person signing in. Most providers send it as `groups`, but only once it has been turned on. Learn more about [groups](https://docs.speicher.md/configuration/identity-providers/oidc).',
     }),
     textField(root, [...base, 'email_claim'], p('email_claim'), 'Email claim', {
       fallback: 'email',
       placeholder: 'email',
-      help:
-        'The email claim is the field in the sign-in token that holds the email address of ' +
-        'the person signing in. Most providers send it as `email`. Microsoft Entra ID sends ' +
-        'the sign-in name as `preferred_username`, which usually looks like the email ' +
-        'address. To use the actual email address instead, add `email` as an optional claim ' +
-        'under **App registrations** → your app → **Token configuration** → **Add optional ' +
-        'claim**, and set this to `email`.',
+      help: isEntra
+        ? 'The email claim is the field in the sign-in token that holds the email address of the person signing in. Microsoft Entra ID sends the sign-in name as `preferred_username`, which usually looks like the email address. To use the actual email address instead, add `email` as an optional claim under **App registrations** → your app → **Token configuration** → **Add optional claim**, and set this to `email`.'
+        : 'The email claim is the field in the sign-in token that holds the email address of the person signing in. Most providers send it as `email`. To use a different field, set this to the name of that field.',
     }),
     durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
       fallback: '8h',

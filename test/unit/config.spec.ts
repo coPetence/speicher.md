@@ -598,10 +598,10 @@ describe('a Microsoft Graph directory', () => {
 
 describe('an address-shaped source under a multi-tenant issuer', () => {
   const withIssuer = (issuer: string, source: string) =>
-    MINIMAL.replace('issuer: https://login.example.test/v2.0', `issuer: ${issuer}`).replace(
-      '    - { provider: entra, id: "grp-eng" }',
-      `    - ${source}`,
-    );
+    MINIMAL.replace(
+      'issuer: https://login.example.test/v2.0',
+      `issuer: ${issuer}\n      client_secret: s`,
+    ).replace('    - { provider: entra, id: "grp-eng" }', `    - ${source}`);
 
   const COMMON = 'https://login.microsoftonline.com/common/v2.0';
   const PINNED = 'https://login.microsoftonline.com/8f4c-a-real-tenant/v2.0';
@@ -1063,6 +1063,53 @@ admins:
     expect(() => load(GITHUB_PROVIDER.replace('      client_secret: s\n', ''))).toThrow(
       /client_secret is required/,
     );
+  });
+});
+
+describe('an Entra ID sign-in provider', () => {
+  const ENTRA_PROVIDER = `
+version: 1
+auth:
+  providers:
+    entra:
+      issuer: https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0
+      client_id: abc
+      client_secret: s
+groups:
+  engineering:
+    - { provider: entra, id: 11111111-1111-1111-1111-111111111111 }
+admins:
+  groups: [engineering]
+`;
+
+  it('loads with a client id and secret', () => {
+    expect(() => load(ENTRA_PROVIDER)).not.toThrow();
+  });
+
+  it('refuses one with no client secret, which Entra demands at the token exchange', () => {
+    expect(() => load(ENTRA_PROVIDER.replace('      client_secret: s\n', ''))).toThrow(
+      /client_secret is required for an Entra ID provider/,
+    );
+  });
+
+  it.each([
+    'https://login.microsoftonline.us/t/v2.0',
+    'https://login.partner.microsoftonline.cn/t/v2.0',
+    'https://acme.ciamlogin.com/t/v2.0',
+  ])('treats %s as Entra too', (issuer) => {
+    const yaml = ENTRA_PROVIDER.replace(/issuer: .*/, `issuer: ${issuer}`).replace(
+      '      client_secret: s\n',
+      '',
+    );
+    expect(() => load(yaml)).toThrow(/client_secret is required/);
+  });
+
+  it('leaves the secret optional for other OIDC issuers', () => {
+    const yaml = ENTRA_PROVIDER.replace(/issuer: .*/, 'issuer: https://idp.example.com').replace(
+      '      client_secret: s\n',
+      '',
+    );
+    expect(() => load(yaml)).not.toThrow();
   });
 });
 
