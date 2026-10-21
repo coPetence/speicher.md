@@ -74,10 +74,12 @@ export function directoryFields(
       : [
           textField(root, [...d, 'tenant_id'], p('tenant_id'), 'Directory tenant id', {
             shownWith,
+            required: true,
             sourceToCopyFrom: kind === 'entra' ? from('issuer') : undefined,
           }),
           textField(root, [...d, 'client_id'], p('client_id'), 'Directory client id', {
             shownWith,
+            required: true,
             sourceToCopyFrom: from('client_id'),
             help: 'The directory client id is the application (client) id Speicher uses to look up users and groups in Microsoft Graph. The app registration needs the application permission `User.Read.All`.',
           }),
@@ -88,6 +90,7 @@ export function directoryFields(
             'Directory client secret',
             {
               shownWith,
+              required: true,
               sourceToCopyFrom: from('client_secret'),
               // When the provider secret is a stored literal, indicate the directory secret is the same
               sourceToCopyFromOnSave: copyable && secretHidden,

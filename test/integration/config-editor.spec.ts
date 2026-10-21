@@ -951,6 +951,7 @@ describe('the identity section', () => {
       ...draft.body,
       'auth.providers.entra-2.issuer': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
       'auth.providers.entra-2.client_id': 'ms-client',
+      'auth.providers.entra-2.client_secret': 'ms-secret',
       intent: 'apply',
     }).expect(303);
 
@@ -2055,6 +2056,7 @@ describe('the Entra kind', () => {
       ...draft.body,
       'auth.providers.ms.issuer': TENANT,
       'auth.providers.ms.client_id': 'ms-client',
+      'auth.providers.ms.client_secret': 'ms-secret',
       intent: 'apply',
     }).expect(303);
   }
@@ -2072,6 +2074,7 @@ describe('the Entra kind', () => {
       ...draft.body,
       'auth.providers.ms.issuer': TENANT,
       'auth.providers.ms.client_id': 'ms-client',
+      'auth.providers.ms.client_secret': 'ms-secret',
       intent: 'apply',
     }).expect(303);
 
