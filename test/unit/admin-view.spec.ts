@@ -1,4 +1,4 @@
-import { elapsed, isoOf, relativeTime } from '../../src/common/time';
+import { elapsed, isoOf, relativeTime, timeUntil } from '../../src/common/time';
 import { nextSetupPage, setupSteps } from '../../src/dashboard/setup/steps';
 import { runLevel, severityLevel } from '../../src/dashboard/ui/levels';
 import { dashboardNav } from '../../src/dashboard/ui/views/nav-tree/nav-tree';
@@ -428,6 +428,15 @@ describe('times', () => {
 
   it('does not report a clock skew as a time traveller', () => {
     expect(relativeTime(new Date(now.getTime() + 2_000), now)).toBe('just now');
+  });
+
+  it('says how far ahead a date lies that is meant to be ahead, like an expiry', () => {
+    const ahead = (ms: number) => timeUntil(new Date(now.getTime() + ms), now);
+    expect(ahead(30_000)).toBe('in 30 seconds');
+    expect(ahead(8 * 3_600_000)).toBe('in 8 hours');
+    expect(ahead(30 * 86_400_000)).toBe('in 1 month');
+    expect(timeUntil(new Date(now.getTime() - 1_000), now)).toBe('now');
+    expect(timeUntil(null, now)).toBe('never');
   });
 
   it('has a word for a repository that has never synced', () => {

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { DashboardResponder } from '../../../respond';
-import { isoOf, relativeTime } from '../../../../common/time';
+import { isoOf, relativeTime, timeUntil } from '../../../../common/time';
 import { renderTemplate } from '../../../../content-reader/views';
 import { markSprite, renderMarkRef } from '../../provider-marks';
 
@@ -66,7 +66,7 @@ export function sendConnections(
           connected: relativeTime(row.connected_at),
           connectedAt: isoOf(row.connected_at),
           lastUsed: row.last_used_at ? relativeTime(row.last_used_at) : null,
-          expires: row.expires_at ? relativeTime(row.expires_at) : null,
+          expires: row.expires_at ? timeUntil(row.expires_at) : null,
         })),
         marks_sprite: markSprite(marks.filter((mark): mark is string => mark !== null)),
       });
