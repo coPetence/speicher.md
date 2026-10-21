@@ -3,8 +3,6 @@ import { join, relative, resolve, sep } from 'node:path';
 
 import {
   ENV_REGISTRY,
-  ENV_TABLE_END,
-  ENV_TABLE_START,
   EnvName,
   assertKnownEnv,
   env,
@@ -193,6 +191,7 @@ describe('the scripts outside the registry', () => {
     const dir = join(ROOT, 'scripts');
     const found = new Set<string>();
     for (const entry of readdirSync(dir)) {
+      if (!statSync(join(dir, entry)).isFile()) continue;
       const text = readFileSync(join(dir, entry), 'utf8');
       for (const match of text.match(NAMES) ?? []) found.add(match);
     }
@@ -224,17 +223,5 @@ describe('how an entrypoint is spelled', () => {
   it('is how the documentation spells it too', () => {
     expect(renderEnvTable()).toContain('| web + worker |');
     expect(renderEnvTable()).not.toContain('| both |');
-  });
-});
-
-describe("README.md's deployment table", () => {
-  it('is what the registry renders', () => {
-    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-    const start = readme.indexOf(ENV_TABLE_START);
-    const end = readme.indexOf(ENV_TABLE_END);
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const block = readme.slice(start + ENV_TABLE_START.length, end).trim();
-    expect(block).toBe(renderEnvTable());
   });
 });

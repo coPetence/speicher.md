@@ -238,8 +238,9 @@ export const ENV_REGISTRY = {
   }),
   SPEICHER_TRUST_PROXY: define({
     description:
-      "Express `trust proxy` setting. Set to the proxy's address or `true` when running " +
-      'behind a reverse proxy so client IPs resolve correctly.',
+      'Which proxies to believe about the client address and protocol: `loopback`, ' +
+      '`linklocal`, `uniquelocal`, IP addresses or subnets, comma-separated. In Docker, ' +
+      'set `uniquelocal`; `true` and hop counts are not accepted.',
     parse: asString,
     fallback: 'loopback',
     required: false,
@@ -432,11 +433,12 @@ function defaultLabel(spec: EnvVar<unknown>): string {
   return spec.fallback === undefined ? 'unset' : String(spec.fallback);
 }
 
-export const ENV_TABLE_START = '<!-- generated: env-vars — npm run docs:env -->';
-export const ENV_TABLE_END = '<!-- /generated: env-vars -->';
-
-export function renderEnvTable(): string {
-  const rows = (Object.keys(ENV_REGISTRY) as EnvName[]).map((name) => {
+/** The env table for the docs: every variable, or only `names` in the order given */
+export function renderEnvTable(names?: string[]): string {
+  const known = Object.keys(ENV_REGISTRY);
+  const unknown = (names ?? []).filter((name) => !known.includes(name));
+  if (unknown.length > 0) throw new Error(`unknown env var: ${unknown.join(', ')}`);
+  const rows = ((names ?? known) as EnvName[]).map((name) => {
     const spec = ENV_REGISTRY[name] as unknown as EnvVar<unknown>;
     const shown = spec.required
       ? '*required*'
@@ -446,9 +448,8 @@ export function renderEnvTable(): string {
     return `| \`${name}\` | ${shown} | ${readByLabel(spec.readBy)} | ${spec.description} |`;
   });
   return [
-    '<!-- prettier-ignore -->',
-    '| Knob | Default | Read by | |',
-    '| ---- | ------- | ------- | - |',
+    '| Variable | Default | Read by | Description |',
+    '| -------- | ------- | ------- | ----------- |',
     ...rows,
   ].join('\n');
 }
