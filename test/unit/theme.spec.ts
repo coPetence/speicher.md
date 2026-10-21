@@ -427,14 +427,18 @@ describe('the base stylesheet', () => {
     });
 
     it('starts the bar the same distance down', () => {
+      // Narrow, both shells stack, and the bar sits space-4 down in each.
       expect(declarationsOfBase('.spr-header')).toContain(`padding-block: ${space(4)}`);
       expect(declarationsOfBase('.spr-pane > .spr-toolbar')).toContain(`margin-block: ${space(4)}`);
+      // Wide, space-6 down, with nothing under the header's bar: the card's own
+      // margin is the gap above a card.
+      expect(inWide('.spr-header')).toContain(`padding-block: ${space(6)} 0`);
       // In the card: the card's own inset plus the toolbar's margin.
       expect(inWide('.spr-layout[data-docked][data-tree] > .spr-pane')).toContain(
         `margin-block-start: ${space(3)}`,
       );
       expect(inWide('.spr-pane > .spr-toolbar')).toContain(
-        `margin-block: calc(${space(4)} - ${space(3)}) 0`,
+        `margin-block: calc(${space(6)} - ${space(3)}) 0`,
       );
       // An offset would draw the search box below the logo's row and over the page.
       expect(inWide('.spr-toolbar')).not.toMatch(/(^|[\s;])top:/);
@@ -474,7 +478,7 @@ describe('the base stylesheet', () => {
       it('keeps the toolbar where the header puts it', () => {
         expect(ruleFor(bpWide, '.spr-pane')).toMatch(/margin:\s*0;/);
         const toolbar = ruleFor(bpWide, '.spr-pane > .spr-toolbar');
-        expect(toolbar).toContain(`margin-block-start: ${space(4)}`);
+        expect(toolbar).toContain(`margin-block-start: ${space(6)}`);
         expect(toolbar).toContain(`padding-inline-end: calc(${space(3)} + ${space(4)})`);
       });
 
