@@ -181,7 +181,7 @@
     }
 
     .spr-pane > .spr-toolbar {
-      margin-block-start: var(--spr-space-4);
+      margin-block-start: var(--spr-space-6);
       padding-inline-end: calc(var(--spr-space-3) + var(--spr-space-4));
     }
   }

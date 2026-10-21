@@ -1092,8 +1092,16 @@
       flex: 0 0 var(--spr-nav-width);
     }
 
+    .spr-layout[data-docked] > .spr-header > .spr-brand {
+      flex: 1 1 0;
+    }
+
+    .spr-header {
+      padding-block: var(--spr-space-6) 0;
+    }
+
     .spr-pane > .spr-toolbar {
-      margin-block: calc(var(--spr-space-4) - var(--spr-space-3)) 0;
+      margin-block: calc(var(--spr-space-6) - var(--spr-space-3)) 0;
       padding-inline: var(--spr-space-4);
     }
 
