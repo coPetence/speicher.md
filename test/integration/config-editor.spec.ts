@@ -3190,16 +3190,6 @@ describe('adding and removing entries', () => {
       );
     };
 
-    await seed('api_keys', {
-      tenant_id: harness.tenantId,
-      principal: 'user:entra:carried',
-      provider: 'entra',
-      subject: 'carried',
-      email: 'carried@copetence.test',
-      name: 'carried key',
-      hash: 'carried-key-hash',
-      expires_at: now,
-    });
     await seed('oauth_grants', {
       tenant_id: harness.tenantId,
       principal: 'user:entra:carried',
@@ -3235,13 +3225,7 @@ describe('adding and removing entries', () => {
       op: 'rename:auth.providers.entra',
     }).expect(303);
 
-    for (const table of [
-      'sessions',
-      'api_keys',
-      'oauth_grants',
-      'login_flows',
-      'magic_link_tokens',
-    ]) {
+    for (const table of ['sessions', 'oauth_grants', 'login_flows', 'magic_link_tokens']) {
       const [rows] = await sequelize.query(
         `SELECT provider FROM ${table} WHERE tenant_id = :tenant`,
         { replacements: { tenant: harness.tenantId } },

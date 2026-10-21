@@ -33,7 +33,6 @@ import { DIRECTORY_DEPS } from './auth/directory/lookup';
 import { GITHUB_APP_LOOKUP_FETCH } from './github/app-links';
 import { DashboardResponder } from './dashboard/respond';
 import { StatusService } from './dashboard/status/status.service';
-import { ApiKeyService } from './auth/api-key.service';
 import { OauthController } from './auth/oauth/oauth.controller';
 import { OauthMetadataController } from './auth/oauth/metadata.controller';
 import { OauthService } from './auth/oauth/oauth.service';
@@ -104,7 +103,6 @@ import { SearchService } from './content-reader/search/search.service';
   ],
   providers: [
     SessionService,
-    ApiKeyService,
     OauthService,
     // Null by default; integrated tests override
     { provide: CIMD_DEPS, useValue: null },

@@ -4,7 +4,7 @@
  * Only query-bearing requests are metered: those with URL query params or a
  * non-GET/HEAD method
  *
- * Signed-in callers (with session, API key, or OAuth token) are exempt
+ * Signed-in callers (with session or OAuth token) are exempt
  *
  * The limit per minute per client IP comes from SPEICHER_ANON_RATE_LIMIT
  *

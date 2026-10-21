@@ -8,7 +8,6 @@
 import { Sequelize } from 'sequelize';
 
 import { getSequelize } from '../sequelize';
-import { ApiKey, initApiKey } from './api-key';
 import { Asset, initAsset } from './asset';
 import { Chunk, initChunk } from './chunk';
 import { Document, initDocument } from './document';
@@ -31,7 +30,6 @@ import { Tenant, initTenant } from './tenant';
 import { WebhookDelivery, initWebhookDelivery } from './webhook-delivery';
 
 export {
-  ApiKey,
   Asset,
   Chunk,
   Document,
@@ -73,7 +71,6 @@ export function initModels(sequelize: Sequelize = getSequelize()): Sequelize {
   initSyncRun(sequelize);
   initJob(sequelize);
   initWebhookDelivery(sequelize);
-  initApiKey(sequelize);
   initOauthCode(sequelize);
   initOauthGrant(sequelize);
   initSession(sequelize);

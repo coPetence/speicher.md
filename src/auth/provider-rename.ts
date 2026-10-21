@@ -11,9 +11,9 @@
  * Left behind, they resolve to nobody. That fails *closed*, which is the right
  * direction and still wrong: the administrator who made the edit is signed out of
  * the instance they were administering, with nothing said, and the repair is to
- * clear a cookie. Two of the three durable tables have no cookie to clear —
- * an API key and an OAuth grant simply stop resolving, and an agent holding one
- * becomes anonymous without an error anywhere.
+ * clear a cookie. The other durable table has no cookie to clear — an OAuth
+ * grant simply stops resolving, and an agent holding one becomes anonymous
+ * without an error anywhere.
  *
  * This is not SPR-66. That one is a provider whose `issuer` is repointed while
  * its id stays: the session goes on resolving, under a *different* directory, and
@@ -23,7 +23,7 @@
 
 import { Model, ModelStatic, Transaction } from 'sequelize';
 
-import { ApiKey, LoginFlow, MagicLinkToken, OauthCode, OauthGrant, Session } from '../db/models';
+import { LoginFlow, MagicLinkToken, OauthCode, OauthGrant, Session } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 
 /**
@@ -35,14 +35,7 @@ import { getSequelize } from '../db/sequelize';
  * half way through to fail, and "it broke once and worked when I retried" is the
  * report nobody can act on.
  */
-const CARRIED: ModelStatic<Model>[] = [
-  Session,
-  OauthGrant,
-  ApiKey,
-  OauthCode,
-  MagicLinkToken,
-  LoginFlow,
-];
+const CARRIED: ModelStatic<Model>[] = [Session, OauthGrant, OauthCode, MagicLinkToken, LoginFlow];
 
 export interface CarriedRows {
   /** Rows moved, by table name — for the log, and for the test to read. */

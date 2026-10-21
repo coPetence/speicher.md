@@ -167,7 +167,7 @@ export class ConfigSaveService {
         provenanceOf(caller),
       );
 
-      // Sessions, API keys and OAuth grants name the provider, so they move with it
+      // Sessions and OAuth grants name the provider, so they move with it
       if (from.section === 'identity') {
         const log = rootLogger.child('config');
         try {

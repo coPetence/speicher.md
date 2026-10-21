@@ -31,7 +31,7 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
     'failed jobs, gave up, retry, stuck, worker errors, dead letter, logs, what went wrong',
   'page:config': 'settings, options, instance configuration, yaml, versions, history, preferences',
   'page:connections':
-    'api keys, tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',
+    'tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',
 
   'section:identity':
     'sso, single sign-on, saml, oidc, openid connect, oauth, login, log in, sign in, ' +
