@@ -1,0 +1,10 @@
+<!--
+  Microsoft's squares live in 5..27 of 32, so the viewBox is trimmed to them: a
+  box with the artist's padding in it draws the mark smaller than its neighbours.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 5 22 22">
+  <rect x="17" y="17" width="10" height="10" fill="#FEBA08"/>
+  <rect x="5" y="17" width="10" height="10" fill="#05A6F0"/>
+  <rect x="17" y="5" width="10" height="10" fill="#80BC06"/>
+  <rect x="5" y="5" width="10" height="10" fill="#F25325"/>
+</svg>

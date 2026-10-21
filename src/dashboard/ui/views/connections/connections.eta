@@ -31,7 +31,7 @@
     <tbody>
       <% it.grants.forEach(function (row) { %>
       <tr>
-        <th scope="row"><%= row.name %></th>
+        <th scope="row"><%~ row.markHtml || '' %><%= row.name %></th>
         <td><time datetime="<%= row.connectedAt %>"><%= row.connected %></time></td>
         <td><%= row.lastUsed || 'never' %></td>
         <td><%= row.expires || '—' %></td>
@@ -47,3 +47,5 @@
   </table>
 </div>
 <% } %>
+
+<%~ it.marks_sprite || '' %>
