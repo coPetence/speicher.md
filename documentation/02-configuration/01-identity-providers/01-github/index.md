@@ -1,3 +1,7 @@
+---
+icon: key-round
+---
+
 # GitHub as an Identity Provider
 
 You can use GitHub as an identity provider. This lets users sign in using their GitHub account.

@@ -1,3 +1,7 @@
+---
+icon: globe
+---
+
 # Public access
 
 By default, every page needs a sign-in. To publish pages to visitors who are not signed in, two settings have to agree:

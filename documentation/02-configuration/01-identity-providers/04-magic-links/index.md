@@ -1,3 +1,7 @@
+---
+icon: key-round
+---
+
 # Magic links
 
 With a magic-link provider, people sign in with their email address instead of an account at an identity provider. Speicher emails them a link, and opening the link signs them in. This suits guests and external collaborators who have no account in your organization's identity provider.

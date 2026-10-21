@@ -1,3 +1,7 @@
+---
+icon: network
+---
+
 # Reverse proxy and TLS
 
 Speicher serves plain HTTP on port 3000 and expects a reverse proxy in front of it to handle HTTPS. This page shows two setups, both tested with the Docker Compose file from the [quick start](../01-quick-start/01-self-hosted.md):

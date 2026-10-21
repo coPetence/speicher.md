@@ -1,3 +1,7 @@
+---
+icon: book-open
+---
+
 # Reading experience
 
 When Speicher syncs a repository, it records which pages link to which. This link graph powers several features that help readers find their way: related pages beside an article, previews on links, tags, and better search ranking.

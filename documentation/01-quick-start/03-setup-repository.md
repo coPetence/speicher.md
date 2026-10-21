@@ -1,3 +1,7 @@
+---
+icon: folder-git-2
+---
+
 # Publish your first repository
 
 Speicher serves the Markdown files of a git repository. To publish one, you add a small configuration file to it and connect it to your instance.

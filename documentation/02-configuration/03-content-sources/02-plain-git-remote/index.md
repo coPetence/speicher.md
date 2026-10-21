@@ -1,3 +1,7 @@
+---
+icon: folder-git-2
+---
+
 # Plain git remote as a content source
 
 A plain git remote works with any git server: GitLab, Gitea, Forgejo, Bitbucket, or your own. Speicher fetches each repository with git itself, so it needs no API of the host. In exchange, you list the repositories yourself, and Speicher checks them for changes on a schedule instead of being notified.

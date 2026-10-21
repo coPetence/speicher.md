@@ -1,3 +1,7 @@
+---
+icon: house
+---
+
 # Speicher documentation
 
 Speicher publishes the Markdown files in your git repositories as a documentation site. People sign in with the accounts they already have, such as Microsoft Entra ID, Google or GitHub, and each page is shown only to the people its repository grants access to. AI assistants can search and read the same pages, with the same permissions, through Speicher's MCP server.
@@ -20,7 +24,7 @@ Speicher publishes the Markdown files in your git repositories as a documentatio
 - **Content sources:** [GitHub App](02-configuration/03-content-sources/01-github/index.md) and [plain git remote](02-configuration/03-content-sources/02-plain-git-remote/index.md)
 - **People:** [administrators](02-configuration/06-administrators/index.md) and [public access](02-configuration/04-public-access/index.md)
 - **Appearance:** [branding](02-configuration/05-branding/index.md) and [reading experience](02-configuration/12-reading-experience/index.md)
-- **Services:** [asset storage](02-configuration/07-asset-storage/01-index.mdx) and [mail transport](02-configuration/08-mail-transport/index.md)
+- **Services:** [asset storage](02-configuration/07-asset-storage/index.mdx) and [mail transport](02-configuration/08-mail-transport/index.md)
 
 ## Run it in production
 

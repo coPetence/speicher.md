@@ -1,3 +1,7 @@
+---
+icon: settings
+---
+
 # Instance configuration
 
 Every key of the instance configuration, the `speicher.instance.yaml` file or the configuration stored in the database. Only this file may reference environment variables as `${VAR}`.

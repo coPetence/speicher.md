@@ -1,3 +1,7 @@
+---
+icon: shield
+---
+
 # Administrators
 
 Administrators run the instance. They configure it, see the sync status of every repository and look into failed syncs.

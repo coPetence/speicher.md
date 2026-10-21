@@ -1,3 +1,7 @@
+---
+icon: file-code
+---
+
 # Frontmatter
 
 Every key a page can set in its frontmatter.

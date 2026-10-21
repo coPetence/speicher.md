@@ -1,3 +1,7 @@
+---
+icon: key-round
+---
+
 # OpenID Connect
 
 You can use any identity provider that supports OpenID Connect, such as Google, Keycloak, Authentik or Okta. People then sign in with their account at that provider. This page uses Google as the example.

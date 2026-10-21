@@ -1,3 +1,7 @@
+---
+icon: plug
+---
+
 # MCP tools
 
 Speicher runs an MCP server at `https://<your-host>/mcp`, so AI assistants can search and read your documentation. Clients send JSON-RPC requests to it over HTTP and sign in with OAuth. Every tool sees only the pages the signed-in person can read. On an instance with public repositories, clients can also connect without signing in and see only the public pages.
