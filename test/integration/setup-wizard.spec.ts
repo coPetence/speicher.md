@@ -388,6 +388,18 @@ describe('the first run', () => {
     expect(page.text.slice(page.text.indexOf('<main'))).not.toContain('class="spr-progress"');
   });
 
+  it('lets the login form redirect to the provider, which Safari checks against form-action', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    const formAction = (page.headers['content-security-policy'] ?? '')
+      .split(';')
+      .map((part: string) => part.trim())
+      .find((part: string) => part.startsWith('form-action '));
+    expect(formAction?.split(/\s+/).slice(1)).toEqual(["'self'", new URL(idp.issuer).origin]);
+  });
+
   it('sends a claim session back to the wizard from anywhere else', async () => {
     const agent = await claim();
 
