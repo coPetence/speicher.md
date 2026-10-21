@@ -42,6 +42,8 @@ export interface DashboardAnswer<T> {
 
   embedsFrames?: boolean; // Allow the page to be embedded in a frame
 
+  formActions?: string[]; // Origins outside this instance a form on the page may post to
+
   listsSetupSteps?: boolean; // Page shows the steps, so skip the progress bar
 
   island?: string; // Interactive component to mount on the page
@@ -95,7 +97,12 @@ export class DashboardResponder {
           nonce,
           island: answer.island,
         }),
-      { status, varyAccept: true, embedsFrames: answer.embedsFrames },
+      {
+        status,
+        varyAccept: true,
+        embedsFrames: answer.embedsFrames,
+        formActions: answer.formActions,
+      },
     );
   }
 

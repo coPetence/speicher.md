@@ -20,13 +20,18 @@ export interface AdministratorPayload {
   error: string | null;
 }
 
-/** Sends the become-administrator page, whose form posts to /-/setup/prove */
+/**
+ * Sends the become-administrator page, whose form posts to /-/setup/prove
+ *
+ * The post answers with a redirect to the provider, which form-action must allow
+ */
 export function sendSetupAdministrator(
   respond: DashboardResponder,
   req: Request,
   res: Response,
   isAdmin: boolean,
   payload: AdministratorPayload,
+  formActions: string[],
   status?: number,
 ): void {
   respond.send(req, res, isAdmin, {
@@ -34,6 +39,7 @@ export function sendSetupAdministrator(
     subsection: ADMINISTRATOR_SECTION_ID,
     title: 'Administrator',
     status,
+    formActions,
     payload,
     page: (data) =>
       renderTemplate(

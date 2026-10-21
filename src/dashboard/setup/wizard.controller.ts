@@ -154,12 +154,14 @@ export class SetupWizardController {
     error: string | null,
     status?: number,
   ): void {
+    const provable = this.provable();
     sendSetupAdministrator(
       this.respond,
       req,
       res,
       isAdmin,
-      { provable: this.provable(), done: this.config.hasAdministrator, error },
+      { provable, done: this.config.hasAdministrator, error },
+      [...new Set(provable.flatMap((p) => this.oidc.authorizationOrigins(p.id)))],
       status,
     );
   }
