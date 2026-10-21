@@ -1,3 +1,7 @@
+---
+icon: folder-git-2
+---
+
 # GitHub as a content source
 
 Speicher reads repositories on GitHub through a GitHub App. The App gives Speicher read access to the repositories you install it on, and tells Speicher about every push, so pages update shortly after a change.

@@ -1,3 +1,7 @@
+---
+icon: send
+---
+
 # Mail transport
 
 Speicher sends email through an SMTP server you provide. It has no mail server of its own.

@@ -1,3 +1,7 @@
+---
+icon: variable
+---
+
 # Environment variables
 
 Environment variables configure how the processes run: where the database and storage are, how often the worker syncs, and how the web server sits behind a proxy. Everything else lives in the [instance configuration](03-instance-configuration.md).

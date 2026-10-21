@@ -1,3 +1,7 @@
+---
+icon: lock
+---
+
 # Access
 
 Who may read a page is decided by the `access` key in the repository's `.speicher.yaml` files, and nowhere else. This page explains how `access` works, how folders narrow it, and how to grant access to individual people and to the public.

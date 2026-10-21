@@ -1,3 +1,7 @@
+---
+icon: server
+---
+
 # Self-hosting with Docker Compose
 
 Speicher runs as two processes from the same container image:

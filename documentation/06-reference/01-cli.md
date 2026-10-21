@@ -1,3 +1,7 @@
+---
+icon: terminal
+---
+
 # CLI
 
 The `speicher` command manages an instance from its host. In a Docker Compose deployment, run it inside the web container:

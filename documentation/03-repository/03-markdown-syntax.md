@@ -1,3 +1,7 @@
+---
+icon: file-text
+---
+
 # Markdown syntax
 
 Speicher reads CommonMark with the usual GitHub additions, plus callouts, wikilinks, footnotes and a set of MDX components. Pages render to plain HTML, so everything here works without JavaScript.

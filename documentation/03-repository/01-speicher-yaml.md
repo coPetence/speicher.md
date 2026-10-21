@@ -1,3 +1,7 @@
+---
+icon: sliders-horizontal
+---
+
 # The `.speicher.yaml` file
 
 Every repository Speicher publishes has a `.speicher.yaml` file at its root. It says who may read the repository, which files to publish, and how the repository is shown. Folders can have their own `.speicher.yaml` to change these settings for everything below them.

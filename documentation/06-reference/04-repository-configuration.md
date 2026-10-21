@@ -1,3 +1,7 @@
+---
+icon: file-cog
+---
+
 # Repository configuration
 
 Every key of `.speicher.yaml`, the configuration a repository carries at its root and in any folder.

@@ -1,3 +1,7 @@
+---
+icon: paintbrush
+---
+
 # Branding
 
 Branding changes how your instance looks to readers: the name and logo in the header, the browser tab icon, the template, the typeface and the colours. Repositories cannot change any of it, so every page of the instance looks the same.

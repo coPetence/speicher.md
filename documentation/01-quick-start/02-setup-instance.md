@@ -1,3 +1,7 @@
+---
+icon: rocket
+---
+
 # Set up the instance
 
 A new instance has no configuration and no administrator. Whoever can run commands on the host can claim it, then configure it in the browser.
