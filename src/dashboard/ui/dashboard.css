@@ -684,6 +684,13 @@
     color: var(--spr-muted);
   }
 
+  .spr-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-button > .spr-icon,
   .spr-remove > .spr-icon {
     inline-size: 1.1em;
     block-size: 1.1em;
@@ -1047,6 +1054,12 @@
   }
 
   .spr-rows tbody td {
+    vertical-align: middle;
+  }
+
+  /* One line of text beside a button, so the row centres on the button */
+  .spr-connections tbody th,
+  .spr-connections tbody td {
     vertical-align: middle;
   }
 

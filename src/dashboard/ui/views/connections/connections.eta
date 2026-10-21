@@ -1,16 +1,12 @@
 <h1>Connected applications</h1>
 <p class="spr-empty">
-  What is holding a credential for your account, and how to end it. Everything
-  listed here reads exactly the pages you can open yourself — none of it can
-  administer this instance, whatever you can.
+  You can connect applications like MCP (Claude, OpenAI, etc.) to your account. They will be able to read the same pages you can. Find out more in our <a href="https://docs.speicher.md/ai-assistants">documentation</a>.
 </p>
 
 <% if (it.revoked) { %>
 <%~ include('@note', { text: 'That connection was disconnected. It will stop working on its next request.' }) %>
 <% } %>
 
-
-<h2>Applications you have connected</h2>
 <% if (it.grants.length === 0) { %>
 <p class="spr-empty">
   You have connected no applications. One appears here after you sign in to an
@@ -18,7 +14,7 @@
 </p>
 <% } else { %>
 <div class="spr-scroll">
-  <table class="spr-table">
+  <table class="spr-table spr-connections">
     <thead>
       <tr>
         <th scope="col">Application</th>
@@ -38,7 +34,7 @@
         <td>
           <form method="post" action="/-/connections/revoke">
             <input type="hidden" name="id" value="<%= row.id %>" />
-            <button type="submit" class="spr-button">Disconnect</button>
+            <button type="submit" class="spr-button"><%~ it.disconnect_icon || '' %>Disconnect</button>
           </form>
         </td>
       </tr>
