@@ -28,7 +28,7 @@
     "db:up": "docker compose -f compose.dev.yml up -d --wait db azurite s3 && ts-node -T scripts/ensure-databases.ts",
     "db:down": "docker compose -f compose.dev.yml down -v",
     "dev:seed": "ts-node -T scripts/dev-seed.ts",
-    "docs:env": "ts-node -T scripts/env-table.ts",
+    "docs:generate": "ts-node -T scripts/docs-generate.ts",
     "build:client": "ts-node -T scripts/build-client.ts",
     "pretest": "ts-node -T scripts/ensure-databases.ts && ts-node -T scripts/build-client.ts",
     "dev": "ts-node -T scripts/dev.ts"

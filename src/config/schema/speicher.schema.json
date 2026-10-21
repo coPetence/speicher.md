@@ -8,23 +8,23 @@
   "properties": {
     "version": {
       "const": 1,
-      "description": "Repo root only. Declares the schema version for the whole tree. In a folder config: ignored if it matches the root, rejected if it differs."
+      "description": "The format version of this file. Always `1`. Required in the root `.speicher.yaml`; a folder's file can leave it out."
     },
     "ingest_root": {
       "type": "string",
       "default": "",
-      "description": "Repo root only. Nothing outside this path is ever read. Trailing slash optional. Path traversal (`..`) and symlinks escaping the working tree are rejected by the resolver, not by this pattern.",
+      "description": "Root only. Publishes only this folder of the repository, for example `docs`. Nothing outside it is read, and URLs start below it. Write it without a leading slash.",
       "pattern": "^[^/].*$|^$"
     },
     "access": {
-      "description": "Who may read. Intersected with the parent's resolved set at every level, so it can only narrow. At the repo root there is no parent, so it reads as the grant. A repo-root config with no `access` is rejected \u2014 an omitted grant is almost always a mistake, and \"no config = not synced\" only covers a missing file.",
+      "description": "Who may read the pages at this level. Required in the root `.speicher.yaml`. In a folder, it can only narrow what the folder inherits: a reader must be allowed at every level from the root down.",
       "oneOf": [
         {
           "type": "array",
           "items": {
             "$ref": "#/$defs/internalName"
           },
-          "description": "Shorthand for { groups: [...] }."
+          "description": "Shorthand for `groups`: a list of group names."
         },
         {
           "type": "object",
@@ -32,12 +32,14 @@
           "additionalProperties": false,
           "properties": {
             "groups": {
+              "description": "Group names whose members may read. Each name must be a group configured on the instance, or `public` if the instance lists this repository under `public.repos`.",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/internalName"
               }
             },
             "users": {
+              "description": "Individual people who may read, each with an expiry date.",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/userGrant"
@@ -49,17 +51,19 @@
     },
     "maintainers": {
       "type": "object",
-      "description": "Repo root only. Scoped operational access to THIS repo: its sync status, its last error, explain for paths inside it. No cross-repo view, no group membership, generic collision errors.",
+      "description": "Root only. People who can see this repository's sync status and the problems of its last sync. Maintainers get no read access from this; to read the pages, they also need `access`.",
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
         "groups": {
+          "description": "Group names whose members maintain this repository. Cannot be `public`.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/internalName"
           }
         },
         "users": {
+          "description": "Individual maintainers, each with an expiry date.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/userGrant"
@@ -68,30 +72,34 @@
       }
     },
     "display": {
+      "description": "How this repository or folder is shown.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "title": {
+          "description": "The name of the repository (in the root file) or of this folder. Not inherited by subfolders. A folder's `index.md` title takes precedence.",
           "type": "string",
           "maxLength": 200
         },
         "cover": {
           "type": ["string", "null"],
-          "description": "Image path relative to this config's directory. Must resolve inside the repo working tree; no traversal, no symlinks out. SVG rejected. Ingested regardless of sync.include. Served through the authorized route. null = show none."
+          "description": "An image shown on this repository's or folder's card, as a path relative to this file. It must be inside the repository and must not be an SVG. Subfolders inherit it; `null` removes an inherited cover."
         }
       }
     },
     "retrieval": {
+      "description": "Whether pages are indexed automatically.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "indexable": {
           "type": "boolean",
-          "description": "Participation in AI retrieval. Monotonic: true -> false is honoured down the tree, false -> true is ignored."
+          "description": "Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in Speicher's own search. Once turned off, a subfolder cannot turn it back on."
         }
       }
     },
     "sync": {
+      "description": "Which Markdown files to publish.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -100,14 +108,14 @@
           "items": {
             "type": "string"
           },
-          "description": "Replaces the inherited value wholesale. Still bounded by ingest_root."
+          "description": "Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md`; add `**/*.mdx` to publish MDX files. In a folder, it replaces the inherited list."
         },
         "exclude": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Appends to inherited exclusions. You can add, never remove. Exclude beats include."
+          "description": "Glob patterns of Markdown files not to publish, matched against the path below `ingest_root`. Defaults to `**/README.md`. In a folder, it adds to the inherited list. Exclude wins over include."
         }
       }
     }
@@ -118,6 +126,7 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,63}$"
     },
     "userGrant": {
+      "description": "One person, named by `email` or by `subject` with a `note`.",
       "type": "object",
       "required": ["until"],
       "additionalProperties": false,
@@ -133,25 +142,26 @@
       "properties": {
         "provider": {
           "type": "string",
-          "description": "Omittable only when one provider exists or auth.default_provider is set. Resolved at ingest; the stored principal is always qualified."
+          "description": "Short id of the identity provider the person signs in with. Can be left out when the instance has one provider or sets `auth.default_provider`."
         },
         "subject": {
           "type": "string",
-          "description": "Value of the provider's subject_claim. Immutable and never reused. For a magic-link provider the subject IS the lowercased email address."
+          "description": "The person's permanent id at the identity provider, the value of its subject claim. It never changes and is never reused. For a magic-link provider, it is the email address. Needs a `note`."
         },
         "email": {
           "type": "string",
           "format": "email",
-          "description": "Mutable and reassignable. Resolved to a subject at ingest when the provider has a `directory` block; otherwise stored as user:<provider>:email:<lowercased-address> and matched against the provider's email_claim, so the grant follows the mailbox rather than the person."
+          "description": "The person's email address, matched against the address the identity provider reports at sign-in. If the provider has a directory, it is resolved to the person's subject id during each sync."
         },
         "note": {
+          "description": "Who this grant is for, such as a name and role. Required with `subject`. Up to 200 characters.",
           "type": "string",
           "maxLength": 200
         },
         "until": {
           "type": "string",
           "format": "date",
-          "description": "Mandatory. Individual grants expire by construction; group membership is cleaned up by the IdP, config entries never are."
+          "description": "Date the grant ends, as `YYYY-MM-DD`. It is valid until the end of that day (UTC). The repository then syncs again and the grant is dropped."
         }
       }
     }

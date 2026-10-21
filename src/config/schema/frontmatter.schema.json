@@ -9,18 +9,18 @@
     "title": {
       "type": "string",
       "maxLength": 200,
-      "description": "Overrides the H1, then the de-slugged filename."
+      "description": "The page title. Defaults to the page's first `# Heading`, then to the file name."
     },
     "description": {
       "type": "string",
       "maxLength": 500,
-      "description": "Search snippet fallback and meta description. Indexed."
+      "description": "A short summary of the page, used in search results and as its meta description."
     },
     "icon": {
       "type": "string",
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "maxLength": 64,
-      "description": "Name of a Lucide icon (https://lucide.dev/icons), kebab-case, e.g. \"book-open\". Shown beside the page in navigation and folder listings. Validated against the bundled icon set at ingest: an unknown name warns and is dropped rather than failing the sync, since an icon is cosmetic. The name selects from icons Speicher ships \u2014 no SVG from the repository is ever rendered.",
+      "description": "Name of a Lucide icon (https://lucide.dev/icons), such as `book-open`, shown next to the page in the navigation and folder listings. An unknown name is ignored with a warning.",
       "examples": ["book-open", "shield-check", "circle-alert"]
     },
     "redirect_from": {
@@ -29,16 +29,16 @@
         "type": "string",
         "pattern": "^/"
       },
-      "description": "Former paths that should redirect here. Must be within the same repo, must not collide with a live path, and lose to a live slug exactly as retired slug-history redirects do."
+      "description": "Old addresses that redirect to this page, as full paths including the repository, such as `/handbook/old-page`. An address of an existing page or of another repository is ignored with a warning."
     },
     "draft": {
       "type": "boolean",
       "default": false,
-      "description": "true excludes the file from ingest entirely."
+      "description": "`true` leaves the file out of the site completely."
     },
     "indexable": {
       "type": "boolean",
-      "description": "Narrowing only: true -> false is honoured, false -> true is ignored."
+      "description": "`false` keeps the page out of AI retrieval. It cannot turn retrieval back on where a `.speicher.yaml` turned it off."
     },
     "tags": {
       "type": "array",
@@ -48,19 +48,19 @@
         "minLength": 1,
         "maxLength": 48
       },
-      "description": "Free-form tags relating this page to others. Case-folded for matching, shown as written. They have no effect on access whatsoever: a tag is only ever visible through a page the reader can already read, and a listing of a tag contains only such pages. Tagging a page does not widen it, and cannot — the cascade is the only thing that decides who may read anything."
+      "description": "Topics that relate this page to others with the same tag. Matching ignores upper and lower case. Tags never affect who can read the page."
     },
     "sidebar_position": {
       "type": "number",
-      "description": "Docusaurus's sidebar ordering key, read for import compatibility only. Speicher's own ordering mechanism is the numeric filename prefix; this key is consulted per folder, and only where no sibling in that folder carries a prefix. `sidebar.order` is the Starlight spelling of the same thing."
+      "description": "Docusaurus's ordering key. Used only in folders where no file has a number prefix."
     },
     "sidebar": {
       "type": "object",
-      "description": "Starlight's sidebar block. Only `order` is read, on the same terms as `sidebar_position`. The rest of the block belongs to Starlight and is left alone rather than warned about \u2014 Speicher does not own this key.",
+      "description": "Starlight's sidebar block. Only `order` is read; the rest is ignored.",
       "properties": {
         "order": {
           "type": "number",
-          "description": "Starlight's sibling ordering key. Read exactly as `sidebar_position` is."
+          "description": "Starlight's ordering key, used like `sidebar_position`."
         }
       },
       "additionalProperties": true

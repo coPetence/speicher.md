@@ -12,28 +12,34 @@
     },
     "mail": {
       "type": "object",
-      "description": "Shared transport. Required if any magic-link provider is configured.",
+      "description": "The SMTP server Speicher sends sign-in links for magic-link providers through. Required before a magic-link provider can be added.",
       "required": ["host", "from"],
       "additionalProperties": false,
       "properties": {
         "host": {
+          "description": "The SMTP server's host name, for example `smtp.example.com`.",
           "type": "string"
         },
         "port": {
+          "description": "The SMTP port. On `465` Speicher connects with TLS from the start; on any other port it switches to TLS with STARTTLS when the server offers it.",
           "type": "integer",
           "default": 587
         },
         "username": {
+          "description": "The username to sign in to the SMTP server with. Leave it out if the server accepts mail without signing in.",
           "type": "string"
         },
         "password": {
+          "description": "The password for `username`. Can be a reference to an environment variable, such as `${SMTP_PASSWORD}`.",
           "type": "string"
         },
         "from": {
+          "description": "The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from.",
           "type": "string",
           "examples": ["Docs <docs@example.com>"]
         },
         "reply_to": {
+          "description": "Where replies go, if not to the sender. Optional.",
           "type": "string"
         }
       }
@@ -186,20 +192,20 @@
     },
     "theme": {
       "type": "object",
-      "description": "Presentation only. Not part of the resolution hash: a template change alters how content looks, never who can read it, so it must not trigger a rebuild.",
+      "description": "How pages look: the template, the typeface and colour overrides. Changes apply right away and never trigger a sync.",
       "additionalProperties": false,
       "properties": {
         "template": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
           "default": "default",
-          "description": "Name of a shipped template. Templates set design tokens in the `speicher.theme` cascade layer; a template with a structural identity may also carry rules there, written only against `spr-` names and resolving every colour through the tokens. An unknown name falls back to `default` and is reported."
+          "description": "The template for all pages: `default`, `blueprint`, `editorial` or `workspace`. An unknown name falls back to `default`."
         },
         "font": {
           "type": "string",
           "enum": ["system", "sans", "serif", "mono"],
           "default": "system",
-          "description": "The face body text is set in, as one of four stacks this instance ships. A name is not accepted, and the reason is not tidiness: a face nobody has installed needs a web font, which is a request to whoever serves it from a page a reader is authenticated on, and `font-src 'self'` refuses it. Every stack here resolves to something already on the machine. `mono` also takes the code-size correction back to `1em`, since there is no longer a pairing to correct for."
+          "description": "The typeface of the body text. Each value uses fonts already installed on the reader's device; web fonts are not loaded."
         },
         "rounded_corners": {
           "type": "boolean",
@@ -218,11 +224,11 @@
           "properties": {
             "light": {
               "$ref": "#/$defs/palette",
-              "description": "The palette a reader who has not asked for a dark page sees."
+              "description": "Colours for readers in light mode."
             },
             "dark": {
               "$ref": "#/$defs/palette",
-              "description": "The palette a reader whose system asks for a dark page sees. Left out, the template's own dark scheme stands."
+              "description": "Colours for readers in dark mode. Left out, the template's dark colours are used."
             }
           }
         }
@@ -231,39 +237,39 @@
     "brand": {
       "type": "object",
       "additionalProperties": false,
-      "description": "What the header says and shows. Instance config only, never repo config, for the reason all styling is: a repo author who could set this would be renaming somebody else's instance from inside their own documentation. Presentation only, so it is absent from the resolution hash and changing it never triggers a rebuild.",
+      "description": "The name, logos and favicon in the page header and browser tab. Only the instance sets these; repositories cannot.",
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1,
           "maxLength": 64,
-          "description": "The instance's own name, linking to the root, and the logo's alt text when there is a logo. Unset, it falls back to the host of SPEICHER_PUBLIC_URL and then to a neutral word: the default must not be the vendor's name, and it is never taken from the request's Host header, which is attacker-chosen behind a permissive proxy.",
+          "description": "The name shown at the top of every page, linking to the home page. It is also the logo's alt text. Without it, the header shows the host of `SPEICHER_PUBLIC_URL`.",
           "examples": ["Acme Engineering Docs"]
         },
         "show_name": {
           "type": "boolean",
           "default": true,
-          "description": "Whether the name is written beside the logo. On, because a logo is as often a symbol as a wordmark and a symbol alone leaves the header nameless. Turn it off for a logo that already spells the name, or the header says it twice. With no logo it decides nothing: the name is all there is.",
+          "description": "Whether the name is shown beside the logo. Turn it off if your logo already contains the name. Without a logo, the name is always shown.",
           "examples": [false]
         },
         "name_align": {
           "type": "string",
           "enum": ["center", "bottom"],
           "default": "center",
-          "description": "How the name lines up with the logo beside it. `center` centres the name on the logo's height. `bottom` sets the name's baseline on the logo's bottom edge.",
+          "description": "How the name lines up with the logo: `center` centres it on the logo's height, `bottom` sets it on the logo's bottom edge.",
           "examples": ["bottom"]
         },
         "logo": {
           "type": "string",
           "maxLength": 90000,
           "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "Logo as a base64 data URI (max 64 KB PNG, WebP or SVG)"
+          "description": "The header logo: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set."
         },
         "logo_dark": {
           "type": "string",
           "maxLength": 90000,
           "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "Logo for dark mode as base64 data URI (max 64 KB PNG, WebP or SVG)"
+          "description": "The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image."
         },
         "icon": {
           "type": "string",
@@ -293,101 +299,102 @@
     "attribution": {
       "type": "boolean",
       "default": true,
-      "description": "The \"Published with speicher.md\" line at the foot of the shell. Text and an outbound link, never a remote image — a logo fetched from another host on an authenticated page would report when each reader is reading, and `img-src 'self'` refuses it anyway. One switch and no text field: this names this product, and a configurable string would be a footer feature rather than an attribution. Presentation only, so it is absent from the resolution hash and changing it never triggers a rebuild.",
+      "description": "Whether pages show `Published with speicher.md` at the bottom, linking to the Speicher website. The text cannot be changed.",
       "examples": [false]
     },
     "graph": {
       "type": "object",
-      "description": "The link graph derived at ingest: the Related aside beside an article, tag chips and their listing, link-weighted search ranking, and the /-/graph report. Presentation and retrieval only, so it is absent from the resolution hash — and it is read-side only: ingest records edges whichever way this is set, so turning the feature on is immediate rather than a full rebuild. An edge is never more visible than both of the pages it joins.",
+      "description": "Features built from the links between pages: the related column, hover previews, tags and link-weighted search. Speicher records links on every sync, so changes apply right away. A reader only sees links between pages they can read.",
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "The master switch. False removes every surface below, whatever they are set to."
+          "description": "Turns all link graph features on or off. When off, the settings below have no effect."
         },
         "related": {
           "type": "boolean",
           "default": true,
-          "description": "The Related column beside an article: what this page links to, and what links to it. Both lists are filtered on both endpoints, and neither ever states how many entries were withheld — a count of what you cannot see is the same disclosure as the names."
+          "description": "Shows a column beside each article with the pages it links to and the pages that link to it."
         },
         "previews": {
           "type": "boolean",
           "default": true,
-          "description": "Show a destination's title and description on hover over an internal link in the article. Rendered into the page as a data attribute and revealed by CSS — no request per hover, and no JavaScript. Only destinations the reader can open carry one; a link to a restricted page is left with no marker of any kind, because a link that announced it had no preview would be a 403 with a stylesheet."
+          "description": "Shows the title and description of the target page when a reader hovers over a link to another page. Links to pages the reader cannot open get no preview."
         },
         "terms": {
           "type": "boolean",
           "default": true,
-          "description": "Tag chips from frontmatter `tags`, and the listing behind them. A tag exists for a reader exactly when some page they can read carries it."
+          "description": "Shows a page's frontmatter `tags` as chips, each leading to a list of the pages with that tag that the reader can open."
         },
         "search_boost": {
           "type": "boolean",
           "default": true,
-          "description": "Rank a search hit higher when other hits in the same result set link to it. Ordering only: it can never introduce a row the filter would not have returned."
+          "description": "Ranks a search result higher when other results of the same search link to it. It changes only the order of results."
         },
         "related_limit": {
           "type": "integer",
           "minimum": 1,
           "maximum": 50,
           "default": 8,
-          "description": "Most entries shown per direction in the aside. The overflow is silent by design — see `related`."
+          "description": "The most entries shown in each list of the related column."
         }
       }
     },
     "analytics": {
       "type": "object",
-      "description": "Optional and off by default. Counts of page reads, held as aggregates per page per bucket, plus an estimate of how many distinct people read each page — never a record of who read what. There is no identity column and no per-person row: reach is a HyperLogLog sketch, salted per process with a salt that is never written down, so a sketch at rest cannot be asked whether a given person is in it. Absent from the resolution hash, since nothing here decides a principal, and read per request so a change applies without a restart. Consider the works-council position before enabling `granularity: hour` — see that key.",
+      "description": "Counts page reads and searches without results. Off by default. Stores no identities: unique readers are an estimate that cannot be traced back to a person.",
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": false,
-          "description": "The master switch. Off means nothing is recorded and nothing is served — not a panel that shows zeroes."
+          "description": "Turns read analytics on. Turning it off stops counting and deletes all stored counts at the next maintenance run."
         },
         "timezone": {
           "type": "string",
           "default": "UTC",
-          "description": "An IANA zone name (`Europe/Berlin`). A day has to be a day somewhere: bucketing on UTC and reading the panel in Berlin attributes a 01:00 read to the previous day. This is the key that buys timezone correctness, which is the only benefit hourly granularity would otherwise have been needed for.",
+          "description": "The time zone days are counted in, as an IANA name such as `Europe/Berlin`.",
           "examples": ["Europe/Berlin", "UTC"]
         },
         "granularity": {
           "enum": ["day", "hour"],
           "default": "day",
-          "description": "How finely reads are bucketed. Storage is not the reason this defaults to `day`: re-identification is. A daily count of one on a small team is near-identifying, and an hourly series per page is a work-pattern record — it shows when people work, including outside contracted hours — which in Germany is the difference between a defensible aggregate and an Einrichtung capable of Verhaltens- und Leistungskontrolle under §87(1)(6) BetrVG. Setting this back to `day` does not merely change the panel: it rolls the stored hourly buckets up and deletes them, because a setting that leaves the fine rows in the table is a display preference wearing a privacy label."
+          "description": "Whether reads are counted per `day` or per `hour`. Hourly counts show when people read, which can require agreement with a works council. Switching back to `day` deletes the hourly counts."
         },
         "unique_readers": {
           "type": "boolean",
           "default": true,
-          "description": "Estimate how many distinct signed-in people read each page. Reach is the number worth having for an internal handbook — 12 of 40 opened the new policy — and it is stored as a sketch, which holds cardinality and no members. Anonymous readers never contribute: on a public page there is no identity, and manufacturing one is the thing this design refuses. Always bucketed by day whatever `granularity` says, since small unique counts are simultaneously the most interesting and the most identifying."
+          "description": "Estimate how many different signed-in people read each page per day. Anonymous readers and reads counted by the browser script are not included."
         },
         "public_beacon": {
           "type": "boolean",
           "default": true,
-          "description": "Count reads of public pages in the browser rather than on the server. A public page answered to an anonymous caller earns `Cache-Control: public`, so a CDN or a browser cache serves it without the application ever hearing about it — server-side counts for exactly those pages mean cache misses. The beacon is a same-origin POST carrying the path and nothing else: no cookie, no device id, no stored address, so it is a hit counter rather than analytics and needs no consent banner. The trade is one bias for a smaller one: blockers and no-JS cost perhaps a fifth, where a CDN can cost everything. Off means public pages are counted server-side, undercounted, and carry no script."
+          "description": "Count reads of public pages with a small script in the browser, because cached pages never reach the server. The script sends only the page path, with no cookie or identifier."
         },
         "retention_days": {
           "type": "integer",
           "minimum": 1,
           "maximum": 3650,
           "default": 90,
-          "description": "How long a bucket is kept before the retention sweep deletes it."
+          "description": "How many days read counts are kept."
         },
         "search_retention_days": {
           "type": "integer",
           "minimum": 1,
           "maximum": 3650,
           "default": 30,
-          "description": "How long a recorded search query is kept. Shorter than `retention_days` by default and deliberately: a query is caller-supplied text and is the most sensitive thing this feature stores — far more so than a page count, since somebody typing `grievance procedure` into a search box has disclosed an intention. Only queries that returned nothing are recorded at all, which is also where the value is."
+          "description": "How many days searches without results are kept."
         }
       }
     },
     "notify": {
       "type": "object",
-      "description": "Optional. Requires `mail`. Targets resolve to known principals only; `committer` is a match rule against the commit author's address, never an address source.",
+      "description": "Emails about failed syncs, repositories that stopped syncing and expiring grants. Requires `mail`.",
       "additionalProperties": false,
       "properties": {
         "sync_failure": {
+          "description": "Who is emailed when a repository's sync fails, and again when it recovers. `committer` is the commit author, mailed only if they are a maintainer by email or have signed in with that address; otherwise the maintainers are mailed.",
           "type": "array",
           "items": {
             "enum": ["admins", "maintainers", "committer"]
@@ -409,10 +416,12 @@
           "default": ["maintainers"]
         },
         "stale_after": {
+          "description": "How long a repository may go without syncing before it is reported, for example `12h`. A repository with a poll interval is given at least twice that interval.",
           "$ref": "#/$defs/duration",
           "default": "6h"
         },
         "expiry_warning": {
+          "description": "How long before an individual grant ends Speicher starts warning about it, for example `7d`.",
           "$ref": "#/$defs/duration",
           "default": "14d"
         }
@@ -420,37 +429,41 @@
     },
     "embedding": {
       "type": "object",
-      "description": "Optional until semantic retrieval is enabled. Any OpenAI-compatible /v1/embeddings endpoint: Azure OpenAI, OpenAI, Ollama, vLLM, TEI, Mistral. No completion model is ever used \u2014 agents generate answers, Speicher returns permitted chunks.",
+      "description": "Connects an embedding model for semantic search. Any endpoint that offers the OpenAI embeddings API works, such as OpenAI, Azure OpenAI or Ollama. Speicher only creates embeddings and never generates text. Changes apply after a restart.",
       "required": ["base_url", "model", "dimensions"],
       "additionalProperties": false,
       "properties": {
         "base_url": {
+          "description": "The endpoint's address without `/embeddings`, for example `https://api.openai.com/v1`. Speicher appends `/embeddings`.",
           "type": "string",
           "format": "uri"
         },
         "api_key": {
+          "description": "The API key, sent as a bearer token and as an `api-key` header. Leave it out for an endpoint without authentication.",
           "type": "string"
         },
         "model": {
+          "description": "The name of the embedding model, as the endpoint expects it.",
           "type": "string"
         },
         "dimensions": {
           "type": "integer",
-          "description": "Must match the pgvector column width. Verified by a probe request at startup."
+          "description": "The length of the vectors the model returns. Web and worker check it at startup and do not start if the model returns a different length."
         },
         "send_dimensions": {
           "type": "boolean",
           "default": true,
-          "description": "Whether to send the `dimensions` parameter. Matryoshka-capable models accept it; others error."
+          "description": "Whether to send `dimensions` with each request. Models that can shorten their vectors accept it; turn it off for models that reject it."
         },
         "batch_size": {
+          "description": "How many passages are sent in one request.",
           "type": "integer",
           "default": 96
         },
         "max_concurrency": {
           "type": "integer",
           "default": 4,
-          "description": "Azure enforces per-deployment TPM quotas; local endpoints generally don't."
+          "description": "How many requests are sent at the same time. Lower it if a hosted endpoint rejects requests for exceeding its rate limit."
         }
       }
     },
@@ -488,17 +501,19 @@
     },
     "admins": {
       "type": "object",
-      "description": "Full access to operational surfaces under /-/. Same principal shape as repo `access`. Optional, because an instance nobody has claimed has no administrator and every /-/ route is the reader's 404 \u2014 the state a fresh instance boots in. Present means at least one entry, and a *save* is refused unless the document it would write still resolves to somebody: booting into a no-admin state is legitimate, saving into one from a form never is.",
+      "description": "Who administers this instance: the people and groups who can open the configuration and sync status of every repository under `/-/`. Administrators get no read access to content from this. A configuration that leaves nobody as administrator cannot be saved.",
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
         "groups": {
+          "description": "Groups whose members are administrators. Each must be a group defined under `groups`, and at least one administrator group needs members unless `users` names someone.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/internalName"
           }
         },
         "users": {
+          "description": "Individual administrators, each named by `email`, or by `subject` with a `note`.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/userGrant"
@@ -521,13 +536,13 @@
     },
     "public": {
       "type": "object",
-      "description": "Which repositories this instance serves to callers with no credential at all. Public access is a principal — `group:public`, carried by every caller — so a repository named here is read through exactly the same filter as every other, and a page under it is public only when its own `access` says `public`. This key is the instance's half of that: a repository author writing `access: [public]` is publishing to the internet, and rule 4 says the instance has to have agreed first. In the resolution hash, hashed whole: every field of it decides a principal.",
+      "description": "Repositories that may publish pages to visitors who are not signed in. Listing a repository only allows it: its own `access` must also name `public`.",
       "additionalProperties": false,
       "required": ["repos"],
       "properties": {
         "repos": {
           "type": "array",
-          "description": "`<namespace>/<slug>` per entry, spelled the way the reader's URL spells it. An explicit list and no `all: true` shorthand: there is no value here that should also mean the repository added next month. Naming a repository grants nothing on its own — it permits that repository's own configuration to name `public`.",
+          "description": "Repositories as `<owner>/<repository>`, the owner being the account or organization the repository belongs to, even where its URL leaves the owner out. Each listed repository may grant `access` to `public`.",
           "uniqueItems": true,
           "items": {
             "type": "string",
@@ -548,6 +563,7 @@
       }
     },
     "defaults": {
+      "description": "Starting values for every repository. A repository's root `.speicher.yaml` changes them the same way a folder's file does.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -562,6 +578,7 @@
           "additionalProperties": false,
           "properties": {
             "cover": {
+              "description": "A default cover image, as a path relative to each repository's root. Every repository needs that file.",
               "type": ["string", "null"]
             }
           }
@@ -675,34 +692,40 @@
       "additionalProperties": false,
       "properties": {
         "type": {
+          "description": "Selects the OpenID Connect provider. Use it for any provider that supports OpenID Connect, such as Google, Keycloak or Okta.",
           "const": "oidc",
           "default": "oidc"
         },
         "display_name": {
           "type": "string",
           "maxLength": 60,
-          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+          "description": "The name the sign-in page shows for this provider, for example `Google`. Defaults to the provider's id."
         },
         "issuer": {
+          "description": "The address of the provider's OpenID Connect server, for example `https://accounts.google.com`. Speicher reads the provider's settings from `<issuer>/.well-known/openid-configuration`, and refuses an issuer that does not name a single tenant or realm.",
           "type": "string",
           "format": "uri"
         },
         "client_id": {
+          "description": "The client id of the application you registered for Speicher at the provider.",
           "type": "string"
         },
         "client_secret": {
+          "description": "The client secret of that application. Leave it out only if the provider registered Speicher as a public client.",
           "type": "string"
         },
         "subject_claim": {
           "type": "string",
           "default": "sub",
-          "description": "Claim carrying the stable identity. `oid` for Entra, `sub` for most others."
+          "description": "The claim in the sign-in token that holds the person's permanent id. Most providers use `sub`."
         },
         "groups_claim": {
+          "description": "The claim in the sign-in token that lists the person's groups. Without it, or if the provider sends none (such as Google), the person belongs to no provider groups and can only be added to groups by email or subject.",
           "type": "string",
           "default": "groups"
         },
         "email_claim": {
+          "description": "The claim in the sign-in token that holds the person's email address. Access granted by email is matched against it.",
           "type": "string",
           "default": "email"
         },
@@ -716,7 +739,7 @@
         "session_ttl": {
           "$ref": "#/$defs/duration",
           "default": "8h",
-          "description": "Security parameter, not a convenience one: OIDC group claims are read from the login token, so membership changes only take effect at re-login."
+          "description": "How long a sign-in stays valid. Groups are read only at sign-in, so a removed group membership keeps working until the session ends."
         },
         "connection_idle_ttl": {
           "$ref": "#/$defs/duration",
@@ -724,6 +747,7 @@
           "description": "If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`."
         },
         "directory": {
+          "description": "Optional read access to the provider's directory. Speicher uses it to resolve email grants to people, count group members and notice people who have left.",
           "$ref": "#/$defs/directory"
         }
       }
@@ -734,18 +758,21 @@
       "additionalProperties": false,
       "properties": {
         "type": {
+          "description": "Selects the magic-link provider, which signs people in with a link sent to their email address. Needs `mail`.",
           "const": "magic-link"
         },
         "display_name": {
           "type": "string",
           "maxLength": 60,
-          "description": "What a reader is offered this provider *as* — \"Sign in with Acme Account\". The key beside it is a document id: lowercase, hyphenated, what every grant is written against and what a URL segment carries. Its audience is this file; this one is read by everybody who signs in. Optional, falling back to the id, because requiring it would put prose in a document of machine names and break every configuration that predates it. It decides no principal, so it is absent from the resolution hash and changing it never triggers a rebuild."
+          "description": "The name the sign-in page shows for this provider, for example `Email link`. Defaults to the provider's id."
         },
         "token_ttl": {
+          "description": "How long a sign-in link stays valid after it is sent. A link can be used only once.",
           "$ref": "#/$defs/duration",
           "default": "15m"
         },
         "session_ttl": {
+          "description": "How long a sign-in stays valid.",
           "$ref": "#/$defs/duration",
           "default": "30d"
         },
@@ -842,33 +869,33 @@
       "properties": {
         "type": {
           "enum": ["github", "gitlab", "gitea", "forgejo", "git"],
-          "description": "`git` is a plain remote behind no forge API: repositories are listed here rather than discovered, freshness comes from polling rather than a webhook, and there is no pull-request check. It is what makes an unsupported forge a yes."
+          "description": "The kind of source. `github` reads repositories through a GitHub App; `git` reads repositories you list from any git server over HTTPS or SSH."
         },
         "primary": {
           "type": "boolean",
           "default": false,
-          "description": "Exactly one forge may be primary. The primary forge contributes no URL segment; all others contribute their id. Defaults to true when only one forge is configured."
+          "description": "Whether this source's id is left out of its repositories' URLs. Only one source can be primary; when there is only one source, it is primary. Repositories of other sources are served under `/<source-id>/…`."
         },
         "default_repository_owner": {
           "type": "string",
-          "description": "The user or organization whose name is left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Its repository names then share the first path segment with forge ids and the names of other owners, which must all be unique."
+          "description": "The user or organization whose name is left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Repositories of other owners keep the owner in their URL."
         },
         "base_url": {
           "type": "string",
           "format": "uri",
-          "description": "Self-hosted forges only."
+          "description": "GitHub only. The address of your GitHub Enterprise Server, for example `https://github.example.com`. Leave it empty for GitHub.com."
         },
         "webhook_secret": {
           "type": "string",
-          "description": "Optional for github: an App can also be created without a secret. This means webhooks will be rejected and the instance will only update on a regular schedule."
+          "description": "GitHub only. The secret of the GitHub App's webhook. Without it, Speicher rejects webhook deliveries and picks up changes only on its regular schedule."
         },
         "app_id": {
           "type": "string",
-          "description": "github"
+          "description": "GitHub only. The id of the GitHub App, shown at the top of the App's settings page."
         },
         "private_key": {
           "type": "string",
-          "description": "github"
+          "description": "GitHub only. The private key of the GitHub App, the content of the `.pem` file GitHub generates."
         },
         "token": {
           "type": "string",
@@ -877,15 +904,15 @@
         "poll_interval": {
           "$ref": "#/$defs/duration",
           "default": "1h",
-          "description": "git: how often to fetch and compare heads, as a default for every repo below. This is an upper bound on staleness, not a schedule — repos are spread across the interval so they do not all poll on the same tick. Not part of the resolution hash: it changes how often the head is read, never who may read the result."
+          "description": "Git only. How often Speicher checks each repository of this source for new commits, for example `15m`. Repositories can override it."
         },
         "known_hosts": {
           "type": "string",
-          "description": "git: The known hosts are the SSH host keys of the servers the `ssh://` repositories below are fetched from, as `known_hosts` lines, for example `github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl`. They are required as soon as one repository uses an `ssh://` URL, and they must hold a key for each of its servers. Speicher connects only to a server whose key is listed here."
+          "description": "Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; Speicher connects only to servers listed here."
         },
         "repos": {
           "type": "array",
-          "description": "git: the repositories this forge serves. There is no discovery API, so they are listed rather than found. Adding one is a config edit and nothing else: in `database` mode the saved version is adopted while the instance runs, and the entry is picked up at the next reconciler tick.",
+          "description": "Git only. The repositories this source serves. They are listed here because a plain git server cannot be asked for them.",
           "minItems": 1,
           "items": {
             "$ref": "#/$defs/gitRepo"
@@ -938,33 +965,33 @@
       "properties": {
         "id": {
           "$ref": "#/$defs/repoId",
-          "description": "Stable identity, chosen here rather than issued by a forge. It survives both a moved remote and a changed slug, which is what keeps a rename a redirect instead of a delete-and-reingest that breaks every link. It also names the mirror directory, which is what the character set is about — and why two ids differing only in case are refused, since a case-insensitive filesystem makes them one directory."
+          "description": "Identifies the repository within this source. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes."
         },
         "url": {
           "type": "string",
-          "description": "`ssh://user@host/path.git` with a deploy key, or `https://host/path.git` with a token. Plain `http://` and `git://` are refused: neither authenticates the server, so the content served from them is whatever the network last said it was.",
+          "description": "The remote URL: `https://host/owner/repo.git` with a `token`, or `ssh://user@host/owner/repo.git` with a `deploy_key`. `http://` and `git://` URLs are refused.",
           "pattern": "^(ssh|https)://"
         },
         "slug": {
           "type": "string",
-          "description": "URL segment. Defaults to `id`. Changing it is a rename: the previous slug keeps serving a 301 rather than starting to 404."
+          "description": "The repository's name in URLs. Defaults to `id`. If you change it, the old URLs redirect to the new ones."
         },
         "branch": {
           "type": "string",
-          "description": "Defaults to the remote's own HEAD, which is only readable once a mirror exists — so a repository whose default branch is renamed follows it without a config edit."
+          "description": "The branch to publish. Defaults to the repository's default branch."
         },
         "deploy_key": {
           "type": "string",
-          "description": "OpenSSH private key, read-only on the remote. Written to a mode-0600 file for the length of one fetch and never into `.git/config`, which would persist it."
+          "description": "SSH only. The private key of a read-only deploy key, without a passphrase. Required for `ssh://` URLs."
         },
         "token": {
           "type": "string",
-          "description": "https only. Placed in the remote URL per invocation, never in a credential helper."
+          "description": "HTTPS only. An access token that can read the repository. Required for every `https://` URL, also for public repositories."
         },
         "username": {
           "type": "string",
           "default": "x-access-token",
-          "description": "https only. The username the token pairs with; forges disagree about it (`oauth2` on GitLab, the account name on Bitbucket)."
+          "description": "HTTPS only. The username that goes with the token. It differs between hosts, for example `oauth2` on GitLab."
         },
         "poll_interval": {
           "$ref": "#/$defs/duration",
@@ -977,12 +1004,14 @@
       "additionalProperties": false,
       "properties": {
         "include": {
+          "description": "Glob patterns of Markdown files to publish in every repository. Defaults to `**/*.md`.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "exclude": {
+          "description": "Glob patterns of Markdown files never to publish in any repository. Defaults to `**/README.md`.",
           "type": "array",
           "items": {
             "type": "string"
@@ -995,6 +1024,7 @@
       "additionalProperties": false,
       "properties": {
         "indexable": {
+          "description": "Set to `false` to keep every repository's pages out of AI assistant search, the sitemap and search engines, unless a repository's pages are already excluded. Repositories cannot turn it back on.",
           "type": "boolean"
         }
       }
@@ -1016,6 +1046,7 @@
       ],
       "properties": {
         "provider": {
+          "description": "Short id of the identity provider the person signs in with. Can be left out when the instance has one provider or sets `auth.default_provider`.",
           "type": "string"
         },
         "subject": {
@@ -1025,9 +1056,10 @@
         "email": {
           "type": "string",
           "format": "email",
-          "description": "Mutable and reassignable, and here it stays that way: an administrator is resolved per request as user:<provider>:email:<lowercased-address> and matched against the provider's email_claim, so this grant follows the mailbox rather than the person. A `directory` block does not change it — that resolves addresses at *ingest*, which is a repository's access block and not this one. Write `subject` for a grant that has to survive a rename."
+          "description": "The person's email address, matched at every request against the address the identity provider reports at sign-in. Use `subject` for a grant that should survive a change of address."
         },
         "note": {
+          "description": "Who this entry is for, such as a name and role. Required with `subject`.",
           "type": "string",
           "maxLength": 200
         },
@@ -1120,7 +1152,7 @@
         },
         "tenant_id": {
           "type": "string",
-          "description": "graph"
+          "description": "graph: the id of the Entra tenant to read."
         },
         "client_id": {
           "type": "string",
@@ -1128,7 +1160,7 @@
         },
         "client_secret": {
           "type": "string",
-          "description": "graph"
+          "description": "graph: the client secret of the directory application."
         },
         "app_id": {
           "type": "string",
@@ -1143,6 +1175,7 @@
           "description": "github. This secret is used to sign the webhook deliveries of the App."
         },
         "cache_ttl": {
+          "description": "How long directory answers are cached before Speicher asks again.",
           "$ref": "#/$defs/duration",
           "default": "1h"
         }
