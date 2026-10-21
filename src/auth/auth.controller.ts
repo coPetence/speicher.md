@@ -16,7 +16,7 @@ import { sendMagicLink } from './views/magic-link/magic-link';
 import { sendMagicLinkSentScreen } from './views/magic-link-sent/magic-link-sent';
 import { sendProviderChoice, sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
-import { GITHUB_CALLBACK_PATH, originOf } from './callback-url';
+import { callbackUrl, originOf } from './callback-url';
 import { callerOf } from './caller.middleware';
 import { GithubAuthService } from './github.service';
 import { CompletedLogin } from './login-result';
@@ -152,7 +152,7 @@ export class AuthController {
     }
     if (kind === 'github') {
       await this.startRedirect(req, res, providerId, redirectTo, () =>
-        this.github.authorizationUrl(tenantId, providerId, this.githubCallbackUri(req), redirectTo),
+        this.github.authorizationUrl(tenantId, providerId, callbackUrl(req, 'github'), redirectTo),
       );
       return;
     }
@@ -162,7 +162,7 @@ export class AuthController {
     }
 
     await this.startRedirect(req, res, providerId, redirectTo, () =>
-      this.oidc.authorizationUrl(tenantId, providerId, this.callbackUri(req), redirectTo, {
+      this.oidc.authorizationUrl(tenantId, providerId, callbackUrl(req, 'oidc'), redirectTo, {
         loginHint: email,
       }),
     );
@@ -207,8 +207,9 @@ export class AuthController {
     @Query('code') code?: string,
     @Query('state') state?: string,
   ): Promise<void> {
-    await this.completeCallback(req, res, code, state, (tenantId, verified, issued) =>
-      this.oidc.completeLogin(tenantId, verified, issued, this.callbackUri(req)),
+    const redirectUri = callbackUrl(req, 'oidc');
+    await this.completeCallback(req, res, code, state, redirectUri, (tenantId, verified, issued) =>
+      this.oidc.completeLogin(tenantId, verified, issued, redirectUri),
     );
   }
 
@@ -222,8 +223,9 @@ export class AuthController {
     @Query('code') code?: string,
     @Query('state') state?: string,
   ): Promise<void> {
-    await this.completeCallback(req, res, code, state, (tenantId, verified, issued) =>
-      this.github.completeLogin(tenantId, verified, issued, this.githubCallbackUri(req)),
+    const redirectUri = callbackUrl(req, 'github');
+    await this.completeCallback(req, res, code, state, redirectUri, (tenantId, verified, issued) =>
+      this.github.completeLogin(tenantId, verified, issued, redirectUri),
     );
   }
 
@@ -232,6 +234,7 @@ export class AuthController {
     res: Response,
     code: string | undefined,
     state: string | undefined,
+    redirectUri: string,
     complete: (tenantId: string, code: string, state: string) => Promise<CompletedLogin>,
   ): Promise<void> {
     const tenant = await this.tenancy.resolveTenant(req);
@@ -248,7 +251,8 @@ export class AuthController {
     try {
       await this.finishLogin(tenant.id, await complete(tenant.id, code, state), res);
     } catch (err) {
-      this.log.warn('login callback failed', { error: (err as Error).message });
+      // A redirect_uri mismatch is the usual cause behind a proxy, so log the one sent
+      this.log.warn('login callback failed', { redirectUri, error: (err as Error).message });
       sendSignInMessage(
         req,
         res,
@@ -479,14 +483,6 @@ export class AuthController {
       admin: caller.isAdmin,
       via_bearer: caller.viaBearer,
     });
-  }
-
-  private callbackUri(req: Request): string {
-    return `${originOf(req)}/api/auth/callback`;
-  }
-
-  private githubCallbackUri(req: Request): string {
-    return `${originOf(req)}${GITHUB_CALLBACK_PATH}`;
   }
 
   /**

@@ -49,7 +49,7 @@ export const STEP_PROSE: Record<SetupStepId, StepProse> = {
   provider: {
     heading: 'Identity provider',
     blurb:
-      'Please first add an identity provider you can log in through, and that supports OpenID Connect. ' +
+      'Please first add an identity provider you can log in through: OpenID Connect or GitHub. ' +
       'This is required to sign in as the first administrator of this instance. Further providers can be added alongside it, for example to let external collaborators sign in with their own accounts.',
     action: 'Add an Identity provider',
     reviewAction: 'Review Identity providers',
@@ -70,7 +70,7 @@ export const STEP_PROSE: Record<SetupStepId, StepProse> = {
   administrator: {
     heading: 'Become the first administrator',
     blurb:
-      'To become the first administrator of this instance, you need to sign in through an identity provider that supports OpenID Connect. ' +
+      'To become the first administrator of this instance, you need to sign in through an OpenID Connect or GitHub identity provider. ' +
       'This permanently closes the instance to further claims.',
     action: 'Sign in',
     reviewAction: 'Sign in',

@@ -29,6 +29,8 @@ let idp: FakeIdp;
 let config: ConfigService;
 
 const CLIENT_ID = 'wizard-client';
+const GITHUB_CLIENT_ID = 'wizard-github-client';
+const ORIGINAL_PUBLIC_URL = process.env.SPEICHER_PUBLIC_URL;
 const ORIGINAL_SOURCE = process.env[CONFIG_SOURCE_ENV];
 const ORIGINAL_PATH = process.env[INSTANCE_CONFIG_PATH_ENV];
 const ORIGINAL_INSECURE = process.env.SPEICHER_INSECURE_COOKIES;
@@ -49,6 +51,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app?.close();
+  if (ORIGINAL_PUBLIC_URL === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+  else process.env.SPEICHER_PUBLIC_URL = ORIGINAL_PUBLIC_URL;
 });
 
 afterAll(async () => {
@@ -97,6 +101,24 @@ async function addProvider(agent: Agent, id = 'wizard'): Promise<void> {
       ...formBody(draft.text),
       [`auth.providers.${id}.issuer`]: idp.issuer,
       [`auth.providers.${id}.client_id`]: CLIENT_ID,
+      intent: 'apply',
+    })
+    .expect(303);
+}
+
+async function addGithubProvider(agent: Agent, id = 'gh'): Promise<void> {
+  await agent.get(`/-/config/identity?add=${id}&kind=github`).expect(303);
+  const draft = await agent.get(`/-/config/identity/${id}?kind=github`).expect(200);
+  await agent
+    .post(`/-/config/identity/${id}?kind=github`)
+    .send({
+      ...formBody(draft.text),
+      // Credentials typed in, not an App created from a manifest
+      [`choice:auth.providers.${id}.app`]: 'manual',
+      // The fake IdP answers as a GitHub Enterprise Server under this base
+      [`auth.providers.${id}.base_url`]: idp.issuer,
+      [`auth.providers.${id}.client_id`]: GITHUB_CLIENT_ID,
+      [`auth.providers.${id}.client_secret`]: 'not-a-real-secret',
       intent: 'apply',
     })
     .expect(303);
@@ -151,6 +173,12 @@ async function prove(agent: Agent): Promise<request.Response> {
   reported a missing card the day one was reworded (five of these did).
 */
 const card = (id: SetupStepId) => `data-spr-step="${id}"`;
+
+/** The page's CSP form-action directive */
+const formAction = (page: request.Response) =>
+  String(page.headers['content-security-policy'])
+    .split('; ')
+    .find((directive) => directive.startsWith('form-action'));
 
 /** Where each card is on the page, so the order can be asserted without prose */
 const cardOrder = (html: string, ids: SetupStepId[]) => ids.map((id) => html.indexOf(card(id)));
@@ -493,6 +521,83 @@ describe('the first run', () => {
   });
 });
 
+describe('the proving login through GitHub', () => {
+  it('names the GitHub account the first administrator, by its numeric id', async () => {
+    const agent = await claim();
+    await addGithubProvider(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    expect(page.text).toContain('action="/-/setup/prove"');
+    expect(page.text).toContain('value="gh"');
+    // The browser holds the POST's redirect to GitHub to this directive
+    expect(formAction(page)).toBe(`form-action 'self' ${idp.issuer}`);
+
+    const started = await agent.post('/-/setup/prove').send({ provider: 'gh' }).expect(302);
+    const authorize = new URL(started.headers.location);
+    expect(`${authorize.origin}${authorize.pathname}`).toBe(`${idp.issuer}/login/oauth/authorize`);
+    expect(authorize.searchParams.get('redirect_uri')).toMatch(/\/api\/auth\/github\/callback$/);
+
+    const flow = await LoginFlow.findOne({ order: [['created_at', 'DESC']] });
+    expect(flow?.provider).toBe('gh');
+    expect(flow?.names_first_admin).toBe(true);
+
+    const done = await agent
+      .get(`/api/auth/github/callback?code=from-github&state=${flow?.state}`)
+      .expect(302);
+    expect(done.headers.location).toBe('/-/setup');
+
+    const newest = await getNewestConfigVersion(harness.tenantId);
+    expect(loadInstanceConfig(newest!.yaml).raw.admins?.users).toEqual([
+      {
+        provider: 'gh',
+        subject: '4242',
+        note: 'First administrator: octo@idp.test, named by their own first login',
+      },
+    ]);
+    expect(await setup.claimWindowOpen(harness.tenantId)).toBe(false);
+  });
+
+  it('offers OIDC and GitHub side by side, each starting its own flow', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await addGithubProvider(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    expect(page.text).toContain('id="spr-prove-provider"');
+    // The fake IdP serves both kinds from one origin, so it appears once
+    expect(formAction(page)).toBe(`form-action 'self' ${idp.issuer}`);
+    expect(page.text).toContain('value="wizard"');
+    expect(page.text).toContain('value="gh"');
+
+    const oidc = await agent.post('/-/setup/prove').send({ provider: 'wizard' }).expect(302);
+    expect(oidc.headers.location.startsWith(`${idp.issuer}/authorize`)).toBe(true);
+    const github = await agent.post('/-/setup/prove').send({ provider: 'gh' }).expect(302);
+    expect(github.headers.location.startsWith(`${idp.issuer}/login/oauth/authorize`)).toBe(true);
+  });
+});
+
+describe('the proving login behind a proxy', () => {
+  /*
+    The request reaches the app as 127.0.0.1, as it would through a proxy that
+    forwards no Host. The redirect_uri must still be the declared public address,
+    or the token exchange, which uses it, would not match the authorize request.
+  */
+  it.each([
+    ['an OIDC provider', 'wizard', '/api/auth/callback'],
+    ['a GitHub provider', 'gh', '/api/auth/github/callback'],
+  ])('sends SPEICHER_PUBLIC_URL as the redirect_uri for %s', async (_, id, path) => {
+    process.env.SPEICHER_PUBLIC_URL = 'https://docs.example.test/';
+    const agent = await claim();
+    if (id === 'gh') await addGithubProvider(agent, id);
+    else await addProvider(agent, id);
+
+    const started = await agent.post('/-/setup/prove').send({ provider: id }).expect(302);
+    expect(new URL(started.headers.location).searchParams.get('redirect_uri')).toBe(
+      `https://docs.example.test${path}`,
+    );
+  });
+});
+
 describe('what the proving login refuses', () => {
   it('writes nothing when the instance already has an administrator', async () => {
     const agent = await claim();
@@ -540,6 +645,17 @@ describe('what the proving login refuses', () => {
     const agent = await claim();
     const refused = await agent.post('/-/setup/prove').send({}).expect(400);
     expect(refused.text).toContain('OpenID Connect');
+    expect(await LoginFlow.count()).toBe(0);
+  });
+
+  it('does not offer a magic-link provider, which proves a mailbox and not a login', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    expect(page.text).not.toContain('action="/-/setup/prove"');
+    await agent.post('/-/setup/prove').send({ provider: 'links' }).expect(400);
     expect(await LoginFlow.count()).toBe(0);
   });
 
@@ -593,6 +709,20 @@ async function startFakeIdp(): Promise<FakeIdp> {
           .setExpirationTime('5m')
           .sign(privateKey);
         return send(res, 200, { id_token: idToken });
+      }
+
+      // GitHub Enterprise Server shapes, for a github provider whose base_url is this server
+      if (url.pathname === '/login/oauth/access_token') {
+        return send(res, 200, { access_token: 'gh-token' });
+      }
+      if (url.pathname === '/api/v3/user') {
+        return send(res, 200, { id: 4242, login: 'octo', name: 'Octo Cat' });
+      }
+      if (url.pathname === '/api/v3/user/emails') {
+        return send(res, 200, [{ email: 'Octo@idp.test', primary: true, verified: true }]);
+      }
+      if (url.pathname === '/api/v3/user/teams') {
+        return send(res, 200, []);
       }
       return send(res, 404, {});
     })();

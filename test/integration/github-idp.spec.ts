@@ -123,6 +123,27 @@ describe('a completed sign-in', () => {
     expect(gh.tokenBody?.get('client_secret')).toBe('a-secret');
   });
 
+  it('carries the first-admin mark from the start of the flow to its end', async () => {
+    const marked = new URL(
+      await github.authorizationUrl(harness.tenantId, 'hub', REDIRECT_URI, '/-/setup', {
+        namesFirstAdmin: true,
+      }),
+    );
+    const plain = await start();
+
+    const first = await github.completeLogin(
+      harness.tenantId,
+      'the-code',
+      marked.searchParams.get('state') as string,
+      REDIRECT_URI,
+    );
+    const ordinary = await github.completeLogin(harness.tenantId, 'the-code', plain, REDIRECT_URI);
+
+    expect(first.namesFirstAdmin).toBe(true);
+    expect(first.redirectTo).toBe('/-/setup');
+    expect(ordinary.namesFirstAdmin).toBe(false);
+  });
+
   it('keys the identity on the numeric id, not the renameable login', async () => {
     const { identity } = await github.completeLogin(
       harness.tenantId,

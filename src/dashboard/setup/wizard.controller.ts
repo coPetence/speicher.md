@@ -3,15 +3,17 @@
  *
  * Reachable only by an instance admin (aka. a claimed session)
  * The overview lists the steps with their `STEP_PROSE` copy, and cards for what remains
- * Only the last step happens here: prove starts an OIDC login whose callback
- * writes the first administrator and closes the claim window
+ * Only the last step happens here: prove starts an OIDC or GitHub login whose
+ * callback writes the first administrator and closes the claim window
  */
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { FORGE_TYPES, PROVIDER_KINDS } from '../configurator/config-form/members';
 import { DashboardResponder } from '../respond';
+import { callbackUrl } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
+import { GithubAuthService } from '../../auth/github.service';
 import { OidcService } from '../../auth/oidc.service';
 import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
@@ -36,6 +38,7 @@ export class SetupWizardController {
   constructor(
     private readonly config: ConfigService,
     private readonly oidc: OidcService,
+    private readonly github: GithubAuthService,
     private readonly tenancy: TenancyService,
     private readonly respond: DashboardResponder,
   ) {}
@@ -53,13 +56,13 @@ export class SetupWizardController {
   async administratorPage(@Req() req: Request, @Res() res: Response): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
-    this.administratorAnswer(req, res, caller.isAdmin, null);
+    await this.administratorAnswer(req, res, caller.isAdmin, null);
   }
 
   /**
-   * Starts the OIDC login that writes the first administrator on callback
+   * Starts the OIDC or GitHub login that writes the first administrator on callback
    *
-   * Refused once an administrator exists, or when no OIDC provider is configured:
+   * Refused once an administrator exists, or when no such provider is configured:
    * the login would have nothing to write either way
    */
   @Post('setup/prove')
@@ -76,23 +79,26 @@ export class SetupWizardController {
 
     // Refused before any flow is started: the login would have nothing to write
     if (this.config.hasAdministrator || !chosen) {
-      return this.administratorAnswer(
+      return await this.administratorAnswer(
         req,
         res,
         caller.isAdmin,
         this.config.hasAdministrator
           ? 'An administrator already exists. The instance is closed to further claims.'
-          : 'No provider that supports OpenID Connect is available to sign in. Add one first.',
+          : 'No OpenID Connect or GitHub provider is available to sign in. Add one first.',
         400,
       );
     }
 
     // The callback writes this login's identity into admins, then returns to the wizard
+    // Through callbackUrl, so the redirect_uri matches the one the callback exchanges with
     try {
-      const url = await this.oidc.authorizationUrl(
+      const kind = providerType(this.config.provider(chosen)!) === 'github' ? 'github' : 'oidc';
+      const service = kind === 'github' ? this.github : this.oidc;
+      const url = await service.authorizationUrl(
         tenant.id,
         chosen,
-        `${req.protocol}://${req.get('host')}/api/auth/callback`,
+        callbackUrl(req, kind),
         '/-/setup',
         { namesFirstAdmin: true },
       );
@@ -103,11 +109,11 @@ export class SetupWizardController {
         provider: chosen,
         error: (err as Error).message,
       });
-      this.administratorAnswer(
+      await this.administratorAnswer(
         req,
         res,
         caller.isAdmin,
-        `Could not reach the "${chosen}" provider. Check its issuer and client details.`,
+        `Could not reach the "${chosen}" provider. Check its client details and callback URL.`,
         502,
       );
     }
@@ -136,24 +142,28 @@ export class SetupWizardController {
     };
   }
 
-  /** The configured OIDC providers, the only ones a proving login can use */
+  /**
+   * The configured OIDC and GitHub providers, the only ones a proving login can use
+   *
+   * A magic link is left out: it proves a mailbox, not a login this session started
+   */
   private provable(): ProvableProvider[] {
     return this.config.providerShortIds
       .filter((id) => {
         const provider = this.config.provider(id);
-        return provider !== undefined && providerType(provider) === 'oidc';
+        return provider !== undefined && providerType(provider) !== 'magic-link';
       })
       .map((id) => ({ id, name: this.config.providerName(id) }));
   }
 
   /** Sends the become-administrator page with the providers for the form */
-  private administratorAnswer(
+  private async administratorAnswer(
     req: Request,
     res: Response,
     isAdmin: boolean,
     error: string | null,
     status?: number,
-  ): void {
+  ): Promise<void> {
     const provable = this.provable();
     sendSetupAdministrator(
       this.respond,
@@ -161,9 +171,33 @@ export class SetupWizardController {
       res,
       isAdmin,
       { provable, done: this.config.hasAdministrator, error },
-      [...new Set(provable.flatMap((p) => this.oidc.authorizationOrigins(p.id)))],
+      await this.formActions(provable),
       status,
     );
+  }
+
+  /**
+   * The browser holds a form POST's redirect to the page's CSP form-action, so
+   * without these the sign-in is refused
+   */
+  private async formActions(provable: ProvableProvider[]): Promise<string[]> {
+    const origins = await Promise.all(
+      provable.map(async ({ id }) => {
+        try {
+          return providerType(this.config.provider(id)!) === 'github'
+            ? this.github.authorizationOrigin(id)
+            : await this.oidc.authorizationOrigin(id);
+        } catch (err) {
+          // An unreachable provider fails at prove, which says so on the page
+          this.log.warn('could not resolve the authorization origin', {
+            provider: id,
+            error: (err as Error).message,
+          });
+          return null;
+        }
+      }),
+    );
+    return [...new Set(origins.filter((origin): origin is string => origin !== null))];
   }
 }
 

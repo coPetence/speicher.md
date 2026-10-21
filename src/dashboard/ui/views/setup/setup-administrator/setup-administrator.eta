@@ -1,6 +1,6 @@
 
 <% if (!it.done && !it.provable.length) { %>
-<%~ include('@note', { level: 'warn', html: md('This step needs an identity provider that uses OpenID Connect, such as Entra ID. Email magic links cannot be used here. [Add a provider](/-/config/identity), then come back.') }) %>
+<%~ include('@note', { level: 'warn', html: md('This step needs an OpenID Connect provider, such as Entra ID, or a GitHub provider. Email magic links cannot be used here. [Add a provider](/-/config/identity), then come back.') }) %>
 <% } %>
 
 <h1>Administrator</h1>
