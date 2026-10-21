@@ -1,6 +1,7 @@
 import {
   PROVIDER_MARKS,
   markSprite,
+  parseMark,
   renderInlineMark,
 } from '../../src/dashboard/ui/provider-marks';
 import {
@@ -189,5 +190,40 @@ describe('the provider marks', () => {
     expect(shapes).not.toMatch(/\son[a-z]+=/i);
     expect(shapes).not.toMatch(/style=/i);
     expect(shapes).not.toMatch(/xlink:|https?:/i);
+  });
+});
+
+describe('a mark file', () => {
+  it('gives the page its viewBox, its presentation attributes and its shapes', () => {
+    const mark = parseMark(
+      [
+        '<!-- notes for whoever edits the file -->',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" fill="currentColor">',
+        '  <path d="M0 0h24v24H0z"/>',
+        '  <circle cx="12" cy="12" r="4"/>',
+        '</svg>',
+      ].join('\n'),
+      'example',
+    );
+
+    expect(mark).toEqual({
+      viewBox: '0 0 24 24',
+      attrs: 'fill="currentColor"',
+      body: '<path d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="4"/>',
+    });
+  });
+
+  it('keeps its gradients apart from its shapes', () => {
+    const mark = parseMark(
+      '<svg viewBox="0 0 1 1"><defs> <linearGradient id="m-x-g0"/> </defs><path fill="url(#m-x-g0)"/></svg>',
+      'x',
+    );
+
+    expect(mark.defs).toBe('<linearGradient id="m-x-g0"/>');
+    expect(mark.body).toBe('<path fill="url(#m-x-g0)"/>');
+  });
+
+  it('refuses a file with no viewBox, at startup rather than as an empty box', () => {
+    expect(() => parseMark('<svg><path/></svg>', 'boxless')).toThrow(/boxless\.svg has no viewBox/);
   });
 });
