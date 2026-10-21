@@ -227,6 +227,17 @@ export class OidcService {
   }
 
   /**
+   * Origin of the provider's authorization endpoint
+   *
+   * A form whose POST redirects there needs it in the page's CSP form-action
+   */
+  async authorizationOrigin(providerId: string): Promise<string> {
+    const provider = this.oidcProvider(providerId);
+    const meta = await this.discover(providerId, provider);
+    return new URL(meta.authorization_endpoint).origin;
+  }
+
+  /**
    * Fetch and cache an OIDC discovery document from the issuer's well-known endpoint
    *
    * Validates the returned issuer matches the configured one

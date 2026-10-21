@@ -4,7 +4,7 @@ import { DashboardResponder } from '../../../../respond';
 import { ADMINISTRATOR_SECTION_ID } from '../../../../setup/setup-sections';
 import { renderTemplate } from '../../../../../content-reader/views';
 
-/** A configured OIDC provider the first-admin login can be completed through */
+/** A configured OIDC or GitHub provider the first-admin login can be completed through */
 export interface ProvableProvider {
   id: string;
   /** The display name, for the page's list */

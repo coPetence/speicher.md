@@ -52,9 +52,7 @@ export async function addAdministrator(
 /** Note explaining who the first admin is and why they were added */
 export function firstAdminNote(identity: CallerIdentity): string {
   const who = identity.email ?? identity.displayName ?? null;
-  return who
-    ? `First administrator: ${who}, named by their own first login`
-    : 'First administrator, named by their own first login';
+  return who ? `First administrator: ${who}` : 'First administrator';
 }
 
 /** Returns null if already administered or on ConfigError to let login proceed */
