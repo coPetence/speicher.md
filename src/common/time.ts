@@ -25,12 +25,29 @@ export function parseDurationWithFallback(value: string | undefined, fallback: s
   return parseDuration(value ?? fallback);
 }
 
+const TIME_UNITS: [limit: number, size: number, name: string][] = [
+  [60_000, 1_000, 'second'],
+  [3_600_000, 60_000, 'minute'],
+  [86_400_000, 3_600_000, 'hour'],
+  [2_592_000_000, 86_400_000, 'day'],
+  [31_536_000_000, 2_592_000_000, 'month'],
+  [Infinity, 31_536_000_000, 'year'],
+];
+
+/** A non-negative span as "3 minutes", floored to the nearest whole unit, minimum 1 */
+function spanOf(ms: number): string {
+  const [, size, name] = TIME_UNITS.find(([limit]) => ms < limit)!;
+  const n = Math.max(1, Math.floor(ms / size));
+  return `${n} ${name}${n === 1 ? '' : 's'}`;
+}
+
 /**
- * Human-readable relative time like "3 minutes ago"
+ * Human-readable relative time like "3 minutes ago", for something that happened
  *
  * Returns "never" for null, NaN, or Infinity
- * Returns "just now" for future dates
- * Floors to the nearest whole unit, minimum 1
+ * Returns "just now" for future dates: a past event stamped by another clock can
+ * land a moment ahead of this one, and that is skew, not time travel. A date
+ * meant to lie ahead, like an expiry, wants `timeUntil`
  *
  * Not i18n
  */
@@ -39,24 +56,24 @@ export function relativeTime(value: Date | string | null, now: Date = new Date()
   const parsedDate = value instanceof Date ? value : new Date(value);
   const ms = now.getTime() - parsedDate.getTime();
   if (!Number.isFinite(ms)) return 'never';
-
-  // TODO why would we ever want to return this if the date is in the future? Can this even happen?
   if (ms < 0) return 'just now';
+  return `${spanOf(ms)} ago`;
+}
 
-  const units: [limit: number, size: number, name: string][] = [
-    [60_000, 1_000, 'second'],
-    [3_600_000, 60_000, 'minute'],
-    [86_400_000, 3_600_000, 'hour'],
-    [2_592_000_000, 86_400_000, 'day'],
-    [31_536_000_000, 2_592_000_000, 'month'],
-    [Infinity, 31_536_000_000, 'year'],
-  ];
-  for (const [limit, size, name] of units) {
-    if (ms >= limit) continue;
-    const n = Math.max(1, Math.floor(ms / size));
-    return `${n} ${name}${n === 1 ? '' : 's'} ago`;
-  }
-  return 'never';
+/**
+ * Human-readable time ahead like "in 7 hours", for something that will happen
+ *
+ * Returns "never" for null, NaN, or Infinity, and "now" once the date has passed
+ *
+ * Not i18n
+ */
+export function timeUntil(value: Date | string | null, now: Date = new Date()): string {
+  if (value === null) return 'never';
+  const parsedDate = value instanceof Date ? value : new Date(value);
+  const ms = parsedDate.getTime() - now.getTime();
+  if (!Number.isFinite(ms)) return 'never';
+  if (ms <= 0) return 'now';
+  return `in ${spanOf(ms)}`;
 }
 
 /** Human duration from a start to a finish, or until now while the run is still going */
