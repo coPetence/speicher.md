@@ -6,13 +6,14 @@ import { resolve } from 'node:path';
 import { QueryTypes } from 'sequelize';
 
 import { BlobStore, blobStoreFor } from '../src/assets/blob-store';
-import { ApiKeyService } from '../src/auth/api-key.service';
+import { mcpResourceIdentifier } from '../src/auth/oauth/metadata';
 import { SESSION_COOKIE } from '../src/auth/session.service';
-import { hashToken, mintToken } from '../src/auth/tokens';
+import { ACCESS_TOKEN_PREFIX, hashToken, mintPrefixed, mintToken } from '../src/auth/tokens';
+import { subjectPrincipal } from '../src/common/principals';
 import { ConfigService } from '../src/config/config.service';
 import { loadActiveInstanceConfig } from '../src/config/loader';
 import { migrateUp } from '../src/db/migrate';
-import { Forge, Repo, Session, initModels } from '../src/db/models';
+import { Forge, OauthGrant, Repo, Session, initModels } from '../src/db/models';
 import { closeSequelize, getSequelize } from '../src/db/sequelize';
 import { IngestService } from '../src/ingest/ingest.service';
 import { devEnv } from './dev-env';
@@ -79,8 +80,8 @@ async function main(): Promise<void> {
   await sequelize.query(
     `TRUNCATE documents, folders, assets, redirects, chunks, sync_runs, jobs,
              repo_slug_history, repos, installations, forges, webhook_deliveries,
-             api_keys, sessions, magic_link_tokens, login_flows, notification_state,
-             rate_limits, instance_state
+             sessions, magic_link_tokens, login_flows, notification_state,
+             oauth_grants, oauth_codes, rate_limits, instance_state
        RESTART IDENTITY CASCADE`,
   );
 
@@ -135,7 +136,6 @@ async function main(): Promise<void> {
     );
   }
 
-  const keys = new ApiKeyService();
   const rows: {
     name: string;
     subject: string;
@@ -159,21 +159,31 @@ async function main(): Promise<void> {
       expires_at: new Date(Date.now() + 7 * 24 * 3600_000),
     });
 
-    const key = await keys.issue(
-      tenant.id,
-      { provider: 'entra', subject: person.oid, email: person.email },
-      `${person.name} dev key`,
-      new Date(Date.now() + 7 * 24 * 3600_000),
-      ['read'],
-      [...person.groups],
-    );
+    // An MCP connection as OAuth would leave it, minus the refresh token
+    const access = mintPrefixed(ACCESS_TOKEN_PREFIX);
+    await OauthGrant.create({
+      tenant_id: tenant.id,
+      principal: subjectPrincipal('entra', person.oid),
+      client_id: 'dev-seed',
+      client_name: `${person.name} dev token`,
+      resource: mcpResourceIdentifier() ?? 'http://127.0.0.1:3000/mcp',
+      access_hash: access.hash,
+      refresh_hash: null,
+      scopes: ['read'],
+      provider: 'entra',
+      subject: person.oid,
+      email: person.email,
+      raw_group_ids: [...person.groups],
+      access_expires_at: new Date(Date.now() + 7 * 24 * 3600_000),
+      refresh_expires_at: null,
+    });
 
     rows.push({
       name: person.name,
       subject: person.oid,
       groups: person.groups.join(','),
       cookie: token,
-      key: key.token,
+      key: access.token,
       sees: person.sees,
     });
   }
@@ -189,13 +199,13 @@ async function main(): Promise<void> {
     process.stdout.write(
       `    curl    : curl -s -b '${SESSION_COOKIE}=${row.cookie}' ${base}/handbook/\n`,
     );
-    process.stdout.write(`    mcp key : ${row.key}\n\n`);
+    process.stdout.write(`    mcp token: ${row.key}\n\n`);
   }
   process.stdout.write(
     'The browser links need SPEICHER_DEV_LOGIN=true; without it that route 404s like\n' +
       'any other. Never set it on anything reachable from outside your machine: it\n' +
       'hands out a session for any identity it is given, with no authentication.\n' +
-      'The cookies and keys above work regardless — they are real rows.\n',
+      'The cookies and tokens above work regardless — they are real rows.\n',
   );
 }
 

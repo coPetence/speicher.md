@@ -38,7 +38,7 @@
         <td>
           <form method="post" action="/-/connections/revoke">
             <input type="hidden" name="id" value="<%= row.id %>" />
-            <button type="submit" class="spr-danger">Disconnect</button>
+            <button type="submit" class="spr-button">Disconnect</button>
           </form>
         </td>
       </tr>
@@ -46,40 +46,4 @@
     </tbody>
   </table>
 </div>
-<% } %>
-
-<h2>API keys</h2>
-<% if (it.keys.length === 0) { %>
-<p class="spr-empty">You hold no API keys.</p>
-<% } else { %>
-<div class="spr-scroll">
-  <table class="spr-table">
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Last used</th>
-        <th scope="col">Expires</th>
-        <th scope="col"><span class="spr-clip">Revoke</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% it.keys.forEach(function (row) { %>
-      <tr>
-        <th scope="row"><%= row.name %></th>
-        <td><%= row.lastUsed || 'never' %></td>
-        <td><%= row.expires %></td>
-        <td>
-          <form method="post" action="/-/connections/revoke">
-            <input type="hidden" name="key_id" value="<%= row.id %>" />
-            <button type="submit" class="spr-danger">Revoke</button>
-          </form>
-        </td>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
-<p class="spr-empty">
-  There is no page for creating a key yet — ask whoever operates this instance.
-</p>
 <% } %>

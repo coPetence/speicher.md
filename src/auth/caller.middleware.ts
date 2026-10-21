@@ -16,11 +16,9 @@ import { ResolvedCaller } from '../authz/caller';
 import { addLogContext } from '../common/logger';
 import { TenancyService } from '../db/tenancy';
 import { SetupService } from '../dashboard/setup/setup.service';
-import { ApiKeyService } from './api-key.service';
 import { mcpResourceIdentifier } from './oauth/metadata';
 import { OauthService } from './oauth/oauth.service';
 import { SessionService } from './session.service';
-import { ACCESS_TOKEN_PREFIX } from './tokens';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -33,7 +31,6 @@ declare module 'express-serve-static-core' {
 export class CallerMiddleware implements NestMiddleware {
   constructor(
     private readonly sessions: SessionService,
-    private readonly apiKeys: ApiKeyService,
     private readonly oauth: OauthService,
     private readonly authz: AuthzService,
     private readonly tenancy: TenancyService,
@@ -59,11 +56,7 @@ export class CallerMiddleware implements NestMiddleware {
 
     const bearer = readBearer(req);
     if (bearer) {
-      // OAuth access tokens and API keys arrive as Bearer tokens;
-      // distinguished by ACCESS_TOKEN_PREFIX
-      const bearerToken = bearer.startsWith(ACCESS_TOKEN_PREFIX)
-        ? await this.oauth.verifyAccess(bearer, mcpResourceIdentifier())
-        : await this.apiKeys.verify(bearer);
+      const bearerToken = await this.oauth.verifyAccess(bearer, mcpResourceIdentifier());
       req.caller = this.authz.resolve({
         tenantId: tenant.id,
         identity: bearerToken?.identity ?? null,

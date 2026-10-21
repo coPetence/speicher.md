@@ -3,7 +3,7 @@ import request from 'supertest';
 
 import { closeSequelize } from '../../src/db/sequelize';
 import { Harness, PrincipalName, createHarness } from '../helpers/harness';
-import { apiKeyFor, bootTestApp, sessionCookieFor } from '../helpers/http';
+import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
 let harness: Harness;
@@ -92,9 +92,9 @@ describe('everything else stays out of a shared cache', () => {
     expect(cacheOf(res)).toBe('private, no-store');
   });
 
-  it('never marks an API-key caller’s response cacheable', async () => {
-    const key = await apiKeyFor(harness.tenantId, 'alice');
-    const res = await get('/speicher-docs/getting-started').set('Authorization', `Bearer ${key}`);
+  it('never marks a bearer caller’s response cacheable', async () => {
+    const token = await accessTokenFor(harness.tenantId, 'alice');
+    const res = await get('/speicher-docs/getting-started').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(cacheOf(res)).toBe('private, no-store');
   });

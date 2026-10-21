@@ -15,7 +15,7 @@ import {
  * Authorisation is overlap between the caller's principals and the configured admins
  * or a repo's maintainers
  *
- * Bearer tokens (API keys, OAuth access tokens) carry only read scope, so a bearer
+ * Bearer tokens (OAuth access tokens) carry only read scope, so a bearer
  * caller is never admin or maintainer
  */
 /** Identity of a signed-in user as claimed by the provider */
@@ -34,7 +34,7 @@ export interface Caller {
 
   rawGroupIds: string[]; // Group ids as claimed by the provider
 
-  viaBearer: boolean; // Authenticated by an API key or OAuth access token
+  viaBearer: boolean; // Authenticated by an OAuth access token
 
   viaSetup?: boolean; // Setup session, administers its tenant
 }

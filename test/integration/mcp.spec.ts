@@ -6,11 +6,11 @@ import { EMBEDDING_CLIENT } from '../../src/embed/embed.module';
 import { EmbedService } from '../../src/embed/embed.service';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
 import { Harness, PrincipalName, createHarness, resetVectorIndex } from '../helpers/harness';
-import { apiKeyFor, bootTestApp, sessionCookieFor } from '../helpers/http';
+import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
 let harness: Harness;
-const keys: Partial<Record<PrincipalName, string>> = {};
+const tokens: Partial<Record<PrincipalName, string>> = {};
 const cookies: Partial<Record<PrincipalName, string>> = {};
 
 const READERS: PrincipalName[] = ['alice', 'bob', 'carol', 'dave', 'ops', 'mallory'];
@@ -42,7 +42,7 @@ beforeAll(async () => {
   harness = await createHarness();
   app = await bootTestApp();
   for (const name of READERS) {
-    keys[name] = await apiKeyFor(harness.tenantId, name);
+    tokens[name] = await accessTokenFor(harness.tenantId, name);
     cookies[name] = await sessionCookieFor(harness.tenantId, name);
   }
 });
@@ -57,7 +57,7 @@ async function rpc(who: PrincipalName | 'anonymous', method: string, params?: un
   const req = request(app.getHttpServer())
     .post('/mcp')
     .send({ jsonrpc: '2.0', id: 1, method, params });
-  if (who !== 'anonymous') req.set('Authorization', `Bearer ${keys[who]}`);
+  if (who !== 'anonymous') req.set('Authorization', `Bearer ${tokens[who]}`);
   return req;
 }
 
@@ -74,7 +74,7 @@ async function callToolOn(
   const req = request(target.getHttpServer())
     .post('/mcp')
     .send({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
-  if (who !== 'anonymous') req.set('Authorization', `Bearer ${keys[who]}`);
+  if (who !== 'anonymous') req.set('Authorization', `Bearer ${tokens[who]}`);
   const res = await req;
   expect(res.status).toBe(200);
   return res.body.result as { content: { text: string }[]; isError?: boolean };
@@ -218,7 +218,7 @@ describe('search cites the passage it matched', () => {
   async function semanticSearch(who: PrincipalName, args: Record<string, unknown>) {
     const res = await request(semanticApp.getHttpServer())
       .post('/mcp')
-      .set('Authorization', `Bearer ${keys[who]}`)
+      .set('Authorization', `Bearer ${tokens[who]}`)
       .send({
         jsonrpc: '2.0',
         id: 1,

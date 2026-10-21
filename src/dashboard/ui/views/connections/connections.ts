@@ -4,7 +4,7 @@ import { DashboardResponder } from '../../../respond';
 import { isoOf, relativeTime } from '../../../../common/time';
 import { renderTemplate } from '../../../../content-reader/views';
 
-/** The caller's OAuth grants and API keys, to JSON callers and the page alike */
+/** The caller's OAuth grants, to JSON callers and the page alike */
 export interface ConnectionsPayload {
   connections: {
     id: string;
@@ -14,15 +14,9 @@ export interface ConnectionsPayload {
     last_used_at: Date | null;
     expires_at: Date | null;
   }[];
-  api_keys: {
-    id: string;
-    name: string;
-    last_used_at: Date | null;
-    expires_at: Date;
-  }[];
 }
 
-/** Sends the caller's connected applications and API keys */
+/** Sends the caller's connected applications */
 export function sendConnections(
   respond: DashboardResponder,
   req: Request,
@@ -33,7 +27,7 @@ export function sendConnections(
 ): void {
   respond.send(req, res, isAdmin, {
     section: 'connections',
-    title: 'Connected applications and API keys',
+    title: 'Connected applications',
     payload,
     page: (data) =>
       renderTemplate('dashboard/ui/views/connections', {
@@ -46,12 +40,6 @@ export function sendConnections(
           connectedAt: isoOf(row.connected_at),
           lastUsed: row.last_used_at ? relativeTime(row.last_used_at) : null,
           expires: row.expires_at ? relativeTime(row.expires_at) : null,
-        })),
-        keys: data.api_keys.map((row) => ({
-          id: row.id,
-          name: row.name,
-          lastUsed: row.last_used_at ? relativeTime(row.last_used_at) : null,
-          expires: relativeTime(row.expires_at),
         })),
       }),
   });

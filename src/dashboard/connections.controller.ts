@@ -1,15 +1,13 @@
 /**
- * Admin page listing OAuth grants and API keys for the current caller
+ * Page listing the OAuth grants of the current caller
  *
- * A user can see which applications they have authorised and which API keys they hold,
- * and revoke any of them
+ * A user can see which applications they have authorised and disconnect any of them
  *
  * The route is mounted at `/-/connections`
  */
 import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { ApiKeyService } from '../auth/api-key.service';
 import { OauthService } from '../auth/oauth/oauth.service';
 import { callerOf } from '../auth/caller.middleware';
 import { subjectPrincipal } from '../common/principals';
@@ -24,16 +22,15 @@ export class ConnectionsController {
   constructor(
     config: ConfigService,
     private readonly oauth: OauthService,
-    private readonly apiKeys: ApiKeyService,
   ) {
     this.respond = new DashboardResponder(config);
   }
 
   /**
-   * List OAuth grants and API keys for the caller
+   * List OAuth grants for the caller
    *
    * Accepts a `revoked` query param that controls whether the page shows a success
-   * banner after revoking a grant or key
+   * banner after revoking a grant
    */
   @Get('connections')
   async connections(
@@ -45,10 +42,7 @@ export class ConnectionsController {
     if (caller.identity === null) return this.respond.notFound(req, res);
     const principal = subjectPrincipal(caller.identity.provider, caller.identity.subject);
 
-    const [grants, keys] = await Promise.all([
-      this.oauth.listFor(caller.tenantId, principal),
-      this.apiKeys.listFor(caller.tenantId, principal),
-    ]);
+    const grants = await this.oauth.listFor(caller.tenantId, principal);
 
     sendConnections(
       this.respond,
@@ -66,21 +60,14 @@ export class ConnectionsController {
           last_used_at: row.last_used_at,
           expires_at: row.refresh_expires_at,
         })),
-        api_keys: keys.map((row) => ({
-          id: row.id,
-          name: row.name,
-          last_used_at: row.last_used_at,
-          expires_at: row.expires_at,
-        })),
       },
       revoked !== undefined,
     );
   }
 
   /**
-   * Revoke an OAuth grant or API key by ID
+   * Revoke an OAuth grant by `body.id`
    *
-   * `body.id` revokes an OAuth grant, `body.key_id` revokes an API key
    * Redirects back to the connections page with `?revoked=1`
    */
   @Post('connections/revoke')
@@ -93,11 +80,7 @@ export class ConnectionsController {
     if (caller.identity === null) return this.respond.notFound(req, res);
     const principal = subjectPrincipal(caller.identity.provider, caller.identity.subject);
 
-    if (body.id) {
-      await this.oauth.revoke(caller.tenantId, principal, body.id);
-    } else if (body.key_id) {
-      await this.apiKeys.revokeFor(caller.tenantId, principal, body.key_id);
-    }
+    if (body.id) await this.oauth.revoke(caller.tenantId, principal, body.id);
 
     res.redirect(303, '/-/connections?revoked=1');
   }

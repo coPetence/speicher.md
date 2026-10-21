@@ -30,13 +30,6 @@ export function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-export const API_KEY_PREFIX = 'spk_';
-
-export function mintApiKey(): { token: string; hash: string } {
-  const token = `${API_KEY_PREFIX}${mintToken(32)}`;
-  return { token, hash: hashToken(token) };
-}
-
 export const ACCESS_TOKEN_PREFIX = 'spa_';
 export const REFRESH_TOKEN_PREFIX = 'spr_';
 

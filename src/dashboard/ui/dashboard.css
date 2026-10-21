@@ -664,6 +664,7 @@
 
   .spr-add button,
   .spr-config-actions button,
+  .spr-button,
   .spr-remove {
     padding: var(--spr-space-2) var(--spr-space-5);
     border: var(--spr-border) solid var(--spr-line);
@@ -690,7 +691,8 @@
   }
 
   .spr-add button:hover,
-  .spr-config-actions button:hover {
+  .spr-config-actions button:hover,
+  .spr-button:hover {
     border-color: var(--spr-accent);
   }
 

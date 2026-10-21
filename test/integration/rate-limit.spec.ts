@@ -4,7 +4,7 @@ import request from 'supertest';
 import { reflectsCallerInput } from '../../src/app-setup';
 import { closeSequelize } from '../../src/db/sequelize';
 import { Harness, createHarness } from '../helpers/harness';
-import { apiKeyFor, bootTestApp, sessionCookieFor } from '../helpers/http';
+import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
 let harness: Harness;
@@ -95,13 +95,13 @@ describe('who is counted', () => {
     }
   });
 
-  it('does not meter an API key', async () => {
-    const key = await apiKeyFor(harness.tenantId, 'alice');
+  it('does not meter an OAuth access token', async () => {
+    const token = await accessTokenFor(harness.tenantId, 'alice');
     const client = fromNewAddress();
     for (let i = 0; i < LIMIT * 3; i += 1) {
       const res = await client
         .post('/mcp')
-        .set('Authorization', `Bearer ${key}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
       expect(res.status).toBe(200);
     }

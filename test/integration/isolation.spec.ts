@@ -8,7 +8,7 @@ import { DEFAULT_ICONS } from '../../src/content-reader/icons';
 import { HybridSearch, KeywordSearch } from '../../src/content-reader/search/search.service';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
 import { Harness, PrincipalName, createHarness, resetVectorIndex } from '../helpers/harness';
-import { apiKeyFor, bootTestApp, sessionCookieFor } from '../helpers/http';
+import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
 let harness: Harness;
@@ -786,33 +786,33 @@ describe('/-/*: 404 for non-admins', () => {
   });
 });
 
-describe('API keys never carry admin scope', () => {
-  it('gives an admin holding a key their content access and nothing more', async () => {
-    const key = await apiKeyFor(harness.tenantId, 'ops');
+describe('bearer tokens never carry admin scope', () => {
+  it('gives an admin holding a token their content access and nothing more', async () => {
+    const token = await accessTokenFor(harness.tenantId, 'ops');
     const res = await request(app.getHttpServer())
       .get('/-/status')
-      .set('Authorization', `Bearer ${key}`);
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(404);
   });
 
-  it('gives a reader holding a key exactly their own content access', async () => {
-    const key = await apiKeyFor(harness.tenantId, 'bob');
+  it('gives a reader holding a token exactly their own content access', async () => {
+    const token = await accessTokenFor(harness.tenantId, 'bob');
     const permitted = await request(app.getHttpServer())
       .get('/handbook/commercial/pricing')
-      .set('Authorization', `Bearer ${key}`);
+      .set('Authorization', `Bearer ${token}`);
     expect(permitted.status).toBe(200);
 
     const denied = await request(app.getHttpServer())
       .get('/handbook/northwind/handover')
-      .set('Authorization', `Bearer ${key}`);
+      .set('Authorization', `Bearer ${token}`);
     expect(denied.status).toBe(404);
   });
 
-  it('does not fall back to a session cookie when the key is bad', async () => {
+  it('does not fall back to a session cookie when the token is bad', async () => {
     const res = await request(app.getHttpServer())
       .get('/handbook/introduction')
       .set('Cookie', cookies.alice as string)
-      .set('Authorization', 'Bearer spk_not-a-real-key');
+      .set('Authorization', 'Bearer spa_not-a-real-token');
     expect(res.status).toBe(404);
   });
 });
