@@ -17,13 +17,13 @@ const CARRIED_PARAMS = [
   'resource',
 ];
 
-/** Sends the consent form for the connecting application */
 export function sendOauthConsent(
   req: Request,
   res: Response,
   config: ConfigService,
   name: string,
   params: Record<string, string>,
+  redirectUri: string,
 ): void {
   const body = renderTemplate('auth/views/oauth-consent', {
     name,
@@ -32,12 +32,15 @@ export function sendOauthConsent(
       (key) => typeof params[key] === 'string' && params[key] !== '',
     ).map((key) => ({ name: key, value: params[key] })),
   });
-  sendHtml(res, (nonce) =>
-    renderPage(body, {
-      title: 'Connect an application',
-      nonce,
-      ...pageChrome(req, config, { offerSignIn: false }),
-    }),
+  sendHtml(
+    res,
+    (nonce) =>
+      renderPage(body, {
+        title: 'Connect an application',
+        nonce,
+        ...pageChrome(req, config, { offerSignIn: false }),
+      }),
+    { formActions: [new URL(redirectUri).origin] },
   );
 }
 

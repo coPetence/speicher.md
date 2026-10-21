@@ -2,7 +2,7 @@
  * Microsoft Entra ID directory through the Graph API
  *
  * Resolves emails to user IDs, checks subject existence, counts transitive group
- * members
+ * members, and reads which configured groups a subject is in
  * Uses OAuth client-credentials flow with configurable tenant and app registration
  * Results cache with a configurable TTL to reduce API calls
  */
@@ -25,6 +25,8 @@ const TOKEN_SKEW_MS = 60_000; // Subtracted from expires_in to avoid clock-edge 
 
 const PROBE_TTL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 3_000;
+
+const MEMBER_GROUPS_BATCH = 20; // max groups requested per barch in checkMemberGroups
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -66,6 +68,7 @@ export class GraphDirectory {
   constructor(
     readonly providerShortId: string,
     private readonly config: DirectoryConfig,
+    private readonly groupIds: string[], // group object ids the config names
     deps: GraphDirectoryDeps = {},
   ) {
     this.log = rootLogger.child('directory');
@@ -112,6 +115,35 @@ export class GraphDirectory {
       if (user === null) return false;
       return (user as { accountEnabled?: boolean }).accountEnabled !== false;
     });
+  }
+
+  /**
+   * The configured groups a subject is in
+   *
+   * Null -> could not say (unreachable)
+   */
+  async groupsFor(subject: string, options: { fresh?: boolean } = {}): Promise<string[] | null> {
+    if (options.fresh) this.cache.delete(`groups:${subject}`);
+    try {
+      return await this.cached(`groups:${subject}`, async () => {
+        const out: string[] = [];
+        for (let at = 0; at < this.groupIds.length; at += MEMBER_GROUPS_BATCH) {
+          const found = await this.post(`/users/${encodeURIComponent(subject)}/checkMemberGroups`, {
+            groupIds: this.groupIds.slice(at, at + MEMBER_GROUPS_BATCH),
+          });
+          // Unknown user: an answer, not a failure
+          if (found === null) return [];
+          const ids = (found as { value?: unknown }).value;
+          if (Array.isArray(ids)) {
+            out.push(...ids.filter((id): id is string => typeof id === 'string'));
+          }
+        }
+        return out.sort();
+      });
+    } catch (err) {
+      if (err instanceof DirectoryUnavailableError) return null;
+      throw err;
+    }
   }
 
   /**
@@ -194,6 +226,13 @@ export class GraphDirectory {
     return (await response.json()) as unknown;
   }
 
+  /** POST request with a JSON body returning parsed JSON, or null on 404 or 400 */
+  private async post(path: string, body: unknown): Promise<unknown | null> {
+    const response = await this.send(path, { 'content-type': 'application/json' }, undefined, body);
+    if (response === null) return null;
+    return (await response.json()) as unknown;
+  }
+
   /** GET request returning raw text, or null on 404 or 400 */
   private async text(path: string, headers: Record<string, string>): Promise<string | null> {
     const response = await this.send(path, headers);
@@ -206,6 +245,7 @@ export class GraphDirectory {
     path: string,
     headers: Record<string, string>,
     timeoutMs?: number,
+    body?: unknown,
   ): Promise<Response | null> {
     this.assertAvailable();
     const token = await this.accessToken(timeoutMs);
@@ -214,6 +254,7 @@ export class GraphDirectory {
       let response: Response;
       try {
         response = await this.fetch(`${this.graphBase}${path}`, {
+          ...(body !== undefined ? { method: 'POST', body: JSON.stringify(body) } : {}),
           headers: { authorization: `Bearer ${token}`, accept: 'application/json', ...headers },
           ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
         });

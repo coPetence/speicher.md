@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { Server, createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
@@ -16,10 +16,17 @@ import { ConfigService } from '../../src/config/config.service';
 import { DirectoryConfig } from '../../src/config/types';
 import { loadInstanceConfig } from '../../src/config/parser';
 import { DirectoryWebhookController } from '../../src/auth/directory/webhook.controller';
+import { OauthError, OauthService } from '../../src/auth/oauth/oauth.service';
 import { SESSION_COOKIE, SessionService } from '../../src/auth/session.service';
 import { TenancyService } from '../../src/db/tenancy';
-import { hashToken, mintToken } from '../../src/auth/tokens';
-import { Session } from '../../src/db/models';
+import {
+  ACCESS_TOKEN_PREFIX,
+  REFRESH_TOKEN_PREFIX,
+  hashToken,
+  mintPrefixed,
+  mintToken,
+} from '../../src/auth/tokens';
+import { OauthGrant, Session } from '../../src/db/models';
 import { closeSequelize } from '../../src/db/sequelize';
 import { FindingList } from '../../src/ingest/findings';
 import {
@@ -602,6 +609,174 @@ describe('the groups on a session', () => {
   });
 });
 
+const MCP_CLIENT = 'https://claude.example/client-metadata.json';
+const DAY = 24 * 3_600_000;
+
+/** A connection as an MCP client holds it after connecting */
+async function connectionFor(
+  subject: string,
+  options: { groups?: string[]; endsIn?: number } = {},
+): Promise<{ id: string; refreshToken: string }> {
+  const access = mintPrefixed(ACCESS_TOKEN_PREFIX);
+  const refresh = mintPrefixed(REFRESH_TOKEN_PREFIX);
+  const row = await OauthGrant.create({
+    tenant_id: harness.tenantId,
+    principal: `hub:${subject}`,
+    client_id: MCP_CLIENT,
+    client_name: 'Claude',
+    resource: 'https://docs.example.com/mcp',
+    access_hash: access.hash,
+    refresh_hash: refresh.hash,
+    scopes: ['read'],
+    provider: 'hub',
+    subject,
+    email: null,
+    raw_group_ids: options.groups ?? ['acme/platform'],
+    access_expires_at: new Date(Date.now() + 3_600_000),
+    refresh_expires_at: new Date(Date.now() + (options.endsIn ?? 8 * 3_600_000)),
+  });
+  return { id: row.id, refreshToken: refresh.token };
+}
+
+describe('a connection over MCP', () => {
+  /*
+    A distinct `cache_ttl` per case, for the reason given on the session cases above
+  */
+  function serviceFor(options: { cacheTtl: string; idleTtl?: string; directory?: boolean }) {
+    let yaml = instanceYaml(['acme/platform', 'acme/readers'], options.cacheTtl);
+    if (options.idleTtl) {
+      yaml = yaml.replace(
+        '      directory:\n',
+        `      connection_idle_ttl: ${options.idleTtl}\n      directory:\n`,
+      );
+    }
+    if (options.directory === false) {
+      yaml = yaml.replace(
+        `      directory:\n        type: github\n        app_id: '2'\n` +
+          `        private_key: \${TEST_APP_KEY}\n        cache_ttl: ${options.cacheTtl}\n`,
+        '',
+      );
+    }
+    const config = new ConfigService(loadInstanceConfig(yaml));
+    return new OauthService(new SessionService(config), config);
+  }
+
+  const stored = async (id: string) => (await OauthGrant.findByPk(id))!;
+
+  it('re-reads the teams at every refresh', async () => {
+    gh.teamMembers = new Map([['acme/platform', ['ada']]]);
+    const oauth = serviceFor({ cacheTtl: '35m' });
+    const connection = await connectionFor(ADA, { groups: ['acme/readers'] });
+
+    await oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    expect((await stored(connection.id)).raw_group_ids).toEqual(['acme/platform']);
+  });
+
+  it('starts its 30 days again at every refresh, so one in use never ends', async () => {
+    const oauth = serviceFor({ cacheTtl: '34m' });
+    const connection = await connectionFor(ADA, { endsIn: 60_000 });
+
+    const before = Date.now();
+    await oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    const ends = (await stored(connection.id)).refresh_expires_at!.getTime();
+    expect(ends).toBeGreaterThanOrEqual(before + 30 * DAY);
+    expect(ends).toBeLessThanOrEqual(Date.now() + 30 * DAY);
+  });
+
+  it('lasts as long unused as the provider says', async () => {
+    const oauth = serviceFor({ cacheTtl: '33m', idleTtl: '7d' });
+    const connection = await connectionFor(ADA);
+
+    const before = Date.now();
+    await oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    const ends = (await stored(connection.id)).refresh_expires_at!.getTime();
+    expect(ends).toBeGreaterThanOrEqual(before + 7 * DAY);
+    expect(ends).toBeLessThanOrEqual(Date.now() + 7 * DAY);
+  });
+
+  it('ends for somebody who has left the organisation, and stays ended', async () => {
+    gh.memberships = new Map();
+    const oauth = serviceFor({ cacheTtl: '32m' });
+    const connection = await connectionFor(ADA);
+
+    const refused = oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    await expect(refused).rejects.toBeInstanceOf(OauthError);
+    await expect(refused).rejects.toMatchObject({ code: 'invalid_grant' });
+    expect((await stored(connection.id)).revoked_at).not.toBeNull();
+  });
+
+  it('keeps its groups and its end while the directory cannot be reached', async () => {
+    gh.failOrgReads = 403;
+    const oauth = serviceFor({ cacheTtl: '31m' });
+    const connection = await connectionFor(ADA, { groups: ['acme/readers'] });
+    const endsBefore = (await stored(connection.id)).refresh_expires_at!.getTime();
+
+    const issued = await oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    expect(issued.accessToken).toBeTruthy();
+    const after = await stored(connection.id);
+    expect(after.raw_group_ids).toEqual(['acme/readers']);
+    expect(after.refresh_expires_at!.getTime()).toBe(endsBefore);
+  });
+
+  it('ends with the session when there is no directory to re-read groups from', async () => {
+    const oauth = serviceFor({ cacheTtl: '29m', directory: false });
+    const connection = await connectionFor(ADA, { groups: ['acme/readers'] });
+    const endsBefore = (await stored(connection.id)).refresh_expires_at!.getTime();
+
+    await oauth.refresh(harness.tenantId, connection.refreshToken, MCP_CLIENT);
+
+    const after = await stored(connection.id);
+    expect(after.raw_group_ids).toEqual(['acme/readers']);
+    expect(after.refresh_expires_at!.getTime()).toBe(endsBefore);
+    expect(gh.seen).toEqual([]);
+  });
+
+  describe('when it is first made', () => {
+    async function connect(oauth: OauthService): Promise<Date> {
+      const verifier = randomBytes(32).toString('base64url');
+      const code = await oauth.issueCode({
+        tenantId: harness.tenantId,
+        clientId: MCP_CLIENT,
+        clientName: 'Claude',
+        redirectUri: 'https://claude.example/callback',
+        resource: 'https://docs.example.com/mcp',
+        codeChallenge: createHash('sha256').update(verifier).digest('base64url'),
+        identity: { provider: 'hub', subject: ADA, email: null },
+        rawGroupIds: ['acme/platform'],
+      });
+      const issued = await oauth.exchangeCode(
+        harness.tenantId,
+        code,
+        MCP_CLIENT,
+        'https://claude.example/callback',
+        verifier,
+      );
+      const row = await OauthGrant.findOne({
+        where: { access_hash: hashToken(issued.accessToken) },
+      });
+      return row!.refresh_expires_at!;
+    }
+
+    it('runs for the idle lifetime when there is a directory', async () => {
+      const before = Date.now();
+      const ends = await connect(serviceFor({ cacheTtl: '28m' }));
+      expect(ends.getTime()).toBeGreaterThanOrEqual(before + 30 * DAY);
+    });
+
+    it('runs for the session lifetime when there is none', async () => {
+      const before = Date.now();
+      const ends = await connect(serviceFor({ cacheTtl: '27m', directory: false }));
+      expect(ends.getTime()).toBeGreaterThanOrEqual(before + 8 * 3_600_000);
+      expect(ends.getTime()).toBeLessThanOrEqual(Date.now() + 8 * 3_600_000);
+    });
+  });
+});
+
 describe('a delivery from the directory App', () => {
   const SECRET = 'directory-secret';
 
@@ -671,6 +846,21 @@ describe('a delivery from the directory App', () => {
     expect(status).toBe(202);
     expect(await fetchedAt(ada)).toBeNull();
     expect(await fetchedAt(other)).not.toBeNull();
+  });
+
+  it("makes the named person's connections renew at once, and nobody else's", async () => {
+    const ada = await connectionFor(ADA);
+    const other = await connectionFor('8814');
+
+    await deliver(controllerFor(SECRET), 'membership', {
+      action: 'removed',
+      member: { id: Number(ADA), login: 'ada' },
+    });
+
+    const accessEnds = async (id: string) =>
+      (await OauthGrant.findByPk(id))!.access_expires_at.getTime();
+    expect(await accessEnds(ada.id)).toBeLessThanOrEqual(Date.now());
+    expect(await accessEnds(other.id)).toBeGreaterThan(Date.now());
   });
 
   it('marks everybody on the provider stale when a team changes', async () => {

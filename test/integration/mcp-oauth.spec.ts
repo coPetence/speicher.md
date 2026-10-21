@@ -5,7 +5,9 @@ import { AddressInfo } from 'node:net';
 import request from 'supertest';
 
 import { CIMD_DEPS } from '../../src/auth/oauth/cimd';
+import { hashToken } from '../../src/auth/tokens';
 import { escapeHtml } from '../../src/content-reader/views';
+import { OauthGrant } from '../../src/db/models';
 import { closeSequelize } from '../../src/db/sequelize';
 import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp, sessionCookieFor } from '../helpers/http';
@@ -171,6 +173,19 @@ describe('the authorization request', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('Test Agent');
     expect(res.text).toContain('claude.example');
+  });
+
+  // The consent post answers with a redirect to the client, and browsers hold that
+  // redirect to the page's form-action
+  it('lets its form land on the client it names, and nowhere else', async () => {
+    const { challenge } = pkce();
+    const res = await request(app.getHttpServer())
+      .get('/api/auth/oauth/authorize')
+      .set('Cookie', aliceCookie)
+      .query(authorizeParams(challenge));
+
+    const formAction = /form-action ([^;]*)/.exec(res.headers['content-security-policy'])?.[1];
+    expect(formAction?.split(' ')).toEqual(["'self'", 'https://claude.example']);
   });
 
   // The consent page is the only thing carrying the authorization request across the
@@ -429,6 +444,22 @@ describe('connections', () => {
         params: { name: 'list', arguments: {} },
       });
     expect(after.body.result.content[0].text).not.toContain('handbook');
+  });
+
+  it('no longer lists a connection past its end, since it can never be used again', async () => {
+    const { accessToken } = await connect();
+    const grant = await OauthGrant.findOne({ where: { access_hash: hashToken(accessToken) } });
+    await grant!.update({ refresh_expires_at: new Date(Date.now() - 60_000) });
+
+    const page = await request(app.getHttpServer())
+      .get('/-/connections')
+      .set('Cookie', aliceCookie)
+      .set('Accept', 'application/json');
+
+    expect(page.status).toBe(200);
+    expect((page.body.connections as { id: string }[]).map((row) => row.id)).not.toContain(
+      grant!.id,
+    );
   });
 
   it('will not let one reader revoke another’s connection', async () => {

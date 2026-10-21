@@ -972,11 +972,12 @@ describe('the identity section', () => {
         'auth.providers.entra.directory.client_id',
         'auth.providers.entra.directory.client_secret',
         'auth.providers.entra.directory.cache_ttl',
+        'auth.providers.entra.connection_idle_ttl',
       ]),
     );
     expect(
       (html.match(/data-spr-shown-with="auth\.providers\.entra\.directory\.type"/g) ?? []).length,
-    ).toBe(4);
+    ).toBe(5);
 
     for (const key of ['client_id', 'client_secret']) {
       expect(html).toContain(`data-spr-copy-from="auth.providers.entra.${key}"`);

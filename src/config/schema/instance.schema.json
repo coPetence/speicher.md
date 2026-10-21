@@ -691,6 +691,11 @@
           "default": "8h",
           "description": "Security parameter, not a convenience one: OIDC group claims are read from the login token, so membership changes only take effect at re-login."
         },
+        "connection_idle_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "30d",
+          "description": "How long an MCP connection lasts unused. Only with a `directory`: each token refresh re-reads the person's groups from it and restarts this window, and revokes the connection of somebody no longer there. Without a directory, a connection ends with `session_ttl`."
+        },
         "directory": {
           "$ref": "#/$defs/directory"
         }
@@ -1015,6 +1020,11 @@
           "$ref": "#/$defs/duration",
           "default": "8h",
           "description": "Team memberships are read once, at sign-in, so a team somebody has been taken out of keeps working for them until this expires and they sign in again."
+        },
+        "connection_idle_ttl": {
+          "$ref": "#/$defs/duration",
+          "default": "30d",
+          "description": "How long an MCP connection lasts unused. Only with a `directory`: each token refresh re-reads the person's groups from it and restarts this window, and revokes the connection of somebody no longer there. Without a directory, a connection ends with `session_ttl`."
         },
         "domains": {
           "type": "array",

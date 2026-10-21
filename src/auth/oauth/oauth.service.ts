@@ -3,6 +3,12 @@
  *
  * Issues authorization codes, exchanges them for token pairs, and rotates
  * refresh tokens on each use
+ *
+ * On a provider with a directory, each refresh re-reads the person's groups and
+ * slides the connection's expiry forward, so a connection in use lasts until it
+ * sits idle for `connection_idle_ttl` or the person leaves the directory
+ * Without one, groups are frozen at sign-in, so the connection ends with
+ * `session_ttl` like a browser session
  * Uses hashed tokens in the database so the raw secret is never persisted
  *
  * Not an authorisation server -- the client is authenticated by the tenant
@@ -13,8 +19,12 @@ import { createHash } from 'node:crypto';
 import { Op } from 'sequelize';
 
 import { CallerIdentity } from '../../authz/caller';
+import { Logger, rootLogger } from '../../common/logger';
 import { subjectPrincipal } from '../../common/principals';
+import { parseDurationWithFallback } from '../../common/time';
+import { ConfigService } from '../../config/config.service';
 import { OauthCode, OauthGrant, initModels } from '../../db/models';
+import { hasDirectory, recheckSubject } from '../directory/lookup';
 import { SessionService } from '../session.service';
 import {
   ACCESS_TOKEN_PREFIX,
@@ -59,8 +69,23 @@ export class OauthError extends Error {
 
 @Injectable()
 export class OauthService {
-  constructor(private readonly sessions: SessionService) {
+  private readonly log: Logger = rootLogger.child('oauth');
+
+  constructor(
+    private readonly sessions: SessionService,
+    private readonly config: ConfigService,
+  ) {
     initModels();
+  }
+
+  /**
+   * How long a connection lasts unused, or null when the provider has no
+   * directory to re-read groups from and the connection must end with the session
+   */
+  private idleTtlMs(providerId: string): number | null {
+    if (!hasDirectory(this.config, providerId)) return null;
+    const provider = this.config.provider(providerId) as { connection_idle_ttl?: string };
+    return parseDurationWithFallback(provider.connection_idle_ttl, '30d');
   }
 
   async issueCode(request: CodeRequest): Promise<string> {
@@ -120,7 +145,7 @@ export class OauthService {
 
     const access = mintPrefixed(ACCESS_TOKEN_PREFIX);
     const refresh = mintPrefixed(REFRESH_TOKEN_PREFIX);
-    const refreshTtl = this.sessions.sessionTtlMs(row.provider);
+    const refreshTtl = this.idleTtlMs(row.provider) ?? this.sessions.sessionTtlMs(row.provider);
     await OauthGrant.create({
       tenant_id: tenantId,
       principal: subjectPrincipal(row.provider, row.subject),
@@ -151,6 +176,11 @@ export class OauthService {
    *
    * The existing grant row is updated in place so the grant's id and created_at
    * stay stable for the client
+   *
+   * With a directory: revokes the grant of somebody who has left, otherwise
+   * stores their current groups and extends the expiry. When the directory
+   * cannot answer, the held groups stay and the expiry does not move, so an
+   * outage cannot keep a connection alive past its current end
    */
   async refresh(tenantId: string, refreshToken: string, clientId: string): Promise<IssuedTokens> {
     const row = await OauthGrant.findOne({
@@ -169,6 +199,18 @@ export class OauthService {
       throw new OauthError('invalid_grant', 'refresh token has expired');
     }
 
+    const idleTtl = this.idleTtlMs(row.provider);
+    const current =
+      idleTtl === null ? null : await recheckSubject(this.config, row.provider, row.subject);
+    if (current === 'gone') {
+      await OauthGrant.update({ revoked_at: new Date() }, { where: { id: row.id } });
+      this.log.info('connection revoked: subject left the directory', {
+        provider: row.provider,
+        client_id: row.client_id,
+      });
+      throw new OauthError('invalid_grant', 'the account is no longer in the directory');
+    }
+
     const access = mintPrefixed(ACCESS_TOKEN_PREFIX);
     const refresh = mintPrefixed(REFRESH_TOKEN_PREFIX);
     await OauthGrant.update(
@@ -176,6 +218,12 @@ export class OauthService {
         access_hash: access.hash,
         refresh_hash: refresh.hash,
         access_expires_at: new Date(Date.now() + ACCESS_TTL_MS),
+        ...(current !== null && idleTtl !== null
+          ? {
+              raw_group_ids: current.groups,
+              refresh_expires_at: new Date(Date.now() + idleTtl),
+            }
+          : {}),
       },
       { where: { id: row.id } },
     );
@@ -237,10 +285,20 @@ export class OauthService {
 
   /**
    * Lists active grants for a principal, newest first
+   *
+   * A grant past its refresh expiry can never be used again, so it is not listed
    */
   async listFor(tenantId: string, principal: string) {
     return OauthGrant.findAll({
-      where: { tenant_id: tenantId, principal, revoked_at: { [Op.is]: null } },
+      where: {
+        tenant_id: tenantId,
+        principal,
+        revoked_at: { [Op.is]: null },
+        [Op.or]: [
+          { refresh_expires_at: { [Op.is]: null } },
+          { refresh_expires_at: { [Op.gt]: new Date() } },
+        ],
+      },
       attributes: [
         'id',
         'client_id',
