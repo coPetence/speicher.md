@@ -94,7 +94,7 @@ web-1  | {"level":"warn","ctx":"config","msg":"no instance configuration; servin
 web-1  | {"level":"info","ctx":"main","msg":"listening","port":3000}
 ```
 
-The first line is expected. A new instance has no configuration yet, and you create it in the browser in the next step.
+The first line is expected. A new instance has no configuration yet (unless you [seed it from a file](../05-operations/01-seed-configuration.md)), and you create it in the browser in the next step.
 
 ## 3. Open it in your browser
 
@@ -102,9 +102,9 @@ Open [http://localhost:3000](http://localhost:3000). You will see the claim page
 
 ## Running on a server
 
-The compose file above is enough to try Speicher on your own machine. On a server that others use, change the following:
+The compose file above is enough to try Speicher on your own machine; to properly setup Speicher.md the following is recommended:
 
-- **Serve it over HTTPS.** Put a reverse proxy with TLS in front of the web service. Speicher sets its cookies as `Secure`, so browsers refuse to sign in over plain HTTP on any host other than `localhost`.
+- **Serve it over HTTPS.** Put a reverse proxy with TLS in front of the web service. Speicher sets its cookies as `Secure`, so browsers refuse to sign in over plain HTTP on any host other than `localhost`. Even `localhost` only works in Chrome, Edge and Firefox; Safari rejects `Secure` cookies over HTTP. For HTTP-only local testing, set `SPEICHER_INSECURE_COOKIES=true` to drop the `Secure` flag. Never do this in production.
 - **Set `SPEICHER_PUBLIC_URL`** to the address people use, for example `https://docs.example.com`. Magic links, webhook deliveries and the sitemap use it.
 - **Set `SPEICHER_TRUST_PROXY` to `uniquelocal`.** Without it, Speicher sees every request as coming from the proxy over HTTP. Sign-in callbacks then point to the wrong address, and rate limiting counts all visitors as one.
 - **Bind the port to the proxy only**, for example `'127.0.0.1:3000:3000'` when the proxy runs on the same host.

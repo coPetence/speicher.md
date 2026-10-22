@@ -17,7 +17,7 @@ access:
   groups: [staff]
 ```
 
-`access` says who may read the repository, as explained in [Access](../03-repository/02-access.md). `staff` is one of the group names you created [during setup](02-setup-instance.md#3-create-groups). Speicher rejects a repository whose root configuration has no `access`, so nothing is published by accident.
+`access` defines who may read the repository, as explained in [Access](../03-repository/02-access.md). `staff` is one of the group names you created [during setup](02-setup-instance.md#3-create-groups). Speicher rejects a repository whose root configuration has no `access`, so nothing is published by accident.
 
 Some other settings are useful from the start:
 
@@ -55,7 +55,7 @@ In the dashboard, open **Configuration → Content sources** and add a source:
 - **[Plain git remote](../02-configuration/03-content-sources/02-plain-git-remote/index.md)**: for any other git host, such as GitLab, Gitea, Forgejo or Bitbucket. Give the repository's `https://` URL with an access token, or its `ssh://` URL with a read-only deploy key. Speicher checks the remote for changes every hour by default.
 
 :::note
-A repository is only served after its `.speicher.yaml` has been read, so connecting a repository that has none publishes nothing.
+A repository is only served after its `.speicher.yaml` has been read, so connecting a repository, that has none, publishes nothing.
 :::
 
 ## 4. Wait for the first sync

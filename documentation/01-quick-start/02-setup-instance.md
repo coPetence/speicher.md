@@ -4,7 +4,9 @@ icon: rocket
 
 # Set up the instance
 
-A new instance has no configuration and no administrator. Whoever can run commands on the host can claim it, then configure it in the browser.
+A new instance has no configuration and no administrator. Whoever can run commands on the host can claim it and then configure the instance in the browser.
+
+To skip the claim and start from a prepared `speicher.instance.yaml` instead, see [Seed the configuration from a file](../05-operations/01-seed-configuration.md).
 
 ## 1. Claim the instance
 
@@ -25,7 +27,7 @@ The claimed browser is a temporary administrator. It can configure the instance 
 
 ## 2. Add an identity provider
 
-People sign in to Speicher through an identity provider, so Speicher has no passwords of its own. On the setup page, choose a provider and follow its guide:
+People sign in to Speicher through an IDP, so Speicher has no passwords of its own. On the setup page, choose a provider and follow its guide:
 
 - [Microsoft Entra ID](../02-configuration/01-identity-providers/02-entra-id/index.mdx)
 - [OpenID Connect](../02-configuration/01-identity-providers/05-oidc/index.md), for any other provider that supports it, such as Google, Keycloak or Okta
@@ -64,13 +66,13 @@ From now on, administrators sign in as usual and find the dashboard under `/-/`,
 
 ## Without an OpenID Connect provider
 
-If you only use GitHub or magic links, add the first administrator from the host instead of step 5. Add the identity provider first, then run:
+If you only use magic links, add the first administrator from the host instead of step 5. Add the identity provider first, then run:
 
 ```sh
 docker compose exec web speicher admin add --provider <provider-id> --email you@example.com
 ```
 
-`<provider-id>` is the short id you gave the provider in step 2. For GitHub, the email must be the primary verified address of your GitHub account. Then sign in with that provider.
+`<provider-id>` is the short id you gave the provider in step 2.
 
 ## Locked out?
 
