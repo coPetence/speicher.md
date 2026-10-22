@@ -1,5 +1,6 @@
+import { SYNC_DEFAULTS } from '../../../../config/types';
 import type { Obj } from '../config-fields';
-import { booleanField, linesField, textField } from '../config-fields';
+import { linesField, textField } from '../config-fields';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
@@ -7,35 +8,33 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
   return {
     ...sectionHead('defaults'),
     blurb:
-      'Specifies what is being included and excluded from the repository. Check out the documentation for a deeper understanding [link]',
+      'Speicher ingests only Markdown files (`.md` and `.mdx`) from a repository. The include and exclude lists below decide which of those files are ingested.',
+    twoColumns: true,
     fields: [
-      linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
-        help: 'Globs, one per line. Defaults to every Markdown file.',
-        rows: 4,
-      }),
-      linesField(root, ['defaults', 'sync', 'exclude'], 'defaults.sync.exclude', 'Exclude', {
-        help: 'Globs, one per line. Defaults to every Markdown file.',
-        rows: 4,
-      }),
       textField(
         root,
         ['defaults', 'display', 'cover'],
         'defaults.display.cover',
-        'Default cover image',
+        'Default cover image path',
         {
-          help: 'Cover image to be shown at the top of an article and on listing pages for folders or repositories. Can overwritten per folder. No SVGs allowed for security reasons.',
+          help: 'The path in which Speicher.md looks for the default cover image in every repository, relative to the repository root. For example at `assets/cover.png`. A repository or folder that sets its own `display.cover` in `.speicher.yaml` replaces it. Use a PNG, JPEG, WebP, AVIF or GIF image.',
         },
       ),
-      booleanField(
-        root,
-        ['defaults', 'retrieval', 'indexable'],
-        'defaults.retrieval.indexable',
-        'Indexable by default',
-        {
-          fallback: true,
-          help: 'Whether pages are returned by search and accessible through MCP',
-        },
-      ),
+      linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
+        help: 'The include list selects the Markdown files that are ingested. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
+        fallback: SYNC_DEFAULTS.include,
+        placeholder: '**/*.md\n**/*.mdx\ndocs/**/*.md',
+        rows: 6,
+        inColumn: true,
+        startsRow: true,
+      }),
+      linesField(root, ['defaults', 'sync', 'exclude'], 'defaults.sync.exclude', 'Exclude', {
+        help: 'The exclude list removes Markdown files from the ingest. Write one pattern per line. It is used for leaving out files such as READMEs, changelogs or drafts, for example `**/drafts/**`. A file that matches both lists is excluded. A repository that sets its own `sync.exclude` in `.speicher.yaml` adds to this list and does not replace it, so files excluded here stay excluded in every repository.',
+        fallback: SYNC_DEFAULTS.exclude,
+        placeholder: '**/README.md\n**/CHANGELOG.md\n**/drafts/**\n**/_*.md\n**/internal/**',
+        rows: 6,
+        inColumn: true,
+      }),
     ],
     cards: [],
     addOps: [],

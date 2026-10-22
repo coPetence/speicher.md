@@ -304,6 +304,10 @@ const OMITTED_FROM_FORM: Record<string, string> = {
   'auth.providers.<key>.app.slug': GITHUB_APP_STORED,
   'auth.providers.<key>.app.owner_account': GITHUB_APP_STORED,
   'auth.providers.<key>.app.owner_is_organization': GITHUB_APP_STORED,
+  'defaults.retrieval.indexable':
+    'switching it off here cannot be undone by any repository, folder or page, so ' +
+    'it turns off MCP search for the whole instance — the rare instance that wants ' +
+    'that sets it in the YAML',
 };
 
 describe('coverage of the schema', () => {
@@ -1117,6 +1121,35 @@ describe('the read-count switches', () => {
     for (const key of ['analytics.timezone', 'analytics.granularity', 'analytics.retention_days']) {
       expect(fieldsFor('version: 1').find((f) => f.path === key)?.shownWith).toBeUndefined();
     }
+  });
+});
+
+describe('the include and exclude lists', () => {
+  const listAt = (yaml: string, path: string) =>
+    ofKind(
+      fieldsFor(yaml).find((f) => f.path === path),
+      'lines',
+    );
+
+  it('show the built-in globs while nothing is stored', () => {
+    expect(listAt('version: 1', 'defaults.sync.include').value).toBe('**/*.md\n**/*.mdx');
+    expect(listAt('version: 1', 'defaults.sync.exclude').value).toBe('**/README.md');
+  });
+
+  it('leave the document alone when saved untouched', () => {
+    const doc = loadDocument('version: 1\n');
+    const body = untouchedBody(allFields([sectionOf(doc, 'defaults')!]));
+    expect(applyForm(doc, body, 'defaults').changed).toBe(false);
+    expect(serialise(doc)).toBe('version: 1\n');
+  });
+
+  it('store an emptied list as empty, so the built-in globs do not return', () => {
+    const doc = loadDocument('version: 1\n');
+    applyForm(doc, { 'defaults.sync.exclude': '' }, 'defaults');
+    expect(serialise(doc)).toContain('exclude: []');
+    applyForm(doc, { 'defaults.sync.exclude': '' }, 'defaults');
+    expect(serialise(doc)).toContain('exclude: []');
+    expect(listAt(serialise(doc), 'defaults.sync.exclude').value).toBe('');
   });
 });
 

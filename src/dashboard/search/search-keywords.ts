@@ -135,7 +135,6 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
 
   'field:defaults.sync.include': 'glob, pattern, which files, markdown files',
   'field:defaults.sync.exclude': 'glob, pattern, ignore, skip files',
-  'field:defaults.retrieval.indexable': 'search, mcp, hide from search, noindex',
   'field:defaults.display.cover': 'hero image, thumbnail, social image',
 
   'field:mail.host': 'smtp server, relay, mail server',

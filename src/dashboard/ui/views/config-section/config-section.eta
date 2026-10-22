@@ -321,7 +321,7 @@
   const gallery = ordinary.filter(function (f) { return f.kind === 'template' });
 %>
 <% if (paired.length > 0) { %>
-<div class="spr-fields">
+<div class="spr-fields<%= it.section.twoColumns ? ' spr-fields-two' : '' %>">
   <% paired.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
 </div>
 <% } %>
