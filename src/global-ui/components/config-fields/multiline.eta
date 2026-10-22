@@ -5,5 +5,6 @@
       name="<%= f.path %>"
       rows="<%= f.rows %>"
       spellcheck="false"
+      <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
       <%= it.editable ? '' : 'disabled' %>
     ><%= f.value %></textarea>

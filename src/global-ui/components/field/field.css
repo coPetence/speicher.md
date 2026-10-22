@@ -4,7 +4,11 @@
   .spr-field-checkboxes {
     grid-column: 1 / -1;
   }
-  .spr-field-break {
+  .spr-field-lines.spr-field-in-column {
+    grid-column: auto;
+  }
+  .spr-field-break,
+  .spr-field-lines.spr-field-in-column.spr-field-break {
     grid-column-start: 1;
   }
 

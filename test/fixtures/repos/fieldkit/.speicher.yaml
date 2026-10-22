@@ -15,9 +15,6 @@ access:
 
 ingest_root: docs
 
-# All but one file is `.mdx`. The default include is `**/*.md` only, so without this
-# the repo ingests exactly one file — which is also what happens to any real Starlight
-# or Docusaurus repository somebody points at Speicher.
 sync:
   include: ['**/*.md', '**/*.mdx']
 

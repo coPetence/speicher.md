@@ -115,8 +115,42 @@
   }
 
   .spr-fields.spr-fields-wide,
+  .spr-fields.spr-fields-two,
   .spr-card > .spr-fields {
     max-inline-size: none;
+  }
+
+  .spr-fields.spr-fields-two {
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(max(18rem, calc((100% - var(--spr-space-8)) / 2)), 1fr)
+    );
+  }
+
+  @media (min-width: 64rem) {
+    .spr-main:has(> .spr-config > .spr-fields-two) {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .spr-config:has(> .spr-fields-two) {
+      display: flex;
+      flex: 1 0 auto;
+      flex-direction: column;
+    }
+
+    .spr-config > .spr-fields-two {
+      flex: 1 0 auto;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .spr-fields-two > .spr-field-lines {
+      align-self: stretch;
+    }
+
+    .spr-fields-two > .spr-field-lines textarea {
+      flex: 1 1 auto;
+    }
   }
 
   .spr-section-status {

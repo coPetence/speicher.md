@@ -9,12 +9,19 @@ import { at, baseField } from './base';
 export interface LinesField extends FieldBase {
   kind: 'lines';
   value: string;
+  fallback?: string[];
+  placeholder: string;
   // Height of the text area in lines
   rows: number;
+  // Takes one grid column instead of a full row
+  inColumn: boolean;
 }
 
 export interface LinesOptions extends BaseOptions {
+  fallback?: string[];
+  placeholder?: string;
   rows?: number;
+  inColumn?: boolean;
 }
 
 export function linesField(
@@ -28,7 +35,10 @@ export function linesField(
   return {
     ...base,
     kind: 'lines',
-    value: base.inapplicable ? '' : linesOf(at(root, path)),
+    value: base.inapplicable ? '' : linesOf(at(root, path) ?? options.fallback),
+    fallback: options.fallback,
+    placeholder: options.placeholder ?? '',
     rows: options.rows ?? 4,
+    inColumn: options.inColumn ?? false,
   };
 }

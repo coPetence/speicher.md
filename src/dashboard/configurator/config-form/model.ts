@@ -159,6 +159,8 @@ export interface FormSection {
   entries: SectionEntry[];
   // Layout style for entries
   layout?: 'tiles' | 'table';
+  // Lays the fields out in two equal columns across the full width
+  twoColumns?: boolean;
   // Tables of entries within a section
   tables?: ValueTable[];
   // Whether each entry tile navigates to its own page

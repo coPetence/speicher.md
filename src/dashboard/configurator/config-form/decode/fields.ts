@@ -11,6 +11,7 @@ import type {
   FieldKind,
   FieldOf,
   FileField,
+  LinesField,
   MembershipField,
   NumberField,
   PickListField,
@@ -190,10 +191,13 @@ const decodeMultiline: Decoder = (doc, body, field, path) => {
   return writeAt(doc, path, raw.replace(/\r\n/g, '\n').trim());
 };
 
-const decodeLines: Decoder = (doc, body, field, path) => {
+const decodeLines: Decoder<LinesField> = (doc, body, field, path) => {
   const raw = submitted(body, field.path);
   if (raw === undefined) return false;
   const values = parseLines(raw);
+  // The default renders in the text area without being persisted
+  if (!doc.hasIn(path) && JSON.stringify(values) === JSON.stringify(field.fallback)) return false;
+  if (field.fallback !== undefined) return writeAt(doc, path, values);
   return writeAt(doc, path, values.length > 0 ? values : undefined);
 };
 
