@@ -49,6 +49,7 @@ After you created the app, copy the Client ID into the configuration and create 
 
 ![Screenshot:Github App Creation](./assets/dark1.webp)
 ![Screenshot:Github App Creation](./assets/light1.webp)
+![Screenshot:Add IDP](./assets/add-idp-popup-dark.webp)
 
 ## 3. Link GitHub OAuth app to Speicher
 
