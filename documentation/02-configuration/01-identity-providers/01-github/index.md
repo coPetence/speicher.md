@@ -47,6 +47,9 @@ After you created the app, copy the Client ID into the configuration and create 
 
 </details>
 
+[!Screenshot:Github App Creation](./assets/dark1.webp)
+[!Screenshot:Github App Creation](./assets/light1.webp)
+
 ## 3. Link GitHub OAuth app to Speicher
 
 You should now see the newly created OAuth app. Gnerate a new client secret and then copy the secret and the Client ID into the Speicher Identity Provider we created in the [first step](#1-create-a-new-speicher-identity-provider).
@@ -55,7 +58,7 @@ Then save your updated Speicher configuration. GitHub should now appear as a sig
 
 ## 4. GitHub Directory Client (enhancement)
 
-For advanced use cases we also support a GitHub directory client. This adds the following functionalities:
+For advanced use cases Speicher.md also supports a GitHub directory client. This adds the following functionalities:
 
 - Mid-session refresh: Without it a user keeps a team / group assignment until their session expires
 - Group-size counts: See how many people are actually in a group
