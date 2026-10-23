@@ -77,11 +77,33 @@ export function buildNavTree(nodes: ChildRow[], basePath: string, currentPath: s
 
   const used: string[] = [];
 
-  const html = `<ul class="spr-nav-root spr-nav-tree">${roots
-    .map((n) => renderNode(n, basePath, currentPath, used))
-    .join('')}</ul>`;
+  const start =
+    nodes.find((n) => n.kind === 'page' && n.slug_path === '') ??
+    nodes.find((n) => n.slug_path === '');
+
+  const html = `<ul class="spr-nav-root spr-nav-tree">${
+    start ? renderStart(start, basePath, currentPath, used) : ''
+  }${roots.map((n) => renderNode(n, basePath, currentPath, used)).join('')}</ul>`;
   return { html, icons: used };
 }
+
+/** Renders the repo's start page as the tree's first entry */
+function renderStart(
+  start: ChildRow,
+  basePath: string,
+  currentPath: string,
+  used: string[],
+): string {
+  const icon = start.icon ?? START_ICON;
+  used.push(icon);
+  return (
+    `<li class="spr-nav-leaf spr-nav-start"><a href="${escapeHtml(`${basePath}/`)}"` +
+    `${currentPath === '' ? ' aria-current="page"' : ''} data-tree-link>` +
+    `${renderIconRef(icon)}<span>${escapeHtml(start.title)}</span></a></li>`
+  );
+}
+
+const START_ICON = 'house';
 
 /** True when the node or one of its descendants is the current page */
 function containsCurrent(node: TreeNode, currentPath: string): boolean {

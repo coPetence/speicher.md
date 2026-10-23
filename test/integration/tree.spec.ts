@@ -59,6 +59,19 @@ describe('the tree is server-rendered in the right state', () => {
     expect((nav.match(/aria-current="page"/g) ?? []).length).toBe(1);
   });
 
+  it('leads back to the start page from anywhere in the repo, first in the tree', async () => {
+    const nav = navOf((await page('alice', '/fieldkit/device-management')).text);
+    const first =
+      /<ul class="spr-nav-root spr-nav-tree"><li class="spr-nav-leaf spr-nav-start"><a href="\/fieldkit\/"( aria-current="page")? data-tree-link>/.exec(
+        nav,
+      );
+    expect(first).not.toBeNull();
+    expect(first?.[1]).toBeUndefined();
+
+    const atStart = navOf((await page('alice', '/fieldkit')).text);
+    expect(atStart).toMatch(/<a href="\/fieldkit\/" aria-current="page" data-tree-link>/);
+  });
+
   it('gives every folder a labelled disclosure button separate from its link', async () => {
     const nav = navOf((await page('alice', '/fieldkit/device-management')).text);
     expect(nav).toMatch(
