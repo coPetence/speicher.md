@@ -5,6 +5,8 @@
  * field has a non-empty value (select) or is checked (checkbox). When the
  * controlling field is the radio group of a choice, they are shown only while the
  * option named by `data-spr-shown-when` is checked
+ * Elements with `data-spr-enabled-with` stay visible but are made inert while the
+ * controlling checkbox is unchecked
  * Runs on mount and on every change of the controlling field
  *
  * Not disabled: submitted values are unaffected by visibility
@@ -18,8 +20,8 @@ export function mountReveals(): void {
 
   // Distinct controlling field names declared across the form
   const groups = new Set(
-    [...form.querySelectorAll<HTMLElement>('[data-spr-shown-with]')].map(
-      (field) => field.dataset.sprShownWith ?? '',
+    [...form.querySelectorAll<HTMLElement>('[data-spr-shown-with], [data-spr-enabled-with]')].map(
+      (field) => field.dataset.sprShownWith ?? field.dataset.sprEnabledWith ?? '',
     ),
   );
 
@@ -27,6 +29,7 @@ export function mountReveals(): void {
     if (group === '') continue;
 
     const belonging = [...form.querySelectorAll<HTMLElement>(`[data-spr-shown-with="${group}"]`)];
+    const enabling = [...form.querySelectorAll<HTMLElement>(`[data-spr-enabled-with="${group}"]`)];
 
     const radios = [
       ...form.querySelectorAll<HTMLInputElement>(`input[type="radio"][name="${group}"]`),
@@ -50,6 +53,7 @@ export function mountReveals(): void {
     const settle = () => {
       const asked = master instanceof HTMLInputElement ? master.checked : master.value !== '';
       for (const element of belonging) element.hidden = !asked;
+      for (const element of enabling) element.toggleAttribute('inert', !asked);
     };
 
     settle();

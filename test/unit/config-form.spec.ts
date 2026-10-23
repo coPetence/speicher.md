@@ -441,15 +441,23 @@ describe('one section at a time', () => {
     expect(allFields([notifications]).every((f) => f.schemaPath.startsWith('notify.'))).toBe(true);
   });
 
-  it('groups the link graph by the surface each setting decides', () => {
+  it('gives every feature of the link graph its own card, switched in its header', () => {
     const reading = buildSections(loadDocument(FULL)).find((s) => s.id === 'reading')!;
 
     expect(reading.fields.map((f) => f.schemaPath)).toEqual(['graph.enabled']);
     expect(reading.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath))).toEqual([
       ['graph.related', 'graph.related_limit'],
-      ['graph.previews', 'graph.terms'],
+      ['graph.previews'],
+      ['graph.terms'],
       ['graph.search_boost'],
     ]);
+    expect(reading.cards.map((card) => card.toggle)).toEqual([
+      'graph.related',
+      'graph.previews',
+      'graph.terms',
+      'graph.search_boost',
+    ]);
+    expect(reading.cardGrid).toBe(true);
 
     expect(reading.cards.every((card) => !card.titleIsKey)).toBe(true);
     expect(reading.cards.every((card) => card.subtitle !== '')).toBe(true);
@@ -457,7 +465,8 @@ describe('one section at a time', () => {
     const limit = allFields([reading]).find((f) => f.schemaPath === 'graph.related_limit')!;
     expect(limit.shownWith).toBe('graph.related');
 
-    expect(reading.cards.every((card) => card.shownWith === 'graph.enabled')).toBe(true);
+    expect(reading.cards.every((card) => card.enabledWith === 'graph.enabled')).toBe(true);
+    expect(reading.cards.every((card) => card.shownWith === undefined)).toBe(true);
     expect(reading.fields[0].shownWith).toBeUndefined();
   });
 

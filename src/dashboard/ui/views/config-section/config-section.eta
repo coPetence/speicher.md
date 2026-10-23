@@ -337,10 +337,12 @@
     return inlineAdds.filter(function (a) { return a.beforeCard === index });
   };
 %>
+<% if (it.section.cardGrid) { %><div class="spr-card-grid"><% } %>
 <% it.section.cards.forEach(function (card, index) { %>
 <% addsBefore(index).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 <%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon, landing: it.landing ? it.landing.path : '' }) %>
 <% }) %>
+<% if (it.section.cardGrid) { %></div><% } %>
 
 <% inlineAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 

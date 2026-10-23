@@ -1394,7 +1394,7 @@ describe('switches shown with the switch above them', () => {
   });
 });
 
-describe('a card shown with the switch above it', () => {
+describe('a card enabled with the switch above it', () => {
   function renderReading(enabled = false): HTMLFormElement {
     document.body.innerHTML = `
       <main>
@@ -1406,15 +1406,15 @@ describe('a card shown with the switch above it', () => {
               <span>Link graph</span>
             </label>
           </div>
-          <section class="spr-card spr-card-1" data-spr-shown-with="graph.enabled">
-            <header><h4>Related column</h4></header>
+          <section class="spr-card spr-card-1" data-spr-enabled-with="graph.enabled">
+            <header>
+              <h4>Related column</h4>
+              <label class="spr-switch spr-card-toggle">
+                <input type="checkbox" name="graph.related" value="on" checked>
+                <span class="spr-clipped">Related column</span>
+              </label>
+            </header>
             <div class="spr-fields">
-              <div class="spr-field spr-field-boolean">
-                <label class="spr-switch">
-                  <input type="checkbox" name="graph.related" value="on" checked>
-                  <span>Related column</span>
-                </label>
-              </div>
               <div class="spr-field spr-field-number" data-spr-shown-with="graph.related">
                 <label>Related entries shown</label>
                 <input type="number" name="graph.related_limit" value="10">
@@ -1434,29 +1434,30 @@ describe('a card shown with the switch above it', () => {
     document.querySelector('[data-spr-shown-with="graph.related"]') as HTMLElement;
   const master = () => document.querySelector('input[name="graph.enabled"]') as HTMLInputElement;
 
-  it('folds the card away while the graph is off', () => {
+  it('keeps the card on screen but out of reach while the graph is off', () => {
     renderReading(false);
     run();
-    expect(card().hidden).toBe(true);
+    expect(card().hidden).toBe(false);
+    expect(card().hasAttribute('inert')).toBe(true);
   });
 
-  it('shows it on a page that arrives with the graph on', () => {
+  it('leaves it usable on a page that arrives with the graph on', () => {
     renderReading(true);
     run();
-    expect(card().hidden).toBe(false);
+    expect(card().hasAttribute('inert')).toBe(false);
     expect(limit().hidden).toBe(false);
   });
 
-  it('opens and closes it as the switch moves, without a save', () => {
+  it('enables and disables it as the switch moves, without a save', () => {
     renderReading(false);
     run();
     master().checked = true;
     master().dispatchEvent(new Event('change', { bubbles: true }));
-    expect(card().hidden).toBe(false);
+    expect(card().hasAttribute('inert')).toBe(false);
 
     master().checked = false;
     master().dispatchEvent(new Event('change', { bubbles: true }));
-    expect(card().hidden).toBe(true);
+    expect(card().hasAttribute('inert')).toBe(true);
   });
 
   it('keeps every control inside submitting, so the document is unchanged', () => {
