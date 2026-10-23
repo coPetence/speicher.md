@@ -186,6 +186,12 @@
     }
   }
 
+  @media (min-width: 80rem) {
+    .spr-layout[data-article] > .spr-pane > .spr-main {
+      padding-inline-end: calc(var(--spr-space-3) + var(--spr-space-4));
+    }
+  }
+
   .spr-nav {
     font-family: var(--spr-font-mono);
     padding-inline: 0;

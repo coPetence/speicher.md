@@ -255,10 +255,26 @@ describe('the base stylesheet', () => {
     expect(RULES).not.toMatch(/\.spr-main:has\(>\s*\.spr-aside\)/);
     const grid = declarationsOfBase(ARTICLE_MAIN);
     expect(grid).toMatch(/display:\s*grid/);
-    expect(grid).toMatch(
-      /grid-template-columns:\s*minmax\(0, var\(--spr-measure\)\) var\(--spr-aside-width\)/,
+    expect(grid).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) var\(--spr-aside-width\)/);
+    const article = declarationsOfBase(`${ARTICLE_MAIN} > .spr-article`);
+    expect(article).toMatch(/max-width:\s*var\(--spr-measure\)/);
+    expect(article).toMatch(/justify-self:\s*center/);
+  });
+
+  // The related column sits under the search bar: as wide as the search bar, the
+  // toolbar's gap and the avatar, and inset from the pane's edge as the toolbar is.
+  it('lines the related column up with the search bar', () => {
+    expect(SOURCE).toMatch(
+      /--spr-aside-width:\s*calc\(var\(--spr-search-width\) \+ var\(--spr-space-5\) \+ var\(--spr-avatar-size\)\)/,
     );
-    expect(grid).toMatch(/justify-content:\s*center/);
+    expect(declarationsOfBase('.spr-toolbar')).toContain('gap: var(--spr-space-5)');
+    expect(declarationsOfBase(ARTICLE_MAIN)).toContain(
+      'padding-inline: var(--spr-gutter) var(--spr-space-4)',
+    );
+    // Its content starts where the search icon does, clear of the rounded end
+    expect(/> \.spr-main > \.spr-aside\s*\{([^}]*)\}/.exec(RULES)?.[1] ?? '').toContain(
+      'padding-inline-start: var(--spr-space-3)',
+    );
   });
 
   // The breakpoint is where the second track can be afforded: the default tree,
@@ -273,11 +289,16 @@ describe('the base stylesheet', () => {
         `@media \\(min-width: ([0-9.]+)rem\\) \\{\\s*${ARTICLE_MAIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{`,
       ).exec(RULES)?.[1],
     );
+    const aside = rem('--spr-search-width') + rem('--spr-space-5') + rem('--spr-avatar-size');
     const article =
-      breakpoint - rem('--spr-nav-width-default') - rem('--spr-aside-width') - 4 * rem(gutterToken);
+      breakpoint -
+      rem('--spr-nav-width-default') -
+      aside -
+      3 * rem(gutterToken) -
+      rem('--spr-space-4');
     for (const value of [breakpoint, article]) expect(Number.isFinite(value)).toBe(true);
     // Narrower than this and the pair is not worth having beside each other
-    expect(article).toBeGreaterThanOrEqual(40);
+    expect(article).toBeGreaterThanOrEqual(36);
     // And not so wide that a laptop never sees the column
     expect(breakpoint).toBeLessThanOrEqual(80);
   });
@@ -382,11 +403,11 @@ describe('the base stylesheet', () => {
     expect(scrollers).toMatch(/scrollbar-gutter:\s*stable/);
   });
 
-  it('centres the mark beside a related link, at the aside\u2019s own size', () => {
+  it('sets the mark beside a related link level with its first line, at the aside\u2019s own size', () => {
     const mark = declarationsOfBase('.spr-aside-list a .spr-icon');
-    expect(mark).toMatch(/align-self:\s*center/);
+    expect(mark).toMatch(/align-self:\s*flex-start/);
     expect(mark).toMatch(/width:\s*1em/);
-    expect(mark).toMatch(/height:\s*1em/);
+    expect(mark).toMatch(/height:\s*1lh/);
     expect(declarationsOfBase('.spr-aside-list a')).toMatch(/align-items:\s*baseline/);
   });
 
