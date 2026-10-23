@@ -3,8 +3,10 @@ import type { Request } from 'express';
 import { safeRedirect } from '../auth/oidc.service';
 import type { ResolvedCaller } from '../authz/caller';
 import type { ConfigService } from '../config/config.service';
+import type { ColourScheme } from '../config/palette';
 import { stylesheetUrl } from './assets.controller';
 import { DEFAULT_BRAND_ICON, renderInlineIcon } from './icons';
+import { templateWallpaperUrls } from './template-wallpapers';
 import { NAV_WIDTH_COOKIE, THEME_COOKIE, navWidthTokens, readerScheme } from './views';
 import {
   AccountChrome,
@@ -31,6 +33,7 @@ export type RouteChrome = Pick<
   | 'brandNameAlign'
   | 'searchIcon'
   | 'attribution'
+  | 'wallpaper'
 >;
 
 export type ChromeConfig = Pick<
@@ -40,6 +43,8 @@ export type ChromeConfig = Pick<
   | 'brand'
   | 'brandLogoUrl'
   | 'brandLogoDarkUrl'
+  | 'brandWallpaperUrl'
+  | 'brandWallpaperDarkUrl'
   | 'faviconUrl'
   | 'faviconType'
   | 'brandShowName'
@@ -59,16 +64,22 @@ export function pageChrome(
   options: { offerSignIn?: boolean } = {},
 ): RouteChrome {
   const scheme = readerScheme(req.cookies?.[THEME_COOKIE]);
+  const wallpaper = wallpaperFor(config, config.themeTemplate);
 
   return {
     scheme,
     stylesheet: stylesheetUrl(config.themeTemplate, scheme),
 
-    // Theme overrides and nav width merged into one <style> block
+    // Theme overrides, wallpaper and nav width merged into one <style> block
     themeTokens:
-      [config.themeOverridesFor(scheme), navWidthTokens(req.cookies?.[NAV_WIDTH_COOKIE])]
+      [
+        config.themeOverridesFor(scheme),
+        wallpaperTokens(wallpaper.light, wallpaper.dark, scheme),
+        navWidthTokens(req.cookies?.[NAV_WIDTH_COOKIE]),
+      ]
         .filter((block): block is string => Boolean(block))
         .join('') || null,
+    wallpaper: Boolean(wallpaper.light || wallpaper.dark),
 
     account: req.caller?.viaSetup === true ? null : accountChrome(req.caller),
     brand: config.brand,
@@ -90,6 +101,51 @@ export function pageChrome(
     signInHref:
       options.offerSignIn === false || req.caller?.viaSetup === true ? null : signInHref(req),
   };
+}
+
+/**
+ * The wallpaper URLs for each scheme
+ *
+ * An upload replaces the template's wallpaper in its own scheme only
+ *
+ * @param config the instance config
+ * @param template the template the page is drawn in
+ */
+export function wallpaperFor(
+  config: Pick<ConfigService, 'brandWallpaperUrl' | 'brandWallpaperDarkUrl'>,
+  template: string,
+): { light: string | null; dark: string | null } {
+  const own = templateWallpaperUrls(template);
+  return {
+    light: config.brandWallpaperUrl ?? own.light,
+    dark: config.brandWallpaperDarkUrl ?? own.dark ?? config.brandWallpaperUrl,
+  };
+}
+
+/**
+ * The wallpaper as a `--spr-wallpaper` token for each scheme
+ *
+ * Dark mode falls back to the light wallpaper, as the logo does
+ *
+ * @param light URL of the wallpaper for light mode
+ * @param dark URL of the wallpaper for dark mode
+ * @param scheme the scheme the reader fixed, or null to follow the system
+ */
+export function wallpaperTokens(
+  light: string | null,
+  dark: string | null,
+  scheme: ColourScheme | null,
+): string | null {
+  const token = (url: string) => `:root{--spr-wallpaper:url("${url}")}`;
+  const forDark = dark ?? light;
+
+  if (scheme === 'light') return light ? token(light) : null;
+  if (scheme === 'dark') return forDark ? token(forDark) : null;
+
+  const blocks: string[] = [];
+  if (light) blocks.push(`@media (prefers-color-scheme: light){${token(light)}}`);
+  if (forDark) blocks.push(`@media (prefers-color-scheme: dark){${token(forDark)}}`);
+  return blocks.join('') || null;
 }
 
 export function brandMark(): string {

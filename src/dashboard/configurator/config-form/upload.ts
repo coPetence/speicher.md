@@ -6,7 +6,7 @@ import multer, { MulterError } from 'multer';
 import type { BrandImage } from '../../../config/brand';
 import {
   BRAND_IMAGES,
-  MAX_BRAND_LOGO_BYTES,
+  MAX_BRAND_IMAGE_BYTES,
   describeBytes,
   parseBrandImage,
   sniffMediaType,
@@ -36,7 +36,7 @@ export const UPLOAD_PREFIX = 'file:';
  * file inputs
  */
 const parse = multer({
-  limits: { fileSize: MAX_BRAND_LOGO_BYTES, files: 6, fieldNameSize: 256 },
+  limits: { fileSize: MAX_BRAND_IMAGE_BYTES, files: 6, fieldNameSize: 256 },
 }).any();
 
 /** Uploaded files from a config submission, and why reading them was refused */
@@ -63,7 +63,7 @@ export async function readUploads(req: Request, res: Response): Promise<Uploads>
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
         parts: new Map(),
-        refusal: `That file is larger than ${describeBytes(MAX_BRAND_LOGO_BYTES)}. Use a smaller image instead.`,
+        refusal: `That file is larger than ${describeBytes(MAX_BRAND_IMAGE_BYTES)}. Use a smaller image instead.`,
       };
     }
     return { parts: new Map(), refusal: `The upload was refused: ${error.message}.` };
@@ -101,7 +101,7 @@ export async function fillUploads(
       if (field.kind !== 'file') continue;
       const mediaType = sniffMediaType(bytes);
       if (!mediaType) {
-        return 'That file is not a PNG, a WebP or an SVG';
+        return 'That file is not a JPEG, a PNG, a WebP or an SVG';
       }
       const accepted = field.accept === '' ? [] : field.accept.split(',');
       if (accepted.length > 0 && !accepted.includes(mediaType)) {
@@ -136,6 +136,7 @@ export async function fillUploads(
 
 function nameOfType(mediaType: string): string {
   const names: Record<string, string> = {
+    'image/jpeg': 'a JPEG',
     'image/png': 'a PNG',
     'image/webp': 'a WebP',
     'image/svg+xml': 'an SVG',

@@ -132,6 +132,7 @@
 
     --spr-page: color-mix(in oklab, var(--spr-bg), var(--spr-fg) 2.5%);
     --spr-pane: var(--spr-bg);
+    --spr-wallpaper: none;
 
     --spr-transition: 120ms ease;
   }
@@ -811,6 +812,37 @@
     :root {
       --spr-bar-reach: var(--spr-space-4);
     }
+
+    .spr-layout[data-wallpaper] > .spr-pane > .spr-main {
+      margin-inline: var(--spr-space-3);
+      margin-block-end: var(--spr-space-3);
+      padding: var(--spr-space-5) var(--spr-space-4);
+      border-radius: var(--spr-radius-xl);
+      background: var(--spr-pane);
+    }
+  }
+
+  body {
+    isolation: isolate;
+  }
+
+  .spr-layout[data-wallpaper]::before {
+    content: '';
+    position: fixed;
+    inset: calc(-2 * var(--spr-space-8));
+    z-index: -1;
+    background:
+      linear-gradient(
+        color-mix(in oklab, var(--spr-bg) 55%, transparent),
+        color-mix(in oklab, var(--spr-bg) 55%, transparent)
+      ),
+      var(--spr-wallpaper) center / cover no-repeat;
+    filter: blur(24px) saturate(140%);
+    pointer-events: none;
+  }
+
+  .spr-layout[data-wallpaper] > .spr-pane:has(> .spr-main > .spr-article > .spr-repos) {
+    --spr-pane: transparent;
   }
 
   .spr-main:focus {
@@ -1081,6 +1113,20 @@
       background: var(--spr-page);
     }
 
+    .spr-layout[data-wallpaper]:has(~ .spr-attribution) > .spr-pane {
+      padding-block-end: calc(
+        2 * var(--spr-space-2) + var(--spr-font-size-small) * var(--spr-line-height)
+      );
+    }
+
+    .spr-layout[data-wallpaper] ~ .spr-attribution {
+      position: fixed;
+      inset-inline-end: var(--spr-space-3);
+      bottom: var(--spr-space-3);
+      padding: var(--spr-space-2) var(--spr-space-5);
+      border-top: 0;
+    }
+
     .spr-pane {
       display: flex;
       flex-direction: column;
@@ -1230,6 +1276,11 @@
         background: var(--spr-bg);
       }
 
+      .spr-layout[data-wallpaper]:has(> .spr-header .spr-menu[open]) > .spr-header {
+        background: transparent;
+        backdrop-filter: blur(20px);
+      }
+
       .spr-layout:has(> .spr-header .spr-menu[open]) .spr-main {
         display: none;
       }
@@ -1333,7 +1384,7 @@
       }
 
       .spr-menu-account > .spr-scheme {
-        display: none;
+        padding-inline: 0;
       }
 
       .spr-menu-account > .spr-signin {

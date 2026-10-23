@@ -2419,7 +2419,13 @@ describe('the logos page', () => {
     Buffer.alloc(10),
   ]);
 
-  const PICKERS = ['brand.logo', 'brand.logo_dark', 'brand.icon'];
+  const PICKERS = [
+    'brand.logo',
+    'brand.logo_dark',
+    'brand.icon',
+    'brand.wallpaper',
+    'brand.wallpaper_dark',
+  ];
 
   function submitFiles(body: FormBody, files: Record<string, { bytes: Buffer; name: string }>) {
     let req = request(app.getHttpServer()).post('/-/config/branding/logos').set('cookie', ops);
@@ -2593,7 +2599,7 @@ describe('the logos page', () => {
       { bytes: Buffer.from('GIF89a...'), name: 'logo.gif' },
     ).expect(400);
 
-    expect(page.text).toContain('not a PNG, a WebP or an SVG');
+    expect(page.text).toContain('not a JPEG, a PNG, a WebP or an SVG');
     expect(page.text).toContain('<form class="spr-config"');
     expect(await versionCount()).toBe(1);
   });
@@ -2619,7 +2625,7 @@ describe('the logos page', () => {
     const form = html.slice(html.indexOf('<form class="spr-config"'));
 
     for (const picker of PICKERS) expect(form).toContain(`id="f-${picker}"`);
-    expect((form.match(/type="file"/g) ?? []).length).toBe(3);
+    expect((form.match(/type="file"/g) ?? []).length).toBe(PICKERS.length);
     // The name and the theme stay on the page above; this one is the images
     expect(Object.keys(body)).not.toContain('brand.name');
     expect(Object.keys(body)).not.toContain('theme.template');
@@ -2633,6 +2639,7 @@ describe('the logos page', () => {
     expect(accept('brand.logo')).toBe('image/svg+xml,image/png,image/webp');
     expect(accept('brand.logo_dark')).toBe('image/svg+xml,image/png,image/webp');
     expect(accept('brand.icon')).toBe('image/svg+xml,image/png');
+    expect(accept('brand.wallpaper')).toBe('image/jpeg,image/png,image/webp,image/svg+xml');
   });
 
   it('takes a logo for each scheme and sends the header both', async () => {
@@ -2659,6 +2666,25 @@ describe('the logos page', () => {
     for (const src of [light?.[1] as string, dark?.[1] as string]) {
       await request(app.getHttpServer()).get(src).expect(200);
     }
+  });
+
+  it('takes a wallpaper the size of a 4K photo and puts it behind the pages', async () => {
+    const photo = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(3_500_000)]);
+    const { body } = await open('branding/logos');
+    const posted = await submitFiles(
+      { ...body, intent: 'apply' },
+      { 'brand.wallpaper': { bytes: photo, name: 'wallpaper.jpg' } },
+    ).expect(303);
+    const page = await landing('branding/logos', posted);
+
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toMatch(/wallpaper: sha256:[0-9a-f]{64}/);
+
+    const src = /--spr-wallpaper:url\("([^"]+)"\)/.exec(page.text)?.[1] ?? '';
+    expect(src).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.jpg$/);
+    expect(page.text).toMatch(/<div class="spr-layout"[^>]* data-wallpaper>/);
+    const served = await request(app.getHttpServer()).get(src).expect(200);
+    expect(served.headers['content-type']).toBe('image/jpeg');
   });
 
   it('takes a tab icon, names it in the head and serves it forever', async () => {

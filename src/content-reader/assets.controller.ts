@@ -142,7 +142,9 @@ export class StaticController {
       ? 'application/json'
       : file.endsWith('.css')
         ? 'text/css'
-        : 'text/javascript';
+        : file.endsWith('.webp')
+          ? 'image/webp'
+          : 'text/javascript';
     res.setHeader('Content-Type', type);
     res.setHeader('X-Content-Type-Options', 'nosniff');
 

@@ -260,6 +260,18 @@
           "maxLength": 45000,
           "pattern": "^(data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
           "description": "Square Favicon as base64 data URI (max 32 KB PNG, WebP or SVG at least 32x32)"
+        },
+        "wallpaper": {
+          "type": "string",
+          "maxLength": 7000000,
+          "pattern": "^(data:image/(jpeg|png|webp|svg\\+xml);base64,|sha256:[0-9a-f]{64}$)",
+          "description": "Wallpaper behind the pages as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG)"
+        },
+        "wallpaper_dark": {
+          "type": "string",
+          "maxLength": 7000000,
+          "pattern": "^(data:image/(jpeg|png|webp|svg\\+xml);base64,|sha256:[0-9a-f]{64}$)",
+          "description": "Wallpaper for dark mode as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG)"
         }
       }
     },

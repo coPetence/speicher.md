@@ -78,6 +78,9 @@ export interface PageChrome {
 
   scheme?: ColourScheme | null;
 
+  /** A wallpaper is set: the header and tree get a frosted backing over it */
+  wallpaper?: boolean;
+
   account?: AccountChrome | null;
 
   signInHref?: string | null;

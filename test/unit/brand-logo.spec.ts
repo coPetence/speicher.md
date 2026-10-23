@@ -2,10 +2,12 @@ import { ConfigError } from '../../src/common/errors';
 import {
   BRAND_ICON,
   BRAND_LOGO,
+  BRAND_WALLPAPER,
   BrandImageResult,
   describeBytes,
   MAX_BRAND_ICON_BYTES,
   MAX_BRAND_LOGO_BYTES,
+  MAX_BRAND_WALLPAPER_BYTES,
   MIN_BRAND_ICON_PIXELS,
   parseBrandImage,
   sniffMediaType,
@@ -115,7 +117,9 @@ describe('what a logo may be', () => {
       /says image\/png but the bytes are image\/svg/,
     );
     expect(refusal(dataUri('image/webp', PNG))).toMatch(/says image\/webp but the bytes are/);
-    expect(refusal(dataUri('image/png', 'not an image at all'))).toMatch(/not a PNG, a WebP or/);
+    expect(refusal(dataUri('image/png', 'not an image at all'))).toMatch(
+      /not a JPEG, a PNG, a WebP or/,
+    );
   });
 
   it('refuses a logo larger than the cap, and names the cap it broke', () => {
@@ -387,5 +391,36 @@ describe('the loader and the running config', () => {
     expect(() =>
       loadInstanceConfig(withBrand([`  icon: ${dataUri('image/png', pngSized(400, 80))}`])),
     ).toThrow(ConfigError);
+  });
+});
+
+describe('the wallpaper', () => {
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
+  it('takes a JPEG, which a logo does not', () => {
+    expect(sniffMediaType(JPEG)).toBe('image/jpeg');
+    expect(parseBrandImage(dataUri('image/jpeg', JPEG), BRAND_WALLPAPER).problem).toBeNull();
+    expect(parseBrandLogo(dataUri('image/jpeg', JPEG)).problem).toMatch(/must be one of/);
+  });
+
+  it('takes a file far past the logo cap, up to the size of a 4K photo', () => {
+    const photo = Buffer.concat([JPEG, Buffer.alloc(4 * 1024 * 1024)]);
+    expect(parseBrandImage(dataUri('image/jpeg', photo), BRAND_WALLPAPER).problem).toBeNull();
+
+    const huge = Buffer.concat([JPEG, Buffer.alloc(MAX_BRAND_WALLPAPER_BYTES)]);
+    expect(parseBrandImage(dataUri('image/jpeg', huge), BRAND_WALLPAPER).problem).toMatch(
+      /limit is 5 MB/,
+    );
+  });
+
+  it('loads from a configuration file that carries the whole photo inline', () => {
+    const photo = Buffer.concat([JPEG, Buffer.alloc(4 * 1024 * 1024)]);
+    const yaml = MINIMAL.replace(
+      'version: 1',
+      `version: 1\nbrand:\n  wallpaper: ${dataUri('image/jpeg', photo)}`,
+    );
+    const config = new ConfigService(loadInstanceConfig(yaml));
+    expect(config.brandWallpaperUrl).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.jpg$/);
+    expect(config.brandWallpaperDarkUrl).toBeNull();
   });
 });

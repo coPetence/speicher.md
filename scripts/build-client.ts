@@ -153,6 +153,19 @@ export function buildClient(): void {
     );
   }
 
+  const wallpaperDir = join(THEME_DIR, 'default_backgrounds');
+  for (const file of readdirSync(wallpaperDir).filter((f) => f.endsWith('.webp'))) {
+    const contents = readFileSync(join(wallpaperDir, file));
+    const hash = createHash('sha256').update(contents).digest('hex').slice(0, 12);
+    const name = `wallpaper-${file.replace(/\.webp$/, '')}`;
+    const hashed = `${name}-${hash}.webp`;
+    writeFileSync(join(outdir, hashed), contents);
+    claim(name, hashed);
+    process.stdout.write(
+      `  ${name.padEnd(22)} ${String(contents.length).padStart(6)} bytes -> ${hashed}\n`,
+    );
+  }
+
   writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
   for (const file of readdirSync(outdir)) {

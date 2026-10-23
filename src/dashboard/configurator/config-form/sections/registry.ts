@@ -19,7 +19,7 @@ export const CONFIG_SECTIONS: SectionIndexEntry[] = [
   { id: 'sources', title: 'Content sources', icon: 'folder-git-2' },
   { id: 'public', title: 'Public access', icon: 'globe' },
   { id: 'branding', title: 'Branding', icon: 'paintbrush' },
-  { id: 'branding/logos', title: 'Logos', icon: 'image', parent: 'branding' },
+  { id: 'branding/logos', title: 'Logos and wallpaper', icon: 'image', parent: 'branding' },
   { id: 'branding/appearance', title: 'Colours and type', icon: 'palette', parent: 'branding' },
   { id: 'admins', title: 'Administrators', icon: 'shield' },
   { id: 'storage', title: 'Asset storage', icon: 'hard-drive' },

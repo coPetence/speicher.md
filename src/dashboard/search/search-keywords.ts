@@ -120,6 +120,8 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'field:brand.logo': 'image, picture, svg, png, header logo',
   'field:brand.logo_dark': 'dark mode logo, dark theme, night, inverted, white logo',
   'field:brand.icon': 'favicon, tab icon, browser tab, bookmark, shortcut icon, ico',
+  'field:brand.wallpaper': 'wallpaper, background image, backdrop, photo, glass',
+  'field:brand.wallpaper_dark': 'dark mode wallpaper, dark background image, night backdrop',
   'field:theme.template': 'skin, style, appearance, stylesheet',
   'field:attribution': 'credit, footer, published with, white label',
 
