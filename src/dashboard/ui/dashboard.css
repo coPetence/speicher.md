@@ -155,7 +155,7 @@
 
   .spr-section-status {
     margin-block-start: var(--spr-space-6);
-    max-width: var(--spr-measure);
+    max-inline-size: 52rem;
   }
 
   .spr-note > p {
@@ -1774,6 +1774,10 @@
       overflow: hidden;
       clip-path: inset(50%);
       white-space: nowrap;
+    }
+
+    .spr-layout:has(> .spr-nav .spr-nav-search) .spr-toolbar {
+      display: none;
     }
   }
 

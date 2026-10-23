@@ -9,6 +9,8 @@ import {
   pageChrome,
   searchIcon,
   signInHref,
+  wallpaperFor,
+  wallpaperTokens,
 } from '../../src/content-reader/chrome';
 import { renderPage } from '../../src/global-ui/global-views/page-layout/page-layout';
 
@@ -36,6 +38,8 @@ const CHROME = {
   brand: 'Acme Engineering Docs',
   brandLogoUrl: null,
   brandLogoDarkUrl: null,
+  brandWallpaperUrl: null as string | null,
+  brandWallpaperDarkUrl: null as string | null,
   faviconUrl: '/favicon.ico',
   faviconType: 'image/svg+xml',
   brandShowName: true,
@@ -148,6 +152,60 @@ describe('the appearance control', () => {
     const chrome = pageChrome(request('/-/config/branding', caller({ isAdmin: true })), themed);
     expect(chrome.stylesheet).toMatch(/theme-catppuccin-[0-9a-f]+\.css/);
     expect(chrome.themeTokens).toContain('--spr-accent:#123456');
+  });
+
+  it('sets the wallpaper per scheme, and falls back to the light one in dark mode', () => {
+    expect(wallpaperTokens(null, null, null)).toBeNull();
+
+    const both = wallpaperTokens('/-/brand/a.jpg', '/-/brand/b.jpg', null);
+    expect(both).toContain(
+      '@media (prefers-color-scheme: light){:root{--spr-wallpaper:url("/-/brand/a.jpg")}}',
+    );
+    expect(both).toContain(
+      '@media (prefers-color-scheme: dark){:root{--spr-wallpaper:url("/-/brand/b.jpg")}}',
+    );
+
+    expect(wallpaperTokens('/-/brand/a.jpg', null, 'dark')).toBe(
+      ':root{--spr-wallpaper:url("/-/brand/a.jpg")}',
+    );
+    expect(wallpaperTokens(null, '/-/brand/b.jpg', 'light')).toBeNull();
+  });
+
+  it('gives Glass its own photos, no other template any, and lets an upload replace each', () => {
+    const none = { brandWallpaperUrl: null, brandWallpaperDarkUrl: null };
+    const glass = wallpaperFor(none, 'glass');
+    expect(glass.light).toMatch(
+      /^\/-\/static\/wallpaper-daniele-buso-qzUenL35ZYw-[0-9a-f]+\.webp$/,
+    );
+    expect(glass.dark).toMatch(
+      /^\/-\/static\/wallpaper-benjamin-voros-phIFdC6lA4E-[0-9a-f]+\.webp$/,
+    );
+
+    expect(wallpaperFor(none, 'default')).toEqual({ light: null, dark: null });
+    expect(wallpaperFor(none, 'catppuccin')).toEqual({ light: null, dark: null });
+
+    const darkOnly = { brandWallpaperUrl: null, brandWallpaperDarkUrl: '/-/brand/b.jpg' };
+    expect(wallpaperFor(darkOnly, 'glass')).toEqual({ light: glass.light, dark: '/-/brand/b.jpg' });
+
+    const lightOnly = { brandWallpaperUrl: '/-/brand/a.jpg', brandWallpaperDarkUrl: null };
+    expect(wallpaperFor(lightOnly, 'glass')).toEqual({ light: '/-/brand/a.jpg', dark: glass.dark });
+    expect(wallpaperFor(lightOnly, 'default')).toEqual({
+      light: '/-/brand/a.jpg',
+      dark: '/-/brand/a.jpg',
+    });
+  });
+
+  it('tells the layout a wallpaper is set, so the header and tree get a backing', () => {
+    const page = (over: Partial<ChromeConfig>) =>
+      renderPage('<h1>A page</h1>', {
+        title: 'A page',
+        nonce: 'test-nonce',
+        ...pageChrome(request('/', caller()), { ...CHROME, ...over }),
+      });
+    expect(page({ brandWallpaperUrl: '/-/brand/a.jpg' })).toMatch(
+      /<div class="spr-layout"[^>]* data-wallpaper>/,
+    );
+    expect(page({})).not.toContain('data-wallpaper');
   });
 
   it('is not drawn for a reader who has no account menu to draw it in', () => {

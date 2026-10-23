@@ -17,6 +17,8 @@ import {
   BRAND_IMAGES,
   BRAND_LOGO,
   BRAND_LOGO_DARK,
+  BRAND_WALLPAPER,
+  BRAND_WALLPAPER_DARK,
   BrandImage,
   BrandImageSpec,
   brandImageUrl,
@@ -263,6 +265,16 @@ export class ConfigService {
   get brandLogoDarkUrl(): string | null {
     const logo = this.brandLogoDark;
     return logo ? brandImageUrl(logo) : null;
+  }
+
+  get brandWallpaperUrl(): string | null {
+    const wallpaper = this.brandImage(BRAND_WALLPAPER);
+    return wallpaper ? brandImageUrl(wallpaper) : null;
+  }
+
+  get brandWallpaperDarkUrl(): string | null {
+    const wallpaper = this.brandImage(BRAND_WALLPAPER_DARK);
+    return wallpaper ? brandImageUrl(wallpaper) : null;
   }
 
   get faviconUrl(): string {

@@ -1,0 +1,153 @@
+@layer speicher.theme {
+  :root {
+    --spr-bg: #f8fbfd;
+    --spr-fg: #1c2733;
+    --spr-muted: #586a7c;
+    --spr-line: #d5e0ea;
+    --spr-accent: #0b6bcb;
+    --spr-surface: #f0f5f9;
+    --spr-bar-bg: #e4ecf3;
+    --spr-warn-bg: #fdf3df;
+    --spr-warn-fg: #7a5200;
+    --spr-mark-bg: #cdeefc;
+    --spr-mark-fg: #0b2a3d;
+
+    --spr-page:
+      radial-gradient(at 10% 10%, #dcebf8 0, transparent 50%),
+      radial-gradient(at 90% 15%, #d9f3f7 0, transparent 45%),
+      radial-gradient(at 80% 90%, #e2eef8 0, transparent 50%), #edf3f8;
+    --spr-pane: rgb(255 255 255 / 0.7);
+
+    --spr-code-keyword: #b4235a;
+    --spr-code-type: #a14a0c;
+    --spr-code-function: #6d3fd8;
+    --spr-code-tag: #16794a;
+    --spr-code-attr: #1d5fc4;
+    --spr-code-string: #1f4fb0;
+    --spr-code-number: #1d5fc4;
+    --spr-code-comment: #6b7189;
+    --spr-code-meta: #6b7189;
+    --spr-code-variable: #a14a0c;
+    --spr-code-inserted: #16794a;
+    --spr-code-inserted-bg: #dcf5e6;
+    --spr-code-deleted: #b4235a;
+    --spr-code-deleted-bg: #fbe3ec;
+
+    --spr-callout-info: #1d7fc4;
+    --spr-callout-tip: #13a36b;
+    --spr-callout-important: #6d3fd8;
+    --spr-callout-warning: #d98a00;
+    --spr-callout-danger: #e0325b;
+    --spr-callout-tint: 10%;
+
+    --spr-font-body:
+      'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    --spr-space-6: 1.4rem;
+    --spr-space-7: 1.75rem;
+    --spr-space-8: 2.25rem;
+
+    --spr-radius: 10px;
+    --spr-radius-sm: 8px;
+    --spr-radius-lg: 16px;
+    --spr-radius-xl: 22px;
+
+    --spr-measure: 50rem;
+    --spr-nav-width-default: 16rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #10171f;
+      --spr-fg: #e5edf4;
+      --spr-muted: #9cb0c2;
+      --spr-line: #263747;
+      --spr-accent: #7cc4f5;
+      --spr-surface: #151f2a;
+      --spr-bar-bg: #0c1218;
+      --spr-warn-bg: #352b12;
+      --spr-warn-fg: #ecc66f;
+      --spr-mark-bg: #1d4a63;
+      --spr-mark-fg: #e3f6ff;
+
+      --spr-page:
+        radial-gradient(at 10% 10%, #16304a 0, transparent 50%),
+        radial-gradient(at 90% 15%, #123840 0, transparent 45%),
+        radial-gradient(at 80% 90%, #172a40 0, transparent 50%), #0b1117;
+      --spr-pane: rgb(20 28 38 / 0.68);
+
+      --spr-code-keyword: #ff8fb6;
+      --spr-code-type: #f7b26b;
+      --spr-code-function: #c4a6ff;
+      --spr-code-tag: #7ee0a8;
+      --spr-code-attr: #8ec5ff;
+      --spr-code-string: #a8d2ff;
+      --spr-code-number: #8ec5ff;
+      --spr-code-comment: #8a90ad;
+      --spr-code-meta: #8a90ad;
+      --spr-code-variable: #f7b26b;
+      --spr-code-inserted: #7ee0a8;
+      --spr-code-inserted-bg: #15302a;
+      --spr-code-deleted: #ff8fb6;
+      --spr-code-deleted-bg: #3a1a2a;
+
+      --spr-callout-info: #7cc4ff;
+      --spr-callout-tip: #6fdcae;
+      --spr-callout-important: #c4a6ff;
+      --spr-callout-warning: #f7c66b;
+      --spr-callout-danger: #ff8fa8;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .spr-pane {
+      border: var(--spr-border) solid color-mix(in oklab, var(--spr-line) 60%, transparent);
+      box-shadow: 0 var(--spr-space-3) var(--spr-space-8)
+        color-mix(in oklab, var(--spr-fg) 12%, transparent);
+    }
+
+    .spr-layout[data-wallpaper] > .spr-pane:has(> .spr-main > .spr-article > .spr-repos) {
+      border-color: transparent;
+      box-shadow: none;
+    }
+  }
+
+  @media not all and (min-width: 48rem) {
+    .spr-layout[data-wallpaper] > .spr-pane > .spr-main {
+      border: var(--spr-border) solid color-mix(in oklab, var(--spr-line) 60%, transparent);
+      box-shadow: 0 var(--spr-space-3) var(--spr-space-8)
+        color-mix(in oklab, var(--spr-fg) 12%, transparent);
+    }
+
+    .spr-layout[data-wallpaper]
+      > .spr-pane:has(> .spr-main > .spr-article > .spr-repos)
+      > .spr-main {
+      border-color: transparent;
+      box-shadow: none;
+    }
+  }
+
+  .spr-account-menu,
+  .spr-main a[data-spr-preview]::after {
+    background: color-mix(in oklab, var(--spr-surface) 70%, transparent);
+    border-color: color-mix(in oklab, var(--spr-line) 60%, transparent);
+    box-shadow: 0 var(--spr-space-2) var(--spr-space-7)
+      color-mix(in oklab, var(--spr-fg) 14%, transparent);
+    backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  .spr-table,
+  .spr-table th,
+  .spr-table td,
+  .spr-main table:not(.spr-table),
+  .spr-main table:not(.spr-table) th,
+  .spr-main table:not(.spr-table) td {
+    border-color: color-mix(in oklab, var(--spr-fg) 20%, transparent);
+  }
+
+  .spr-cards li {
+    background: color-mix(in oklab, var(--spr-surface) 55%, transparent);
+    border-color: color-mix(in oklab, var(--spr-line) 70%, transparent);
+  }
+}

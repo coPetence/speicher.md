@@ -3,6 +3,8 @@ import {
   BRAND_ICON,
   BRAND_LOGO,
   BRAND_LOGO_DARK,
+  BRAND_WALLPAPER,
+  BRAND_WALLPAPER_DARK,
   describeBytes,
   parseBrandImage,
   parseBrandRef,
@@ -12,9 +14,10 @@ import { PALETTE_GROUPS } from '../../../../config/palette';
 import { NEUTRAL_BRAND } from '../../../../config/types';
 import { DEFAULT_TEMPLATE, templateNames } from '../../../../content-reader/assets.controller';
 import { templatePalette } from '../../../../content-reader/template-palette';
+import type { TemplatePhoto } from '../../../../content-reader/template-wallpapers';
+import { TEMPLATE_WALLPAPERS } from '../../../../content-reader/template-wallpapers';
 
 import type { CardItem, Field, Obj } from '../config-fields';
-import { STORED_IMAGE } from '../config-fields/file';
 import {
   at,
   booleanField,
@@ -24,6 +27,7 @@ import {
   templateField,
   textField,
 } from '../config-fields';
+import { STORED_IMAGE } from '../config-fields/file';
 import type { Card, Option } from '../model';
 import { fieldsOf } from '../model';
 import type { SectionSource } from './registry';
@@ -72,7 +76,8 @@ function titleCase(name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-const LOGOS_BLURB = 'Set a custom logo for the page header and the icon for the browser tab.';
+const LOGOS_BLURB =
+  'Set a custom logo for the page header, the icon for the browser tab and a wallpaper behind the pages.';
 
 const APPEARANCE_BLURB =
   'Configure custom colours and typefaces. Find out more in our [documentation](https://docs.speicher.md/themes/tokens)';
@@ -152,10 +157,33 @@ export function logosSection(root: Obj): SectionSource {
         'Favicon (Browser Tab)',
         `Square PNG or SVG (max. ${describeBytes(BRAND_ICON.maxBytes)})`,
       ),
+      imageField(
+        root,
+        BRAND_WALLPAPER,
+        'Wallpaper',
+        `JPEG, PNG, WebP or SVG up to 4K (max. ${describeBytes(BRAND_WALLPAPER.maxBytes)}). Shown behind the pages through a frosted glass effect. This is most prominent in the Glass theme. ` +
+          glassCredits(),
+      ),
+      imageField(
+        root,
+        BRAND_WALLPAPER_DARK,
+        'Wallpaper for dark pages',
+        `JPEG, PNG, WebP or SVG up to 4K (max. ${describeBytes(BRAND_WALLPAPER_DARK.maxBytes)}). Shown to a reader with dark mode`,
+      ),
     ],
     cards: [],
     addOps: [],
   };
+}
+
+/** "For a mode without an upload, the Glass theme shows …", with a link to each photo */
+function glassCredits(): string {
+  const { light, dark } = TEMPLATE_WALLPAPERS.glass;
+  const credit = (photo: TemplatePhoto) => `[${photo.photographer}](${photo.source})`;
+  return (
+    `Without an uploaded wallpaper, the Glass theme shows photos by ${credit(light)} (light) ` +
+    `and ${credit(dark)} (dark) on Unsplash.`
+  );
 }
 
 export const APPEARANCE_RESET_OP = 'reset:branding/appearance';

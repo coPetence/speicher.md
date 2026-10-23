@@ -546,13 +546,13 @@ describe('the base stylesheet', () => {
     expect(ruleFor(body, `${open} > .spr-header`)).toMatch(/position:\s*sticky/);
     expect(ruleFor(body, 'body:has(.spr-menu[open])')).toMatch(/overflow:\s*hidden/);
     // Sign-out shares the name's row as a mark alone, keeping its word for a
-    // screen reader; the appearance choice is not offered there.
+    // screen reader; the appearance choice stays, in line with the rest.
     expect(ruleFor(body, '.spr-menu-account > .spr-account-who')).toMatch(/grid-row:\s*1/);
     expect(ruleFor(body, '.spr-menu-account > .spr-signout')).toMatch(/grid-row:\s*1/);
     expect(ruleFor(body, '.spr-menu-account > .spr-signout span')).toMatch(
       /clip-path:\s*inset\(50%\)/,
     );
-    expect(ruleFor(body, '.spr-menu-account > .spr-scheme')).toMatch(/display:\s*none/);
+    expect(ruleFor(body, '.spr-menu-account > .spr-scheme')).not.toMatch(/display:\s*none/);
     // The avatar's dropdown is not drawn there; its items are in the menu instead.
     expect(body).toMatch(
       /\.spr-toolbar > \.spr-account,\s*\.spr-toolbar > \.spr-signin\s*\{\s*display:\s*none/,
@@ -2309,7 +2309,7 @@ const TEMPLATES = readdirSync(THEME_DIR)
   .filter((f) => f.endsWith('.css') && f !== 'default.css')
   .map((f) => f.replace(/\.css$/, ''));
 
-const RULE_CARRYING = new Set(['blueprint']);
+const RULE_CARRYING = new Set(['blueprint', 'glass']);
 
 describe('templates', () => {
   it('ships more than one, because one cannot prove the token set', () => {

@@ -243,6 +243,10 @@ export interface BrandConfig {
   logo_dark?: string;
   // Favicon: square, PNG or SVG
   icon?: string;
+  // Wallpaper behind the pages
+  wallpaper?: string;
+  // Wallpaper for dark mode
+  wallpaper_dark?: string;
   // Whether to show the brand name next to the logo in the header
   show_name?: boolean;
   // How the brand name lines up with the logo beside it

@@ -12,7 +12,12 @@ import type { Request } from 'express';
 import type { ChildRow } from '../../authz/content/types';
 import { headingSlug, renderMarkdown } from '../../ingest/markdown';
 import { stylesheetUrl, templateNames } from '../../content-reader/assets.controller';
-import { ChromeConfig, pageChrome } from '../../content-reader/chrome';
+import {
+  ChromeConfig,
+  pageChrome,
+  wallpaperFor,
+  wallpaperTokens,
+} from '../../content-reader/chrome';
 import { renderIconRef, renderSprite } from '../../content-reader/icons';
 import { buildNavTree } from '../../content-reader/nav';
 import { renderPage } from '../../global-ui/global-views/page-layout/page-layout';
@@ -126,6 +131,8 @@ export function renderTemplatePreview(
 ): string {
   const tree = buildNavTree(DEMO_NAV, NOWHERE, CURRENT);
   const chrome = pageChrome(req, config);
+  const scheme = chrome.scheme ?? null;
+  const wallpaper = wallpaperFor(config, template);
   return renderPage(article(), {
     title: 'Template preview',
     nonce,
@@ -135,11 +142,15 @@ export function renderTemplatePreview(
     docked: true,
     ...chrome,
 
-    stylesheet: stylesheetUrl(template, chrome.scheme ?? null), // The template being previewed
+    stylesheet: stylesheetUrl(template, scheme), // The template being previewed
 
     island: null, // Preview has no interactive component
 
-    themeTokens: config.themeOverridesFor(chrome.scheme ?? null),
+    themeTokens:
+      [config.themeOverridesFor(scheme), wallpaperTokens(wallpaper.light, wallpaper.dark, scheme)]
+        .filter((block): block is string => Boolean(block))
+        .join('') || null,
+    wallpaper: Boolean(wallpaper.light || wallpaper.dark),
 
     attribution: false, // Preview is not a real read page
   });

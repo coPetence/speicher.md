@@ -18,7 +18,7 @@ import { FLOW_TTL_MS } from '../../auth/github.service';
 import { ResolvedCaller } from '../../authz/caller';
 import { env } from '../../common/env';
 import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
-import { BRAND_LOGO, checkBrandBytes } from '../../config/brand';
+import { BRAND_IMAGES, checkBrandBytes } from '../../config/brand';
 import { brandImagesByHash } from '../../config/brand-store';
 import { ConfigService } from '../../config/config.service';
 import {
@@ -247,9 +247,12 @@ export class ConfigController {
       : inline && { mediaType: inline.mediaType, bytes: inline.bytes };
     if (!image) return this.respond.notFound(req, res);
 
-    if (checkBrandBytes(image.bytes, image.mediaType, BRAND_LOGO)) {
-      return this.respond.notFound(req, res);
-    }
+    const fits = BRAND_IMAGES.some(
+      (spec) =>
+        spec.types[image.mediaType] !== undefined &&
+        checkBrandBytes(image.bytes, image.mediaType, spec) === null,
+    );
+    if (!fits) return this.respond.notFound(req, res);
 
     sendBrandImage(res, image.mediaType, image.bytes, 'private, no-store');
   }
