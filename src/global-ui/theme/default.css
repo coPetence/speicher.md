@@ -1814,6 +1814,7 @@
   }
 
   .spr-main table:not(.spr-table) {
+    margin-block: 1em;
     border-collapse: separate;
     border-spacing: 0;
     border: var(--spr-border) solid var(--spr-line);
