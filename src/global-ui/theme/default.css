@@ -100,7 +100,7 @@
       var(--spr-nav-width-max)
     );
     --spr-nav-twisty: 1.25rem;
-    --spr-aside-width: 15rem;
+    --spr-aside-width: calc(var(--spr-search-width) + var(--spr-space-5) + var(--spr-avatar-size));
     --spr-preview-width: 22rem;
     --spr-preview-delay: 1s;
     --spr-gutter: var(--spr-space-8);
@@ -932,9 +932,9 @@
   }
 
   .spr-aside-list a .spr-icon {
-    align-self: center;
+    align-self: flex-start;
     width: 1em;
-    height: 1em;
+    height: 1lh;
   }
 
   .spr-aside-list a:hover span {
@@ -971,19 +971,22 @@
   @media (min-width: 80rem) {
     .spr-layout[data-article] > .spr-pane > .spr-main {
       display: grid;
-      grid-template-columns: minmax(0, var(--spr-measure)) var(--spr-aside-width);
+      grid-template-columns: minmax(0, 1fr) var(--spr-aside-width);
       align-content: start;
-      justify-content: center;
       column-gap: calc(var(--spr-gutter) * 2);
-      padding-inline: var(--spr-gutter);
+      padding-inline: var(--spr-gutter) var(--spr-space-4);
     }
 
     .spr-layout[data-article] > .spr-pane > .spr-main > .spr-article {
       min-width: 0;
+      width: 100%;
+      max-width: var(--spr-measure);
+      justify-self: center;
     }
 
     .spr-layout[data-article] > .spr-pane > .spr-main > .spr-article:has(> .spr-empty-state-page) {
       grid-column: 1 / -1;
+      max-width: none;
     }
 
     .spr-layout[data-article]
@@ -1001,6 +1004,7 @@
       align-self: start;
       position: sticky;
       top: 0;
+      padding-inline-start: var(--spr-space-3);
     }
 
     .spr-layout[data-article] > .spr-pane > .spr-main > .spr-aside > :first-child {
