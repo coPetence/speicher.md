@@ -7,7 +7,6 @@
  */
 import { createHash } from 'node:crypto';
 
-import { deslugify } from '../../common/slug';
 import { RepoRef } from '../../config/config.service';
 import { iconExists, suggestIcon } from '../../content-reader/icons';
 import { FindingList } from '../findings';
@@ -17,7 +16,13 @@ import { RenderResult, renderMarkdown, rewriteMarkdownLinks, stripLeadingH1 } fr
 import { MDX_EXTENSION } from '../paths';
 import { AssetRegistry, collectPendingAssets, replacePendingAsset } from './assets';
 import { reportLinkFindings } from './link-findings';
-import { addressPolicy, buildEdges, emptyPageLinks, resolvePageLink } from './link-resolution';
+import {
+  addressPolicy,
+  buildEdges,
+  emptyPageLinks,
+  pageTitle,
+  resolvePageLink,
+} from './link-resolution';
 import { ScanState, ScannedFile } from './state';
 import { RepoLookup, WalkOptions } from './walk';
 
@@ -101,10 +106,7 @@ async function renderPage(
   reportLinkFindings(findings, file, links, rendered);
   reportMdxFindings(findings, file, rendered);
 
-  const title =
-    file.frontmatter.title ??
-    rendered.firstHeading ??
-    (file.isIndex ? file.folderTitle : deslugify(file.slugPath.split('/').pop() ?? file.slugPath));
+  const title = pageTitle(file);
 
   const coverPath = ctx.covers.get(file.isIndex ? file.slugPath : file.parentPath) ?? null;
   const icon = resolveIcon(file, findings);

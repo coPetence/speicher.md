@@ -13,11 +13,11 @@
  * The returned URLs carry REPO_BASE_SENTINEL, replaced by withRepoBase at
  *   render output
  */
-import { slugify } from '../../common/slug';
+import { deslugify, slugify } from '../../common/slug';
 import { ConfigService } from '../../config/config.service';
 import { IngestedEdge } from '../ingested';
 import { RepoAddressPolicy, pageCandidates, parseRepoTarget, repoTargetUrl } from '../links';
-import { LinkKind } from '../markdown';
+import { LinkKind, LinkResolution, firstH1 } from '../markdown';
 import { REPO_BASE_SENTINEL, isMarkdown, resolveRelative, splitTarget } from '../paths';
 import { isEmbeddableFile } from '../wikilinks';
 import { pendingAsset } from './assets';
@@ -73,7 +73,7 @@ export function resolvePageLink(
   links: PageLinks,
   target: string,
   kind: LinkKind,
-): string | null {
+): LinkResolution {
   const { path, suffix } = splitTarget(target);
   if (path === '') return `${REPO_BASE_SENTINEL}/${file.slugPath}${suffix}`;
 
@@ -112,10 +112,22 @@ export function resolvePageLink(
         });
       }
     }
-    return `${REPO_BASE_SENTINEL}/${destination.slugPath}${suffix}`;
+    return {
+      href: `${REPO_BASE_SENTINEL}/${destination.slugPath}${suffix}`,
+      title: pageTitle(destination),
+    };
   }
 
   return pendingAsset(repoRelative, suffix);
+}
+
+/** The title a page is shown under: its frontmatter title, else its first H1, else its name */
+export function pageTitle(file: ScannedFile): string {
+  return (
+    file.frontmatter.title ??
+    firstH1(file.body) ??
+    (file.isIndex ? file.folderTitle : deslugify(file.slugPath.split('/').pop() ?? file.slugPath))
+  );
 }
 
 /**

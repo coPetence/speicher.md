@@ -30,7 +30,13 @@ import {
   TABS_SYNC_ATTR,
 } from './mdx/mdx';
 import { installTasks, TASK_CLASS, TASK_DONE_CLASS, TASK_STATE_CLASS } from './tasks';
-import { installWikilinks, rewriteWikilinks, WIKILINK_ATTR, WIKILINK_EMBED } from './wikilinks';
+import {
+  installWikilinks,
+  rewriteWikilinks,
+  WIKILINK_ATTR,
+  WIKILINK_EMBED,
+  WIKILINK_TITLE_ATTR,
+} from './wikilinks';
 
 /** Removes thead blocks whose inline cells are all empty */
 function dropEmptyHeaderRow(state: MarkdownIt.StateCore): void {
@@ -189,9 +195,21 @@ export const ALLOWED_TAGS = [
 /** Kind of link context for the resolveLink callback */
 export type LinkKind = 'link' | 'wikilink' | 'wikiembed' | 'image';
 
+/** A link that resolved to a page, with that page's title */
+export interface ResolvedLink {
+  href: string;
+  title: string;
+}
+
+export type LinkResolution = string | ResolvedLink | null;
+
+export function hrefOf(resolution: LinkResolution): string | null {
+  return typeof resolution === 'string' || resolution === null ? resolution : resolution.href;
+}
+
 /** Options for renderMarkdown */
 export interface RenderOptions {
-  resolveLink?: (target: string, kind: LinkKind) => string | null;
+  resolveLink?: (target: string, kind: LinkKind) => LinkResolution;
   resolveExternalImage?: (url: string) => string | null;
   /** Parse as MDX (`installMdx`). Decided by the file's extension, never its content. */
   mdx?: boolean;
@@ -310,7 +328,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
       td: alignFromStyle,
       // Drops dangerous URLs, secures external links, resolves internal ones
       a: (tagName, attribs): sanitizeHtml.Tag => {
-        const { [WIKILINK_ATTR]: wikilink, ...rest } = attribs;
+        const { [WIKILINK_ATTR]: wikilink, [WIKILINK_TITLE_ATTR]: untitled, ...rest } = attribs;
         const href = rest.href ?? '';
         const anchor = rest.id || rest.name;
         if (!href || !isSafeUrl(href)) {
@@ -331,7 +349,12 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
           brokenLinks.push(href);
           return { tagName, attribs: { ...rest, href, 'data-broken': 'true' } };
         }
-        return { tagName, attribs: { ...rest, href: resolved, ...(anchor ? { id: anchor } : {}) } };
+        const page = typeof resolved === 'string' ? { href: resolved, title: null } : resolved;
+        return {
+          tagName,
+          attribs: { ...rest, href: page.href, ...(anchor ? { id: anchor } : {}) },
+          ...(untitled && page.title ? { text: page.title } : {}),
+        };
       },
       // Drops dangerous images, proxies external ones, resolves internal ones
       img: (tagName, attribs): sanitizeHtml.Tag => {
@@ -347,7 +370,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
           }
           return { tagName, attribs: { ...rest, src: proxied, loading: 'lazy' } };
         }
-        const resolved = options.resolveLink?.(src, 'image') ?? null;
+        const resolved = hrefOf(options.resolveLink?.(src, 'image') ?? null);
         if (resolved === null) {
           brokenLinks.push(src);
           return { tagName: 'span', attribs: { 'data-broken-image': '1' } };
@@ -377,7 +400,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
  */
 export function rewriteMarkdownLinks(
   source: string,
-  resolve: (target: string, kind: LinkKind) => string | null,
+  resolve: (target: string, kind: LinkKind) => LinkResolution,
 ): string {
   const fence = /^([ \t]*)(```+|~~~+)/;
   const lines = source.split('\n');
@@ -403,7 +426,7 @@ export function rewriteMarkdownLinks(
 
 function rewriteLineLinks(
   line: string,
-  resolve: (target: string, kind: LinkKind) => string | null,
+  resolve: (target: string, kind: LinkKind) => LinkResolution,
 ): string {
   // Inline `[text](target)` and `![alt](target)`, plus reference definitions
   // `[id]: target`. Angle-bracketed and titled forms are handled by the capture.
@@ -411,7 +434,7 @@ function rewriteLineLinks(
   const reference = /^(\s*\[[^\]]+\]:\s*)<?([^\s>]+)>?(.*)$/;
 
   const rewritten = line.replace(inline, (whole, bang, text, target, title) => {
-    const replacement = resolveTarget(target, bang === '!' ? 'image' : 'link', resolve);
+    const replacement = hrefOf(resolveTarget(target, bang === '!' ? 'image' : 'link', resolve));
     if (replacement === null) return whole;
     return `${bang}[${text}](${replacement}${title ?? ''})`;
   });
@@ -421,7 +444,7 @@ function rewriteLineLinks(
     // `[^1]: the note` is a footnote, whose text would otherwise be resolved as a
     // link target and rewritten into a URL.
     if (!ref || /^\s*\[\^/.test(ref[1])) return rewritten;
-    const replacement = resolveTarget(ref[2], 'link', resolve);
+    const replacement = hrefOf(resolveTarget(ref[2], 'link', resolve));
     return replacement === null ? rewritten : `${ref[1]}${replacement}${ref[3]}`;
   })();
 
@@ -434,8 +457,8 @@ function rewriteLineLinks(
 function resolveTarget(
   target: string,
   kind: LinkKind,
-  resolve: (target: string, kind: LinkKind) => string | null,
-): string | null {
+  resolve: (target: string, kind: LinkKind) => LinkResolution,
+): LinkResolution {
   if (!target || target.startsWith('#') || isAbsolute(target)) return null;
   if (!isSafeUrl(target)) return null;
   return resolve(target, kind);
@@ -460,7 +483,7 @@ export function htmlToPlainText(html: string): string {
     .trim();
 }
 
-function firstH1(source: string): string | null {
+export function firstH1(source: string): string | null {
   for (const line of source.split('\n')) {
     const atx = /^#\s+(.+?)\s*#*\s*$/.exec(line);
     if (atx) return stripInlineMarkup(atx[1]);

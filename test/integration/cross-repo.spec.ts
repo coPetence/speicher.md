@@ -206,11 +206,12 @@ describe('wikilinks', () => {
     expect(found).toContain('/kb-azure/guides/vault#rotation');
   });
 
-  it('renders the alias as the link text and the target when there is none', async () => {
+  it("renders the alias as the link text and the linked page's title when there is none", async () => {
     const { text } = await as('alice').get(VAULTS).expect(200);
     expect(text).toContain('>rotating a key</a>');
     expect(text).toContain('>the reference</a>');
-    expect(text).toContain('>vault</a>');
+    expect(text).toContain('>Using a key vault</a>');
+    expect(text).not.toContain('>guides/vault</a>');
   });
 
   it('says nothing in the HTML about which syntax a link was written in', async () => {

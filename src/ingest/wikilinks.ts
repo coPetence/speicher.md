@@ -10,6 +10,7 @@
  */
 
 import MarkdownIt from 'markdown-it';
+import type { LinkResolution } from './markdown';
 import { isMarkdown } from './paths';
 
 /** HTML attribute identifying links that came from wikilink syntax */
@@ -20,6 +21,8 @@ export const WIKILINK_LINK = 'link';
 
 /** Value for an embed wikilink (rendered as an iframe or object) */
 export const WIKILINK_EMBED = 'embed';
+
+export const WIKILINK_TITLE_ATTR = 'data-spr-wikilink-title';
 
 /** Newline and `[` forbidden: newline crosses line boundary, `[` would
  *  allow ambiguous `[[` nesting */
@@ -69,6 +72,7 @@ function wikilinkRule(state: MarkdownIt.StateInline, silent: boolean): boolean {
       openToken.attrs = [
         ['href', target],
         [WIKILINK_ATTR, embed ? WIKILINK_EMBED : WIKILINK_LINK],
+        ...(alias === null ? [[WIKILINK_TITLE_ATTR, 'page'] as [string, string]] : []),
       ];
       const text = state.push('text', '', 0);
       text.content = label;
@@ -90,10 +94,11 @@ export function installWikilinks(md: MarkdownIt): void {
  * Embeddable embeds become `![target](href)` (kind image)
  * Other embeds become `[target](href)` (kind wikiembed)
  * Plain wikilinks become `[target](href)` (kind wikilink)
+ * Links without an alias show the linked page's title
  * Left unchanged when resolver returns null */
 export function rewriteWikilinks(
   line: string,
-  resolve: (target: string, kind: 'wikilink' | 'wikiembed' | 'image') => string | null,
+  resolve: (target: string, kind: 'wikilink' | 'wikiembed' | 'image') => LinkResolution,
 ): string {
   // Matches [[target]] and ![[target]]:
   //  Group 1: optional `!` for embeds
@@ -102,10 +107,17 @@ export function rewriteWikilinks(
     const { target, alias } = splitInner(inner);
     if (target === '') return whole;
     const asImage = bang === '!' && isEmbeddableFile(target);
-    const href = resolve(target, asImage ? 'image' : bang === '!' ? 'wikiembed' : 'wikilink');
-    if (href === null) return whole;
-    return `${asImage ? '!' : ''}[${alias ?? (asImage ? '' : target)}](${href})`;
+    const resolved = resolve(target, asImage ? 'image' : bang === '!' ? 'wikiembed' : 'wikilink');
+    if (resolved === null) return whole;
+    if (typeof resolved === 'string') {
+      return `${asImage ? '!' : ''}[${alias ?? (asImage ? '' : target)}](${resolved})`;
+    }
+    return `[${alias ?? escapeBrackets(resolved.title)}](${resolved.href})`;
   });
+}
+
+function escapeBrackets(text: string): string {
+  return text.replace(/[[\]\\]/g, '\\$&');
 }
 
 /** Split `target|alias` at the first pipe, trimming both parts */
