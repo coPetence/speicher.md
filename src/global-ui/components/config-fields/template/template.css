@@ -55,6 +55,18 @@
     transform-origin: 0 0;
     pointer-events: none;
   }
+  .spr-template-frame > iframe[data-spr-fade] {
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+  .spr-template-frame > iframe[data-spr-fade][data-spr-loaded] {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spr-template-frame > iframe[data-spr-fade] {
+      transition: none;
+    }
+  }
   .spr-template-missing {
     display: grid;
     place-content: center;

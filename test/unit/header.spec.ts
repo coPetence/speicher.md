@@ -211,6 +211,20 @@ describe('the appearance control', () => {
     });
   });
 
+  it('names the colour scheme before any stylesheet loads, so a frame never flashes white', () => {
+    const scheme = (cookies: Record<string, string>) =>
+      /<meta name="color-scheme" content="([^"]+)"/.exec(
+        renderPage('<h1>A page</h1>', {
+          title: 'A page',
+          nonce: 'test-nonce',
+          ...pageChrome(request('/', caller(), cookies), CHROME),
+        }),
+      )?.[1];
+    expect(scheme({})).toBe('light dark');
+    expect(scheme({ speicher_theme: 'dark' })).toBe('dark');
+    expect(scheme({ speicher_theme: 'light' })).toBe('light');
+  });
+
   it('tells the layout the terminal look is on', () => {
     const page = (over: Partial<ChromeConfig>) =>
       renderPage('<h1>A page</h1>', {

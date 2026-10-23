@@ -4,6 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="<%= it.scheme === 'dark' ? 'dark' : it.scheme === 'light' ? 'light' : 'light dark' %>" />
     <title><%= it.title %></title>
     <% if (it.description) { %>
     <meta name="description" content="<%= it.description %>" />
