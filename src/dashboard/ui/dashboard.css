@@ -361,7 +361,7 @@
   .spr-tiles {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-    gap: var(--spr-space-4);
+    gap: 0.75rem;
 
     margin-block-start: var(--spr-space-5);
     margin-block-end: var(--spr-space-7);
@@ -389,17 +389,19 @@
     flex-direction: column;
     align-items: start;
     justify-content: center;
-    gap: var(--spr-space-2);
+    gap: 0.35rem;
     border: var(--spr-border) solid var(--spr-line);
     border-radius: var(--spr-radius-lg);
-    padding: var(--spr-space-5);
+    padding: 1rem;
     background: var(--spr-surface);
+    font-size: 0.9375rem;
+    line-height: 1.6;
   }
 
   .spr-tile-head {
     display: flex;
     align-items: center;
-    gap: var(--spr-space-4);
+    gap: 0.75rem;
   }
 
   .spr-tile-head .spr-icon {

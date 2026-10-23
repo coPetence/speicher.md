@@ -67,11 +67,15 @@ const FONT_STACKS: Record<string, string> = {
   mono: 'var(--spr-font-mono)',
 };
 
+/** Every corner radius step, set to 0 when corners are turned off */
+const RADIUS_TOKENS = ['--spr-radius', '--spr-radius-sm', '--spr-radius-lg', '--spr-radius-xl'];
+
 /** Token names emitted by themeOverrides */
 export const OVERRIDDEN_TOKENS = [
   ...PALETTE_KEYS.map((key) => `--spr-${key}`),
   '--spr-font-body',
   '--spr-font-size-code',
+  ...RADIUS_TOKENS,
 ];
 
 // Matches 3- or 6-digit hex colour; capture group is the digits without #
@@ -111,7 +115,7 @@ function declarations(palette: PaletteConfig | undefined): string {
 }
 
 /**
- * Returns concatenated CSS with font and colour overrides
+ * Returns concatenated CSS with font, corner and colour overrides
  *
  * When scheme is null both schemes are emitted inside prefers-colour-scheme
  * media queries.  When set the output is a bare :root rule for that scheme
@@ -129,6 +133,10 @@ export function themeOverrides(
     // Mono uses a variable font stack and resets code-font-size to avoid cascade
     const correction = theme.font === 'mono' ? ';--spr-font-size-code:1em' : '';
     blocks.push(`:root{--spr-font-body:${stack}${correction}}`);
+  }
+
+  if (theme.rounded_corners === false) {
+    blocks.push(`:root{${RADIUS_TOKENS.map((token) => `${token}:0`).join(';')}}`);
   }
 
   for (const [name, media] of [
