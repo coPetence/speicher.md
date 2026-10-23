@@ -1,0 +1,47 @@
+@layer speicher.theme {
+  .spr-layout[data-tui] .spr-article h2::before,
+  .spr-layout[data-tui] .spr-article h3::before {
+    color: var(--spr-muted);
+    font-weight: normal;
+  }
+
+  .spr-layout[data-tui] .spr-article h2::before {
+    content: '## ';
+  }
+
+  .spr-layout[data-tui] .spr-article h3::before {
+    content: '### ';
+  }
+
+  .spr-layout[data-tui] .spr-article :where(p, li, td, th, dd) > a {
+    text-decoration: none;
+    padding-inline: 0.1em;
+  }
+
+  .spr-layout[data-tui] .spr-article :where(p, li, td, th, dd) > a:hover,
+  .spr-layout[data-tui] .spr-article :where(p, li, td, th, dd) > a:focus-visible {
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    outline: none;
+  }
+
+  .spr-layout[data-tui] .spr-article ul > li::marker {
+    content: '- ';
+    color: var(--spr-muted);
+  }
+
+  .spr-layout[data-tui] .spr-article hr {
+    height: 0;
+    border: 0;
+    border-top: var(--spr-border) dashed var(--spr-line);
+  }
+
+  .spr-layout[data-tui] .spr-main pre {
+    border: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-layout[data-tui] ::selection {
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+  }
+}

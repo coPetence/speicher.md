@@ -34,11 +34,13 @@ export type RouteChrome = Pick<
   | 'searchIcon'
   | 'attribution'
   | 'wallpaper'
+  | 'tui'
 >;
 
 export type ChromeConfig = Pick<
   ConfigService,
   | 'themeTemplate'
+  | 'themeTui'
   | 'themeOverridesFor'
   | 'brand'
   | 'brandLogoUrl'
@@ -81,6 +83,7 @@ export function pageChrome(
         .filter((block): block is string => Boolean(block))
         .join('') || null,
     wallpaper: Boolean(wallpaper.light || wallpaper.dark),
+    tui: config.themeTui,
 
     account: req.caller?.viaSetup === true ? null : accountChrome(req.caller),
     brand: config.brand,

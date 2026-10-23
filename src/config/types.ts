@@ -210,6 +210,7 @@ export interface ThemeConfig {
   template?: string;
   font?: string;
   rounded_corners?: boolean;
+  tui?: boolean;
   palette?: {
     light?: PaletteConfig;
     dark?: PaletteConfig;

@@ -544,7 +544,8 @@ describe('the branding section', () => {
     expect(form).toContain('aria-describedby="help-theme-template"');
     expect(form).toContain('aria-describedby="help-brand-name-align"');
     expect(form).toContain('aria-describedby="help-theme-rounded-corners"');
-    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(5);
+    expect(form).toContain('aria-describedby="help-theme-tui"');
+    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(6);
     expect([...form.matchAll(/<p class="spr-help">/g)]).toHaveLength(0);
   });
 

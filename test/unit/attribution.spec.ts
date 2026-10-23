@@ -11,6 +11,7 @@ function shell(attribution: boolean): string {
     nonce: 'test-nonce',
     ...pageChrome(req, {
       themeTemplate: 'default',
+      themeTui: false,
       themeOverridesFor: () => null,
       brand: 'Acme Engineering Docs',
       brandLogoUrl: null,
@@ -50,6 +51,7 @@ describe('the attribution', () => {
       req,
       {
         themeTemplate: 'default',
+        themeTui: false,
         themeOverridesFor: () => null,
         brand: 'Acme Engineering Docs',
         brandLogoUrl: null,

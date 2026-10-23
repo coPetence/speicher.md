@@ -32,7 +32,7 @@
   <body>
     <%~ it.sprite || '' %>
     
-    <div class="spr-layout"<%~ it.nav && it.nav.length ? ' data-tree' : '' %><% if (it.tree) { %> data-spr-tree="<%= it.tree %>"<% } %><%~ it.article ? ' data-article' : '' %><%~ it.docked ? ' data-docked' : '' %><%~ it.wallpaper ? ' data-wallpaper' : '' %>>
+    <div class="spr-layout"<%~ it.nav && it.nav.length ? ' data-tree' : '' %><% if (it.tree) { %> data-spr-tree="<%= it.tree %>"<% } %><%~ it.article ? ' data-article' : '' %><%~ it.docked ? ' data-docked' : '' %><%~ it.wallpaper ? ' data-wallpaper' : '' %><%~ it.tui ? ' data-tui' : '' %>>
       <header class="spr-header">
         
         <a class="spr-brand" href="/"<% if (it.brandLogo && it.brandNameShown && it.brandNameAlign === 'bottom') { %> data-align="bottom"<% } %>>

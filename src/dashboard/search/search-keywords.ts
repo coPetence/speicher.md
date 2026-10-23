@@ -122,6 +122,7 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'field:brand.icon': 'favicon, tab icon, browser tab, bookmark, shortcut icon, ico',
   'field:brand.wallpaper': 'wallpaper, background image, backdrop, photo, glass',
   'field:brand.wallpaper_all_themes': 'wallpaper everywhere, all themes, background in every theme',
+  'field:theme.tui': 'terminal, tui, console, monospace, retro, hacker, cli look',
   'field:theme.rounded_corners': 'rounded corners, radius, square, sharp edges, round',
   'field:brand.wallpaper_dark': 'dark mode wallpaper, dark background image, night backdrop',
   'field:theme.template': 'skin, style, appearance, stylesheet',
