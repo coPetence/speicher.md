@@ -277,6 +277,10 @@ export class ConfigService {
     return wallpaper ? brandImageUrl(wallpaper) : null;
   }
 
+  get brandWallpaperAllThemes(): boolean {
+    return this.instance.brand?.wallpaper_all_themes ?? false;
+  }
+
   get faviconUrl(): string {
     const icon = this.brandIcon;
     return icon ? brandImageUrl(icon) : '/favicon.ico';

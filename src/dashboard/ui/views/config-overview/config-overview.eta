@@ -15,6 +15,7 @@
           <p class="spr-card-sub">Every stored version, the difference between any two, and rollback.</p>
         </div>
       </div>
+      <%~ it.page_arrow %>
     </section>
     <% } %>
     <section class="spr-tile spr-tile-page">
@@ -25,6 +26,7 @@
           <p class="spr-card-sub">Every variable this process reads, and what it was started with.</p>
         </div>
       </div>
+      <%~ it.page_arrow %>
     </section>
     <section class="spr-tile spr-tile-page">
       <div class="spr-tile-head">
@@ -34,6 +36,7 @@
           <p class="spr-card-sub">Download this configuration as <code><%= it.backup_filename %></code>, to keep somewhere the database is not.</p>
         </div>
       </div>
+      <%~ it.page_arrow %>
     </section>
   </div>
 </section>
@@ -53,6 +56,7 @@
           <% if (section.blurb) { %><p class="spr-card-sub"><%~ md(section.blurb) %></p><% } %>
         </div>
       </div>
+      <%~ it.page_arrow %>
     </section>
     <% }) %>
   </div>

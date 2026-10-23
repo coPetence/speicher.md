@@ -6,7 +6,7 @@ import type { ConfigService } from '../config/config.service';
 import type { ColourScheme } from '../config/palette';
 import { stylesheetUrl } from './assets.controller';
 import { DEFAULT_BRAND_ICON, renderInlineIcon } from './icons';
-import { templateWallpaperUrls } from './template-wallpapers';
+import { hasTemplateWallpapers, templateWallpaperUrls } from './template-wallpapers';
 import { NAV_WIDTH_COOKIE, THEME_COOKIE, navWidthTokens, readerScheme } from './views';
 import {
   AccountChrome,
@@ -45,6 +45,7 @@ export type ChromeConfig = Pick<
   | 'brandLogoDarkUrl'
   | 'brandWallpaperUrl'
   | 'brandWallpaperDarkUrl'
+  | 'brandWallpaperAllThemes'
   | 'faviconUrl'
   | 'faviconType'
   | 'brandShowName'
@@ -112,13 +113,19 @@ export function pageChrome(
  * @param template the template the page is drawn in
  */
 export function wallpaperFor(
-  config: Pick<ConfigService, 'brandWallpaperUrl' | 'brandWallpaperDarkUrl'>,
+  config: Pick<
+    ConfigService,
+    'brandWallpaperUrl' | 'brandWallpaperDarkUrl' | 'brandWallpaperAllThemes'
+  >,
   template: string,
 ): { light: string | null; dark: string | null } {
   const own = templateWallpaperUrls(template);
+  const uploaded = config.brandWallpaperAllThemes || hasTemplateWallpapers(template);
+  const light = uploaded ? config.brandWallpaperUrl : null;
+  const dark = uploaded ? config.brandWallpaperDarkUrl : null;
   return {
-    light: config.brandWallpaperUrl ?? own.light,
-    dark: config.brandWallpaperDarkUrl ?? own.dark ?? config.brandWallpaperUrl,
+    light: light ?? own.light,
+    dark: dark ?? own.dark ?? light,
   };
 }
 

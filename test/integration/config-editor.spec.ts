@@ -548,6 +548,25 @@ describe('the branding section', () => {
     expect([...form.matchAll(/<p class="spr-help">/g)]).toHaveLength(0);
   });
 
+  it('marks each tile that opens a page with an arrow', async () => {
+    const { html } = await open('branding');
+    const tiles = [
+      ...html.matchAll(/<section class="spr-tile spr-tile-page">([\s\S]*?)<\/section>/g),
+    ];
+    expect(tiles).toHaveLength(2);
+    for (const [, inner] of tiles) expect(inner).toContain('spr-tile-arrow');
+  });
+
+  it('offers the default theme first and the others in alphabetical order', async () => {
+    const { html } = await open('branding');
+    const values = [
+      ...html.matchAll(/type="radio"\s+name="theme\.template"\s+value="([^"]+)"/g),
+    ].map((m) => m[1]);
+    expect(values[0]).toBe('default');
+    expect(values.slice(1)).toEqual([...values.slice(1)].sort());
+    expect(values.length).toBeGreaterThan(1);
+  });
+
   it('puts the gallery in a block of its own, after the paired controls', async () => {
     const { html } = await open('branding');
 
@@ -2688,13 +2707,14 @@ describe('the logos page', () => {
     const photo = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(3_500_000)]);
     const { body } = await open('branding/logos');
     const posted = await submitFiles(
-      { ...body, intent: 'apply' },
+      { ...body, 'brand.wallpaper_all_themes': 'on', intent: 'apply' },
       { 'brand.wallpaper': { bytes: photo, name: 'wallpaper.jpg' } },
     ).expect(303);
     const page = await landing('branding/logos', posted);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).toMatch(/wallpaper: sha256:[0-9a-f]{64}/);
+    expect(yaml).toMatch(/wallpaper_all_themes: true/);
 
     const src = /--spr-wallpaper:url\("([^"]+)"\)/.exec(page.text)?.[1] ?? '';
     expect(src).toMatch(/^\/-\/brand\/[0-9a-f]{64}\.jpg$/);

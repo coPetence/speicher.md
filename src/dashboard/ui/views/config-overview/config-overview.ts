@@ -36,6 +36,7 @@ export function sendConfig(
             .filter((icon) => icon !== '')
             .map((icon) => [icon, renderInlineIcon(icon, 'spr-icon')]),
         ),
+        page_arrow: renderInlineIcon('chevron-right', 'spr-icon spr-tile-arrow'),
         notes: [
           ...(data.config_source === 'database'
             ? []

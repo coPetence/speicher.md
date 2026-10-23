@@ -57,7 +57,10 @@ function imageField(root: Obj, spec: BrandImageSpec, label: string, help: string
 }
 
 function templateOptions(stored: unknown): Option[] {
-  const names = templateNames();
+  // Default first, the rest in alphabetical order
+  const names = [...templateNames()].sort(
+    (a, b) => Number(b === DEFAULT_TEMPLATE) - Number(a === DEFAULT_TEMPLATE),
+  );
   const options: Option[] = names.map((name) => ({
     value: name,
     label: titleCase(name),
@@ -173,6 +176,16 @@ export function logosSection(root: Obj): SectionSource {
         BRAND_WALLPAPER_DARK,
         'Wallpaper for dark pages',
         `JPEG, PNG, WebP or SVG up to 4K (max. ${describeBytes(BRAND_WALLPAPER_DARK.maxBytes)}). Shown to a reader with dark mode`,
+      ),
+      booleanField(
+        root,
+        ['brand', 'wallpaper_all_themes'],
+        'brand.wallpaper_all_themes',
+        'Show the wallpaper in every theme',
+        {
+          fallback: false,
+          help: 'The switch shows the uploaded wallpaper behind every theme. If this is turned off, only the Glass theme shows it.',
+        },
       ),
     ],
     cards: [],

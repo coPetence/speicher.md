@@ -423,6 +423,27 @@
     font-family: inherit;
   }
 
+  .spr-tile-page {
+    padding-inline-end: 2.75rem;
+  }
+
+  .spr-tile-arrow {
+    position: absolute;
+    inset-inline-end: 1rem;
+    top: 50%;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    transform: translateY(-50%);
+    transition: transform var(--spr-transition);
+    pointer-events: none;
+  }
+
+  .spr-tile-page:hover .spr-tile-arrow,
+  .spr-tile-page:has(a:focus-visible) .spr-tile-arrow {
+    transform: translate(0.15rem, -50%);
+  }
+
   .spr-page-head {
     display: flex;
     align-items: center;

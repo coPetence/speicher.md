@@ -277,6 +277,11 @@
           "maxLength": 7000000,
           "pattern": "^(data:image/(jpeg|png|webp|svg\\+xml);base64,|sha256:[0-9a-f]{64}$)",
           "description": "Wallpaper for dark mode as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG)"
+        },
+        "wallpaper_all_themes": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the uploaded wallpaper is shown in every theme. When this is turned off, only themes with a wallpaper of their own, such as Glass, show it."
         }
       }
     },

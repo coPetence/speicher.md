@@ -248,6 +248,8 @@ export interface BrandConfig {
   wallpaper?: string;
   // Wallpaper for dark mode
   wallpaper_dark?: string;
+  // Whether the uploaded wallpaper is shown in every theme, not only in Glass
+  wallpaper_all_themes?: boolean;
   // Whether to show the brand name next to the logo in the header
   show_name?: boolean;
   // How the brand name lines up with the logo beside it
