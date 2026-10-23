@@ -13,7 +13,7 @@
  */
 
 import { mountFilter } from './filter';
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 
 // Selects the status table specifically; other tables with class `.spr-table`
 // do not carry `data-spr-rows`
@@ -37,7 +37,7 @@ const TOGGLED = ['.spr-scroll', '[data-spr-empty="none"]', '[data-spr-empty="fil
 function mount(): void {
   const sent = REGIONS.map((selector) => document.querySelector(selector)?.innerHTML ?? null);
   // Nav fold animation and open-state cookie; status page has a side nav
-  mountNavFolds();
+  mountNav();
   // Live text filter on the repository table
   const reapply = mountFilter(TABLE);
   mountFilterDialog();
