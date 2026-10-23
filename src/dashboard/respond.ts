@@ -170,8 +170,7 @@ export function renderDashboardPage(
     // that exist bundle the same slide, and a page carries one script either way
     island: islandUrl(page.island ?? 'fold'),
 
-    // The themed reader chrome is off on admin pages
-    ...pageChrome(req, config, { themed: false }),
+    ...pageChrome(req, config),
 
     // in the setup we do not need the search bar
     ...(page.showSetup === true ? { search: false } : {}),

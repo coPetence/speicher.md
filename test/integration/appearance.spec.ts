@@ -117,7 +117,7 @@ describe('what the answer changes', () => {
     expect(normalise(dark)).toBe(normalise(plain));
   });
 
-  it('survives the operational surface, which wears no appearance the instance chose', async () => {
+  it('survives the operational surface', async () => {
     const cookie = await sessionCookieFor(harness.tenantId, 'ops');
     const res = await get('/-/status').set('Cookie', [cookie, `${THEME_COOKIE}=dark`]);
     expect(res.status).toBe(200);

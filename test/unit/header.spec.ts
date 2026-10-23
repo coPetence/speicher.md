@@ -139,6 +139,17 @@ describe('the appearance control', () => {
     expect(of({ speicher_theme: '../evil' })).toMatch(/theme-default-[0-9a-f]+\.css/);
   });
 
+  it('wears the instance template and palette on admin pages too', () => {
+    const themed = {
+      ...CHROME,
+      themeTemplate: 'catppuccin',
+      themeOverridesFor: () => ':root{--spr-accent:#123456}',
+    };
+    const chrome = pageChrome(request('/-/config/branding', caller({ isAdmin: true })), themed);
+    expect(chrome.stylesheet).toMatch(/theme-catppuccin-[0-9a-f]+\.css/);
+    expect(chrome.themeTokens).toContain('--spr-accent:#123456');
+  });
+
   it('is not drawn for a reader who has no account menu to draw it in', () => {
     expect(header('/', undefined)).not.toContain('/api/appearance');
   });

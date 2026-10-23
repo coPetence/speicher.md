@@ -6,8 +6,7 @@ import { OVERRIDDEN_TOKENS, PALETTE_KEYS, themeOverrides } from '../../src/confi
 const SHEET = readFileSync(join(__dirname, '../../src/global-ui/theme/default.css'), 'utf8');
 
 // Tokens the sheet defines for the admin UI alone. They live here so they get a dark
-// variant with everything else, but they are deliberately not offered in the palette:
-// an instance themes the pages its readers see, not the configurator.
+// variant with everything else, but they are not offered in the palette.
 const ADMIN_ONLY_TOKENS = new Set(['--spr-bar-bg']);
 
 describe('the theme overrides', () => {

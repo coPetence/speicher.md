@@ -204,7 +204,7 @@
         "palette": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Overrides for every colour a template chooses, so an operator can carry their own palette onto any template without writing one. Each scheme is answered separately and both are optional: a colour left unset keeps the template's own, and a scheme left out entirely keeps the template's whole answer for it — which is what stops a light palette from painting a dark-mode reader's page white. Applied to the documentation a reader sees and deliberately not to `/-/*`, so a palette that cannot be read is still editable on the form that set it.",
+          "description": "The palette replaces individual colours of the template. It is used to match the documentation and the admin pages to your brand colours. Colours you leave empty keep the default colours.",
           "properties": {
             "light": {
               "$ref": "#/$defs/palette",
