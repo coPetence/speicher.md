@@ -539,6 +539,11 @@ describe('heading anchors', () => {
     expect(headingSlug('Prüfung und Größe')).toBe('pruefung-und-groesse');
   });
 
+  it('turns dots and underscores into hyphens, so config keys stay readable', () => {
+    expect(headingSlug('assets.presign_ttl')).toBe('assets-presign-ttl');
+    expect(headingSlug('1. Create a source')).toBe('1-create-a-source');
+  });
+
   it('does not collapse the hyphens that removed punctuation leaves behind', () => {
     expect(headingSlug('Pricing & Limits')).toBe('pricing--limits');
     expect(headingSlug('Pause & Resume Sandboxes')).toBe('pause--resume-sandboxes');
