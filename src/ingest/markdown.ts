@@ -59,6 +59,7 @@ export function headingSlug(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
+    .replace(/(?<=[a-z0-9])[._](?=[a-z0-9])/g, '-')
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s/g, '-');
 }
