@@ -39,6 +39,15 @@ describe('the theme overrides', () => {
     expect(themeOverrides({ palette: { light: { accent: '#2f5d8a' } } }, 'dark')).toBeNull();
   });
 
+  it('squares every corner when rounded corners are turned off, in both schemes', () => {
+    expect(themeOverrides({ rounded_corners: true })).toBeNull();
+    for (const scheme of [null, 'light', 'dark'] as const) {
+      expect(themeOverrides({ rounded_corners: false }, scheme)).toBe(
+        ':root{--spr-radius:0;--spr-radius-sm:0;--spr-radius-lg:0;--spr-radius-xl:0}',
+      );
+    }
+  });
+
   it('keeps the typeface out of the scheme, because a face does not change with the light', () => {
     for (const scheme of [null, 'light', 'dark'] as const) {
       expect(themeOverrides({ font: 'serif' }, scheme)).toContain('--spr-font-body:Georgia');

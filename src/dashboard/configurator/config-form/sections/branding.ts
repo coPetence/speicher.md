@@ -127,6 +127,10 @@ export function brandingSection(root: Obj): SectionSource {
       booleanField(root, ['attribution'], 'attribution', 'Show "Published with speicher.md"', {
         fallback: true,
       }),
+      booleanField(root, ['theme', 'rounded_corners'], 'theme.rounded_corners', 'Rounded corners', {
+        fallback: true,
+        help: 'Rounds the corners of panes, cards, buttons and fields. Turn it off for square corners.',
+      }),
     ],
     cards: [],
     addOps: [],

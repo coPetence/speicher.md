@@ -543,7 +543,8 @@ describe('the branding section', () => {
     expect(form).toContain('class="spr-info-mark"');
     expect(form).toContain('aria-describedby="help-theme-template"');
     expect(form).toContain('aria-describedby="help-brand-name-align"');
-    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(4);
+    expect(form).toContain('aria-describedby="help-theme-rounded-corners"');
+    expect((form.match(/class="spr-info-mark"/g) ?? []).length).toBe(5);
     expect([...form.matchAll(/<p class="spr-help">/g)]).toHaveLength(0);
   });
 
@@ -583,6 +584,21 @@ describe('the branding section', () => {
     await post('branding', { ...without, intent: 'apply' }).expect(303);
 
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toMatch(/show_name: false/);
+  });
+
+  it('squares every corner on the page once rounded corners are turned off', async () => {
+    const { body } = await open('branding');
+    expect(body['theme.rounded_corners']).toBe('on');
+
+    const without = { ...body };
+    delete without['theme.rounded_corners'];
+    await post('branding', { ...without, intent: 'apply' }).expect(303);
+
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toMatch(
+      /rounded_corners: false/,
+    );
+    const { html } = await open('branding');
+    expect(html).toContain('--spr-radius:0;--spr-radius-sm:0;--spr-radius-lg:0;--spr-radius-xl:0');
   });
 
   it('never puts the marker inside a label', async () => {

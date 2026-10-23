@@ -209,6 +209,7 @@ export type PaletteConfig = Partial<Record<PaletteKey, string>>;
 export interface ThemeConfig {
   template?: string;
   font?: string;
+  rounded_corners?: boolean;
   palette?: {
     light?: PaletteConfig;
     dark?: PaletteConfig;

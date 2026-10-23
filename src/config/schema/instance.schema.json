@@ -201,6 +201,11 @@
           "default": "system",
           "description": "The face body text is set in, as one of four stacks this instance ships. A name is not accepted, and the reason is not tidiness: a face nobody has installed needs a web font, which is a request to whoever serves it from a page a reader is authenticated on, and `font-src 'self'` refuses it. Every stack here resolves to something already on the machine. `mono` also takes the code-size correction back to `1em`, since there is no longer a pairing to correct for."
         },
+        "rounded_corners": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether corners are rounded. Off sets every corner radius to 0, whatever the template chooses."
+        },
         "palette": {
           "type": "object",
           "additionalProperties": false,
