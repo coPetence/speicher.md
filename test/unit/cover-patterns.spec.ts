@@ -93,7 +93,7 @@ describe('the stylesheet the tiles depend on', () => {
 
   it('sizes the grid track off the same token as the card', () => {
     const grid = /\.spr-repos\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(grid).toContain('repeat(auto-fill, var(--spr-cover-width))');
+    expect(grid).toContain('repeat(auto-fill, minmax(var(--spr-cover-width), 1fr))');
   });
 
   it('colours the tile through tokens', () => {
