@@ -40,6 +40,7 @@ const CHROME = {
   brandLogoDarkUrl: null,
   brandWallpaperUrl: null as string | null,
   brandWallpaperDarkUrl: null as string | null,
+  brandWallpaperAllThemes: false,
   faviconUrl: '/favicon.ico',
   faviconType: 'image/svg+xml',
   brandShowName: true,
@@ -172,7 +173,11 @@ describe('the appearance control', () => {
   });
 
   it('gives Glass its own photos, no other template any, and lets an upload replace each', () => {
-    const none = { brandWallpaperUrl: null, brandWallpaperDarkUrl: null };
+    const none = {
+      brandWallpaperUrl: null,
+      brandWallpaperDarkUrl: null,
+      brandWallpaperAllThemes: false,
+    };
     const glass = wallpaperFor(none, 'glass');
     expect(glass.light).toMatch(
       /^\/-\/static\/wallpaper-daniele-buso-qzUenL35ZYw-[0-9a-f]+\.webp$/,
@@ -184,12 +189,22 @@ describe('the appearance control', () => {
     expect(wallpaperFor(none, 'default')).toEqual({ light: null, dark: null });
     expect(wallpaperFor(none, 'catppuccin')).toEqual({ light: null, dark: null });
 
-    const darkOnly = { brandWallpaperUrl: null, brandWallpaperDarkUrl: '/-/brand/b.jpg' };
+    const darkOnly = { ...none, brandWallpaperDarkUrl: '/-/brand/b.jpg' };
     expect(wallpaperFor(darkOnly, 'glass')).toEqual({ light: glass.light, dark: '/-/brand/b.jpg' });
 
-    const lightOnly = { brandWallpaperUrl: '/-/brand/a.jpg', brandWallpaperDarkUrl: null };
+    const lightOnly = { ...none, brandWallpaperUrl: '/-/brand/a.jpg' };
     expect(wallpaperFor(lightOnly, 'glass')).toEqual({ light: '/-/brand/a.jpg', dark: glass.dark });
-    expect(wallpaperFor(lightOnly, 'default')).toEqual({
+  });
+
+  it('shows an upload in the other themes only when it is meant for every theme', () => {
+    const upload = {
+      brandWallpaperUrl: '/-/brand/a.jpg',
+      brandWallpaperDarkUrl: null,
+      brandWallpaperAllThemes: false,
+    };
+    expect(wallpaperFor(upload, 'default')).toEqual({ light: null, dark: null });
+
+    expect(wallpaperFor({ ...upload, brandWallpaperAllThemes: true }, 'default')).toEqual({
       light: '/-/brand/a.jpg',
       dark: '/-/brand/a.jpg',
     });
@@ -202,7 +217,7 @@ describe('the appearance control', () => {
         nonce: 'test-nonce',
         ...pageChrome(request('/', caller()), { ...CHROME, ...over }),
       });
-    expect(page({ brandWallpaperUrl: '/-/brand/a.jpg' })).toMatch(
+    expect(page({ brandWallpaperUrl: '/-/brand/a.jpg', brandWallpaperAllThemes: true })).toMatch(
       /<div class="spr-layout"[^>]* data-wallpaper>/,
     );
     expect(page({})).not.toContain('data-wallpaper');

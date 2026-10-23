@@ -22,6 +22,11 @@ export const TEMPLATE_WALLPAPERS: Record<string, { light: TemplatePhoto; dark: T
   },
 };
 
+/** Whether a template ships wallpapers of its own */
+export function hasTemplateWallpapers(template: string): boolean {
+  return TEMPLATE_WALLPAPERS[template] !== undefined;
+}
+
 /**
  * The URLs of a template's default wallpapers, or nulls when it ships none
  *

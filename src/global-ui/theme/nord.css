@@ -1,0 +1,82 @@
+@layer speicher.theme {
+  /* Light is built on Nord's Snow Storm, dark on its Polar Night */
+  :root {
+    --spr-bg: #eceff4;
+    --spr-fg: #2e3440;
+    --spr-muted: #4c566a;
+    --spr-line: #d8dee9;
+    --spr-accent: #5e81ac;
+    --spr-surface: #e5e9f0;
+    --spr-bar-bg: #dfe4ec;
+    --spr-warn-bg: #f6efd9;
+    --spr-warn-fg: #8a6a1f;
+    --spr-mark-bg: #ebcb8b;
+    --spr-mark-fg: #2e3440;
+
+    --spr-code-keyword: #5e81ac;
+    --spr-code-type: #4c7a7a;
+    --spr-code-function: #3b7e8f;
+    --spr-code-tag: #5e81ac;
+    --spr-code-attr: #8f6a99;
+    --spr-code-string: #5f7e43;
+    --spr-code-number: #8f6a99;
+    --spr-code-comment: #7b88a1;
+    --spr-code-meta: #4c566a;
+    --spr-code-variable: #2e3440;
+    --spr-code-inserted: #5f7e43;
+    --spr-code-inserted-bg: #e4ecdc;
+    --spr-code-deleted: #bf616a;
+    --spr-code-deleted-bg: #f3e0e2;
+
+    --spr-callout-info: #5e81ac;
+    --spr-callout-tip: #5f7e43;
+    --spr-callout-important: #8f6a99;
+    --spr-callout-warning: #b58a2e;
+    --spr-callout-danger: #bf616a;
+
+    --spr-font-mono:
+      'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --spr-space-8: 2.25rem;
+
+    --spr-measure: 50rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #2e3440;
+      --spr-fg: #d8dee9;
+      --spr-muted: #a0a8b7;
+      --spr-line: #434c5e;
+      --spr-accent: #88c0d0;
+      --spr-surface: #3b4252;
+      --spr-bar-bg: #272c36;
+      --spr-warn-bg: #4a4b4b;
+      --spr-warn-fg: #ebcb8b;
+      --spr-mark-bg: #ebcb8b;
+      --spr-mark-fg: #2e3440;
+
+      --spr-code-keyword: #81a1c1;
+      --spr-code-type: #8fbcbb;
+      --spr-code-function: #88c0d0;
+      --spr-code-tag: #81a1c1;
+      --spr-code-attr: #8fbcbb;
+      --spr-code-string: #a3be8c;
+      --spr-code-number: #b48ead;
+      --spr-code-comment: #616e88;
+      --spr-code-meta: #5e81ac;
+      --spr-code-variable: #d8dee9;
+      --spr-code-inserted: #a3be8c;
+      --spr-code-inserted-bg: #3c4549;
+      --spr-code-deleted: #bf616a;
+      --spr-code-deleted-bg: #3f3945;
+
+      --spr-callout-info: #88c0d0;
+      --spr-callout-tip: #a3be8c;
+      --spr-callout-important: #b48ead;
+      --spr-callout-warning: #ebcb8b;
+      --spr-callout-danger: #bf616a;
+    }
+  }
+}

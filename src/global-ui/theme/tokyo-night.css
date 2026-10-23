@@ -1,0 +1,82 @@
+@layer speicher.theme {
+  /* Light is Tokyo Night Day, dark is Tokyo Night */
+  :root {
+    --spr-bg: #e1e2e7;
+    --spr-fg: #3760bf;
+    --spr-muted: #6172b0;
+    --spr-line: #c4c8da;
+    --spr-accent: #2e7de9;
+    --spr-surface: #d5d6db;
+    --spr-bar-bg: #cfd0d6;
+    --spr-warn-bg: #ece0c8;
+    --spr-warn-fg: #8c6c3e;
+    --spr-mark-bg: #e9d3a8;
+    --spr-mark-fg: #3760bf;
+
+    --spr-code-keyword: #9854f1;
+    --spr-code-type: #007197;
+    --spr-code-function: #2e7de9;
+    --spr-code-tag: #f52a65;
+    --spr-code-attr: #118c74;
+    --spr-code-string: #587539;
+    --spr-code-number: #b15c00;
+    --spr-code-comment: #848cb5;
+    --spr-code-meta: #006a83;
+    --spr-code-variable: #3760bf;
+    --spr-code-inserted: #587539;
+    --spr-code-inserted-bg: #d3dccb;
+    --spr-code-deleted: #f52a65;
+    --spr-code-deleted-bg: #ecd2d9;
+
+    --spr-callout-info: #2e7de9;
+    --spr-callout-tip: #587539;
+    --spr-callout-important: #9854f1;
+    --spr-callout-warning: #b15c00;
+    --spr-callout-danger: #f52a65;
+
+    --spr-font-mono:
+      'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --spr-space-7: 1.6rem;
+
+    --spr-measure: 50rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #1a1b26;
+      --spr-fg: #c0caf5;
+      --spr-muted: #737aa2;
+      --spr-line: #292e42;
+      --spr-accent: #7aa2f7;
+      --spr-surface: #16161e;
+      --spr-bar-bg: #13131a;
+      --spr-warn-bg: #383130;
+      --spr-warn-fg: #e0af68;
+      --spr-mark-bg: #e0af68;
+      --spr-mark-fg: #1a1b26;
+
+      --spr-code-keyword: #bb9af7;
+      --spr-code-type: #7dcfff;
+      --spr-code-function: #7aa2f7;
+      --spr-code-tag: #f7768e;
+      --spr-code-attr: #73daca;
+      --spr-code-string: #9ece6a;
+      --spr-code-number: #ff9e64;
+      --spr-code-comment: #565f89;
+      --spr-code-meta: #89ddff;
+      --spr-code-variable: #c0caf5;
+      --spr-code-inserted: #9ece6a;
+      --spr-code-inserted-bg: #2a302e;
+      --spr-code-deleted: #f7768e;
+      --spr-code-deleted-bg: #352633;
+
+      --spr-callout-info: #7dcfff;
+      --spr-callout-tip: #9ece6a;
+      --spr-callout-important: #bb9af7;
+      --spr-callout-warning: #e0af68;
+      --spr-callout-danger: #f7768e;
+    }
+  }
+}

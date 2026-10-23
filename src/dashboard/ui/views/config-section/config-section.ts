@@ -80,6 +80,7 @@ export function sendConfigSection(
             .filter((entry) => entry.icon !== '')
             .map((entry) => [entry.icon, renderInlineIcon(entry.icon, 'spr-icon')]),
         ),
+        page_arrow: renderInlineIcon('chevron-right', 'spr-icon spr-tile-arrow'),
         badge_icons: Object.fromEntries(
           [
             ...(payload.section?.entries ?? []).flatMap((entry) =>

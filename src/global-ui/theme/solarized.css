@@ -1,0 +1,82 @@
+@layer speicher.theme {
+  /* Light is Solarized light, dark is Solarized dark */
+  :root {
+    --spr-bg: #fdf6e3;
+    --spr-fg: #657b83;
+    --spr-muted: #839496;
+    --spr-line: #ddd6c1;
+    --spr-accent: #268bd2;
+    --spr-surface: #eee8d5;
+    --spr-bar-bg: #e6dfca;
+    --spr-warn-bg: #f6e7c1;
+    --spr-warn-fg: #8a6a00;
+    --spr-mark-bg: #f5e4a3;
+    --spr-mark-fg: #586e75;
+
+    --spr-code-keyword: #859900;
+    --spr-code-type: #b58900;
+    --spr-code-function: #268bd2;
+    --spr-code-tag: #cb4b16;
+    --spr-code-attr: #6c71c4;
+    --spr-code-string: #2aa198;
+    --spr-code-number: #d33682;
+    --spr-code-comment: #93a1a1;
+    --spr-code-meta: #cb4b16;
+    --spr-code-variable: #268bd2;
+    --spr-code-inserted: #859900;
+    --spr-code-inserted-bg: #eef0d0;
+    --spr-code-deleted: #dc322f;
+    --spr-code-deleted-bg: #f9e0d6;
+
+    --spr-callout-info: #268bd2;
+    --spr-callout-tip: #859900;
+    --spr-callout-important: #6c71c4;
+    --spr-callout-warning: #b58900;
+    --spr-callout-danger: #dc322f;
+
+    --spr-font-mono:
+      'Source Code Pro', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --spr-space-6: 1.35rem;
+
+    --spr-measure: 48rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #002b36;
+      --spr-fg: #839496;
+      --spr-muted: #657b83;
+      --spr-line: #124654;
+      --spr-accent: #268bd2;
+      --spr-surface: #073642;
+      --spr-bar-bg: #00212b;
+      --spr-warn-bg: #1b392e;
+      --spr-warn-fg: #b58900;
+      --spr-mark-bg: #b58900;
+      --spr-mark-fg: #002b36;
+
+      --spr-code-keyword: #859900;
+      --spr-code-type: #b58900;
+      --spr-code-function: #268bd2;
+      --spr-code-tag: #cb4b16;
+      --spr-code-attr: #6c71c4;
+      --spr-code-string: #2aa198;
+      --spr-code-number: #d33682;
+      --spr-code-comment: #586e75;
+      --spr-code-meta: #cb4b16;
+      --spr-code-variable: #268bd2;
+      --spr-code-inserted: #859900;
+      --spr-code-inserted-bg: #0b3a2c;
+      --spr-code-deleted: #dc322f;
+      --spr-code-deleted-bg: #1a2c35;
+
+      --spr-callout-info: #268bd2;
+      --spr-callout-tip: #859900;
+      --spr-callout-important: #6c71c4;
+      --spr-callout-warning: #b58900;
+      --spr-callout-danger: #dc322f;
+    }
+  }
+}
