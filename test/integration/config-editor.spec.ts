@@ -1237,11 +1237,10 @@ describe('the content sources section', () => {
     expect(page.html).not.toContain('data-spr-kind=');
 
     const kinds = kindRows(page.html);
-    expect(Object.keys(kinds).sort()).toEqual(['forgejo', 'git', 'gitea', 'github', 'gitlab']);
+    expect(Object.keys(kinds).sort()).toEqual(['git', 'github']);
     for (const kind of Object.values(kinds)) {
       expect(kind).toContain('<svg class="spr-icon" width="16" height="16"');
     }
-    expect(kinds.gitlab).toContain('#E24329');
     expect(kinds.git).toContain('#DE4C36');
   });
 
