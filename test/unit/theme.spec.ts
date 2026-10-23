@@ -277,10 +277,11 @@ describe('the base stylesheet', () => {
     );
   });
 
-  // The breakpoint is where the second track can be afforded: the default tree,
-  // the aside, four gutters (two between the tracks), and an article still wide enough to read. Computed
-  // from the tokens rather than trusted, so a retuned aside or gutter moves it.
-  it('opens the second track only where the article keeps a readable width', () => {
+  // The breakpoint is where the second track can be afforded without narrowing
+  // the article: the default tree, the pane's inset, the article at its full
+  // measure, one gutter on either side of it, the aside and the toolbar's inset.
+  // Computed from the tokens rather than trusted, so a retuned aside or gutter moves it.
+  it('opens the second track only where the article keeps its full measure', () => {
     const rem = (token: string): number =>
       Number(new RegExp(`${token}:\\s*([0-9.]+)rem`).exec(SOURCE)?.[1]);
     const gutterToken = /--spr-gutter:\s*var\((--spr-space-[0-9]+)\)/.exec(SOURCE)?.[1] ?? '';
@@ -293,14 +294,14 @@ describe('the base stylesheet', () => {
     const article =
       breakpoint -
       rem('--spr-nav-width-default') -
+      rem('--spr-space-3') -
+      2 * rem(gutterToken) -
       aside -
-      3 * rem(gutterToken) -
       rem('--spr-space-4');
     for (const value of [breakpoint, article]) expect(Number.isFinite(value)).toBe(true);
-    // Narrower than this and the pair is not worth having beside each other
-    expect(article).toBeGreaterThanOrEqual(36);
-    // And not so wide that a laptop never sees the column
-    expect(breakpoint).toBeLessThanOrEqual(80);
+    expect(article).toBeGreaterThanOrEqual(rem('--spr-measure'));
+    // And not much later, so a wide screen still gets the column
+    expect(article - rem('--spr-measure')).toBeLessThan(2);
   });
 
   // Every reader template is swapped into the same `.spr-main`, and every one
@@ -320,7 +321,7 @@ describe('the base stylesheet', () => {
 
   it('puts the room to scroll the last line up after the related pages', () => {
     expect(RULES).toMatch(
-      /@media not all and \(min-width: 80rem\) \{\s*\.spr-article:has\(\+ \.spr-aside\) \{\s*padding-bottom: 0;\s*\}\s*\.spr-article \+ \.spr-aside \{\s*padding-bottom: 20vh;/,
+      /@media not all and \(min-width: 94rem\) \{\s*\.spr-article:has\(\+ \.spr-aside\) \{\s*padding-bottom: 0;\s*\}\s*\.spr-article \+ \.spr-aside \{\s*padding-bottom: 20vh;/,
     );
   });
 
