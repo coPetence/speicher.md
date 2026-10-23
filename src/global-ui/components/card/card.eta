@@ -1,8 +1,9 @@
 
 <%
   const card = it.card, editable = it.editable;
+  const toggle = card.toggle ? card.items.find(function (item) { return item.path === card.toggle }) : undefined;
   // Fields marked advanced are drawn folded at the end of the card
-  const ordinary = card.items.filter(function (item) { return !item.advanced });
+  const ordinary = card.items.filter(function (item) { return !item.advanced && item !== toggle });
   const advanced = card.items.filter(function (item) { return item.advanced });
   const customised = advanced.some(function (item) { return item.value !== undefined && item.value !== '' });
 %>
@@ -11,6 +12,7 @@
     <% if (it.landing && (card.removeOp === 'remove:' + it.landing || card.items.some(function (item) { return item.path === it.landing }))) { %>id="spr-landing"<% } %>
     <% if (card.shownWith) { %>data-spr-shown-with="<%= card.shownWith %>"<% } %>
     <% if (card.shownWhen) { %>data-spr-shown-when="<%= card.shownWhen %>"<% } %>
+    <% if (card.enabledWith) { %>data-spr-enabled-with="<%= card.enabledWith %>"<% } %>
     <% if (card.hidden) { %>hidden<% } %>
   >
     <header>
@@ -21,6 +23,18 @@
       <p class="spr-card-sub">
         <%= card.subtitle %>
       </p>
+      <% } %>
+      <% if (toggle) { %>
+      <label class="spr-switch spr-card-toggle">
+        <input
+          type="checkbox"
+          name="<%= toggle.path %>"
+          value="on"
+          <%= toggle.checked ? 'checked' : '' %>
+          <%= editable ? '' : 'disabled' %>
+        >
+        <span class="spr-clipped"><%= card.title %></span>
+      </label>
       <% } %>
       <% if (card.removeOp && editable) { %>
       <button
@@ -36,9 +50,11 @@
     <% card.notes.forEach(function (note) { %>
     <%~ include('@note', { level: 'idle', text: note }) %>
     <% }) %>
+    <% if (ordinary.length > 0) { %>
     <div class="spr-fields">
       <% ordinary.forEach(function (item) { %><%~ include('@config-fields/item', { ...it, item: item }) %><% }) %>
     </div>
+    <% } %>
     <% if (advanced.length > 0) { %>
     <details class="spr-advanced" <%= customised ? 'open' : '' %>>
       <summary>Advanced settings</summary>

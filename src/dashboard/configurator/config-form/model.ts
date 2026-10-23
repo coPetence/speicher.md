@@ -126,6 +126,8 @@ export interface Card {
   shownWith?: string;
   // The option of a choice's radio group the card is shown with, e.g. `manual`
   shownWhen?: string;
+  enabledWith?: string;
+  toggle?: string;
   hidden?: boolean;
 }
 
@@ -161,6 +163,8 @@ export interface FormSection {
   layout?: 'tiles' | 'table';
   // Lays the fields out in two equal columns across the full width
   twoColumns?: boolean;
+  // Lays the cards out side by side in a grid instead of one below the other
+  cardGrid?: boolean;
   // Tables of entries within a section
   tables?: ValueTable[];
   // Whether each entry tile navigates to its own page
