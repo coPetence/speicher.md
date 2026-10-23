@@ -1002,12 +1002,12 @@
     outline-offset: 2px;
   }
 
-  @media (min-width: 80rem) {
+  @media (min-width: 94rem) {
     .spr-layout[data-article] > .spr-pane > .spr-main {
       display: grid;
       grid-template-columns: minmax(0, 1fr) var(--spr-aside-width);
       align-content: start;
-      column-gap: calc(var(--spr-gutter) * 2);
+      column-gap: var(--spr-gutter);
       padding-inline: var(--spr-gutter) var(--spr-space-4);
     }
 
@@ -1410,7 +1410,7 @@
     overflow-wrap: break-word;
   }
 
-  @media not all and (min-width: 80rem) {
+  @media not all and (min-width: 94rem) {
     .spr-article:has(+ .spr-aside) {
       padding-bottom: 0;
     }
