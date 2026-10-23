@@ -807,14 +807,14 @@ describe('the palette', () => {
     expect(preview.text).not.toContain('--spr-nav-user');
   });
 
-  it('paints the documentation and never the page that sets it', async () => {
+  it('paints the documentation and the page that sets it', async () => {
     await paint();
 
     const settings = await request(app.getHttpServer())
       .get('/-/config/branding/appearance')
       .set('cookie', ops)
       .expect(200);
-    expect(settings.text).not.toContain('--spr-accent');
+    expect(settings.text).toContain('--spr-accent:#8a4b2f');
 
     const page = await request(app.getHttpServer()).get('/').set('cookie', ops).expect(200);
     expect(page.text).toContain('--spr-accent:#8a4b2f');

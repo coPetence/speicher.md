@@ -1,0 +1,93 @@
+@layer speicher.theme {
+  /* Light is Catppuccin Latte, dark is Catppuccin Mocha */
+  :root {
+    --spr-bg: #eff1f5;
+    --spr-fg: #4c4f69;
+    --spr-muted: #6c6f85;
+    --spr-line: #ccd0da;
+    --spr-accent: #8839ef;
+    --spr-surface: #e6e9ef;
+    --spr-bar-bg: #dce0e8;
+    --spr-warn-bg: #ede2d5;
+    --spr-warn-fg: #8f5b13;
+    --spr-mark-bg: #e9cea9;
+    --spr-mark-fg: #4c4f69;
+    --spr-page: #dce0e8;
+    --spr-pane: #eff1f5;
+
+    --spr-code-keyword: #8839ef;
+    --spr-code-type: #df8e1d;
+    --spr-code-function: #1e66f5;
+    --spr-code-tag: #7287fd;
+    --spr-code-attr: #df8e1d;
+    --spr-code-string: #40a02b;
+    --spr-code-number: #fe640b;
+    --spr-code-comment: #7c7f93;
+    --spr-code-meta: #ea76cb;
+    --spr-code-variable: #e64553;
+    --spr-code-inserted: #40a02b;
+    --spr-code-inserted-bg: #dae7dd;
+    --spr-code-deleted: #d20f39;
+    --spr-code-deleted-bg: #ecd6de;
+
+    --spr-callout-info: #1e66f5;
+    --spr-callout-tip: #40a02b;
+    --spr-callout-important: #8839ef;
+    --spr-callout-warning: #df8e1d;
+    --spr-callout-danger: #d20f39;
+    --spr-callout-tint: 10%;
+
+    --spr-font-mono:
+      'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --spr-space-7: 1.75rem;
+    --spr-space-8: 2.25rem;
+
+    --spr-radius: 8px;
+    --spr-radius-sm: 6px;
+    --spr-radius-lg: 12px;
+    --spr-radius-xl: 16px;
+
+    --spr-measure: 50rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --spr-color-scheme: dark;
+      --spr-bg: #1e1e2e;
+      --spr-fg: #cdd6f4;
+      --spr-muted: #a6adc8;
+      --spr-line: #313244;
+      --spr-accent: #cba6f7;
+      --spr-surface: #181825;
+      --spr-bar-bg: #11111b;
+      --spr-warn-bg: #3f3b41;
+      --spr-warn-fg: #f9e2af;
+      --spr-mark-bg: #f9e2af;
+      --spr-mark-fg: #11111b;
+      --spr-page: #11111b;
+      --spr-pane: #1e1e2e;
+
+      --spr-code-keyword: #cba6f7;
+      --spr-code-type: #f9e2af;
+      --spr-code-function: #89b4fa;
+      --spr-code-tag: #b4befe;
+      --spr-code-attr: #f9e2af;
+      --spr-code-string: #a6e3a1;
+      --spr-code-number: #fab387;
+      --spr-code-comment: #9399b2;
+      --spr-code-meta: #f5c2e7;
+      --spr-code-variable: #eba0ac;
+      --spr-code-inserted: #a6e3a1;
+      --spr-code-inserted-bg: #2e363c;
+      --spr-code-deleted: #f38ba8;
+      --spr-code-deleted-bg: #382b3d;
+
+      --spr-callout-info: #89b4fa;
+      --spr-callout-tip: #a6e3a1;
+      --spr-callout-important: #cba6f7;
+      --spr-callout-warning: #f9e2af;
+      --spr-callout-danger: #f38ba8;
+    }
+  }
+}

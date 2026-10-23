@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { safeRedirect } from '../auth/oidc.service';
 import type { ResolvedCaller } from '../authz/caller';
 import type { ConfigService } from '../config/config.service';
-import { DEFAULT_TEMPLATE, stylesheetUrl } from './assets.controller';
+import { stylesheetUrl } from './assets.controller';
 import { DEFAULT_BRAND_ICON, renderInlineIcon } from './icons';
 import { NAV_WIDTH_COOKIE, THEME_COOKIE, navWidthTokens, readerScheme } from './views';
 import {
@@ -51,28 +51,22 @@ export type ChromeConfig = Pick<
 /**
  * Page chrome assembled from request and config
  *
- * Not themed for config-editor and setup routes
  * Setup callers see no account or sign-in UI
  */
 export function pageChrome(
   req: Request,
   config: ChromeConfig,
-  options: { offerSignIn?: boolean; themed?: boolean } = {},
+  options: { offerSignIn?: boolean } = {},
 ): RouteChrome {
-  const themed = options.themed !== false;
-
   const scheme = readerScheme(req.cookies?.[THEME_COOKIE]);
 
   return {
     scheme,
-    stylesheet: stylesheetUrl(themed ? config.themeTemplate : DEFAULT_TEMPLATE, scheme),
+    stylesheet: stylesheetUrl(config.themeTemplate, scheme),
 
     // Theme overrides and nav width merged into one <style> block
     themeTokens:
-      [
-        themed ? config.themeOverridesFor(scheme) : null,
-        navWidthTokens(req.cookies?.[NAV_WIDTH_COOKIE]),
-      ]
+      [config.themeOverridesFor(scheme), navWidthTokens(req.cookies?.[NAV_WIDTH_COOKIE])]
         .filter((block): block is string => Boolean(block))
         .join('') || null,
 
