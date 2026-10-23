@@ -34,6 +34,7 @@ function caller(over: Partial<ResolvedCaller> = {}): ResolvedCaller {
 
 const CHROME = {
   themeTemplate: 'default',
+  themeTui: false,
   themeOverridesFor: () => null,
   brand: 'Acme Engineering Docs',
   brandLogoUrl: null,
@@ -208,6 +209,17 @@ describe('the appearance control', () => {
       light: '/-/brand/a.jpg',
       dark: '/-/brand/a.jpg',
     });
+  });
+
+  it('tells the layout the terminal look is on', () => {
+    const page = (over: Partial<ChromeConfig>) =>
+      renderPage('<h1>A page</h1>', {
+        title: 'A page',
+        nonce: 'test-nonce',
+        ...pageChrome(request('/', caller()), { ...CHROME, ...over }),
+      });
+    expect(page({ themeTui: true })).toMatch(/<div class="spr-layout"[^>]* data-tui>/);
+    expect(page({})).not.toContain('data-tui');
   });
 
   it('tells the layout a wallpaper is set, so the header and tree get a backing', () => {

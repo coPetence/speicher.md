@@ -48,6 +48,13 @@ describe('the theme overrides', () => {
     }
   });
 
+  it('sets the terminal look in monospace with square corners, whatever the corner switch says', () => {
+    const css = themeOverrides({ tui: true, rounded_corners: true })!;
+    expect(css).toContain('--spr-font-body:var(--spr-font-mono);--spr-font-size-code:1em');
+    expect(css).toContain('--spr-radius:0;--spr-radius-sm:0;--spr-radius-lg:0;--spr-radius-xl:0');
+    expect(themeOverrides({ tui: false })).toBeNull();
+  });
+
   it('keeps the typeface out of the scheme, because a face does not change with the light', () => {
     for (const scheme of [null, 'light', 'dark'] as const) {
       expect(themeOverrides({ font: 'serif' }, scheme)).toContain('--spr-font-body:Georgia');

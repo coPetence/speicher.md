@@ -67,7 +67,6 @@ const FONT_STACKS: Record<string, string> = {
   mono: 'var(--spr-font-mono)',
 };
 
-/** Every corner radius step, set to 0 when corners are turned off */
 const RADIUS_TOKENS = ['--spr-radius', '--spr-radius-sm', '--spr-radius-lg', '--spr-radius-xl'];
 
 /** Token names emitted by themeOverrides */
@@ -135,7 +134,11 @@ export function themeOverrides(
     blocks.push(`:root{--spr-font-body:${stack}${correction}}`);
   }
 
-  if (theme.rounded_corners === false) {
+  if (theme.tui === true) {
+    blocks.push(':root{--spr-font-body:var(--spr-font-mono);--spr-font-size-code:1em}');
+  }
+
+  if (theme.rounded_corners === false || theme.tui === true) {
     blocks.push(`:root{${RADIUS_TOKENS.map((token) => `${token}:0`).join(';')}}`);
   }
 

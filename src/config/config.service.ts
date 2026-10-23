@@ -207,6 +207,10 @@ export class ConfigService {
     return this.instance.theme?.template ?? 'default';
   }
 
+  get themeTui(): boolean {
+    return this.instance.theme?.tui ?? false;
+  }
+
   /** Per-scheme CSS overrides, cached and invalidated on config change */
   themeOverridesFor(scheme: ColourScheme | null): string | null {
     const stored = this.instance.theme;

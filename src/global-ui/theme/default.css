@@ -5,6 +5,7 @@
 @import '../components/crumbs/crumbs.css';
 @import '../components/findings/findings.css';
 @import '../components/problems/problems.css';
+@import '../components/tui/tui.css';
 
 @layer speicher.base {
   :root {

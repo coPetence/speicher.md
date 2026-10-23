@@ -206,6 +206,11 @@
           "default": true,
           "description": "Whether corners are rounded. Off sets every corner radius to 0, whatever the template chooses."
         },
+        "tui": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether pages look like a terminal: monospace text, square corners and terminal-style headings, links and lists. Works with every template."
+        },
         "palette": {
           "type": "object",
           "additionalProperties": false,

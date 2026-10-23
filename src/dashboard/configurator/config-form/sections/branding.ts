@@ -134,6 +134,10 @@ export function brandingSection(root: Obj): SectionSource {
         fallback: true,
         help: 'Rounds the corners of panes, cards, buttons and fields. Turn it off for square corners.',
       }),
+      booleanField(root, ['theme', 'tui'], 'theme.tui', 'Terminal look', {
+        fallback: false,
+        help: 'Shows pages like a terminal: monospace text, square corners and terminal-style headings, links and lists. Works with every theme.',
+      }),
     ],
     cards: [],
     addOps: [],
