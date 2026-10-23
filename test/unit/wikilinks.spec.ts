@@ -27,6 +27,18 @@ describe('what is a wikilink', () => {
     expect(render('[[#rotation]]\n').html).toContain('href="#rotation"');
   });
 
+  it("shows the linked page's title when the resolver knows it and there is no alias", () => {
+    const titled = (source: string) =>
+      renderMarkdown(source, {
+        resolveLink: (target) => ({ href: `/r/${target}`, title: 'Shared <env> secrets' }),
+      }).html;
+    expect(titled('[[../../deployments/shared-env-secrets]]\n')).toContain(
+      '<a href="/r/../../deployments/shared-env-secrets">Shared &lt;env&gt; secrets</a>',
+    );
+    expect(titled('[[shared-env-secrets|the secrets]]\n')).toContain('>the secrets</a>');
+    expect(titled('[[shared-env-secrets]]\n')).not.toContain('data-spr-wikilink-title');
+  });
+
   it('never says in the HTML which syntax a link was written in', () => {
     const both = render('[[vault]] and [a](vault.md)\n').html;
     expect(both).not.toContain(WIKILINK_ATTR);
@@ -91,6 +103,15 @@ describe('the Markdown an agent is served', () => {
     expect(out).toContain('[the vault](/r/wikilink/vault)');
     expect(out).toContain('![](/r/image/a/b.png)');
     expect(out).toContain('[#top](#top)');
+  });
+
+  it('names a page by its title there too, and keeps brackets in it from ending the link text', () => {
+    const out = rewriteMarkdownLinks('[[vault]] and [[vault|the vault]]\n', (target) => ({
+      href: `/r/${target}`,
+      title: 'Vault [draft]',
+    }));
+    expect(out).toContain('[Vault \\[draft\\]](/r/vault)');
+    expect(out).toContain('[the vault](/r/vault)');
   });
 
   it('leaves a fenced block alone there as well', () => {
