@@ -8,6 +8,8 @@
  * them pre-opened on the next page load
  */
 
+import { mountResizer } from './resize';
+
 export const SLIDE_MS = 150;
 
 export function motionless(el: HTMLElement): boolean {
@@ -71,7 +73,9 @@ function writeFolds(folds: Iterable<HTMLDetailsElement>): void {
   document.cookie = `${FOLDS_COOKIE}=${encodeURIComponent(open.join(','))}; path=/-/; samesite=lax${secure}`;
 }
 
-export function mountNavFolds(): void {
+export function mountNav(): void {
+  mountResizer();
+
   const selector = '.spr-nav-fold';
   mountDetailsSlide(selector);
 

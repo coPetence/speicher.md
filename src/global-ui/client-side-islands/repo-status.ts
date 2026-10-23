@@ -5,7 +5,7 @@
  * Mounts nav folds for collapsible details/summary sections
  */
 
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 
 const POLL_MS = 3_000;
 
@@ -51,7 +51,7 @@ function mountSyncWatch(): void {
 }
 
 function mount(): void {
-  mountNavFolds();
+  mountNav();
   mountSyncWatch();
 }
 

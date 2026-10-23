@@ -5,11 +5,11 @@
  * column's collapsible sections
  */
 
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 
 /** Bootstraps nav fold animation and open-state persistence */
 function mount(): void {
-  mountNavFolds();
+  mountNav();
 }
 
 if (document.readyState === 'loading') {

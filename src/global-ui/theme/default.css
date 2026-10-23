@@ -1196,6 +1196,11 @@
     .spr-nav-resize {
       display: block;
     }
+
+    .spr-layout:not([data-docked]) > .spr-nav-resize {
+      grid-row: 2;
+      grid-column: 1;
+    }
   }
 
   .spr-menu,

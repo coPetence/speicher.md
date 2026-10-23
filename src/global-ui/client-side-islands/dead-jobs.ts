@@ -5,7 +5,7 @@
  * step with the rows
  */
 
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 
 function mountSelectPage(): void {
   const form = document.querySelector<HTMLFormElement>('[data-spr-dead-jobs]');
@@ -31,7 +31,7 @@ function mountSelectPage(): void {
 }
 
 function mount(): void {
-  mountNavFolds();
+  mountNav();
   mountSelectPage();
 }
 

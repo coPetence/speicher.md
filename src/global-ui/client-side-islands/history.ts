@@ -5,7 +5,7 @@
  * Auto-submits the compare form on select change, hiding the now-redundant submit button
  */
 
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 
 /** Selector for the version comparison form */
 const COMPARE = 'form[data-spr-compare]';
@@ -16,7 +16,7 @@ const COMPARE = 'form[data-spr-compare]';
  * Not form.submit(): requestSubmit triggers validation and submit events
  */
 function mountCompare(): void {
-  mountNavFolds();
+  mountNav();
   const form = document.querySelector<HTMLFormElement>(COMPARE);
   if (!form) return;
 

@@ -10,7 +10,7 @@
 
 import { mountCopy } from './copy';
 import { mountFilter } from './filter';
-import { mountNavFolds } from './slide';
+import { mountNav } from './slide';
 import { mountConfigBar } from './configurator/unsaved-changes-bar';
 import { mountPickedFileNames } from './configurator/picked-file-name';
 import { mountFileDrops } from './configurator/drop-in-field';
@@ -36,7 +36,7 @@ import { mountLanding } from './configurator/land-on-changed-entry';
 import { mountPreviewFades } from './configurator/template-preview-fade';
 
 function mount(): void {
-  mountNavFolds();
+  mountNav();
   mountConfigBar();
 
   mountPickedFileNames();
