@@ -1963,6 +1963,18 @@
     border-radius: inherit;
   }
 
+  .spr-listing.spr-cards li {
+    padding: var(--spr-space-3) var(--spr-space-4);
+  }
+
+  .spr-listing.spr-cards li > a {
+    align-items: flex-start;
+  }
+
+  .spr-listing.spr-cards li > a > .spr-icon {
+    height: 1lh;
+  }
+
   .spr-cards li:hover,
   .spr-cards li:has(> a:focus-visible) {
     color: var(--spr-fg);
