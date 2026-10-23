@@ -63,7 +63,7 @@ export const STEP_PROSE: Record<SetupStepId, StepProse> = {
   content: {
     heading: 'Content source',
     blurb:
-      'Connect the Git repositories that hold your documentation. Speicher reads the Markdown files and images from them and keeps them in sync as changes are pushed. GitHub, GitLab, Gitea, Forgejo and any plain Git remote are supported.',
+      'Connect the Git repositories that hold your documentation. Speicher reads the Markdown files and images from them and keeps them in sync as changes are pushed. GitHub and any plain Git remote are supported.',
     action: 'Add a source',
     reviewAction: 'Review sources',
   },

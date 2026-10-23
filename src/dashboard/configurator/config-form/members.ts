@@ -142,9 +142,6 @@ export const GROUP_ID_HELP =
 export const FORGE_TYPES: Option[] = [
   { value: 'github', label: 'GitHub App', mark: 'github' },
   { value: 'git', label: 'Plain git remote', mark: 'git' },
-  { value: 'gitlab', label: 'GitLab', mark: 'gitlab' },
-  { value: 'gitea', label: 'Gitea', mark: 'gitea' },
-  { value: 'forgejo', label: 'Forgejo', mark: 'forgejo' },
 ];
 
 /** What a forge kind is called, falling back to the stored word itself */
