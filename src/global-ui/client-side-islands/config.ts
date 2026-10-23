@@ -33,6 +33,7 @@ import { mountFragments } from './configurator/open-folded-on-fragment';
 import { mountKnownHostsTables } from './configurator/known-hosts-table';
 import { mountRepositoryIds } from './configurator/repository-id-from-url';
 import { mountLanding } from './configurator/land-on-changed-entry';
+import { mountPreviewFades } from './configurator/template-preview-fade';
 
 function mount(): void {
   mountNavFolds();
@@ -62,6 +63,7 @@ function mount(): void {
   mountKnownHostsTables();
   mountRepositoryIds();
   mountLanding();
+  mountPreviewFades();
 }
 
 if (document.readyState === 'loading') {

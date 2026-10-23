@@ -110,9 +110,13 @@ describe('what the answer changes', () => {
     expect(sheetOf(dark)).toBe('theme-dark-default');
     expect(sheetOf(light)).toBe('theme-light-default');
 
+    expect(dark).toContain('<meta name="color-scheme" content="dark" />');
+    expect(plain).toContain('<meta name="color-scheme" content="light dark" />');
+
     const normalise = (html: string) =>
       html
         .replace(/theme-[a-z-]*default-[0-9a-f]{12}\.css/, 'SHEET')
+        .replace(/<meta name="color-scheme" content="[^"]+" \/>/, 'SCHEME')
         .replace(/nonce="[^"]+"/g, 'nonce="N"');
     expect(normalise(dark)).toBe(normalise(plain));
   });
