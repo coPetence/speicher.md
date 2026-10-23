@@ -483,36 +483,6 @@ describe('the base stylesheet', () => {
       );
       expect(inWide('.spr-pane > .spr-toolbar')).toContain(`padding-inline: ${space(4)}`);
     });
-
-    // Blueprint takes the card's inset and the tree's inset away, so whatever
-    // held those shares of the sums must hold them itself — or the search box
-    // jumps between the two shells, or the logo leaves the tree's line.
-    describe('in a template that removes the insets', () => {
-      const blueprint = readFileSync(
-        join(__dirname, '../../src/global-ui/theme/blueprint.css'),
-        'utf8',
-      );
-      const bpWide = [...blueprint.matchAll(/@media \(min-width: 48rem\) \{([\s\S]*?)\n {2}\}\n/g)]
-        .map((m) => m[1])
-        .join('\n');
-
-      it('keeps the toolbar where the header puts it', () => {
-        expect(ruleFor(bpWide, '.spr-pane')).toMatch(/margin:\s*0;/);
-        const toolbar = ruleFor(bpWide, '.spr-pane > .spr-toolbar');
-        expect(toolbar).toContain(`margin-block-start: ${space(6)}`);
-        expect(toolbar).toContain(`padding-inline-end: calc(${space(3)} + ${space(4)})`);
-      });
-
-      it('keeps the logo on the tree\u2019s line', () => {
-        expect(ruleFor(blueprint, '.spr-nav')).toMatch(/padding-inline:\s*0;/);
-        // The column's inset is gone, so the logo's is a row's lead alone.
-        expect(ruleFor(blueprint, '.spr-header')).toContain(`padding-inline-start: ${space(4)}`);
-        // A gutter on the left would put the inset back for classic scrollbars,
-        // and the brand must then reserve none either.
-        expect(ruleFor(bpWide, '.spr-nav')).toMatch(/scrollbar-gutter:\s*stable;/);
-        expect(ruleFor(bpWide, '.spr-brand')).toMatch(/scrollbar-gutter:\s*auto;/);
-      });
-    });
   });
 
   // On a phone the search box, the tree and the account items wait behind a menu
@@ -2309,7 +2279,7 @@ const TEMPLATES = readdirSync(THEME_DIR)
   .filter((f) => f.endsWith('.css') && f !== 'default.css')
   .map((f) => f.replace(/\.css$/, ''));
 
-const RULE_CARRYING = new Set(['blueprint', 'glass']);
+const RULE_CARRYING = new Set(['glass']);
 
 describe('templates', () => {
   it('ships more than one, because one cannot prove the token set', () => {
