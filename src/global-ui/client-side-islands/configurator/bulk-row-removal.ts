@@ -48,6 +48,21 @@ export function mountBulkRowRemoval(): void {
     );
     if (shape) shape.value = rows.map((row) => row.dataset.sprKind ?? '').join(',');
 
+    // The last row gone, the page looks as the server draws a list with none: the
+    // empty state with the Add control under it, and no field that needs a row
+    if (rows.length === 0) {
+      const collection = list.dataset.sprRows ?? '';
+      const empty = form.querySelector<HTMLElement>(`[data-spr-rows-empty="${collection}"]`);
+      empty?.removeAttribute('hidden');
+      const add = form.querySelector<HTMLElement>(`[data-spr-rows-add="${collection}"]`);
+      if (empty && add) empty.append(add);
+      for (const field of form.querySelectorAll<HTMLElement>(
+        `[data-spr-shown-with-rows="${collection}"]`,
+      )) {
+        field.hidden = true;
+      }
+    }
+
     reportScriptedEdit(form);
   };
 

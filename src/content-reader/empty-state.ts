@@ -178,3 +178,7 @@ export function sectionEmptyArt(sectionId: string): string {
   const kind = SECTION_EMPTY_ART.find((id) => id === sectionId);
   return kind === undefined ? '' : emptyStateArt(kind);
 }
+
+export function tableEmptyArt(sectionId: string): string {
+  return sectionId.startsWith('groups/') ? emptyStateArt('groups') : '';
+}

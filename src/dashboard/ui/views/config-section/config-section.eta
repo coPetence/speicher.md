@@ -143,21 +143,25 @@
 
 <% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon } %>
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
+<%
+  // The Add control sits in the head over a list, and under the empty state
+  // where there is none yet; the bulk removal island moves it down when the last row goes
+  const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1);
+  const addRow = it.editable && table.add
+    ? include('@add-row-panel', { add: table.add, collection: collection, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon })
+    : '';
+%>
+<% if (table.title || table.entries.length > 0) { %>
 <div class="spr-table-head">
   <% if (table.title) { %><h2 class="spr-table-title"><%= table.title %></h2><% } %>
   <div class="spr-table-actions">
   <% if (it.editable && table.entries.some(function (e) { return e.removeOp })) { %>
   <button type="submit" name="op" value="<%= table.bulkRemoveOp %>" class="spr-remove"><%~ it.remove_icon || '' %>Remove selected</button>
   <% } %>
-  <% if (it.editable && table.add) { %>
-  <details class="spr-modal spr-index-add">
-    <summary><%~ it.add_icon || '+' %><span><%= table.add.label %></span></summary>
-    <%~ include('@add-row-panel', { add: table.add, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon }) %>
-  </details>
-  <% } %>
+  <% if (table.entries.length > 0) { %><%~ addRow %><% } %>
   </div>
 </div>
-<% const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1); %>
+<% } %>
 <% if (table.entries.length > 0) { %>
   <div class="spr-rows spr-row-cards" data-spr-rows="<%= collection %>">
     <% table.entries.forEach(function (entry) { %>
@@ -253,8 +257,20 @@
     </div>
     <% }) %>
   </div>
+<% } %>
+<% /*
+  Drawn under a list too, hidden, so the bulk removal island can show it when
+  the last row goes without a round trip
+*/ %>
+<% if (it.table_empty_art) { %>
+<div class="spr-empty-state" data-spr-rows-empty="<%= collection %>"<%= table.entries.length > 0 ? ' hidden' : '' %>>
+  <%~ it.table_empty_art %>
+  <p class="spr-empty"><%= table.emptyNote %></p>
+  <% if (table.entries.length === 0) { %><%~ addRow %><% } %>
+</div>
 <% } else { %>
-<%~ include('@note', { level: 'idle', text: table.emptyNote }) %>
+<%~ include('@note', { level: 'idle', text: table.emptyNote, data: { 'spr-rows-empty': collection }, hidden: table.entries.length > 0 }) %>
+<% if (table.entries.length === 0) { %><%~ addRow %><% } %>
 <% } %>
 <% }) } else if (it.section.layout === 'table') { %>
 <div class="spr-scroll"<%= it.empty_art && it.section.entries.length === 0 ? ' hidden' : '' %>>
