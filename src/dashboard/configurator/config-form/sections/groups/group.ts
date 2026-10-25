@@ -1,4 +1,6 @@
 import { describeExpiry, isExpired } from '../../../../../common/until';
+import { referrersOf } from '../../../../../config/groups';
+import type { GroupItem } from '../../../../../config/types';
 import { SOURCE_GROUP, SOURCE_PERSON, SOURCE_REFERENCE } from '../../collections';
 import { scalarString } from '../../document';
 import { at, membershipField, selectField, textField } from '../../config-fields';
@@ -27,8 +29,11 @@ import {
 
 export function groupSection(root: Obj, name: string): SectionSource {
   const ids = providerIds(root);
-  const others = groupNames(root).filter((other) => other !== name);
   const items = groupItems(root, name);
+  // A group that already reaches this one would close a cycle the save refuses
+  const referrers = referrersOf(at(root, ['groups']) as Record<string, GroupItem[]>, name);
+  const others = groupNames(root).filter((other) => other !== name && !referrers.includes(other));
+  const referenced = items.filter(isReferenceItem).map((item) => scalarString(item.group));
 
   return {
     id: memberSectionId('groups', name),
@@ -53,7 +58,12 @@ export function groupSection(root: Obj, name: string): SectionSource {
         bulkRemoveOp: `remove-selected:groups.${name}`,
         entries: items.map((item, index) => rowEntry(root, name, index, item, others)),
         emptyNote: 'No members yet, so nobody can see anything through this group.',
-        add: rowAdd(root, name, ids, others),
+        add: rowAdd(
+          root,
+          name,
+          ids,
+          others.filter((other) => !referenced.includes(other)),
+        ),
       },
     ],
     addOps: [],
