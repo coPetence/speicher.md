@@ -45,20 +45,24 @@ export interface Collection {
   seedOf?: Record<string, unknown>; // Seeds per kind for typed sequences
 }
 
-/**
- * Whether the node at a path is a person source or a group source
- *
- * Not a map or a map without `subject` or `email` is a group
- */
 export function sourceKindAt(doc: Document, path: (string | number)[]): string {
   const node = doc.getIn(path, true);
   if (!isMap(node)) return SOURCE_GROUP;
+  if (node.has('group')) return SOURCE_REFERENCE;
   return node.has('subject') || node.has('email') ? SOURCE_PERSON : SOURCE_GROUP;
 }
 
 export const SOURCE_GROUP = 'group';
 
 export const SOURCE_PERSON = 'person';
+
+export const SOURCE_REFERENCE = 'reference';
+
+export const SOURCE_SEEDS: Record<string, unknown> = {
+  [SOURCE_GROUP]: {},
+  [SOURCE_PERSON]: { email: '' },
+  [SOURCE_REFERENCE]: { group: '' },
+};
 
 /**
  * Enumerates all growable collections in a config document
@@ -105,6 +109,7 @@ export function collectionsOf(doc: Document): Collection[] {
       keys: [],
       length: seqLength(path.split('.')),
       kinds: seqKinds(path.split('.')),
+      seedOf: SOURCE_SEEDS,
     });
   }
 
@@ -131,42 +136,31 @@ export interface ShapeControl {
 }
 
 /**
- * Parses an add operation into path, kind and seed
+ * Parses an add operation into the path of the list it grows
  *
- * The scoped form `groups.<name>.provider|person.<id>` sets kind and
- * seed from the provider; the unscoped form only sets the path
+ * A group's page offers one, `groups.<name>.row`, whose modal says which shape
+ * of row and through what; both are read from the submission by
+ * `applyStructural`, so the op carries no seed here. See `GROUP_ADD`.
  */
-export function addTarget(op: string): { path: string; kind?: string; seed?: unknown } {
+export function addTarget(op: string): { path: string } {
   const target = op.startsWith('add:') ? op.slice('add:'.length) : op;
-  // Matches `groups.<name>.provider.<id>` or `groups.<name>.person.<id>`
-  //  Group 1: group path
-  //  Group 2: `provider` or `person`
-  //  Group 3: provider id
-  const scoped = /^(groups\.[^.]+)\.(provider|person)\.(.+)$/.exec(target);
-  if (!scoped) return { path: target };
-
-  const [, path, verb, provider] = scoped;
-  // Person seeds carry an empty email as the default
-  return verb === 'person'
-    ? { path, kind: SOURCE_PERSON, seed: { provider, email: '' } }
-    : { path, kind: SOURCE_GROUP, seed: { provider } };
+  const scoped = GROUP_ADD.exec(target);
+  return { path: scoped ? scoped[1] : target };
 }
+
+export const GROUP_ADD = /^(groups\.[^.]+)\.row$/;
+
+/** The shapes of row the modal offers, and the key of the submission that names each one's provider or group */
+export const ROW_KINDS = ['group', 'domain', 'person', 'reference'] as const;
+export type RowKind = (typeof ROW_KINDS)[number];
 
 /** Collections growable through add operations in the section */
 export function collectionsIn(doc: Document, section: FormSection): Collection[] {
-  const growable = new Map<string, { seed?: unknown; seedOf: Record<string, unknown> }>();
+  const growable = new Set<string>();
   for (const op of allOps([section])) {
-    if (!op.startsWith('add:')) continue;
-    const { path, kind, seed } = addTarget(op);
-    const entry = growable.get(path) ?? { seedOf: {} };
-    // An unkinded add sets the single seed; a kinded one populates seedOf
-    if (kind === undefined) entry.seed = seed;
-    else entry.seedOf[kind] = seed;
-    growable.set(path, entry);
+    if (op.startsWith('add:')) growable.add(addTarget(op).path);
   }
-  return collectionsOf(doc)
-    .filter((collection) => growable.has(collection.path))
-    .map((collection) => ({ ...collection, ...growable.get(collection.path) }));
+  return collectionsOf(doc).filter((collection) => growable.has(collection.path));
 }
 
 /** Hidden form controls for collection shape and reshapable field values */

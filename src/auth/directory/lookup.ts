@@ -1,6 +1,5 @@
 import { Logger, rootLogger } from '../../common/logger';
 import { parseDurationWithFallback } from '../../common/time';
-import { isExpired } from '../../common/until';
 import { ConfigService } from '../../config/config.service';
 import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
 import { DirectoryLookup, DirectoryUnavailableError } from '../../ingest/grants';
@@ -241,9 +240,6 @@ export interface GroupReach {
 
 /**
  * Resolve size and portal URL for a list of groups
- *
- * Individual members count as one each; directory-backed groups sum
- * from the lookup, null when any source group is not found
  */
 export async function groupReach(
   config: ConfigService,
@@ -254,7 +250,7 @@ export async function groupReach(
   const out: GroupReach[] = [];
 
   for (const name of names) {
-    const sources = config.groupSources(name).filter((source) => !isExpired(source.until, now));
+    const sources = config.groupSources(name, now);
     let size: number | null = null;
     let url = '';
 

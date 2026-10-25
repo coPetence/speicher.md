@@ -1,21 +1,37 @@
 import { githubGroupIdProblem } from '../../auth/directory/github-config';
+import { nearestName } from '../../common/edit-distance';
 import { parseUntil } from '../../common/until';
-import { GroupSource, InstanceConfig, ProviderConfig, providerType } from '../types';
+import { referenceCycle } from '../groups';
+import {
+  GroupReference,
+  GroupSource,
+  InstanceConfig,
+  ProviderConfig,
+  isGroupReference,
+  providerType,
+} from '../types';
 
 /** Matches the issuers of Microsoft's multi-tenant authorities */
 const MULTI_TENANT_ISSUER = /\/(common|organizations|consumers)\/v2\.0\/?$/;
 
 /**
- * checkGroups checks every source of every group: its provider must exist, `domain`
- * and `id` must fit the provider's type, and `until` must be a date.
+ * checkGroups checks every item of every group. A source's provider must exist,
+ * `domain` and `id` must fit the provider's type, and `until` must be a date. A
+ * reference must name a group that is defined and is not the group itself, and
+ * the references of all groups together must not form a cycle.
  *
  * @param config the loaded instance config
  * @param problems the list that problems are added to
  */
 export function checkGroups(config: InstanceConfig, problems: string[]): void {
   const providers = config.auth?.providers ?? {};
-  for (const [name, sources] of Object.entries(config.groups ?? {})) {
-    for (const source of sources) {
+  for (const [name, items] of Object.entries(config.groups ?? {})) {
+    for (const item of items) {
+      if (isGroupReference(item)) {
+        checkReference(name, item, config, problems);
+        continue;
+      }
+      const source = item;
       const provider = providers[source.provider];
       if (!provider) {
         problems.push(`groups.${name}: provider "${source.provider}" is not a configured provider`);
@@ -43,6 +59,44 @@ export function checkGroups(config: InstanceConfig, problems: string[]): void {
       }
       checkPinnedForAddress(name, source, provider, problems);
     }
+  }
+
+  const cycle = referenceCycle(config.groups);
+  if (cycle) {
+    problems.push(
+      `groups.${cycle[0]}: The group references include a cycle (${cycle.join(' -> ')}). Remove one of the references.`,
+    );
+  }
+}
+
+/**
+ * checkReference checks one `group` item: the group it names has to be defined,
+ * and it must not be the group it sits in, and `until` must be a date.
+ *
+ * @param name the group's name
+ * @param reference the item
+ * @param config the loaded instance config
+ * @param problems the list that problems are added to
+ */
+function checkReference(
+  name: string,
+  reference: GroupReference,
+  config: InstanceConfig,
+  problems: string[],
+): void {
+  const groups = config.groups ?? {};
+  if (reference.group === name) {
+    problems.push(`groups.${name}: This group references itself. Remove the reference.`);
+  } else if (!Object.prototype.hasOwnProperty.call(groups, reference.group)) {
+    const near = nearestName(reference.group, Object.keys(groups), { ignoreCase: true });
+    problems.push(
+      `groups.${name}: references the group "${reference.group}", which is not defined.${near ? ` Did you mean "${near}"?` : ''}`,
+    );
+  }
+  if (reference.until !== undefined && parseUntil(reference.until) === null) {
+    problems.push(
+      `groups.${name}: The \`until\` value ${JSON.stringify(reference.until)} is not a valid date. Use this format: YYYY-MM-DD, for example 2026-12-31.`,
+    );
   }
 }
 

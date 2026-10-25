@@ -6,10 +6,8 @@ import type { Field, Obj } from '../../config-fields';
 import type { EntryLine } from '../../model';
 import { providerFormKind, providerType } from '../../members';
 
-/**
- * The controls and lines a source is drawn with, shared by a group's page and its
- * sources page so the two cannot come to draw one source two ways.
- */
+export const EXPIRE_BY_HELP =
+  'Optional date the membership expires, written YYYY-MM-DD. For example, 2026-12-31. A date in the past removes the member immediately. Leave empty for no expiry.';
 
 const ID_ELIDE_OVER = 12;
 const ID_KEEP = 8;
@@ -24,11 +22,13 @@ export function matchLine(root: Obj, name: string, index: number, elide: boolean
   const domain = scalarString(source.domain);
   const subject = scalarString(source.subject);
   const email = scalarString(source.email);
+  const group = scalarString(source.group);
+  if (group) return { label: 'Group', value: group, mark: '' };
   if (id) return { label: 'Group', value: elide ? elideId(id) : id, mark: '' };
   // Domain-only match for magic-link providers
   if (domain) return { label: 'Email domain', value: domain, mark: '' };
   // Person sources match on subject or email
-  if (email) return { label: 'Person', value: email, mark: '' };
+  if (email) return { label: 'Individual email', value: email, mark: '' };
   if (subject) return { label: 'Person', value: elide ? elideId(subject) : subject, mark: '' };
   return { label: '', value: 'not filled in', mark: '' };
 }
@@ -45,12 +45,17 @@ function matchPlaceholder(root: Obj, provider: string): string {
 }
 
 /**
- * Build a link to the Entra portal group detail page, if applicable
+ * The Entra portal page of a directory group
  */
-function portalLinkFor(root: Obj, provider: string, groupId: string): string | undefined {
+export function portalUrlFor(root: Obj, provider: string, groupId: string): string | undefined {
   if (providerFormKind(root, provider) !== 'entra') return undefined;
   const url = entraPortalGroupUrl(groupId.trim());
-  return url === '' ? undefined : `[Who is in it](${url})`;
+  return url === '' ? undefined : url;
+}
+
+function portalLinkFor(root: Obj, provider: string, groupId: string): string | undefined {
+  const url = portalUrlFor(root, provider, groupId);
+  return url === undefined ? undefined : `[Open in Entra ID](${url})`;
 }
 
 export function matchFields(root: Obj, name: string, index: number, provider: string): Field[] {
@@ -70,21 +75,6 @@ export function matchFields(root: Obj, name: string, index: number, provider: st
       placeholder: 'example.com',
       inapplicable: !magicLink,
     }),
-  ];
-}
-
-/**
- * Carry the provider field for entry templates that need it prefilled
- */
-export function trailingCarry(root: Obj, name: string, index: number, trailing: boolean): Field[] {
-  if (trailing) return [];
-  return [
-    textField(
-      root,
-      ['groups', name, index, 'provider'],
-      'groups.<key>.<index>.provider',
-      'Provider',
-    ),
   ];
 }
 
@@ -117,6 +107,7 @@ export function sourceNoteFields(root: Obj, name: string, index: number, person:
       placeholder: 'YYYY-MM-DD',
       pattern: '\\d{4}-\\d{2}-\\d{2}',
       patternHint: 'A date written YYYY-MM-DD.',
+      help: EXPIRE_BY_HELP,
     }),
   ];
 }

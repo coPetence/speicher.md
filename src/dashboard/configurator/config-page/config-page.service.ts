@@ -260,14 +260,6 @@ export class ConfigPageService {
       if (position.at !== (isSeq(list) ? list.items.length : 0)) return null;
     }
 
-    // Require the referenced provider entry to exist before drafting
-    if (
-      member.entry !== null &&
-      state.doc.getIn(['auth', 'providers', member.entry]) === undefined
-    ) {
-      return null;
-    }
-
     let doc: Document;
     try {
       doc = loadDocument(state.storedYaml);

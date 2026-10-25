@@ -101,8 +101,6 @@ export function seedMember(ref: MemberRef, kind: string): unknown {
 export function canCreateMember(ref: MemberRef, kind: string | undefined): boolean {
   const collection = memberCollectionOf(ref.section);
   if (!collection) return false;
-  // Entry-level creation requires an entry noun
-  if (ref.entry !== null) return collection.entryNoun !== undefined;
   // List members can always be appended
   if (memberPosition(ref)) return true;
   // Map members need a kind when the collection has kinds
@@ -125,10 +123,6 @@ export interface MemberCollection {
   kinds?: { values: string[]; fallback: string };
   // Name for the collection
   noun: string;
-  // Name for entries within a member
-  entryNoun?: string;
-  // Regex that entry ids must match
-  entryPattern?: RegExp;
 }
 
 export const GROUP_NAME = new RegExp('^[A-Za-z0-9][A-Za-z0-9\\-]{0,63}$');
@@ -188,9 +182,6 @@ export const MEMBER_COLLECTIONS: MemberCollection[] = [
     // Principal pattern: group:<name>
     principalPattern: (id) => `group:${id}`,
     noun: 'group',
-    entryNoun: 'source',
-    // Entries within a group have short ids
-    entryPattern: SHORT_ID,
   },
   {
     section: 'sources',
@@ -240,32 +231,25 @@ export function memberCollectionOf(section: string): MemberCollection | undefine
 /**
  * Build a section id from its parts
  */
-export function memberSectionId(section: string, id: string, entry?: string): string {
-  return entry === undefined ? `${section}/${id}` : `${section}/${id}/${entry}`;
+export function memberSectionId(section: string, id: string): string {
+  return `${section}/${id}`;
 }
 
 export interface MemberRef {
   section: string;
   id: string;
-  // Entry id within a member; null when the member itself is referenced
-  entry: string | null;
 }
 
 /**
  * Parse a section id into its component parts
  */
 export function memberOf(sectionId: string): MemberRef | null {
-  const [section, id, position, ...rest] = sectionId.split('/');
+  const [section, id, ...rest] = sectionId.split('/');
   if (rest.length > 0 || id === undefined) return null;
 
   const collection = memberCollectionOf(section);
   if (!collection || !collection.pattern.test(id)) return null;
-  if (position === undefined) return { section, id, entry: null };
-  // List-based collections do not have entries within them
-  if (collection.kind === 'list') return null;
-
-  if (!collection.entryNoun || !collection.entryPattern?.test(position)) return null;
-  return { section, id, entry: position };
+  return { section, id };
 }
 
 /**
@@ -292,14 +276,37 @@ export function memberPath(ref: MemberRef): (string | number)[] {
   return [...collection.path, collection.kind === 'list' ? Number(ref.id) : ref.id];
 }
 
+/** The items of a group's list as the document holds them, each one a map or nothing */
+export function groupItems(root: Obj, name: string): Obj[] {
+  const items = (at(root, ['groups', name]) as unknown[]) ?? [];
+  return items.map((item) => (item ?? {}) as Obj);
+}
+
 /**
- * Find all source positions within a group that reference the given provider
+ * Whether the item at a position references another group rather than naming a
+ * source through a provider. The key is what decides it, as it does for the schema.
+ */
+export function isReferenceItem(item: Obj): boolean {
+  return item.group !== undefined;
+}
+
+/**
+ * Find all source positions within a group that name the given provider. A
+ * reference names no provider and is never among them.
  */
 export function sourcePositions(root: Obj, name: string, provider: string): number[] {
-  const sources = (at(root, ['groups', name]) as unknown[]) ?? [];
   const out: number[] = [];
-  sources.forEach((source, index) => {
-    if (scalarString(((source ?? {}) as Obj).provider) === provider) out.push(index);
+  groupItems(root, name).forEach((item, index) => {
+    if (!isReferenceItem(item) && scalarString(item.provider) === provider) out.push(index);
+  });
+  return out;
+}
+
+/** The positions in a group's list that reference another group */
+export function referencePositions(root: Obj, name: string): number[] {
+  const out: number[] = [];
+  groupItems(root, name).forEach((item, index) => {
+    if (isReferenceItem(item)) out.push(index);
   });
   return out;
 }
@@ -318,13 +325,6 @@ export function memberPosition(ref: MemberRef): { list: (string | number)[]; at:
  */
 export function entryHrefFor(sectionId: string, name: string, kind: string): string | null {
   const id = name.trim();
-
-  const parent = memberOf(sectionId);
-  if (parent && parent.entry === null) {
-    const owner = memberCollectionOf(parent.section);
-    if (!owner?.entryPattern?.test(id)) return null;
-    return `/-/config/${memberSectionId(parent.section, parent.id, id)}`;
-  }
 
   const collection = memberCollectionOf(sectionId);
   if (!collection) return null;
@@ -398,11 +398,12 @@ export function groupNames(root: Obj): string[] {
   return Object.keys((at(root, ['groups']) as Obj) ?? {});
 }
 
+/** The providers a group's own sources name, in order of first appearance; references name none */
 export function groupProviders(root: Obj, name: string): string[] {
-  const sources = (at(root, ['groups', name]) as unknown[]) ?? [];
   const out: string[] = [];
-  for (const source of sources) {
-    const provider = scalarString(((source ?? {}) as Obj).provider);
+  for (const item of groupItems(root, name)) {
+    if (isReferenceItem(item)) continue;
+    const provider = scalarString(item.provider);
     if (!out.includes(provider)) out.push(provider);
   }
   return out;

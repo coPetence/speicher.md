@@ -290,7 +290,7 @@ describe('a version that changes the providers', () => {
     await store(renamedProvider());
     expect((await watcher.refresh()).adopted).toBe(true);
 
-    expect(config.instance.groups?.engineering?.[0].provider).toBe('entraid');
+    expect(config.groupSources('engineering')[0].provider).toBe('entraid');
     expect(config.defaultProviderId).toBe('entraid');
   });
 

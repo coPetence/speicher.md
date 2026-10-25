@@ -1,3 +1,4 @@
+import { hasAnySource } from '../groups';
 import { InstanceConfig } from '../types';
 
 /**
@@ -43,9 +44,7 @@ export function checkAdmins(config: InstanceConfig, problems: string[]): void {
 export function adminLockout(config: InstanceConfig): string | null {
   const knownGroups = new Set(Object.keys(config.groups ?? {}));
   const knownAdminGroups = (config.admins?.groups ?? []).filter((group) => knownGroups.has(group));
-  const activeAdminGroups = knownAdminGroups.filter(
-    (group) => (config.groups?.[group] ?? []).length > 0,
-  );
+  const activeAdminGroups = knownAdminGroups.filter((group) => hasAnySource(config.groups, group));
   if (activeAdminGroups.length > 0 || (config.admins?.users ?? []).length > 0) return null;
 
   if (knownAdminGroups.length === 0) {

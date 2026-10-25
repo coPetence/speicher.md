@@ -107,6 +107,9 @@
   </form>
   <% } %>
 
+  <% if (it.editable && it.section.bulkRemoveOp) { %>
+  <button type="submit" name="op" value="<%= it.section.bulkRemoveOp %>" class="spr-remove spr-index-remove" form="config-form"><%~ it.remove_icon || '' %>Remove selected</button>
+  <% } %>
   <% if (pageAdd && pageAdd.href) { %>
   <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
     <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
@@ -139,58 +142,117 @@
 <% }) } %>
 
 <% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon } %>
-
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <div class="spr-table-head">
   <% if (table.title) { %><h2 class="spr-table-title"><%= table.title %></h2><% } %>
+  <div class="spr-table-actions">
   <% if (it.editable && table.entries.some(function (e) { return e.removeOp })) { %>
-  <button type="submit" name="op" value="<%= table.bulkRemoveOp %>" class="spr-remove">
-    <%~ it.remove_icon || '' %>Remove selected
-  </button>
+  <button type="submit" name="op" value="<%= table.bulkRemoveOp %>" class="spr-remove"><%~ it.remove_icon || '' %>Remove selected</button>
   <% } %>
+  <% if (it.editable && table.add) { %>
+  <details class="spr-modal spr-index-add">
+    <summary><%~ it.add_icon || '+' %><span><%= table.add.label %></span></summary>
+    <%~ include('@add-row-panel', { add: table.add, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon }) %>
+  </details>
+  <% } %>
+  </div>
 </div>
+<% const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1); %>
 <% if (table.entries.length > 0) { %>
-  <table class="spr-table spr-rows" data-spr-grow="<%= table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1) %>"
-         data-spr-kind="<%= table.kind %>">
-    <thead>
-      <tr>
-        <th scope="col" class="spr-select-col"><span class="spr-clipped">Select</span></th>
-        <% table.columns.forEach(function (col) { %>
-        <th scope="col"><%= col.label %><% if (col.help) { %><%~ include('@info', { field: { path: it.section_id + '-' + col.label, label: col.label, help: col.help } }) %><% } %></th>
+  <div class="spr-rows spr-row-cards" data-spr-rows="<%= collection %>">
+    <% table.entries.forEach(function (entry) { %>
+    <% const shown = entry.fields.filter(function (f) { return !f.inapplicable });
+       const cleared = entry.fields.filter(function (f) { return f.inapplicable }); %>
+    <div class="spr-row-card" data-spr-position="<%= entry.position %>"<%~ entry.kind ? ' data-spr-kind="' + entry.kind + '"' : '' %><%~ it.landing && it.landing.path === collection + '.' + entry.position ? ' id="spr-landing"' : '' %>>
+      <div class="spr-select-col">
+        <% if (entry.removeOp && it.editable) { %>
+        <input type="checkbox" name="select" value="<%= entry.removeOp %>"
+               aria-label="Select <%= entry.search || 'this row' %>" data-spr-transient>
+        <% }
+        cleared.forEach(function (f) { %>
+        <input type="hidden" name="<%= f.path %>" value="">
         <% }) %>
-      </tr>
-    </thead>
-    <tbody>
-      <% table.entries.forEach(function (entry) { %>
-      <% const shown = entry.fields.filter(function (f) { return !f.inapplicable });
-         const cleared = entry.fields.filter(function (f) { return f.inapplicable }); %>
-      <tr data-spr-position="<%= entry.position %>"<%= entry.removeOp ? '' : ' data-spr-trailing' %>>
-        <td class="spr-select-col">
-          <% if (entry.removeOp && it.editable) { %>
-          <input type="checkbox" name="select" value="<%= entry.removeOp %>"
-                 aria-label="Select <%= entry.search || 'this row' %>" data-spr-transient>
-          <% } 
-          cleared.forEach(function (f) { %>
-          <input type="hidden" name="<%= f.path %>" value="">
-          <% }) %>
-          <% entry.carried.forEach(function (f) { %>
-          <input type="hidden" name="<%= f.path %>" value="<%= f.value %>">
-          <% }) %>
-        </td>
-        <% shown.forEach(function (f) { %>
-        <td>
-          <input id="f-<%= f.path %>" name="<%= f.path %>" type="text" value="<%= f.value %>"
-                 aria-label="<%= f.label %>"
-                 <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
-                 <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
-                 spellcheck="false" autocomplete="off" <%= it.editable ? '' : 'disabled' %>>
-          <% if (f.link) { %><p class="spr-help"><%~ md(f.link) %></p><% } %>
-        </td>
+        <% entry.carried.forEach(function (f) { %>
+        <input type="hidden" name="<%= f.path %>" value="<%= f.value %>">
         <% }) %>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
+      </div>
+      <% if (entry.title) { %>
+      <div class="spr-row-card-source">
+        <span class="spr-entry-name">
+          <% if (entry.mark) { %>
+          <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= entry.mark %>"></use></svg>
+          <% } %>
+          <span><%= entry.title %></span>
+        </span>
+        <% if (entry.subtitle) { %>
+        <span class="spr-entry-sub"><%= entry.subtitle %></span>
+        <% } %>
+      </div>
+      <% } %>
+      <% /*
+        What the row says, read-only, then the pen that opens its controls in a
+        modal. The pen is a label on a box no script has to run for, so the modal
+        opens and closes without one — the backdrop and Done are labels on the
+        same box — and the box is not named, so it is never submitted. A row that
+        names nobody yet opens on arrival, which is the row Add members just made
+        to be filled in.
+      */ %>
+      <% const match = entry.lines[0], note = entry.lines[1], until = entry.lines[2];
+         const editId = 'edit-' + collection.replace(/[^a-z0-9]+/gi, '-') + '-' + entry.position;
+         const opens = !match || !match.value || match.value === 'not filled in'; %>
+      <span class="spr-row-card-equals" aria-hidden="true"><%~ it.equals_icon || '→' %></span>
+      <div class="spr-row-card-match">
+        <% if (match && match.value && match.value !== 'not filled in') { %><code title="<%= match.value %>"><%= match.value %></code><% if (match.href) { %> <a class="spr-row-card-link" href="<%= match.href %>" target="_blank" rel="noopener noreferrer nofollow" aria-label="Open <%= match.value %> in Entra ID"><%~ it.external_icon || '↗' %></a><% } %><% } else { %><span class="spr-row-card-empty">not filled in</span><% } %>
+      </div>
+      <div class="spr-row-card-meta">
+        <span class="spr-row-card-note"><%~ it.note_icon || '' %><% if (note && note.value) { %><span><%= note.value %></span><% } else { %><span class="spr-row-card-empty">no note</span><% } %></span>
+        <span class="spr-row-card-until<%= until && until.failed ? ' spr-row-card-until-passed' : '' %>"><%~ it.expiry_icon || '' %><% if (until && until.value) { %><span><%= until.value %></span><% } else { %><span class="spr-row-card-empty">no expiry</span><% } %></span>
+      </div>
+      <% if (it.editable) { %>
+      <input type="checkbox" class="spr-clipped spr-row-edit-toggle" id="<%= editId %>"<%= opens ? ' checked' : '' %> data-spr-transient>
+      <label class="spr-row-edit" for="<%= editId %>" aria-label="Edit <%= entry.search || 'this row' %>"><%~ it.edit_icon || '' %></label>
+      <% } %>
+      <div class="spr-row-edit-dialog">
+        <% if (it.editable) { %><label class="spr-row-edit-backdrop" for="<%= editId %>" aria-hidden="true"></label><% } %>
+        <div class="spr-modal-panel spr-row-edit-panel" role="dialog" aria-labelledby="<%= editId %>-title">
+          <h2 class="spr-modal-title" id="<%= editId %>-title">
+            <%= entry.title || 'Member' %><% if (entry.subtitle) { %> <span class="spr-row-edit-via">via <%= entry.subtitle %></span><% } %>
+          </h2>
+          <div class="spr-row-edit-fields">
+            <% shown.forEach(function (f) { %>
+            <div class="spr-row-edit-field">
+              <span class="spr-row-edit-label">
+                <label for="f-<%= f.path %>"><%= f.label %></label>
+                <% if (f.help) { %><%~ include('@info', { field: { path: f.path, label: f.label, help: f.help } }) %><% } %>
+                <% /* Where the value has a page elsewhere, the way there sits at the row's right */ %>
+                <% if (f.link) { %><span class="spr-row-edit-link"><%~ md(f.link) %></span><% } %>
+              </span>
+              <% if (f.kind === 'select') { %>
+              <%~ include('@select', {
+                attributes: { id: 'f-' + f.path, name: f.path, disabled: !it.editable },
+                options: f.options.map(function (option) {
+                  return { value: option.value, label: option.label, selected: option.value === f.value };
+                }),
+              }) %>
+              <% } else { %>
+              <input id="f-<%= f.path %>" name="<%= f.path %>" type="text" value="<%= f.value %>"
+                     <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
+                     <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+                     spellcheck="false" autocomplete="off" <%= it.editable ? '' : 'disabled' %>>
+              <% } %>
+            </div>
+            <% }) %>
+          </div>
+          <% if (it.editable) { %>
+          <div class="spr-modal-actions">
+            <label class="spr-row-edit-done" for="<%= editId %>">Done</label>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
 <% } else { %>
 <%~ include('@note', { level: 'idle', text: table.emptyNote }) %>
 <% } %>
@@ -199,6 +261,9 @@
   <table class="spr-table spr-entries">
     <thead>
       <tr>
+        <% if (it.editable && it.section.bulkRemoveOp) { %>
+        <th scope="col" class="spr-select-col"><span class="spr-clipped">Select</span></th>
+        <% } %>
         <% it.section.columns.forEach(function (column) { %>
         <th scope="col"><%= column %></th>
         <% }) %>
@@ -207,6 +272,14 @@
     <tbody>
       <% it.section.entries.forEach(function (entry) { %>
       <tr data-spr-row="<%= entry.search %>">
+        <% if (it.editable && it.section.bulkRemoveOp) { %>
+        <td class="spr-select-col">
+          <% if (entry.removeOp) { %>
+          <input type="checkbox" name="select" value="<%= entry.removeOp %>"
+                 aria-label="Select <%= entry.title %>" data-spr-transient>
+          <% } %>
+        </td>
+        <% } %>
         <th scope="row">
           <% entry.carried.forEach(function (f) { %>
           <input type="hidden" name="<%= f.path %>" value="<%= f.value %>">
@@ -226,6 +299,7 @@
           <span class="spr-entry-sub"><%= entry.subtitle %></span>
           <% } %>
         </th>
+        <% if (!it.section.hideLines) { %>
         <td>
           <% if (entry.lines.length > 0) { %>
           <ul class="spr-lines">
@@ -243,6 +317,7 @@
           <small>No <%= (it.section.columns[1] || 'entries').toLowerCase() %></small>
           <% } %>
         </td>
+        <% } %>
         <% entry.cells.forEach(function (cell) { %>
         <td class="spr-cell-quiet"><%= cell %></td>
         <% }) %>
@@ -333,9 +408,9 @@
 <% } %>
 <%
   // An Add button with `beforeCard` is drawn before that card, every other one after the last card
-  const inlineAdds = it.editable ? it.section.addOps.filter(function (a) { return !a.opensPage }) : [];
+  const cardAdds = it.editable ? it.section.addOps.filter(function (a) { return !a.opensPage }) : [];
   const addsBefore = function (index) {
-    return inlineAdds.filter(function (a) { return a.beforeCard === index });
+    return cardAdds.filter(function (a) { return a.beforeCard === index });
   };
 %>
 <% if (it.section.cardGrid) { %><div class="spr-card-grid"><% } %>
@@ -345,7 +420,7 @@
 <% }) %>
 <% if (it.section.cardGrid) { %></div><% } %>
 
-<% inlineAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
+<% cardAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 
 <% if (trailing.length > 0) { %>
 <div class="spr-fields">

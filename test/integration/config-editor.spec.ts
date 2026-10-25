@@ -141,6 +141,21 @@ async function landing(section: string, response: request.Response) {
     .expect(200);
 }
 
+/**
+ * Adds a row of a shape through a provider on a group's page, which is a round
+ * trip that stores nothing; returns the page that came back, with the new row
+ */
+async function addRow(name: string, provider: string, shape: string): Promise<string> {
+  const { body } = await open(`groups/${name}`);
+  const added = await post(`groups/${name}`, {
+    ...body,
+    op: `add:groups.${name}.row`,
+    [`newkind:groups.${name}.row`]: shape,
+    [`newname:groups.${name}.row.${shape}`]: provider,
+  }).expect(200);
+  return added.text;
+}
+
 async function addEntry(section: string, name: string, kind = ''): Promise<string> {
   const response = await request(app.getHttpServer())
     .get(`/-/config/${section}`)
@@ -1122,10 +1137,10 @@ describe('the identity section', () => {
     expect(html).toMatch(/href="\/-\/config\/identity" aria-current="true"/);
   });
 
-  it('names every page above a source, not only the one it came from', async () => {
-    const { html } = await open('groups/engineering/entra');
+  it('names every page above a group, not only the one it came from', async () => {
+    const { html } = await open('groups/engineering');
     expect(html).toMatch(
-      /<div class="spr-crumbs">\s*<a href="\/-\/config">Configuration<\/a> \/ <a href="\/-\/config\/groups">Groups<\/a> \/ <a href="\/-\/config\/groups\/engineering">engineering<\/a> \/ entra\s*<\/div>/,
+      /<div class="spr-crumbs">\s*<a href="\/-\/config">Configuration<\/a> \/ <a href="\/-\/config\/groups">Groups<\/a> \/ engineering\s*<\/div>/,
     );
     const crumbs = html.slice(html.indexOf('<div class="spr-crumbs">'));
     expect(crumbs.slice(0, crumbs.indexOf('</div>'))).not.toContain('<svg');
@@ -1149,36 +1164,108 @@ describe('the identity section', () => {
 });
 
 describe('every way to remove something', () => {
-  it('hands the island what it needs to grow a table, rather than a scheme', async () => {
-    const { html } = await open('groups/engineering/entra');
+  it('hands the island what it needs to renumber rows, each row saying its shape', async () => {
+    const { html } = await open('groups/engineering');
 
-    expect(html).toMatch(/data-spr-grow="groups\.engineering"[^>]*data-spr-kind="group"/);
-    expect(html).toMatch(/data-spr-grow="groups\.engineering"[^>]*data-spr-kind="person"/);
+    expect(html).toContain(
+      '<div class="spr-rows spr-row-cards" data-spr-rows="groups.engineering">',
+    );
+    expect(html).toContain(
+      '<div class="spr-row-card" data-spr-position="0" data-spr-kind="group">',
+    );
+    expect(html).toContain('<input type="hidden" name="__shape:groups.engineering" value="group">');
+  });
 
-    expect(html).toContain('<tr data-spr-position="0">');
-    expect(html).toContain('<tr data-spr-position="1" data-spr-trailing>');
-    expect(html).toContain('<tr data-spr-position="2" data-spr-trailing>');
+  it('adds a row through the modal, and lands on it', async () => {
+    const { body } = await open('groups/engineering');
+    const added = await post('groups/engineering', {
+      ...body,
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'person',
+      'newname:groups.engineering.row.person': 'entra',
+    }).expect(200);
+    expect(added.text).toContain(
+      '<div class="spr-row-card" data-spr-position="1" data-spr-kind="person" id="spr-landing">',
+    );
+    expect(added.text).toMatch(/name="groups\.engineering\.1\.email"[^>]*value=""/);
+    expect(added.text).toContain(
+      '<input type="hidden" name="__shape:groups.engineering" value="group,person">',
+    );
+
+    // Saved without typing, the row is not stored
+    await post('groups/engineering', { ...formBody(added.text), intent: 'apply' }).expect(303);
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).not.toMatch(/\bemail:/);
+  });
+
+  it('adds a row per line typed into the modal, saved as they are', async () => {
+    const { body } = await open('groups/engineering');
+    const added = await post('groups/engineering', {
+      ...body,
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'group',
+      'newname:groups.engineering.row.group': 'entra',
+      'newmatches:groups.engineering.row.group': 'grp-one\ngrp-two',
+    }).expect(200);
+    expect(added.text).toContain(
+      '<input type="hidden" name="__shape:groups.engineering" value="group,group,group">',
+    );
+    expect(added.text).toMatch(/name="groups\.engineering\.2\.id"[^>]*value="grp-two"/);
+    expect(added.text).toMatch(/<textarea[^>]*name="newmatches:groups\.engineering\.row\.group"/);
+
+    await post('groups/engineering', { ...formBody(added.text), intent: 'apply' }).expect(303);
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toMatch(/provider: entra\s*\n\s*id: grp-one/);
+    expect(yaml).toMatch(/provider: entra\s*\n\s*id: grp-two/);
+  });
+
+  it('adds a reference per group ticked, and resolves them', async () => {
+    const { body } = await open('groups/engineering');
+    const added = await post('groups/engineering', {
+      ...body,
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'reference',
+      'newname:groups.engineering.row.reference': ['commercial', 'client-northwind'],
+    }).expect(200);
+    expect(added.text).toContain(
+      '<div class="spr-row-card" data-spr-position="1" data-spr-kind="reference">',
+    );
+    expect(added.text).toContain(
+      '<div class="spr-row-card" data-spr-position="2" data-spr-kind="reference" id="spr-landing">',
+    );
+    expect(added.text).toMatch(/<select[^>]*name="groups\.engineering\.1\.group"/);
+    expect(added.text).toMatch(/<option\s+value="commercial"\s+selected/);
+
+    await post('groups/engineering', { ...formBody(added.text), intent: 'apply' }).expect(303);
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).toMatch(/- group: commercial/);
+
+    // The index draws no sources column, but the filter still knows the references
+    const index = await open('groups');
+    expect(index.html).toContain('groups (commercial, client-northwind)"');
   });
 
   it('keeps a column’s info marker out of any scroll container', async () => {
-    const { html } = await open('groups/engineering/entra');
+    const { html } = await open('groups/engineering');
     expect(html).toContain('class="spr-info"');
     for (const [, inside] of html.matchAll(/<div class="spr-scroll">([\s\S]*?)<\/div>/g)) {
       expect(inside).not.toContain('spr-info');
     }
-    expect(html).toMatch(/<th scope="col">Expire by\s*<span class="spr-info">/);
+    // The expiry's marker, beside its control inside the card
+    expect(html).toMatch(
+      /<label for="f-groups\.engineering\.0\.until">Expire by<\/label>\s*<span class="spr-info">/,
+    );
   });
 
   it('selects rows with a box in front of them, and removes them together', async () => {
-    const page = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...page.body,
-      'groups.engineering.2.email': 'alice@example.test',
-      'groups.engineering.2.note': 'contractor',
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
+      'groups.engineering.1.note': 'contractor',
       intent: 'apply',
     }).expect(303);
 
-    const { html, body } = await open('groups/engineering/entra');
+    const { html, body } = await open('groups/engineering');
     expect(html).toMatch(
       /<input type="checkbox" name="select" value="remove:groups\.engineering\.0"/,
     );
@@ -1187,7 +1274,7 @@ describe('every way to remove something', () => {
     );
     expect(html).not.toMatch(/name="select" value="remove:groups\.engineering\.2"/);
 
-    const removed = await post('groups/engineering/entra', {
+    const removed = await post('groups/engineering', {
       ...body,
       select: ['remove:groups.engineering.1'],
       op: 'remove-selected:groups.engineering',
@@ -1195,7 +1282,7 @@ describe('every way to remove something', () => {
     expect(removed.text).not.toContain('alice@example.test');
     expect(removed.text).toContain('grp-eng');
 
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(removed.text),
       intent: 'apply',
     }).expect(303);
@@ -1206,23 +1293,26 @@ describe('every way to remove something', () => {
   });
 
   it('removes the lower row correctly when several are selected at once', async () => {
-    const first = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...first.body,
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'group')),
       'groups.engineering.1.id': 'grp-two',
+      intent: 'apply',
+    }).expect(303);
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
       'groups.engineering.2.email': 'alice@example.test',
       'groups.engineering.2.note': 'contractor',
       intent: 'apply',
     }).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain('grp-two');
 
-    const { body } = await open('groups/engineering/entra');
-    const removed = await post('groups/engineering/entra', {
+    const { body } = await open('groups/engineering');
+    const removed = await post('groups/engineering', {
       ...body,
       select: ['remove:groups.engineering.0', 'remove:groups.engineering.2'],
       op: 'remove-selected:groups.engineering',
     }).expect(200);
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(removed.text),
       intent: 'apply',
     }).expect(303);
@@ -1234,15 +1324,15 @@ describe('every way to remove something', () => {
   });
 
   it('ignores a selected row the page never offered', async () => {
-    const { body } = await open('groups/engineering/entra');
-    const answered = await post('groups/engineering/entra', {
+    const { body } = await open('groups/engineering');
+    const answered = await post('groups/engineering', {
       ...body,
       select: ['remove:groups.commercial.0'],
       op: 'remove-selected:groups.engineering',
     }).expect(200);
     expect(answered.text).toContain('grp-eng');
 
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(answered.text),
       intent: 'apply',
     }).expect(303);
@@ -1386,6 +1476,31 @@ describe('the groups section', () => {
     expect(Object.keys(formBody(html))).toEqual(['__shape:groups']);
   });
 
+  it('removes the groups whose boxes are ticked, together', async () => {
+    const { html, body } = await open('groups');
+    expect(html).toMatch(
+      /<button type="submit" name="op" value="remove-selected:groups"[^>]*form="config-form"/,
+    );
+    expect(html).toMatch(
+      /<input type="checkbox" name="select" value="remove:groups\.commercial"\s+aria-label="Select commercial"/,
+    );
+
+    const removed = await post('groups', {
+      ...body,
+      select: ['remove:groups.commercial', 'remove:groups.client-northwind'],
+      op: 'remove-selected:groups',
+    }).expect(200);
+    expect(removed.text).not.toContain('>commercial<');
+    expect(removed.text).not.toContain('>client-northwind<');
+    expect(removed.text).toContain('>engineering<');
+
+    await post('groups', { ...formBody(removed.text), intent: 'apply' }).expect(303);
+    const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
+    expect(yaml).not.toContain('commercial');
+    expect(yaml).not.toContain('client-northwind');
+    expect(yaml).toContain('engineering:');
+  });
+
   it('renders no administrator control, which is why they are two pages', async () => {
     const { html } = await open('groups');
     expect(Object.keys(formBody(html))).not.toContain('admins.groups');
@@ -1424,9 +1539,10 @@ describe('the groups section', () => {
       intent: 'apply',
     }).expect(303);
 
+    // No sources column any more, but the filter still knows what a group is made of
     const { html } = await open('groups');
-    expect(html).toContain('<code>entra (383eb267…)</code>');
-    expect(html).not.toContain(`<code>entra (${guid})</code>`);
+    expect(html).not.toContain('<th scope="col">Sources</th>');
+    expect(html).not.toContain('<code>entra (');
     expect(html).toContain(`data-spr-row="engineering entra (${guid})"`);
 
     const filtered = await request(app.getHttpServer())
@@ -1438,6 +1554,26 @@ describe('the groups section', () => {
     expect(filtered.text).not.toContain('href="/-/config/groups/commercial"');
 
     expect((await open('groups/engineering')).body['groups.engineering.0.id']).toBe(guid);
+  });
+
+  it('says how many repositories each group is used in', async () => {
+    const { html } = await open('groups');
+    expect(html).toContain('<th scope="col">Used in</th>');
+    expect(html).toMatch(/engineering<\/a>[\s\S]*?spr-cell-quiet">\d+ repositor(y|ies)</);
+    // The admin group is in no content ACL, by the fixture's own design
+    expect(html).toMatch(/platform-ops<\/a>[\s\S]*?spr-cell-quiet">none</);
+
+    // Referenced by a granted group, it reaches what that group reaches
+    const { body } = await open('groups/engineering');
+    const added = await post('groups/engineering', {
+      ...body,
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'reference',
+      'newname:groups.engineering.row.reference': 'platform-ops',
+    }).expect(200);
+    await post('groups/engineering', { ...formBody(added.text), intent: 'apply' }).expect(303);
+    const index = await open('groups');
+    expect(index.html).toMatch(/platform-ops<\/a>[\s\S]*?spr-cell-quiet">\d+ repositor(y|ies)</);
   });
 
   it('says when each group was added and by whom, from the version history', async () => {
@@ -1552,10 +1688,33 @@ describe('the groups section', () => {
     expect(html).toMatch(
       /formaction="\/-\/config\/groups">(<svg[\s\S]*?<\/svg>)?Remove this group<\/button>/,
     );
-    expect(html).toContain('href="/-/config/groups/engineering/entra"');
-    expect(html).toContain('class="spr-modal spr-index-add"');
-    expect(html).toMatch(/<details class="spr-dropdown">[\s\S]*?name="add"\s+value="entra"/);
-    expect(html).toMatch(/<label class="spr-dd-row">[\s\S]*?<svg[\s\S]*?<span>entra<\/span>/);
+    // The Add members modal beside the table, and no page per provider to go to
+    expect(html).not.toContain('href="/-/config/groups/engineering/');
+    expect(html).toMatch(/<summary>[\s\S]*?<span>Add members<\/span><\/summary>/);
+    expect(html).toMatch(
+      /<h2 class="spr-modal-title spr-add-row-title" id="[^"]+">\s*Add members to engineering/,
+    );
+    expect(html).toMatch(/name="newkind:groups\.engineering\.row"\s+value="group"\s+checked/);
+    // A provider is picked from the picture dropdown, in the page's own form
+    expect(html).toMatch(
+      /<details class="spr-dropdown">[\s\S]*?name="newname:groups\.engineering\.row\.group"\s+value="entra"\s+data-spr-transient\s+checked/,
+    );
+    expect(html).not.toMatch(
+      /name="newname:groups\.engineering\.row\.group"[^>]*form="add-member"/,
+    );
+    // Other groups are a searchable list of boxes, the group itself not among them
+    expect(html).toMatch(
+      /<input type="search" class="spr-add-row-search"[^>]*data-spr-option-search/,
+    );
+    expect(html).toMatch(
+      /<input type="checkbox" name="newname:groups\.engineering\.row\.reference" value="commercial"/,
+    );
+    expect(html).not.toMatch(
+      /name="newname:groups\.engineering\.row\.reference" value="engineering"/,
+    );
+    // No magic-link provider on this instance, so no domain row to add
+    expect(html).not.toMatch(/name="newkind:groups\.engineering\.row"\s+value="domain"/);
+    expect(html).toMatch(/name="op"\s+value="add:groups\.engineering\.row"/);
   });
 
   it('creates a group from its own first save, with nothing mapped to it yet', async () => {
@@ -1564,7 +1723,7 @@ describe('the groups section', () => {
 
     const draft = await open('groups/client-acme');
     expect(draft.html).toContain('data-spr-pending');
-    expect(draft.html).toContain('No sources here yet.');
+    expect(draft.html).toContain('No members yet, so nobody can see anything through this group.');
     expect(await versionCount()).toBe(1);
 
     await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
@@ -1574,17 +1733,13 @@ describe('the groups section', () => {
     expect(yaml).toContain('grp-eng');
   });
 
-  it('takes the first source from the group’s own page, once there is one to name', async () => {
+  it('takes the first row from the group’s own page, once there is one to name', async () => {
     await addEntry('groups', 'client-acme');
     const draft = await open('groups/client-acme');
     await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
 
-    expect(await addEntry('groups/client-acme', 'entra')).toBe(
-      '/-/config/groups/client-acme/entra',
-    );
-    const source = await open('groups/client-acme/entra');
-    await post('groups/client-acme/entra', {
-      ...source.body,
+    await post('groups/client-acme', {
+      ...formBody(await addRow('client-acme', 'entra', 'group')),
       'groups.client-acme.0.id': 'grp-acme',
       intent: 'apply',
     }).expect(303);
@@ -1707,30 +1862,26 @@ describe('the groups section', () => {
     expect(html.replace(/\s+/g, ' ')).toContain('references this group');
   });
 
-  it('lists a group’s sources as one row per provider, and carries their values', async () => {
+  it('lists a group’s rows one each, saying what each is, and carries their values', async () => {
     const { html } = await open('groups/engineering');
-    const table = html.slice(html.indexOf('spr-entries'), html.indexOf('</table>'));
+    const table = html.slice(html.indexOf('spr-row-cards'), html.indexOf('Administrator access'));
 
-    expect(table).toContain('<th scope="col">Provider</th>');
-    expect(table).toContain('<th scope="col">Matches</th>');
-    expect(table).toContain('href="/-/config/groups/engineering/entra"');
-    expect(table).toContain('<code>grp-eng</code>');
+    expect(table).not.toContain('spr-row-cards-head');
+    expect(table).toMatch(
+      /<div class="spr-row-card-source">[\s\S]*?<span>IDP group<\/span>[\s\S]*?<span class="spr-entry-sub">entra<\/span>/,
+    );
     expect(table).toContain(
       '<input type="hidden" name="groups.engineering.0.provider" value="entra">',
     );
-    expect(table).toContain('<input type="hidden" name="groups.engineering.0.id" value="grp-eng">');
+    expect(table).toMatch(/name="groups\.engineering\.0\.id" type="text" value="grp-eng"/);
   });
 
   it('keeps the right matches when the middle one is removed', async () => {
     const add = async (id: string) => {
-      const page = await open('groups/engineering/entra');
-      const grown = await post('groups/engineering/entra', {
-        ...page.body,
-        op: 'add:groups.engineering.provider.entra',
-      }).expect(200);
-      const at = String(formBody(grown.text)['__shape:groups.engineering']).split(',').length - 1;
-      await post('groups/engineering/entra', {
-        ...formBody(grown.text),
+      const grown = await addRow('engineering', 'entra', 'group');
+      const at = String(formBody(grown)['__shape:groups.engineering']).split(',').length - 1;
+      await post('groups/engineering', {
+        ...formBody(grown),
         [`groups.engineering.${at}.id`]: id,
         intent: 'apply',
       }).expect(303);
@@ -1743,14 +1894,14 @@ describe('the groups section', () => {
     expect(before).toContain('grp-two');
     expect(before).toContain('grp-three');
 
-    const page = await open('groups/engineering/entra');
-    const afterRemove = await post('groups/engineering/entra', {
+    const page = await open('groups/engineering');
+    const afterRemove = await post('groups/engineering', {
       ...page.body,
       op: 'remove:groups.engineering.1',
     }).expect(200);
     expect(afterRemove.text).not.toContain('grp-two');
 
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(afterRemove.text),
       intent: 'apply',
     }).expect(303);
@@ -1761,29 +1912,15 @@ describe('the groups section', () => {
     expect(yaml).not.toContain('grp-two');
   });
 
-  it('takes every match with it when the source itself is removed', async () => {
-    const page = await open('groups/engineering/entra');
-    expect(page.html).toMatch(
-      /formaction="\/-\/config\/groups\/engineering">(<svg[\s\S]*?<\/svg>)?Remove this source<\/button>/,
-    );
-
+  it('saves a group whose last row is gone, and keeps the name', async () => {
     const { body } = await open('groups/engineering');
     const gone = await post('groups/engineering', {
       ...body,
-      op: 'remove:groups.engineering.provider.entra',
+      op: 'remove:groups.engineering.0',
     }).expect(200);
-    expect(gone.text).not.toContain('grp-eng<');
+    expect(gone.text).toContain('No members yet, so nobody can see anything through this group.');
     expect(gone.text).not.toContain('grp-ops');
     expect(await versionCount()).toBe(1);
-  });
-
-  it('saves a group whose last source is gone, and keeps the name', async () => {
-    const { body } = await open('groups/engineering');
-    const gone = await post('groups/engineering', {
-      ...body,
-      op: 'remove:groups.engineering.provider.entra',
-    }).expect(200);
-    expect(gone.text).toContain('No sources here yet.');
 
     await landing(
       'groups/engineering',
@@ -1793,14 +1930,14 @@ describe('the groups section', () => {
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(loadInstanceConfig(yaml).raw.groups!.engineering).toEqual([]);
     const index = await open('groups');
-    expect(index.html).toMatch(/engineering<\/a>[\s\S]*?no sources yet/);
+    expect(index.html).toContain('data-spr-row="engineering"');
   });
 
   it('refuses to empty the group that is holding the admin surface', async () => {
     const { body } = await open('groups/platform-ops');
     const gone = await post('groups/platform-ops', {
       ...body,
-      op: 'remove:groups.platform-ops.provider.entra',
+      op: 'remove:groups.platform-ops.0',
     }).expect(200);
 
     const refused = await post('groups/platform-ops', {
@@ -1818,22 +1955,16 @@ describe('the groups section', () => {
     expect(await versionCount()).toBe(1);
   });
 
-  it('creates a source from the provider the Add names', async () => {
-    const href = await addEntry('groups/commercial', 'entra');
-    expect(href).toBe('/-/config/groups/commercial/entra');
-
-    const page = await open('groups/commercial/entra');
+  it('creates a row through the provider the Add names', async () => {
+    const page = await open('groups/commercial');
     expect(page.html).toContain('value="grp-com"');
 
-    const grown = await post('groups/commercial/entra', {
-      ...page.body,
-      op: 'add:groups.commercial.provider.entra',
-    }).expect(200);
+    const grown = await addRow('commercial', 'entra', 'group');
     expect(await versionCount()).toBe(1);
 
-    const at = String(formBody(grown.text)['__shape:groups.commercial']).split(',').length - 1;
-    await post('groups/commercial/entra', {
-      ...formBody(grown.text),
+    const at = String(formBody(grown)['__shape:groups.commercial']).split(',').length - 1;
+    await post('groups/commercial', {
+      ...formBody(grown),
       [`groups.commercial.${at}.id`]: 'grp-second',
       intent: 'apply',
     }).expect(303);
@@ -1846,13 +1977,13 @@ describe('the groups section', () => {
   });
 
   it('adds a person to a group, and they survive their own save', async () => {
-    const page = await open('groups/engineering/entra');
-    expect(page.body['groups.engineering.2.email']).toBe('');
+    const page = formBody(await addRow('engineering', 'entra', 'person'));
+    expect(page['groups.engineering.1.email']).toBe('');
 
-    await post('groups/engineering/entra', {
-      ...page.body,
-      'groups.engineering.2.email': 'alice@example.test',
-      'groups.engineering.2.note': 'contractor on the migration',
+    await post('groups/engineering', {
+      ...page,
+      'groups.engineering.1.email': 'alice@example.test',
+      'groups.engineering.1.note': 'contractor on the migration',
       intent: 'apply',
     }).expect(303);
 
@@ -1864,49 +1995,60 @@ describe('the groups section', () => {
     expect(yaml).not.toContain('null');
   });
 
-  it('writes nothing at all when the empty rows are left empty', async () => {
+  it('writes nothing at all when an added row is left empty', async () => {
     const before = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    const { body } = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', { ...body, intent: 'apply' }).expect(303);
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'group')),
+      intent: 'apply',
+    }).expect(303);
 
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toBe(before);
   });
 
-  it('draws two tables from one sequence, split by what each source names', async () => {
-    const { html } = await open('groups/engineering/entra');
+  it('draws one table from the sequence, each row saying what it is', async () => {
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
+      intent: 'apply',
+    }).expect(303);
+    const { html } = await open('groups/engineering');
 
-    expect(html).toContain('<h2 class="spr-table-title">entra groups</h2>');
-    expect(html).toContain('<h2 class="spr-table-title">People</h2>');
-
-    const groups = html.slice(html.indexOf('entra groups</h2>'), html.indexOf('People</h2>'));
-    const people = html.slice(html.indexOf('People</h2>'));
-
-    expect(groups).toContain('<th scope="col">entra group id');
-    expect(groups).toContain('name="groups.engineering.0.id"');
-
-    expect(people).toContain('<th scope="col">Person');
-    expect(people).toContain('<th scope="col">Note');
-    expect(people).toContain('<th scope="col">Expire by');
-
-    expect(people).toMatch(
-      /Expire by\s*<span class="spr-info">[\s\S]*a real expiry rather than a reminder/,
+    expect(html).not.toContain('spr-table-title');
+    expect(html).not.toContain('spr-row-cards-col');
+    expect(html).toMatch(
+      /Expire by<\/label>\s*<span class="spr-info">[\s\S]*a real expiry rather than a reminder/,
     );
 
-    expect(groups).toContain('name="groups.engineering.1.id"');
-    expect(people).toContain('name="groups.engineering.2.email"');
-    expect(html).not.toContain('add:groups.engineering');
+    // What the cards say while closed, and the pen that opens each
+    expect(html).toContain('<code title="grp-eng">grp-eng</code>');
+    expect(html).toContain('<code title="alice@example.test">alice@example.test</code>');
+    // No portal to link to: the fixture's provider is not an Entra tenant
+    expect(html).not.toContain('spr-row-card-link');
+    expect(html).toContain('<span class="spr-row-card-empty">no expiry</span>');
+    expect(html).toMatch(/<label class="spr-row-edit" for="edit-groups-engineering-1"/);
+    expect(html).toMatch(/id="edit-groups-engineering-0"\s+data-spr-transient>/);
 
-    expect(groups.match(/value="remove:groups\.engineering\.\d+"/g)).toEqual([
+    expect(html).toContain(
+      '<div class="spr-row-card" data-spr-position="0" data-spr-kind="group">',
+    );
+    expect(html).toContain(
+      '<div class="spr-row-card" data-spr-position="1" data-spr-kind="person">',
+    );
+    expect(html).toContain('name="groups.engineering.0.id"');
+    expect(html).toContain('name="groups.engineering.1.email"');
+    expect(html).toMatch(/<span>Individual email<\/span>/);
+
+    expect(html.match(/value="remove:groups\.engineering\.\d+"/g)).toEqual([
       'value="remove:groups.engineering.0"',
+      'value="remove:groups.engineering.1"',
     ]);
   });
 
   it('offers the subject box to somebody already stored by subject', async () => {
-    const page = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...page.body,
-      'groups.engineering.2.email': 'alice@example.test',
-      'groups.engineering.2.note': 'n',
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
+      'groups.engineering.1.note': 'n',
       intent: 'apply',
     }).expect(303);
 
@@ -1918,28 +2060,27 @@ describe('the groups section', () => {
       appliedBy: null,
     });
 
-    const { html } = await open('groups/engineering/entra');
+    const { html } = await open('groups/engineering');
     expect(html).toMatch(/name="groups\.engineering\.1\.subject"[^>]*value="oid-42"/);
     expect(html).toContain('<input type="hidden" name="groups.engineering.1.email" value="">');
   });
 
   it('removes a person by position, and keeps the mapping beside them', async () => {
-    const page = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...page.body,
-      'groups.engineering.2.email': 'alice@example.test',
-      'groups.engineering.2.note': 'n',
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
+      'groups.engineering.1.note': 'n',
       intent: 'apply',
     }).expect(303);
 
-    const withPerson = await open('groups/engineering/entra');
-    const removed = await post('groups/engineering/entra', {
+    const withPerson = await open('groups/engineering');
+    const removed = await post('groups/engineering', {
       ...withPerson.body,
       op: 'remove:groups.engineering.1',
     }).expect(200);
     expect(removed.text).not.toContain('alice@example.test');
 
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(removed.text),
       intent: 'apply',
     }).expect(303);
@@ -1950,8 +2091,8 @@ describe('the groups section', () => {
   });
 
   it('keeps a reason and a review date written against a mapping', async () => {
-    const { body } = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
+    const { body } = await open('groups/engineering');
+    await post('groups/engineering', {
       ...body,
       'groups.engineering.0.note': 'the Engineering distribution list',
       'groups.engineering.0.until': '2027-01-01',
@@ -1963,45 +2104,43 @@ describe('the groups section', () => {
     expect(yaml).toContain('2027-01-01');
     expect(yaml).toContain('grp-eng');
 
-    const { html } = await open('groups/engineering/entra');
-    const groups = html.slice(html.indexOf('entra groups</h2>'), html.indexOf('People</h2>'));
-    expect(groups).toMatch(
+    const { html } = await open('groups/engineering');
+    expect(html).toMatch(
       /name="groups\.engineering\.0\.note"[^>]*value="the Engineering distribution list"/,
     );
   });
 
-  it('round-trips a mapping’s reason through a save made from the group index', async () => {
-    const source = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
+  it('round-trips a mapping’s reason through a save that touched nothing', async () => {
+    const source = await open('groups/engineering');
+    await post('groups/engineering', {
       ...source.body,
       'groups.engineering.0.note': 'the Engineering distribution list',
       intent: 'apply',
     }).expect(303);
 
-    const index = await open('groups/engineering');
-    expect(index.body['groups.engineering.0.note']).toBe('the Engineering distribution list');
-    await post('groups/engineering', { ...index.body, intent: 'apply' }).expect(303);
+    const again = await open('groups/engineering');
+    expect(again.body['groups.engineering.0.note']).toBe('the Engineering distribution list');
+    await post('groups/engineering', { ...again.body, intent: 'apply' }).expect(303);
 
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).toContain('the Engineering distribution list');
   });
 
   it('removes the mapping above a person, and keeps the person', async () => {
-    const page = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...page.body,
-      'groups.engineering.2.email': 'alice@example.test',
-      'groups.engineering.2.note': 'contractor',
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
+      'groups.engineering.1.note': 'contractor',
       intent: 'apply',
     }).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain('grp-eng');
 
-    const both = await open('groups/engineering/entra');
-    const removed = await post('groups/engineering/entra', {
+    const both = await open('groups/engineering');
+    const removed = await post('groups/engineering', {
       ...both.body,
       op: 'remove:groups.engineering.0',
     }).expect(200);
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(removed.text),
       intent: 'apply',
     }).expect(303);
@@ -2013,10 +2152,9 @@ describe('the groups section', () => {
   });
 
   it('saves a person with no note, which is optional on every shape', async () => {
-    const { body } = await open('groups/engineering/entra');
-    await post('groups/engineering/entra', {
-      ...body,
-      'groups.engineering.2.email': 'alice@example.test',
+    await post('groups/engineering', {
+      ...formBody(await addRow('engineering', 'entra', 'person')),
+      'groups.engineering.1.email': 'alice@example.test',
       intent: 'apply',
     }).expect(303);
 
@@ -2040,34 +2178,23 @@ describe('the groups section', () => {
       .expect(404);
   });
 
-  it('says what a source matched on, not only what it matched', async () => {
+  it('says what a row is, with its provider’s logo, beside what it matches', async () => {
     const { html } = await open('groups/engineering');
-    expect(html).toMatch(/<span class="spr-line-label">Group<\/span>\s*<code>grp-eng<\/code>/);
-
     expect(html).toMatch(
-      /<svg class="spr-icon" aria-hidden="true"><use href="#m-openid"><\/use><\/svg>\s*<a href="\/-\/config\/groups\/engineering\/entra">entra<\/a>/,
+      /<svg class="spr-icon" aria-hidden="true"><use href="#m-openid"><\/use><\/svg>\s*<span>IDP group<\/span>/,
     );
-    expect(html).toContain('<symbol id="m-openid"');
-  });
-
-  it('marks each source line on the index, where one group may draw from several', async () => {
-    const { html } = await open('groups');
-    const at = html.indexOf('data-spr-row="engineering');
-    const cell = html.slice(at, html.indexOf('</tr>', at));
-    expect(cell).toContain('<use href="#m-openid">');
-    expect(cell).toContain('<code>entra (grp-eng)</code>');
+    expect(html).toContain('<span class="spr-entry-sub">entra</span>');
     expect(html).toContain('<symbol id="m-openid"');
   });
 
   it('asks a source for the one thing its provider can match on', async () => {
-    const { html, body } = await open('groups/engineering/entra');
-    expect(html).toContain('<th scope="col">entra group id');
-    expect(html).toMatch(/name="groups.engineering.0.id"[^>]*aria-label="Provider group id"/);
+    const { html, body } = await open('groups/engineering');
+    expect(html).toContain('<label for="f-groups.engineering.0.id">Provider group id</label>');
     expect(html).toMatch(/name="groups.engineering.0.id"[^>]*placeholder="group identifier"/);
     expect(html).toContain('<input type="hidden" name="groups.engineering.0.domain" value="">');
     expect(html).not.toContain('for="f-groups.engineering.0.domain"');
 
-    const json = await post('groups/engineering/entra', { ...body, intent: 'check' })
+    const json = await post('groups/engineering', { ...body, intent: 'check' })
       .set('accept', 'application/json')
       .expect(200);
     expect(json.body.verdict.effect).toBe('none');
@@ -2244,19 +2371,25 @@ describe('editing', () => {
   });
 
   it('says defining a group means a full rebuild, before it happens', async () => {
-    const draft = await open('groups/client-acme/entra');
-    const page = await post('groups/client-acme/entra', {
+    const draft = await open('groups/client-acme');
+    const page = await post('groups/client-acme', {
       ...draft.body,
+      op: 'add:groups.client-acme.row',
+      'newkind:groups.client-acme.row': 'group',
+      'newname:groups.client-acme.row.group': 'entra',
+    }).expect(200);
+    const checked = await post('groups/client-acme', {
+      ...formBody(page.text),
       'groups.client-acme.0.id': 'grp-acme',
       intent: 'check',
     }).expect(200);
 
-    expect(page.text).toContain('full rebuild');
+    expect(checked.text).toContain('full rebuild');
   });
 
   it('says a membership change costs no rebuild', async () => {
-    const { body } = await open('groups/engineering/entra');
-    const json = await post('groups/engineering/entra', {
+    const { body } = await open('groups/engineering');
+    const json = await post('groups/engineering', {
       ...body,
       'groups.engineering.0.id': 'grp-engineering-renamed',
       intent: 'check',
@@ -3081,11 +3214,13 @@ describe('adding and removing entries', () => {
   });
 
   it('keeps edits made before the add button was pressed', async () => {
-    const { body } = await open('groups/engineering/entra');
-    const page = await post('groups/engineering/entra', {
+    const { body } = await open('groups/engineering');
+    const page = await post('groups/engineering', {
       ...body,
       'groups.engineering.0.id': 'grp-eng-renamed',
-      op: 'add:groups.engineering.provider.entra',
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'group',
+      'newname:groups.engineering.row.group': 'entra',
     }).expect(200);
 
     const after = formBody(page.text);
@@ -3376,27 +3511,21 @@ describe('adding and removing entries', () => {
   });
 
   it('removes the source a group no longer has, and keeps the ones it does', async () => {
-    const { body } = await open('groups/engineering/entra');
-    const twoSources = await post('groups/engineering/entra', {
-      ...body,
-      op: 'add:groups.engineering.provider.entra',
-    }).expect(200);
-
-    const filled = formBody(twoSources.text);
+    const filled = formBody(await addRow('engineering', 'entra', 'group'));
     expect(Object.keys(filled)).toContain('groups.engineering.1.provider');
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...filled,
       'groups.engineering.1.id': 'grp-eng-two',
       intent: 'apply',
     }).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain('grp-eng-two');
 
-    const both = await open('groups/engineering/entra');
-    const afterRemove = await post('groups/engineering/entra', {
+    const both = await open('groups/engineering');
+    const afterRemove = await post('groups/engineering', {
       ...both.body,
       op: 'remove:groups.engineering.0',
     }).expect(200);
-    await post('groups/engineering/entra', {
+    await post('groups/engineering', {
       ...formBody(afterRemove.text),
       intent: 'apply',
     }).expect(303);
@@ -4119,14 +4248,11 @@ describe('the save bar', () => {
   });
 
   it('opens itself when a round trip left unsaved work on the page', async () => {
-    const fresh = await open('groups/engineering/entra');
+    const fresh = await open('groups/engineering');
     expect(fresh.html).not.toContain('data-spr-pending');
 
-    const added = await post('groups/engineering/entra', {
-      ...fresh.body,
-      op: 'add:groups.engineering.provider.entra',
-    }).expect(200);
-    expect(added.text).toContain('data-spr-pending');
+    const added = await addRow('engineering', 'entra', 'group');
+    expect(added).toContain('data-spr-pending');
 
     const json = await post('branding', { ...(await open('branding')).body, intent: 'apply' })
       .set('accept', 'application/json')
@@ -4140,12 +4266,8 @@ describe('the save bar', () => {
     expect(draft.html).toContain('data-spr-pending');
     expect(draft.html).not.toContain('data-spr-holds-work');
 
-    const fresh = await open('groups/engineering/entra');
-    const added = await post('groups/engineering/entra', {
-      ...fresh.body,
-      op: 'add:groups.engineering.provider.entra',
-    }).expect(200);
-    expect(added.text).toContain('data-spr-holds-work');
+    const added = await addRow('engineering', 'entra', 'group');
+    expect(added).toContain('data-spr-holds-work');
   });
 
   it('answers a background check with a verdict and writes nothing', async () => {

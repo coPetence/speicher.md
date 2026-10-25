@@ -1,0 +1,276 @@
+@layer speicher.base {
+  /* A table's Add row modal: the kinds of row on the left, the chosen kind's control on the right */
+  .spr-modal-panel.spr-add-row-dialog {
+    width: min(40rem, calc(100vw - var(--spr-space-5) * 2));
+    justify-items: stretch;
+  }
+
+  /* A step down from the other modals' titles: the kinds below carry the weight */
+  .spr-modal-title.spr-add-row-title {
+    font-size: var(--spr-font-size);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-add-row-body {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: var(--spr-space-5);
+  }
+
+  .spr-add-row-kinds {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* A kind is a radio drawn as the filter dialog draws its groups, with its help beside the label */
+  .spr-add-row-kind {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+  }
+
+  .spr-modal-panel .spr-add-row-kind > label {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--spr-space-2);
+    min-width: 0;
+    color: inherit;
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-add-row-kind:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-add-row-kind:has(input:checked) {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+  }
+
+  .spr-add-row-kind:has(input:focus-visible) {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+
+  /* The label reaches over the whole row, so a press anywhere on it picks the
+     kind; the help marker is lifted above it, so a press there explains instead */
+  .spr-add-row-kind > label::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .spr-add-row-kind > .spr-info {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* And the one whose note is open is lifted above the rows below it, whose
+     markers are lifted too and would otherwise paint over the note */
+  .spr-add-row-kind:has(> .spr-info:hover),
+  .spr-add-row-kind:has(> .spr-info .spr-info-mark:focus-visible) {
+    z-index: 2;
+  }
+
+  .spr-add-row-kind > label > input {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    border: 0;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .spr-add-row-kind > label > .spr-icon {
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
+
+  .spr-add-row-kind-chevron {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .spr-add-row-kind-chevron > .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  /*
+    Every panel sits in the same cell, so the right pane is as tall as the
+    tallest of them and switching kinds moves nothing on the page. The ones not
+    chosen are hidden by visibility rather than display, which is what keeps them
+    in the layout; a hidden control cannot take focus, and the server reads only
+    the chosen kind's.
+  */
+  /* The right pane on the page's own ground, as the filter dialog sets its panels off from its groups */
+  .spr-add-row-panels {
+    display: grid;
+    align-content: start;
+    padding: var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+  }
+
+  .spr-add-row-panel {
+    display: grid;
+    grid-area: 1 / 1;
+    align-content: start;
+    gap: var(--spr-space-1);
+  }
+
+  /* A label sits close to its control, and a step apart from the control above */
+  .spr-add-row-panel > label:not(:first-child),
+  .spr-add-row-panel > .spr-add-label:not(:first-child) {
+    margin-top: var(--spr-space-3);
+  }
+
+  /*
+    Only the chosen kind's panel. Keyed on the checked radio in the stylesheet
+    rather than by script, so it holds where nothing runs, and spelled per kind
+    because a stylesheet cannot pair a radio's value with a panel's by name. The
+    four kinds are the four the server knows (`ROW_KINDS`). The reveal island
+    sets `hidden` on the same panels, and the last rule is what lets that win
+    over the panel's own display.
+  */
+  .spr-add-row-body:has(input[type='radio'][value='group']:checked)
+    .spr-add-row-panel:not([data-spr-shown-when='group']),
+  .spr-add-row-body:has(input[type='radio'][value='domain']:checked)
+    .spr-add-row-panel:not([data-spr-shown-when='domain']),
+  .spr-add-row-body:has(input[type='radio'][value='person']:checked)
+    .spr-add-row-panel:not([data-spr-shown-when='person']),
+  .spr-add-row-body:has(input[type='radio'][value='reference']:checked)
+    .spr-add-row-panel:not([data-spr-shown-when='reference']),
+  .spr-add-row-panel[hidden] {
+    display: grid;
+    visibility: hidden;
+  }
+
+  .spr-add-row-panel > .spr-select {
+    justify-self: stretch;
+  }
+
+  /* The list of groups: a search box over boxes, scrolling past a dozen, as the filter dialog's panels do */
+  .spr-modal-panel .spr-add-row-list {
+    margin: 0;
+  }
+
+  .spr-choices.spr-add-row-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--spr-space-2);
+    padding: 0;
+    border: 0;
+  }
+
+  .spr-add-row-search-box {
+    width: 100%;
+  }
+
+  .spr-modal-panel .spr-add-row-search {
+    width: 100%;
+  }
+
+  .spr-add-row-options {
+    display: grid;
+    gap: var(--spr-space-1);
+    max-height: 14rem;
+    overflow: auto;
+  }
+
+  .spr-modal-panel .spr-add-row-options > label {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-2) var(--spr-space-1);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-modal-panel .spr-add-row-options > label[hidden] {
+    display: none;
+  }
+
+  /* Boxes well above the page's default, so the list reads as a picker */
+  .spr-add-row-options > label > input[type='checkbox'] {
+    font-size: 1.15em;
+  }
+
+  .spr-add-row-panel > textarea {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+    resize: vertical;
+  }
+
+  @container (width < 38rem) {
+    .spr-add-row-body {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@layer speicher.base {
+  /* Cancel, drawn as the filter dialog draws its own: a word in the accent, no box */
+  .spr-modal-actions > .spr-add-row-cancel {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .spr-modal-actions > .spr-add-row-cancel:hover {
+    text-decoration: underline;
+  }
+
+  /* The modal's own Add button in the accent, with the plus in front as on the button that opened it */
+  .spr-modal-panel .spr-modal-actions > .spr-add-row-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-modal-panel .spr-modal-actions > .spr-add-row-submit:hover {
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  .spr-add-row-submit > .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+}

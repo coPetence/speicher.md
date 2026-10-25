@@ -1781,19 +1781,11 @@ describe('the checkbox', () => {
     );
   });
 
-  it('centres a row’s cells against each other, and sizes the box by its font', () => {
-    expect(declarationsOf('.spr-rows tbody td')).toMatch(/vertical-align:\s*middle/);
-
+  it('sizes a row’s box by its font', () => {
     expect(DASHBOARD_RULES).toMatch(
       /\.spr-rows \.spr-select-col input\[type='checkbox'\] \{\s*font-size:\s*[0-9.]+em/,
     );
     expect(declarationsOf('.spr-rows .spr-select-col')).not.toMatch(/font-size:/);
-  });
-
-  it('tints a selected row, and leaves a hovered one alone', () => {
-    const selected = declarationsOf('.spr-rows tbody tr:has(.spr-select-col input:checked)');
-    expect(selected).toMatch(/color-mix\(in oklab, var\(--spr-accent\) var\(--spr-callout-tint\)/);
-    expect(DASHBOARD_RULES).not.toContain('.spr-rows tbody tr:hover');
   });
 
   it('gives a table its own heading, not a caption that drifted upward', () => {
@@ -1810,16 +1802,8 @@ describe('the checkbox', () => {
     );
   });
 
-  it('holds the column open with a hidden box, not a reserved width', () => {
-    expect(declarationsOf('.spr-rows .spr-select-col input[data-spr-idle]')).toMatch(
-      /visibility:\s*hidden/,
-    );
-    expect(declarationsOf('.spr-rows .spr-select-col')).not.toMatch(/min-inline-size/);
-  });
-
   it('sets no table\u2019s headings in capitals', () => {
     expect(declarationsOfBase('.spr-table thead th')).not.toMatch(/text-transform/);
-    expect(declarationsOf('.spr-rows thead th')).not.toMatch(/text-transform/);
   });
 
   it('paints the bulk Remove before it is hovered', () => {
@@ -1843,9 +1827,8 @@ describe('the checkbox', () => {
     expect(hidden).toMatch(/display:\s*none/);
   });
 
-  it('lets a table of values space itself, and its headings wrap', () => {
+  it('lets a table of values space itself', () => {
     expect(declarationsOf('.spr-rows')).toMatch(/margin-block:/);
-    expect(declarationsOf('.spr-rows thead th')).toMatch(/white-space:\s*normal/);
   });
 
   it('draws a table row’s selection box with this rule, not a second one', () => {

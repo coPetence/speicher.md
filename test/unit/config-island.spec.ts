@@ -1731,54 +1731,102 @@ describe('the id of a repository on a plain remote', () => {
   });
 });
 
-describe('a table that grows', () => {
-  function renderTable(): HTMLFormElement {
+describe('a modal with a Cancel button', () => {
+  function renderModal(): HTMLDetailsElement {
     document.body.innerHTML = `
       <main>
-        <form class="spr-config" method="post" action="/-/config/groups/eng/entra"
-              data-spr-config="groups/eng/entra">
-          <input type="hidden" name="__shape:groups.eng" value="group">
-          <table class="spr-table spr-rows" data-spr-grow="groups.eng" data-spr-kind="group">
-            <tbody>
-              <tr data-spr-position="0">
-                <td><input type="checkbox" name="select" value="remove:groups.eng.0"></td>
-                <td><input type="text" name="groups.eng.0.id" value="grp-eng"></td>
-              </tr>
-              <tr data-spr-position="1" data-spr-trailing>
-                <td></td>
-                <td><input type="text" name="groups.eng.1.id" value=""></td>
-              </tr>
-            </tbody>
-          </table>
-          <table class="spr-table spr-rows" data-spr-grow="groups.eng" data-spr-kind="person">
-            <tbody>
-              <tr data-spr-position="2" data-spr-trailing>
-                <td></td>
-                <td><input type="text" name="groups.eng.2.email" value=""></td>
-                <td><input type="text" name="groups.eng.2.note" value=""></td>
-              </tr>
-            </tbody>
-          </table>
+        <form class="spr-config" method="post" action="/-/config/groups/eng"
+              data-spr-config="groups/eng">
+          <details class="spr-modal spr-index-add" open>
+            <summary>Add members</summary>
+            <div class="spr-modal-panel" role="dialog" aria-label="Add members to eng">
+              <input type="text" name="newmatches:groups.eng.row.group" data-spr-transient>
+              <div class="spr-modal-actions">
+                <button type="button" data-spr-modal-cancel>Cancel</button>
+                <button type="submit" name="op" value="add:groups.eng.row">Add members</button>
+              </div>
+            </div>
+          </details>
+        </form>
+      </main>`;
+    run();
+    return document.querySelector('details') as HTMLDetailsElement;
+  }
+
+  it('closes the modal and hands focus back to what opened it, submitting nothing', () => {
+    const modal = renderModal();
+    const submitted = jest.fn((event: Event) => event.preventDefault());
+    modal.closest('form')!.addEventListener('submit', submitted);
+
+    modal.querySelector<HTMLButtonElement>('[data-spr-modal-cancel]')!.click();
+
+    expect(modal.open).toBe(false);
+    expect(document.activeElement).toBe(modal.querySelector('summary'));
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it('leaves a modal alone whose button is not a cancel', () => {
+    const modal = renderModal();
+    modal
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(modal.open).toBe(true);
+  });
+});
+
+describe('removing selected rows', () => {
+  // A row as the page draws it: the select box with the row's hidden controls,
+  // then the edit modal's labelled boxes, all named for the row's position
+  const row = (position: number, kind: string, match: string, value: string): string => `
+    <div class="spr-row-card" data-spr-position="${position}" data-spr-kind="${kind}">
+      <div class="spr-select-col">
+        <input type="checkbox" name="select" value="remove:groups.eng.${position}">
+        <input type="hidden" name="groups.eng.${position}.provider" value="entra">
+      </div>
+      <input type="checkbox" class="spr-row-edit-toggle" id="edit-groups-eng-${position}" checked>
+      <label for="f-groups.eng.${position}.${match}">Match</label>
+      <input id="f-groups.eng.${position}.${match}" name="groups.eng.${position}.${match}"
+             type="text" value="${value}" aria-describedby="i-groups.eng.${position}.${match}">
+      <select id="f-groups.eng.${position}.until" name="groups.eng.${position}.until"></select>
+    </div>`;
+
+  function renderList(): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/groups/eng"
+              data-spr-config="groups/eng">
+          <input type="hidden" name="__shape:groups.eng" value="group,person,group">
           <button type="submit" name="op" value="remove-selected:groups.eng"
-                  class="spr-remove spr-bulk-remove">Remove selected</button>
+                  class="spr-remove">Remove selected</button>
+          <div class="spr-rows spr-row-cards" data-spr-rows="groups.eng">
+            ${row(0, 'group', 'id', 'grp-eng')}
+            ${row(1, 'person', 'email', 'alice@example.test')}
+            ${row(2, 'group', 'id', 'grp-ops')}
+          </div>
+          <button type="submit" name="op" value="remove-selected:groups"
+                  class="spr-other-remove">Remove selected groups</button>
           <div class="spr-config-actions">
-            <button type="submit" name="intent" value="check" class="spr-config-check">Check</button>
             <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
           </div>
         </form>
       </main>`;
-    return document.querySelector('form') as HTMLFormElement;
   }
 
-  const rows = (kind: string): HTMLTableRowElement[] =>
-    Array.from(
-      document.querySelectorAll<HTMLTableRowElement>(`table[data-spr-kind="${kind}"] tbody tr`),
-    );
+  const rows = (): HTMLElement[] =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-spr-position]'));
   const shape = (): string =>
     (document.querySelector('input[name="__shape:groups.eng"]') as HTMLInputElement).value;
+  const tick = (position: number): void => {
+    (rows()[position].querySelector('input[name="select"]') as HTMLInputElement).checked = true;
+  };
+  const press = (selector = '.spr-remove'): Event => {
+    const event = new Event('click', { bubbles: true, cancelable: true });
+    document.querySelector<HTMLButtonElement>(selector)!.dispatchEvent(event);
+    return event;
+  };
 
   beforeEach(() => {
-    renderTable();
+    renderList();
     run();
   });
 
@@ -1789,273 +1837,60 @@ describe('a table that grows', () => {
     };
     const server = declared('src/dashboard/configurator/config-form/collections.ts');
     expect(server).toBeTruthy();
-    expect(
-      declared('src/global-ui/client-side-islands/configurator/growing-source-tables.ts'),
-    ).toBe(server);
-  });
-
-  it('adds a row when the empty one is typed into', () => {
-    expect(rows('group')).toHaveLength(2);
-    type('groups.eng.1.id', 'grp-two');
-    expect(rows('group')).toHaveLength(3);
-
-    expect(rows('group')[1].hasAttribute('data-spr-trailing')).toBe(false);
-    expect(rows('group')[2].hasAttribute('data-spr-trailing')).toBe(true);
-  });
-
-  it('numbers the unsaved rows in document order, across both tables', () => {
-    type('groups.eng.1.id', 'grp-two');
-
-    const fresh = rows('group')[2];
-    expect(fresh.dataset.sprPosition).toBe('2');
-    expect(fresh.querySelector('input[type="text"]')).toHaveProperty('name', 'groups.eng.2.id');
-    expect(rows('person')[0].dataset.sprPosition).toBe('3');
-    expect(rows('person')[0].querySelector('input[type="text"]')).toHaveProperty(
-      'name',
-      'groups.eng.3.email',
+    expect(declared('src/global-ui/client-side-islands/configurator/bulk-row-removal.ts')).toBe(
+      server,
     );
   });
 
-  it('extends the shape to cover the new position, kind by kind', () => {
-    type('groups.eng.1.id', 'grp-two');
-    expect(shape()).toBe('group,group,group,person');
-  });
-
-  it('leaves the shape alone until a row is actually added', () => {
-    expect(shape()).toBe('group');
-    type('groups.eng.0.id', 'edited');
-    expect(shape()).toBe('group');
-  });
-
-  it('grows each table on its own, from the row that was typed in', () => {
-    type('groups.eng.2.email', 'alice@example.test');
-    expect(rows('person')).toHaveLength(2);
-    expect(rows('group')).toHaveLength(2);
-    expect(shape()).toBe('group,group,person,person');
-  });
-
-  it('adds one row per row, however much is typed into it', () => {
-    type('groups.eng.1.id', 'g');
-    type('groups.eng.1.id', 'gr');
-    type('groups.eng.1.id', 'grp');
-    expect(rows('group')).toHaveLength(3);
-  });
-
-  it('carries the cloned row’s hidden controls, renamed with it', () => {
-    type('groups.eng.2.email', 'alice@example.test');
-    const fresh = rows('person')[1];
-    const boxes = Array.from(fresh.querySelectorAll<HTMLInputElement>('input[name]'));
-    expect(boxes.map((box) => box.getAttribute('name'))).toEqual([
-      'groups.eng.3.email',
-      'groups.eng.3.note',
-    ]);
-    expect(boxes.every((box) => box.value === '')).toBe(true);
-  });
-
-  it('gives the row that was typed into a box, carrying no name', () => {
-    type('groups.eng.1.id', 'grp-two');
-
-    const typed = rows('group')[1].querySelector<HTMLInputElement>('input[type="checkbox"]');
-    expect(typed).not.toBeNull();
-    expect(typed?.hasAttribute('name')).toBe(false);
-    expect(typed?.dataset.sprUnsaved).toBe('');
-
-    const empty = rows('group')[2].querySelector<HTMLInputElement>('input[type="checkbox"]');
-    expect(empty).not.toBeNull();
-    expect(empty?.dataset.sprIdle).toBe('');
-    expect(typed?.dataset.sprIdle).toBeUndefined();
-  });
-
-  it('holds the column open from the first paint, before anything is typed', () => {
-    for (const row of Array.from(form().querySelectorAll('tr[data-spr-position]'))) {
-      expect(row.querySelector('input[type="checkbox"]')).not.toBeNull();
-    }
-  });
-
-  it('leaves a stored row’s box alone, which is a real one already', () => {
-    const box = rows('group')[0].querySelector<HTMLInputElement>('input[name="select"]');
-    expect(box).not.toBeNull();
-    expect(box?.dataset.sprIdle).toBeUndefined();
-    expect(box?.value).toBe('remove:groups.eng.0');
-  });
-
-  it('removes an unsaved row here, without asking the server', () => {
-    type('groups.eng.1.id', 'grp-two');
-    expect(rows('group')).toHaveLength(3);
-    expect(shape()).toBe('group,group,group,person');
-
-    (rows('group')[1].querySelector('input[data-spr-unsaved]') as HTMLInputElement).checked = true;
-    const event = new Event('click', { bubbles: true, cancelable: true });
-    form().querySelector<HTMLButtonElement>('.spr-bulk-remove')!.dispatchEvent(event);
-
-    expect(rows('group')).toHaveLength(2);
-    expect(shape()).toBe('group');
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it('closes the gap when the row above another unsaved one goes', () => {
-    type('groups.eng.1.id', 'grp-two');
-    type('groups.eng.2.id', 'grp-three');
-    expect(rows('group')).toHaveLength(4);
-
-    (rows('group')[1].querySelector('input[data-spr-unsaved]') as HTMLInputElement).checked = true;
-    form()
-      .querySelector<HTMLButtonElement>('.spr-bulk-remove')!
-      .dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
-
-    const survivor = rows('group')[1];
-    expect(survivor.dataset.sprPosition).toBe('1');
-    const box = survivor.querySelector('input[type="text"]') as HTMLInputElement;
-    expect(box.name).toBe('groups.eng.1.id');
-    expect(box.value).toBe('grp-three');
-    expect(shape()).toBe('group,group,group,person');
-  });
-
-  it('removes a stored row here too, and says so in the shape', () => {
-    (rows('group')[0].querySelector('input[name="select"]') as HTMLInputElement).checked = true;
-
-    const event = new Event('click', { bubbles: true, cancelable: true });
-    form().querySelector<HTMLButtonElement>('.spr-bulk-remove')!.dispatchEvent(event);
+  it('removes the ticked rows here, without asking the server', () => {
+    tick(1);
+    const event = press();
 
     expect(event.defaultPrevented).toBe(true);
-    expect(rows('group')).toHaveLength(1);
-    expect(shape()).toBe('group,person');
+    expect(rows()).toHaveLength(2);
+    expect(shape()).toBe('group,group');
   });
 
-  it('never submits the bulk button, even with nothing ticked', () => {
-    const event = new Event('click', { bubbles: true, cancelable: true });
-    form().querySelector<HTMLButtonElement>('.spr-bulk-remove')!.dispatchEvent(event);
+  it('never submits the button, even with nothing ticked', () => {
+    const event = press();
     expect(event.defaultPrevented).toBe(true);
-    expect(rows('group')).toHaveLength(2);
+    expect(rows()).toHaveLength(3);
+    expect(shape()).toBe('group,person,group');
   });
 
-  it('renumbers the survivors, ops and all', () => {
-    const stored = rows('group')[0].cloneNode(true) as HTMLTableRowElement;
-    stored.dataset.sprPosition = '1';
-    (stored.querySelector('input[name="select"]') as HTMLInputElement).value =
-      'remove:groups.eng.1';
-    const text = stored.querySelector('input[type="text"]') as HTMLInputElement;
-    text.name = 'groups.eng.1.id';
-    text.value = 'grp-two';
-    rows('group')[0].after(stored);
+  it('takes an open edit modal for what it is, not a selection', () => {
+    press();
+    expect(rows()).toHaveLength(3);
+  });
 
-    (rows('group')[0].querySelector('input[name="select"]') as HTMLInputElement).checked = true;
-    form()
-      .querySelector<HTMLButtonElement>('.spr-bulk-remove')!
-      .dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+  it('renumbers the survivors, every name, id, label and op with them', () => {
+    tick(0);
+    press();
 
-    const survivor = rows('group')[0];
+    const survivor = rows()[0];
     expect(survivor.dataset.sprPosition).toBe('0');
-    expect((survivor.querySelector('input[type="text"]') as HTMLInputElement).name).toBe(
-      'groups.eng.0.id',
+    expect(survivor.dataset.sprKind).toBe('person');
+    const text = survivor.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(text.name).toBe('groups.eng.0.email');
+    expect(text.id).toBe('f-groups.eng.0.email');
+    expect(text.value).toBe('alice@example.test');
+    expect(text.getAttribute('aria-describedby')).toBe('i-groups.eng.0.email');
+    expect(survivor.querySelector('label')?.htmlFor).toBe('f-groups.eng.0.email');
+    expect(survivor.querySelector('select')?.name).toBe('groups.eng.0.until');
+    expect((survivor.querySelector('input[type="hidden"]') as HTMLInputElement).name).toBe(
+      'groups.eng.0.provider',
     );
     expect((survivor.querySelector('input[name="select"]') as HTMLInputElement).value).toBe(
       'remove:groups.eng.0',
     );
-  });
-});
-
-describe('a table that grows on part of a collection', () => {
-  function renderPartial(): void {
-    document.body.innerHTML = `
-      <main>
-        <form class="spr-config" method="post" action="/-/config/groups/eng/google"
-              data-spr-config="groups/eng/google">
-          <input type="hidden" name="__shape:groups.eng" value="group,group">
-          <table class="spr-table spr-rows" data-spr-grow="groups.eng" data-spr-kind="group">
-            <tbody>
-              <tr data-spr-position="1">
-                <td><input type="checkbox" name="select" value="remove:groups.eng.1"></td>
-                <td><input type="text" name="groups.eng.1.id" value="grp-goo"></td>
-                <td><input type="hidden" name="groups.eng.1.provider" value="google"></td>
-              </tr>
-              <tr data-spr-position="2" data-spr-trailing>
-                <td></td>
-                <td><input type="text" name="groups.eng.2.id" value=""></td>
-              </tr>
-            </tbody>
-          </table>
-          <table class="spr-table spr-rows" data-spr-grow="groups.eng" data-spr-kind="person">
-            <tbody>
-              <tr data-spr-position="3" data-spr-trailing>
-                <td></td>
-                <td><input type="text" name="groups.eng.3.email" value=""></td>
-              </tr>
-            </tbody>
-          </table>
-          <button type="submit" name="op" value="remove-selected:groups.eng"
-                  class="spr-remove spr-bulk-remove">Remove selected</button>
-          <div class="spr-config-actions">
-            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
-          </div>
-        </form>
-      </main>`;
-  }
-
-  const rows = (kind: string): HTMLTableRowElement[] =>
-    Array.from(
-      document.querySelectorAll<HTMLTableRowElement>(`table[data-spr-kind="${kind}"] tbody tr`),
-    );
-  const shape = (): string =>
-    (document.querySelector('input[name="__shape:groups.eng"]') as HTMLInputElement).value;
-  const nameOf = (row: HTMLElement): string =>
-    (row.querySelector('input[type="text"]') as HTMLInputElement).name;
-
-  beforeEach(() => {
-    renderPartial();
-    run();
+    expect(shape()).toBe('person,group');
   });
 
-  it('leaves a stored row on the position the document has it at', () => {
-    type('groups.eng.2.id', 'grp-second');
-
-    expect(rows('group')[0].dataset.sprPosition).toBe('1');
-    expect(nameOf(rows('group')[0])).toBe('groups.eng.1.id');
-    expect((rows('group')[0].querySelector('input[type="hidden"]') as HTMLInputElement).name).toBe(
-      'groups.eng.1.provider',
-    );
-  });
-
-  it('numbers what it adds past the end of the whole sequence', () => {
-    type('groups.eng.2.id', 'grp-second');
-
-    expect(nameOf(rows('group')[1])).toBe('groups.eng.2.id');
-    expect(rows('group')[2].dataset.sprPosition).toBe('3');
-    expect(rows('person')[0].dataset.sprPosition).toBe('4');
-  });
-
-  it('keeps the members it cannot see in the shape it sends', () => {
-    type('groups.eng.2.id', 'grp-second');
-    expect(shape()).toBe('group,group,group,group,person');
-  });
-
-  it('leaves the shape alone until something is typed', () => {
-    expect(shape()).toBe('group,group');
-    type('groups.eng.1.id', 'edited');
-    expect(shape()).toBe('group,group');
-  });
-
-  it('removes an unsaved row here, as it does on a page holding the whole list', () => {
-    type('groups.eng.2.id', 'grp-second');
-    expect(rows('group')).toHaveLength(3);
-
-    (rows('group')[1].querySelector('input[data-spr-unsaved]') as HTMLInputElement).checked = true;
-    const event = new Event('click', { bubbles: true, cancelable: true });
-    document.querySelector<HTMLButtonElement>('.spr-bulk-remove')!.dispatchEvent(event);
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(rows('group')).toHaveLength(2);
-    expect(shape()).toBe('group,group');
-  });
-
-  it('asks the server to remove a stored row, which knows the position it is at', () => {
-    (rows('group')[0].querySelector('input[name="select"]') as HTMLInputElement).checked = true;
-    const event = new Event('click', { bubbles: true, cancelable: true });
-    document.querySelector<HTMLButtonElement>('.spr-bulk-remove')!.dispatchEvent(event);
-
+  it('leaves another list’s Remove selected to the server', () => {
+    tick(0);
+    const event = press('.spr-other-remove');
     expect(event.defaultPrevented).toBe(false);
-    expect(rows('group')).toHaveLength(2);
-    expect(shape()).toBe('group,group');
+    expect(rows()).toHaveLength(3);
   });
 });
 
