@@ -1,8 +1,7 @@
 <div class="spr-empty-state spr-empty-state-page spr-signin-page">
   <h1><%~ it.mark %>Connect <%= it.name %></h1>
   <p class="spr-empty spr-signin-sent">
-    <%= it.name %> is asking to read documentation as you. It will reach
-    exactly the pages you can open yourself, and nothing else.
+    <%= it.name %> wants to connect to your account. It will be able to read the same pages you can. Find out more in our <a href="https://docs.speicher.md/ai-assistants">documentation</a>.
   </p>
   <form method="post" action="/api/auth/oauth/consent" class="spr-form spr-signin-form">
     <% it.hidden.forEach(function (param) { %>
@@ -12,7 +11,5 @@
   </form>
   <p class="spr-empty spr-signin-sent">
     You will be sent back to <span class="spr-signin-address"><%= it.host %></span>.
-    Close this page to refuse. You can disconnect it later from your
-    <a href="/-/connections">connected applications</a>.
   </p>
 </div>

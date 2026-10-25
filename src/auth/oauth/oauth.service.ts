@@ -285,8 +285,6 @@ export class OauthService {
 
   /**
    * Lists active grants for a principal, newest first
-   *
-   * A grant past its refresh expiry can never be used again, so it is not listed
    */
   async listFor(tenantId: string, principal: string) {
     return OauthGrant.findAll({

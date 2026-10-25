@@ -27,7 +27,6 @@ export function sendOauthConsent(
   params: Record<string, string>,
   redirectUri: string,
 ): void {
-  // The application's mark in the heading, as the magic-link page shows its provider's
   const mark = clientMark(params.client_id ?? '', name);
   const body = renderTemplate('auth/views/oauth-consent', {
     name,

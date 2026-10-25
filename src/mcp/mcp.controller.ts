@@ -7,17 +7,23 @@
  * CORS-like origin check: rejects requests from origins that do not match
  * `SPEICHER_PUBLIC_URL` when that env var is set
  *
- * Authentication is required unless the instance has public repos configured
+ * Two addresses, so a client learns from the first response whether to sign in:
+ * - `/mcp` always requires authentication and challenges anonymous callers
+ * - `/mcp/public` never challenges and serves only public repos, to anyone
+ * Clients only offer OAuth when the first response is a 401, and some never
+ * ask again, so one address must not answer both ways
  * The WWW-Authenticate challenge is sourced from the OAuth metadata
  */
 import { Body, Controller, Delete, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { callerOf } from '../auth/caller.middleware';
-import { challengeHeader } from '../auth/oauth/metadata';
+import { challengeHeader, mcpResourceIdentifier } from '../auth/oauth/metadata';
+import { AuthzService } from '../authz/authz.service';
+import { ANONYMOUS, ResolvedCaller } from '../authz/caller';
 import { instanceUrl } from '../common/env';
 import { ConfigService } from '../config/config.service';
-import { TOOL_DEFINITIONS, McpTools } from './tools';
+import { TOOL_DEFINITIONS, McpTools, ToolResult } from './tools';
 
 const SUPPORTED_PROTOCOL_VERSIONS = [
   '2024-11-05',
@@ -40,10 +46,11 @@ export class McpController {
   constructor(
     private readonly tools: McpTools,
     private readonly config: ConfigService,
+    private readonly authz: AuthzService,
   ) {}
 
   /** Reject GET requests: no SSE stream is offered */
-  @Get()
+  @Get(['/', 'public'])
   noStream(@Res() res: Response): void {
     res.status(405).setHeader('Allow', 'POST');
     res.setHeader('Content-Type', 'application/json');
@@ -51,21 +58,39 @@ export class McpController {
   }
 
   /** Reject DELETE requests: this endpoint does not use sessions */
-  @Delete()
+  @Delete(['/', 'public'])
   noSession(@Res() res: Response): void {
     res.status(405).setHeader('Allow', 'POST');
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(rpcError(null, -32601, 'this endpoint does not use sessions')));
   }
 
-  /** Handle all MCP JSON-RPC methods */
+  /** Handle all MCP JSON-RPC methods for authenticated callers */
   @Post()
   async rpc(
     @Req() req: Request,
     @Res() res: Response,
     @Body() body: JsonRpcRequest,
   ): Promise<void> {
-    const caller = callerOf(req);
+    await this.handle(req, res, body, false);
+  }
+
+  /** Handle all MCP JSON-RPC methods anonymously, over public repos only */
+  @Post('public')
+  async publicRpc(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: JsonRpcRequest,
+  ): Promise<void> {
+    await this.handle(req, res, body, true);
+  }
+
+  private async handle(
+    req: Request,
+    res: Response,
+    body: JsonRpcRequest,
+    isPublic: boolean,
+  ): Promise<void> {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
 
@@ -86,13 +111,25 @@ export class McpController {
     }
 
     const id = body?.id ?? null;
+    let caller: ResolvedCaller;
 
-    // Require authentication when no public repos exist and the caller is anonymous
-    if (caller.identity === null && this.config.publicRepos.length === 0) {
-      const challenge = challengeHeader();
-      if (challenge !== null) {
-        res.status(401).setHeader('WWW-Authenticate', challenge);
-        res.send(JSON.stringify(rpcError(id, -32001, 'authentication required')));
+    if (isPublic) {
+      if (this.config.publicRepos.length === 0) {
+        res
+          .status(404)
+          .send(
+            JSON.stringify(rpcError(id, -32001, `no public documentation, use ${authedUrl()}`)),
+          );
+        return;
+      }
+      // Credentials are ignored, so this address reads the same for everyone
+      caller = this.authz.resolve({ ...ANONYMOUS, tenantId: callerOf(req).tenantId });
+    } else {
+      caller = callerOf(req);
+      if (caller.identity === null) {
+        const challenge = challengeHeader();
+        if (challenge !== null) res.setHeader('WWW-Authenticate', challenge);
+        res.status(401).send(JSON.stringify(rpcError(id, -32001, 'authentication required')));
         return;
       }
     }
@@ -105,6 +142,7 @@ export class McpController {
               protocolVersion: negotiateVersion(body.params?.protocolVersion),
               capabilities: { tools: {} },
               serverInfo: { name: 'speicher', version: '0.1.0' },
+              ...(isPublic ? { instructions: publicHint() } : {}),
             }),
           ),
         );
@@ -122,6 +160,7 @@ export class McpController {
         const name = typeof body.params?.name === 'string' ? body.params.name : '';
         const args = (body.params?.arguments ?? {}) as Record<string, unknown>;
         const result = await this.tools.call(caller, name, args);
+        if (isPublic && (name !== 'read' || result.isError === true)) withPublicHint(result);
         res.status(200).send(JSON.stringify(rpcResult(id, result)));
         return;
       }
@@ -136,6 +175,24 @@ export class McpController {
           .send(JSON.stringify(rpcError(id, -32601, `method not found: ${body?.method ?? ''}`)));
     }
   }
+}
+
+/** The authenticated MCP address, or its path when no base URL is configured */
+function authedUrl(): string {
+  return mcpResourceIdentifier() ?? '/mcp';
+}
+
+/** Tells the model that results are limited, and where the full set is */
+function publicHint(): string {
+  return (
+    'This connection reads public documentation only. To include pages the user has ' +
+    `access to, connect to ${authedUrl()} and sign in.`
+  );
+}
+
+/** Appends the public hint to a tool result, so a misconfigured connector is noticed */
+function withPublicHint(result: ToolResult): void {
+  result.content.push({ type: 'text', text: publicHint() });
 }
 
 /** True when the version string is in the supported list */

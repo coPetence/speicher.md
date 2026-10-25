@@ -42,14 +42,7 @@ function spanOf(ms: number): string {
 }
 
 /**
- * Human-readable relative time like "3 minutes ago", for something that happened
- *
- * Returns "never" for null, NaN, or Infinity
- * Returns "just now" for future dates: a past event stamped by another clock can
- * land a moment ahead of this one, and that is skew, not time travel. A date
- * meant to lie ahead, like an expiry, wants `timeUntil`
- *
- * Not i18n
+ * Human-readable relative time like "3 minutes ago"
  */
 export function relativeTime(value: Date | string | null, now: Date = new Date()): string {
   if (value === null) return 'never';
@@ -61,11 +54,7 @@ export function relativeTime(value: Date | string | null, now: Date = new Date()
 }
 
 /**
- * Human-readable time ahead like "in 7 hours", for something that will happen
- *
- * Returns "never" for null, NaN, or Infinity, and "now" once the date has passed
- *
- * Not i18n
+ * Human-readable time ahead like "in 7 hours"
  */
 export function timeUntil(value: Date | string | null, now: Date = new Date()): string {
   if (value === null) return 'never';

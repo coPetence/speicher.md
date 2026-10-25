@@ -470,7 +470,7 @@ describe('connections', () => {
         method: 'tools/call',
         params: { name: 'list', arguments: {} },
       });
-    expect(after.body.result.content[0].text).not.toContain('handbook');
+    expect(after.status).toBe(401);
   });
 
   it('no longer lists a connection past its end, since it can never be used again', async () => {

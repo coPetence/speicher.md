@@ -92,16 +92,16 @@ export class DirectoryWebhookController {
     }
 
     const tenant = await this.tenancy.resolveTenant(req);
-    const whose = {
+    const tenantInfo = {
       tenant_id: tenant.id,
       provider: providerId,
       ...(stale === 'all' ? {} : { subject: stale.subject }),
     };
-    const [count] = await Session.update({ groups_fetched_at: null }, { where: whose });
+    const [count] = await Session.update({ groups_fetched_at: null }, { where: tenantInfo });
     // Expiring the access token makes the client refresh, which re-reads the groups
     const [connections] = await OauthGrant.update(
       { access_expires_at: new Date() },
-      { where: { ...whose, revoked_at: { [Op.is]: null } } },
+      { where: { ...tenantInfo, revoked_at: { [Op.is]: null } } },
     );
     this.log.info('groups marked stale', {
       provider: providerId,

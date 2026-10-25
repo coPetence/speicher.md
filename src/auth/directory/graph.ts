@@ -26,7 +26,7 @@ const TOKEN_SKEW_MS = 60_000; // Subtracted from expires_in to avoid clock-edge 
 const PROBE_TTL_MS = 30_000;
 const PROBE_TIMEOUT_MS = 3_000;
 
-const MEMBER_GROUPS_BATCH = 20; // max groups requested per barch in checkMemberGroups
+const MEMBER_GROUPS_BATCH = 20; // max groups requested per batch in checkMemberGroups
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -131,7 +131,6 @@ export class GraphDirectory {
           const found = await this.post(`/users/${encodeURIComponent(subject)}/checkMemberGroups`, {
             groupIds: this.groupIds.slice(at, at + MEMBER_GROUPS_BATCH),
           });
-          // Unknown user: an answer, not a failure
           if (found === null) return [];
           const ids = (found as { value?: unknown }).value;
           if (Array.isArray(ids)) {
