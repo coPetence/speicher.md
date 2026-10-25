@@ -13,7 +13,7 @@ import { TenancyService } from '../db/tenancy';
 import { nameFirstAdmin } from '../dashboard/setup/first-admin';
 import { SetupService } from '../dashboard/setup/setup.service';
 import { sendMagicLink } from './views/magic-link/magic-link';
-import { sendMagicLinkSent } from './views/magic-link-sent/magic-link-sent';
+import { sendMagicLinkSentScreen } from './views/magic-link-sent/magic-link-sent';
 import { sendProviderChoice, sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
 import { GITHUB_CALLBACK_PATH, originOf } from './callback-url';
@@ -109,9 +109,10 @@ export class AuthController {
       return;
     }
     if (offered.length === 0) {
+      const domain = emailDomain(email);
       const notice = catchAllProviders(this.config).length
-        ? 'No sign-in is set up for this address.'
-        : 'There is no way to sign in with this address. Ask your administrator which address to use.';
+        ? `No sign-in is set up for ${domain} addresses. Sign in with one of the options below.`
+        : `Addresses at ${domain} cannot sign in here. Use an address from your organization's domain.`;
       sendSignIn(req, res, this.config, redirectTo, {
         notice,
         email,
@@ -145,7 +146,7 @@ export class AuthController {
       if (email === undefined) {
         sendMagicLink(req, res, this.config, providerId, redirectTo);
       } else {
-        await this.sendMagicLinkTo(req, res, tenantId, providerId, email, redirectTo);
+        return await this.sendMagicLinkTo(req, res, tenantId, providerId, email, redirectTo);
       }
       return;
     }
@@ -336,7 +337,7 @@ export class AuthController {
     }
 
     // Always the same response so a valid address cannot be distinguished
-    sendMagicLinkSent(req, res, this.config, email.trim(), redirectTo);
+    sendMagicLinkSentScreen(req, res, this.config, email.trim(), redirectTo);
   }
 
   /**

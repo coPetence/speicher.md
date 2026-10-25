@@ -31,7 +31,7 @@ export function signInRoutingCard(root: Obj, id: string): Card {
           { value: 'everyone', label: 'All email addresses', items: [] },
           {
             value: 'domains',
-            label: 'Only these domains',
+            label: 'Only selected domains',
             items: [
               linesField(root, path, 'auth.providers.<key>.domains', 'Email domains', {
                 help: 'People signing in with an address at one of these domains see this provider on the sign-in page.',

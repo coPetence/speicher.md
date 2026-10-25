@@ -91,7 +91,7 @@ export class ReadController {
     }
 
     const repos = await this.pages.listVisibleRepos(caller.principals, caller.tenantId);
-    // Nothing is public, so we need sign in first
+    // If there is no public repo sign in is required
     if (repos.length === 0 && redirectToSignIn(req, res, this.config)) return;
     sendRoot(req, res, this.config, this.routing, caller.identity !== null, repos);
   }
