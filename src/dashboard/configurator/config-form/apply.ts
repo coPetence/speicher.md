@@ -20,6 +20,7 @@ import { applyOp } from './decode/ops';
 import {
   settleAssetDriver,
   settleChoices,
+  groupSourceSnapshot,
   settleDirectory,
   settleGroupSources,
   settleRepositoryIds,
@@ -42,6 +43,10 @@ export function applyForm(
   sectionId: string,
   hint?: KindHint,
 ): { structural: boolean; changed: boolean } {
+  const member = memberOf(sectionId);
+  const storedSources =
+    member?.section === 'groups' ? groupSourceSnapshot(doc, member.id) : undefined;
+
   let changed = reconcileStructure(doc, body, sectionId);
 
   const before = sectionOf(doc, sectionId, hint);
@@ -57,8 +62,7 @@ export function applyForm(
     if (applyField(doc, body, field)) changed = true;
   }
 
-  const member = memberOf(sectionId);
-  if (member?.section === 'groups' && settleGroupSources(doc, member.id)) changed = true;
+  if (member && storedSources && settleGroupSources(doc, member.id, storedSources)) changed = true;
 
   if (settleAssetDriver(doc, body, section)) changed = true;
 

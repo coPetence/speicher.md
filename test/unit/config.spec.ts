@@ -874,6 +874,16 @@ forges:
   tech:
     - { group: engineering, email: a@example.test }`);
     expect(() => load(two)).toThrow(/schema validation/);
+    // A full source with a group key on it would otherwise resolve as the reference
+    // and drop the id it names
+    for (const key of ['id: grp-x', 'email: a@example.test']) {
+      const source = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { provider: entra, ${key}, group: engineering }`);
+      expect(() => load(source)).toThrow(/schema validation/);
+    }
   });
 
   it('refuses a reference whose review date is not a date', () => {

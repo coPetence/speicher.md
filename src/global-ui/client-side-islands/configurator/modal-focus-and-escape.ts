@@ -71,4 +71,38 @@ function mountToggledModals(): void {
     open.checked = false;
     open.parentElement?.querySelector<HTMLElement>(`label[for="${open.id}"]`)?.focus();
   });
+
+  // Done keeps the dialog open over a field the browser would refuse, and says why
+  addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const done = event.target.closest('.spr-row-edit-done');
+    const dialog = done?.closest<HTMLElement>('.spr-row-edit-dialog');
+    if (!done || !dialog) return;
+    const invalid = invalidControlIn(dialog);
+    if (!invalid) return;
+    event.preventDefault();
+    invalid.reportValidity();
+  });
+
+  addEventListener(
+    'invalid',
+    (event) => {
+      if (!(event.target instanceof Element)) return;
+      const dialog = event.target.closest('.spr-row-edit-dialog');
+      const toggle = toggles.find((each) => dialogOf(each) === dialog);
+      if (toggle && !toggle.checked && !toggles.some((each) => each.checked)) {
+        toggle.checked = true;
+      }
+    },
+    true,
+  );
+}
+
+function invalidControlIn(
+  root: HTMLElement,
+): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null {
+  const controls = root.querySelectorAll<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  >('input, select, textarea');
+  return Array.from(controls).find((control) => !control.checkValidity()) ?? null;
 }
