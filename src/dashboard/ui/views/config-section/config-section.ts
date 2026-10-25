@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { sectionEmptyArt } from '../../../../content-reader/empty-state';
+import { sectionEmptyArt, tableEmptyArt } from '../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
 import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
@@ -190,6 +190,8 @@ export function sendConfigSection(
         // have one. Asked of the id and not of the entries: the island shows and
         // hides the block as a filter is typed, so it is on the page either way.
         empty_art: sectionEmptyArt(sectionId),
+        // And the one over a table of rows with none, as a group with no members
+        table_empty_art: tableEmptyArt(sectionId),
         // And the bin in front of every Remove. One icon for the three places a
         // removal is offered from — a card's header, a row's action cell, and the
         // foot of a member's own page — because they are one act on three shapes

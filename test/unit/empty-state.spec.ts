@@ -11,6 +11,7 @@ import {
   SECTION_EMPTY_ART,
   emptyStateArt,
   sectionEmptyArt,
+  tableEmptyArt,
 } from '../../src/content-reader/empty-state';
 import { renderTemplate } from '../../src/content-reader/views';
 
@@ -109,6 +110,12 @@ describe('the drawing a configuration index has', () => {
     for (const id of SECTION_EMPTY_ART) expect(sectionEmptyArt(id)).toBe(emptyStateArt(id));
     expect(sectionEmptyArt('mail')).toBe('');
     expect(sectionEmptyArt('sources/gh')).toBe('');
+  });
+
+  it('draws a group with no members as the groups index draws no groups', () => {
+    expect(tableEmptyArt('groups/engineering')).toBe(emptyStateArt('groups'));
+    expect(tableEmptyArt('groups')).toBe('');
+    expect(tableEmptyArt('sources/gh')).toBe('');
   });
 
   it('can be taken off the page, which its own layout would otherwise prevent', () => {

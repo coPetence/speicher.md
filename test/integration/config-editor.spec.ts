@@ -1166,6 +1166,9 @@ describe('the identity section', () => {
 describe('every way to remove something', () => {
   it('hands the island what it needs to renumber rows, each row saying its shape', async () => {
     const { html } = await open('groups/engineering');
+    expect(html).toContain(
+      '<div class="spr-empty-state" data-spr-rows-empty="groups.engineering" hidden>',
+    );
 
     expect(html).toContain(
       '<div class="spr-rows spr-row-cards" data-spr-rows="groups.engineering">',
@@ -1723,7 +1726,17 @@ describe('the groups section', () => {
 
     const draft = await open('groups/client-acme');
     expect(draft.html).toContain('data-spr-pending');
-    expect(draft.html).toContain('No members yet, so nobody can see anything through this group.');
+    expect(draft.html).toMatch(
+      /<div class="spr-empty-state" data-spr-rows-empty="groups\.client-acme">\s*<svg class="spr-empty-art"[\s\S]*?<p class="spr-empty">No members yet\.<\/p>/,
+    );
+    expect(draft.html).toContain(emptyStateArt('groups'));
+    // With no row yet, Add members sits under the empty state, and nothing is offered
+    // that needs a member: no head over a list, and no administrator access
+    expect(draft.html).toMatch(
+      /<p class="spr-empty">[^<]*<\/p>\s*<details class="spr-modal spr-index-add" data-spr-rows-add="groups\.client-acme">/,
+    );
+    expect(draft.html).not.toContain('class="spr-table-head"');
+    expect(draft.html).toMatch(/data-spr-shown-with-rows="groups\.client-acme" hidden/);
     expect(await versionCount()).toBe(1);
 
     await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
@@ -1754,6 +1767,10 @@ describe('the groups section', () => {
     const fresh = await open('groups/engineering');
     expect(Object.keys(fresh.body)).not.toContain('admins.groups');
     expect(fresh.html).toContain('name="admins.groups"');
+    expect(fresh.html).toMatch(/data-spr-shown-with-rows="groups\.engineering"\s*>/);
+    expect(fresh.html).toMatch(
+      /<div class="spr-table-actions">[\s\S]*?data-spr-rows-add="groups\.engineering"/,
+    );
 
     await post('groups/engineering', {
       ...fresh.body,
@@ -1918,7 +1935,7 @@ describe('the groups section', () => {
       ...body,
       op: 'remove:groups.engineering.0',
     }).expect(200);
-    expect(gone.text).toContain('No members yet, so nobody can see anything through this group.');
+    expect(gone.text).toContain('No members yet.');
     expect(gone.text).not.toContain('grp-ops');
     expect(await versionCount()).toBe(1);
 

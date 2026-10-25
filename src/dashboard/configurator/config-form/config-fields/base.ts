@@ -49,6 +49,9 @@ export interface FieldBase {
   // Path of a checkbox or select; the field is hidden while that control is
   // unchecked or empty, and still submits its value
   shownWith?: string;
+  // A list the field depends on, and how many rows it holds; the field is hidden
+  // while the list holds none, and still submits its value
+  shownWithRows?: { collection: string; rows: number };
   // Result of the field's live check, shown below the control
   status?: FieldStatus;
   // URL of the field's live check. While `status` is absent the page links to it and
@@ -70,6 +73,7 @@ export interface BaseOptions {
   inapplicable?: boolean;
   attached?: Field[];
   shownWith?: string;
+  shownWithRows?: { collection: string; rows: number };
 }
 
 export function baseField(
@@ -93,5 +97,6 @@ export function baseField(
     inapplicable: options.inapplicable === true,
     attached: options.attached ?? [],
     shownWith: options.shownWith,
+    shownWithRows: options.shownWithRows,
   };
 }

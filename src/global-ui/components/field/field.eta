@@ -15,6 +15,7 @@
     class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %><%= f.wide ? ' spr-field-wide' : '' %><%= f.inColumn ? ' spr-field-in-column' : '' %>"
     <% if (f.kind === 'secret' && f.upload && editable) { %>data-spr-drop-zone<% } %>
     <% if (f.shownWith) { %>data-spr-shown-with="<%= f.shownWith %>"<% } %>
+    <% if (f.shownWithRows) { %>data-spr-shown-with-rows="<%= f.shownWithRows.collection %>"<%= f.shownWithRows.rows === 0 ? ' hidden' : '' %><% } %>
     <% if (f.sourceToCopyFrom) { %>data-spr-copy-from="<%= f.sourceToCopyFrom %>"<% } %>
   >
     <%~ include('@config-fields/' + component, it) %>
