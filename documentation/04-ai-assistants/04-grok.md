@@ -33,8 +33,6 @@ Grok opens Speicher to authorize the connection:
 2. Speicher shows **Connect Grok**. Click **Connect**.
 3. You are sent back to Grok (`grok.com`). The connector is now connected.
 
-To refuse, close the window instead of clicking **Connect**.
-
 ![Speicher: Connect Grok screen](./assets/grok-connect-screen.png)
 
 ## 3. Use it in a chat

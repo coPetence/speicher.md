@@ -694,7 +694,7 @@
         "connection_idle_ttl": {
           "$ref": "#/$defs/duration",
           "default": "30d",
-          "description": "How long an MCP connection lasts unused. Only with a `directory`: each token refresh re-reads the person's groups from it and restarts this window, and revokes the connection of somebody no longer there. Without a directory, a connection ends with `session_ttl`."
+          "description": "If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`."
         },
         "directory": {
           "$ref": "#/$defs/directory"
@@ -1024,7 +1024,7 @@
         "connection_idle_ttl": {
           "$ref": "#/$defs/duration",
           "default": "30d",
-          "description": "How long an MCP connection lasts unused. Only with a `directory`: each token refresh re-reads the person's groups from it and restarts this window, and revokes the connection of somebody no longer there. Without a directory, a connection ends with `session_ttl`."
+          "description": "If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`."
         },
         "domains": {
           "type": "array",

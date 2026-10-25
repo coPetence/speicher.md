@@ -55,7 +55,7 @@ afterAll(async () => {
 
 async function rpc(who: PrincipalName | 'anonymous', method: string, params?: unknown) {
   const req = request(app.getHttpServer())
-    .post('/mcp')
+    .post(who === 'anonymous' ? '/mcp/public' : '/mcp')
     .send({ jsonrpc: '2.0', id: 1, method, params });
   if (who !== 'anonymous') req.set('Authorization', `Bearer ${tokens[who]}`);
   return req;
@@ -72,7 +72,7 @@ async function callToolOn(
   args: Record<string, unknown>,
 ) {
   const req = request(target.getHttpServer())
-    .post('/mcp')
+    .post(who === 'anonymous' ? '/mcp/public' : '/mcp')
     .send({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
   if (who !== 'anonymous') req.set('Authorization', `Bearer ${tokens[who]}`);
   const res = await req;
@@ -88,6 +88,20 @@ describe('transport', () => {
     const listed = await callTool('anonymous', 'list', {});
     expect(listed.content[0].text).toMatch(/speicher-docs/);
     expect(listed.content[0].text).not.toMatch(/handbook|specs|fieldkit/);
+  });
+
+  it('reads only public content at /mcp/public, whatever credential is sent', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/mcp/public')
+      .set('Authorization', `Bearer ${tokens.alice}`)
+      .send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'list', arguments: {} },
+      });
+    expect(res.body.result.content[0].text).toMatch(/speicher-docs/);
+    expect(res.body.result.content[0].text).not.toMatch(/handbook/);
   });
 
   it('advertises exactly the three tools', async () => {

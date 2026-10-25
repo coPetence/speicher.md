@@ -59,7 +59,7 @@ describe('what is counted', () => {
   it('meters MCP, where an anonymous caller can ask for a search directly', async () => {
     const client = fromNewAddress();
     const call = () =>
-      client.post('/mcp').send({
+      client.post('/mcp/public').send({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
@@ -73,7 +73,7 @@ describe('what is counted', () => {
     const client = fromNewAddress();
     await client.get('/?q=one');
     await client.get('/?tag=two');
-    await client.post('/mcp').send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    await client.post('/mcp/public').send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     expect((await client.get('/?q=four')).status).toBe(429);
   });
 

@@ -22,7 +22,7 @@ Click **Continue**.
 Claude checks the server and offers three options under **Authentication**. Choose **Sign in now**.
 
 :::caution
-If Claude marks **No sign-in** as detected, the instance is not set up for AI assistants yet: `SPEICHER_PUBLIC_URL` is missing or points to a different address. Ask your administrator before you continue. With **No sign-in**, Claude only sees public pages.
+If Claude marks **No sign-in** as detected, check that you entered `/mcp` and not `/mcp/public`. Otherwise the instance is not set up for AI assistants yet: `SPEICHER_PUBLIC_URL` is missing or points to a different address. Ask your administrator before you continue. With **No sign-in**, Claude only sees public pages.
 :::
 
 Click **Add**.
@@ -36,8 +36,6 @@ Claude opens Speicher in a new window:
 1. Sign in to Speicher as usual.
 2. Speicher shows **Connect Claude**. Click **Connect**.
 3. You are sent back to Claude. The connector is now connected.
-
-To refuse, close the window instead of clicking **Connect**.
 
 ![Claude: Speicher Connect Screen](./assets/claude-connect-screen.png)
 
