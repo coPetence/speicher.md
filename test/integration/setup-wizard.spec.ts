@@ -220,7 +220,7 @@ describe('the first run', () => {
       {
         provider: 'wizard',
         subject: 'subject-from-the-idp',
-        note: 'First administrator: someone@idp.test, named by their own first login',
+        note: 'First administrator: someone@idp.test',
       },
     ]);
 
@@ -551,7 +551,7 @@ describe('the proving login through GitHub', () => {
       {
         provider: 'gh',
         subject: '4242',
-        note: 'First administrator: octo@idp.test, named by their own first login',
+        note: 'First administrator: octo@idp.test',
       },
     ]);
     expect(await setup.claimWindowOpen(harness.tenantId)).toBe(false);
