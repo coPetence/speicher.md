@@ -5,7 +5,7 @@ import { pageChrome } from '../../../content-reader/chrome';
 import { renderTemplate, sendHtml } from '../../../content-reader/views';
 import { renderPage } from '../../../global-ui/global-views/page-layout/page-layout';
 
-export function sendMagicLinkSent(
+export function sendMagicLinkSentScreen(
   req: Request,
   res: Response,
   config: ConfigService,

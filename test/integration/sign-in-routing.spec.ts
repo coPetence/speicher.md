@@ -220,7 +220,7 @@ describe('the sign-in page', () => {
         .type('form')
         .send({ email: 'zoe@elsewhere.test' })
         .expect(200);
-      expect(page.text).toContain('No sign-in is set up for this address.');
+      expect(page.text).toContain('No sign-in is set up for elsewhere.test addresses.');
       expect(page.text).toContain('Sign in with hub');
     } finally {
       await without.close();
@@ -276,7 +276,7 @@ describe('an address no provider is offered for', () => {
       .type('form')
       .send({ email: 'zoe@elsewhere.test' })
       .expect(200);
-    expect(page.text).toContain('There is no way to sign in with this address.');
+    expect(page.text).toContain('Addresses at elsewhere.test cannot sign in here.');
     expect(page.text).toContain('value="zoe@elsewhere.test"');
   });
 });

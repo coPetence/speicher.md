@@ -7,16 +7,10 @@ import { emptyStateArt } from '../../../content-reader/empty-state';
 import { isFragmentRequest, renderTemplate, sendHtml } from '../../../content-reader/views';
 import { renderPage } from '../page-layout/page-layout';
 
-/** The config a 404 page reads: its chrome, and whether there is a provider to sign in with */
 export type NotFoundConfig = ChromeConfig & Pick<ConfigService, 'providerShortIds'>;
 
 /**
  * Renders a 404 page
- *
- * A signed-out browser is sent to sign in instead, whether the page is missing or
- * hidden from them, so the redirect tells nothing about which pages exist
- *
- * Not a middleware: must be called explicitly
  */
 export function sendNotFound(req: Request, res: Response, config: NotFoundConfig): void {
   if (redirectToSignIn(req, res, config)) return;
@@ -39,8 +33,7 @@ export function sendNotFound(req: Request, res: Response, config: NotFoundConfig
 }
 
 /**
- * redirectToSignIn sends a signed-out browser to the sign-in page, coming back to the
- * page it asked for. It returns false, sending nothing, for any other request.
+ * redirectToSignIn sends a signed-out browser to the sign-in page
  *
  * @param req the request
  * @param res the response
@@ -58,10 +51,7 @@ export function redirectToSignIn(req: Request, res: Response, config: NotFoundCo
 }
 
 /**
- * True for a signed-out browser opening a page on an instance that has a provider
- *
- * Only a navigation that asks for HTML: API calls, assets and the tree island's
- * fragments keep their 404
+ * True for a signed-out browser opening a page on an instance with a configured provider
  */
 function sendsToSignIn(req: Request, config: NotFoundConfig): boolean {
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
