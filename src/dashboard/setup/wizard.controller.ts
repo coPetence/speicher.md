@@ -143,9 +143,9 @@ export class SetupWizardController {
   }
 
   /**
-   * The configured OIDC and GitHub providers, the only ones a proving login can use
-   *
-   * A magic link is left out: it proves a mailbox, not a login this session started
+   * Providers that can be used to prove an administrator: OIDC or GitHub
+   * Magic-link is not provable, since it needs mail to be configured first
+   * These providers are availiable for the initital administrator promotion
    */
   private provable(): ProvableProvider[] {
     return this.config.providerShortIds

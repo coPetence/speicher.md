@@ -42,7 +42,7 @@ export interface DashboardAnswer<T> {
 
   embedsFrames?: boolean; // Allow the page to be embedded in a frame
 
-  formActions?: string[]; // Origins outside this instance a form, or the redirect it answers with, may reach
+  formActions?: string[]; // Outside origins a form on the page may post or redirect to (CSP form-action)
 
   listsSetupSteps?: boolean; // Page shows the steps, so skip the progress bar
 
