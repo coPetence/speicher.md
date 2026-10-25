@@ -1,5 +1,7 @@
 import { Document } from 'yaml';
 
+import { referencesOf, referrersOf } from '../../../../config/groups';
+import type { GroupItem } from '../../../../config/types';
 import { GROUP_ADD, ROW_KINDS, RowKind } from '../collections';
 import { appendSeqItem, dottedPath, parseLines, removeAt, setNodeAt, writeAt } from '../document';
 import { FormSection, allFields, allOps } from '../model';
@@ -176,10 +178,15 @@ function appendGroupItem(doc: Document, body: FormBody, name: string, target: st
   if (!(ROW_KINDS as readonly string[]).includes(kind)) return;
 
   if (kind === 'reference') {
+    const groups = (doc.getIn(['groups']) as { toJSON(): Record<string, GroupItem[]> })?.toJSON();
+    // Neither a second row for a group already named, nor one that closes a cycle
+    const taken = [...referencesOf(groups?.[name] ?? []), ...referrersOf(groups, name)];
     for (const chosen of submittedList(body, `newname:${target}.${kind}`)) {
       const group = chosen.trim();
       if (group === '' || group === name || doc.getIn(['groups', group]) === undefined) continue;
+      if (taken.includes(group)) continue;
       appendSeqItem(doc, ['groups', name], { group });
+      taken.push(group);
     }
     return;
   }

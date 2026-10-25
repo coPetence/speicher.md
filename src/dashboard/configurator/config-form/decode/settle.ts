@@ -8,7 +8,13 @@ import { FormSection, allFields, cardItems, fieldsOf } from '../model';
 import { defaultRepositoryId } from '../sections/content-sources/git-repository-card';
 import { FormBody } from './body';
 
-export function settleGroupSources(doc: Document, name: string): boolean {
+export function groupSourceSnapshot(doc: Document, name: string): Set<string> {
+  const list = doc.getIn(['groups', name], true);
+  if (!isSeq(list)) return new Set();
+  return new Set(list.items.map(itemText));
+}
+
+export function settleGroupSources(doc: Document, name: string, stored: Set<string>): boolean {
   const list = doc.getIn(['groups', name], true);
   if (!isSeq(list)) return false;
 
@@ -18,8 +24,15 @@ export function settleGroupSources(doc: Document, name: string): boolean {
     list.items = kept as typeof list.items;
     changed = true;
   }
-  for (const item of kept) if (providerFirst(item)) changed = true;
+  for (const item of kept) {
+    if (stored.has(itemText(item))) continue;
+    if (providerFirst(item)) changed = true;
+  }
   return changed;
+}
+
+function itemText(item: unknown): string {
+  return JSON.stringify(isMap(item) ? item.toJSON() : item);
 }
 
 function providerFirst(item: unknown): boolean {

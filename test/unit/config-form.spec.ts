@@ -1485,12 +1485,32 @@ describe('a group’s rows', () => {
     expect(options('group').map((o) => o.value)).toEqual(['entra', 'hub']);
     expect(options('domain').map((o) => o.value)).toEqual(['letter']);
     expect(options('person').map((o) => o.value)).toEqual(['entra', 'letter', 'hub']);
+    // `tech` already references this group, so naming it here would close a cycle
     expect(options('reference').map((o) => o.value)).toEqual([
       'everyone-at-example',
       'platform-ops',
-      'tech',
     ]);
     expect(options('person').every((o) => o.mark !== '')).toBe(true);
+  });
+
+  it('offers no group already named, nor one that reaches this group', () => {
+    const doc = loadDocument(FULL);
+    doc.setIn(['groups', 'staff'], doc.createNode([{ group: 'tech' }]));
+    const options = (name: string) =>
+      buildSections(doc)
+        .find((s) => s.id === `groups/${name}`)!
+        .tables![0].add!.kinds.find((k) => k.value === 'reference')!
+        .options.map((o) => o.value);
+    expect(options('engineering')).toEqual(['everyone-at-example', 'platform-ops']);
+    // `tech` names both of the others already, and `staff` reaches it
+    expect(options('tech')).toEqual(['everyone-at-example']);
+    // An existing reference row may still be pointed at any group but a referrer
+    const row = rowsOf(doc, 'tech')[0].fields.find((f) => f.path.endsWith('.group'))!;
+    expect((row as { options: { value: string }[] }).options.map((o) => o.value)).toEqual([
+      'engineering',
+      'everyone-at-example',
+      'platform-ops',
+    ]);
   });
 
   it('leaves out a shape nothing can take, and the control when none can', () => {
@@ -1619,7 +1639,6 @@ describe('a group’s rows', () => {
         op: 'add:groups.engineering.row',
         'newkind:groups.engineering.row': 'reference',
         'newname:groups.engineering.row.reference': [
-          'tech',
           'engineering',
           'nobody',
           'everyone-at-example',
@@ -1627,10 +1646,7 @@ describe('a group’s rows', () => {
       },
       'groups/engineering',
     );
-    expect(doc.toJS().groups.engineering.slice(2)).toEqual([
-      { group: 'tech' },
-      { group: 'everyone-at-example' },
-    ]);
+    expect(doc.toJS().groups.engineering.slice(2)).toEqual([{ group: 'everyone-at-example' }]);
 
     const kinds = buildSections(loadDocument(FULL)).find((s) => s.id === 'groups/engineering')!
       .tables![0].add!.kinds;
@@ -1765,6 +1781,49 @@ describe('a group’s rows', () => {
       { group: 'platform-ops' },
       { provider: 'letter', domain: 'example.test' },
     ]);
+  });
+
+  it('appends no reference that is already there or would close a cycle', () => {
+    const doc = loadDocument(FULL);
+    const before = serialise(doc);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'reference',
+        // `tech` references `engineering` already
+        'newname:groups.engineering.row.reference': 'tech',
+      },
+      'groups/engineering',
+    );
+    expect(serialise(doc)).toBe(before);
+
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.tech.row',
+        'newkind:groups.tech.row': 'reference',
+        'newname:groups.tech.row.reference': ['engineering', 'platform-ops', 'platform-ops'],
+      },
+      'groups/tech',
+    );
+    expect(doc.toJS().groups.tech.filter((item: { group?: string }) => item.group)).toEqual([
+      { group: 'engineering', note: 'every engineer' },
+      { group: 'platform-ops' },
+    ]);
+  });
+
+  it('keeps the key order of a hand-written source through an untouched save', () => {
+    const yaml = FULL.replace(
+      "  engineering:\n    - { provider: entra, id: 'grp-eng' }",
+      '  engineering:\n    - id: grp-eng\n      provider: entra',
+    );
+    expect(yaml).not.toBe(FULL);
+    const doc = loadDocument(yaml);
+    const section = sectionOf(doc, 'groups/engineering')!;
+    const body = untouchedBody(allFields([section]));
+    expect(applyForm(doc, body, 'groups/engineering').changed).toBe(false);
+    expect(serialise(doc)).toBe(serialise(loadDocument(yaml)));
   });
 
   it('declares every path once per section, however many shapes render it', () => {
