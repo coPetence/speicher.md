@@ -8,10 +8,10 @@
  */
 import { Injectable } from '@nestjs/common';
 
+import { nearestName } from '../common/edit-distance';
 import { env } from '../common/env';
 import { emailPrincipal, groupPrincipal, Principal, subjectPrincipal } from '../common/principals';
 import { slugify } from '../common/slug';
-import { isExpired } from '../common/until';
 import {
   BRAND_ICON,
   BRAND_IMAGES,
@@ -24,6 +24,7 @@ import {
   brandImageUrl,
 } from './brand';
 import { pollIntervalMs } from './checks/git-forges';
+import { leavesOf, membersOf, sourcesOf } from './groups';
 import type { ColourScheme } from './palette';
 import { themeOverrides } from './palette';
 import { LoadedInstanceConfig } from './parser';
@@ -36,6 +37,7 @@ import {
   ForgeConfig,
   GitRepoConfig,
   GraphConfig,
+  GroupItem,
   GroupSource,
   InstanceConfig,
   NEUTRAL_BRAND,
@@ -347,14 +349,22 @@ export class ConfigService {
     return Object.keys(this.instance.groups ?? {});
   }
 
-  groupSources(name: string): GroupSource[] {
+  /** The items in a group: sources and other group references*/
+  groupItems(name: string): GroupItem[] {
     return this.instance.groups?.[name] ?? [];
+  }
+
+  /**
+   * Every source of a group. Also walks references to other groups.
+   */
+  groupSources(name: string, now: Date = new Date()): GroupSource[] {
+    return leavesOf(this.instance.groups, name, now);
   }
 
   groupSourcesByProvider(providerShortId: string): string[] {
     const out = new Set<string>();
-    for (const sources of Object.values(this.instance.groups ?? {})) {
-      for (const source of sources) {
+    for (const items of Object.values(this.instance.groups ?? {})) {
+      for (const source of sourcesOf(items)) {
         if (source.provider === providerShortId && source.id !== undefined) out.add(source.id);
       }
     }
@@ -379,21 +389,14 @@ export class ConfigService {
 
   /** Fuzzy group name match within 2 Levenshtein edits */
   suggestGroup(name: string): string | null {
-    let best: { name: string; distance: number } | null = null;
-    for (const candidate of this.groupNames) {
-      const distance = editDistance(name, candidate);
-      if (distance <= 2 && (best === null || distance < best.distance)) {
-        best = { name: candidate, distance };
-      }
-    }
-    return best?.name ?? null;
+    return nearestName(name, this.groupNames);
   }
 
   /**
    * Resolve identity to groups
    *
-   * Matches by provider directory group id, domain, subject, or email
-   * Expired sources are skipped
+   * A source matches by provider directory group id, domain, subject, or email; a
+   * reference matches when the referenced group does. Expired items are skipped
    */
   resolveInternalGroups(
     providerId: string,
@@ -406,26 +409,20 @@ export class ConfigService {
     const domain = email?.split('@')[1];
     const subject = identity?.subject ?? undefined;
 
-    const out: string[] = [];
-    for (const [name, sources] of Object.entries(this.instance.groups ?? {})) {
-      const matched = sources.some((source) => {
-        if (source.provider !== providerId) return false;
-
-        if (isExpired(source.until, now)) return false;
-        if (source.id !== undefined) return rawSet.has(source.id);
-        if (source.domain !== undefined) {
-          return domain !== undefined && source.domain.toLowerCase() === domain;
-        }
-        if (source.subject !== undefined) {
-          return subject !== undefined && source.subject === subject;
-        }
-        if (source.email !== undefined)
-          return email !== undefined && source.email.toLowerCase() === email;
-        return false;
-      });
-      if (matched) out.push(name);
-    }
-    return out.sort();
+    return membersOf(this.instance, now, (source) => {
+      if (source.provider !== providerId) return false;
+      if (source.id !== undefined) return rawSet.has(source.id);
+      if (source.domain !== undefined) {
+        return domain !== undefined && source.domain.toLowerCase() === domain;
+      }
+      if (source.subject !== undefined) {
+        return subject !== undefined && source.subject === subject;
+      }
+      if (source.email !== undefined) {
+        return email !== undefined && source.email.toLowerCase() === email;
+      }
+      return false;
+    });
   }
 
   adminPrincipals(): Principal[] {
@@ -454,25 +451,6 @@ export function principalSetToPrincipals(
 /** Alias for providerType */
 export function providerKind(provider: ProviderConfig) {
   return providerType(provider);
-}
-
-/** Levenshtein distance, used by suggestGroup */
-function editDistance(a: string, b: string): number {
-  const rows = a.length + 1;
-  const cols = b.length + 1;
-  let prev = Array.from({ length: cols }, (_, j) => j);
-  for (let i = 1; i < rows; i++) {
-    const curr = [i, ...new Array<number>(cols - 1).fill(0)];
-    for (let j = 1; j < cols; j++) {
-      curr[j] = Math.min(
-        prev[j] + 1,
-        curr[j - 1] + 1,
-        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-    }
-    prev = curr;
-  }
-  return prev[cols - 1];
 }
 
 /**

@@ -6,6 +6,14 @@
     <label for="n-<%= add.op %>">
       <%= add.nameLabel %>
     </label>
+    <% if (add.nameOptions && add.nameOptions.length > 0) { %>
+    <%~ include('@select', {
+      attributes: { id: 'n-' + add.op, name: 'newname:' + target, 'data-spr-transient': true },
+      options: add.nameOptions.map(function (option) {
+        return { value: option.value, label: option.label, markHtml: (it.optionMarks || {})[option.mark] };
+      }),
+    }) %>
+    <% } else { %>
     <input
       id="n-<%= add.op %>"
       name="newname:<%= target %>"
@@ -16,6 +24,7 @@
       autocomplete="off"
       data-spr-transient
     >
+    <% } %>
     <% } %>
     <% if (add.typeLabel) { %>
     <label for="t-<%= add.op %>">

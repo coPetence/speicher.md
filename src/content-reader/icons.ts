@@ -8,6 +8,7 @@
  * a standalone inline <svg>. Both paths keep only an allowlist of shape elements and
  * attributes, so no script, style or event handler survives
  */
+import { nearestName } from '../common/edit-distance';
 
 type IconNode = [tag: string, attrs: Record<string, string | number>];
 
@@ -103,17 +104,7 @@ export function iconNames(): string[] {
 
 /** The name within two edits of name for a typo hint, or null */
 export function suggestIcon(name: string): string | null {
-  const target = name.toLowerCase();
-  let best: { name: string; distance: number } | null = null;
-  for (const candidate of load().names) {
-    // A length gap beyond two edits can never match
-    if (Math.abs(candidate.length - target.length) > 2) continue;
-    const distance = editDistance(target, candidate);
-    if (distance <= 2 && (best === null || distance < best.distance)) {
-      best = { name: candidate, distance };
-    }
-  }
-  return best?.name ?? null;
+  return nearestName(name, load().names, { ignoreCase: true });
 }
 
 /** The allowlisted shape markup for an icon, or null when name has no match */
@@ -222,22 +213,4 @@ export function renderIconRef(name: string | null | undefined): string {
 /** Escapes &, " and < for an attribute value in generated markup */
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
-
-/** Levenshtein distance, the threshold measure for typo suggestions */
-function editDistance(a: string, b: string): number {
-  const cols = b.length + 1;
-  let prev = Array.from({ length: cols }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const curr = [i, ...new Array<number>(cols - 1).fill(0)];
-    for (let j = 1; j < cols; j++) {
-      curr[j] = Math.min(
-        prev[j] + 1,
-        curr[j - 1] + 1,
-        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-    }
-    prev = curr;
-  }
-  return prev[cols - 1];
 }

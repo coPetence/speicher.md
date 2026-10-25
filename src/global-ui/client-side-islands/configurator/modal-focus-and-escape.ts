@@ -8,6 +8,7 @@
  */
 
 export function mountModals(): void {
+  mountToggledModals();
   const modals = Array.from(document.querySelectorAll<HTMLDetailsElement>('details.spr-modal'));
   if (modals.length === 0) return;
 
@@ -32,5 +33,42 @@ export function mountModals(): void {
     open.open = false;
 
     open.querySelector('summary')?.focus();
+  });
+
+  // A Cancel button inside a modal closes it the way Escape does
+  addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const cancel = event.target.closest('[data-spr-modal-cancel]');
+    const modal = cancel?.closest<HTMLDetailsElement>('details.spr-modal');
+    if (!cancel || !modal) return;
+    modal.open = false;
+    modal.querySelector('summary')?.focus();
+  });
+}
+
+function mountToggledModals(): void {
+  const toggles = Array.from(
+    document.querySelectorAll<HTMLInputElement>('input.spr-row-edit-toggle'),
+  );
+  if (toggles.length === 0) return;
+
+  const dialogOf = (toggle: HTMLInputElement): HTMLElement | null =>
+    toggle.parentElement?.querySelector<HTMLElement>('.spr-row-edit-dialog') ?? null;
+
+  for (const toggle of toggles) {
+    toggle.addEventListener('change', () => {
+      if (!toggle.checked) return;
+      dialogOf(toggle)
+        ?.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea')
+        ?.focus();
+    });
+  }
+
+  addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const open = toggles.find((toggle) => toggle.checked);
+    if (!open) return;
+    open.checked = false;
+    open.parentElement?.querySelector<HTMLElement>(`label[for="${open.id}"]`)?.focus();
   });
 }

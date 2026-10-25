@@ -57,6 +57,10 @@ export interface EntryLine {
   value: string;
   // Provider mark identifier shown alongside the line (see `provider-marks.ts`)
   mark: string;
+  // Where the value can be looked up outside, e.g. a directory group in its portal
+  href?: string;
+  // Drawn in the failure colour, e.g. an expiry that has passed
+  failed?: boolean;
 }
 
 export interface SectionEntry {
@@ -84,6 +88,9 @@ export interface SectionEntry {
   removeOp: string | null;
   // Position in a list-based collection
   position: number;
+  // The shape of this row where a table mixes them, e.g. `person`; see
+  // `sourceKindAt`
+  kind?: string;
 }
 
 export interface TableColumn {
@@ -96,15 +103,47 @@ export function column(label: string, help = ''): TableColumn {
   return { label, help };
 }
 
+/** One shape of row a table's Add modal offers, with what that shape is drawn through */
+export interface TableAddKind {
+  value: string;
+  label: string;
+  // Lucide icon name drawn in front of the label
+  icon: string;
+  // Help markup under the label
+  help?: string;
+  // Label of the control that names what the row is drawn through
+  nameLabel: string;
+  options: Option[];
+  // True where several of the options may be picked at once, each becoming a
+  // row: drawn as a searchable list of boxes rather than a select
+  multiple?: boolean;
+  // The text area under the select, one match per line, where the kind takes
+  // one: a row is added per line, and one empty row when nothing was typed.
+  // Absent where the select is the whole match, e.g. a reference to a group
+  matches?: { label: string; placeholder: string; help: string };
+}
+
+/** A table's Add control: a modal picking a kind of row and its name, submitted as one op */
+export interface TableAdd {
+  op: string;
+  // The button, and the modal's own button
+  label: string;
+  // The modal's title, which may name what the rows are added to
+  title: string;
+  // What the list of kinds is called, for assistive technology; it is not drawn
+  question: string;
+  kinds: TableAddKind[];
+}
+
 export interface ValueTable {
   title: string;
   columns: TableColumn[];
   bulkRemoveOp: string;
   entries: SectionEntry[];
-  // Distinguishes group sources from person sources
-  kind: string;
   // Text shown when the table is empty
   emptyNote: string;
+  // The control that adds a row; absent where nothing can be added
+  add?: TableAdd;
 }
 
 export interface Card {
@@ -171,6 +210,12 @@ export interface FormSection {
   entriesArePages?: boolean;
   // Column labels for table-layout sections
   columns?: string[];
+  // True where a table-layout section draws no column for its entries' lines;
+  // the lines still feed the filter, so a row is found by what it is made of
+  hideLines?: boolean;
+  // The operation that removes every entry whose box is ticked, where an index
+  // offers one; each entry's own `removeOp` is what the boxes carry
+  bulkRemoveOp?: string;
   searchable?: boolean;
   searchPlaceholder?: string;
   // Name for a member in this section
@@ -267,7 +312,11 @@ export function allOps(sections: FormSection[]): string[] {
   for (const section of sections) {
     out.push(...section.addOps.map((a) => a.op));
     for (const entry of allEntries(section)) if (entry.removeOp) out.push(entry.removeOp);
-    for (const table of section.tables ?? []) out.push(table.bulkRemoveOp);
+    for (const table of section.tables ?? []) {
+      out.push(table.bulkRemoveOp);
+      if (table.add) out.push(table.add.op);
+    }
+    if (section.bulkRemoveOp) out.push(section.bulkRemoveOp);
 
     if (section.removeOp) out.push(section.removeOp);
     if (section.renameOp) out.push(section.renameOp);

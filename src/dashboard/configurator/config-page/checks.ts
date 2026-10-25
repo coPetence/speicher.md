@@ -200,7 +200,7 @@ export class SectionChecks {
     check?: string,
   ): Promise<void> {
     const member = memberOf(payload.section?.id ?? '');
-    if (!payload.section || member?.section !== 'sources' || member.entry) return;
+    if (!payload.section || member?.section !== 'sources') return;
     const sectionId = payload.section.id;
 
     const forge = ((loadDocument(yaml).toJS() as { forges?: Record<string, Obj> } | null)?.forges ??
@@ -353,7 +353,7 @@ export class SectionChecks {
 
   async stampDirectoryStatus(payload: ConfigSectionPayload, asked: boolean): Promise<void> {
     const member = memberOf(payload.section?.id ?? '');
-    if (!payload.section || member?.section !== 'identity' || member.entry) return;
+    if (!payload.section || member?.section !== 'identity') return;
 
     // Only identity sections without an entry get directory probes
     const field = allFields([payload.section]).find(

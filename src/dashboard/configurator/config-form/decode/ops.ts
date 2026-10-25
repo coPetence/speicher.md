@@ -1,10 +1,9 @@
 import { Document } from 'yaml';
 
-import { addTarget } from '../collections';
-import { appendSeqItem, dottedPath, removeAt, setNodeAt, writeAt } from '../document';
-import type { Obj } from '../config-fields';
+import { GROUP_ADD, ROW_KINDS, RowKind } from '../collections';
+import { appendSeqItem, dottedPath, parseLines, removeAt, setNodeAt, writeAt } from '../document';
 import { FormSection, allFields, allOps } from '../model';
-import { seedForge, sourcePositions } from '../members';
+import { seedForge } from '../members';
 import { FormBody, submitted, submittedList } from './body';
 
 /** What a structural operation did: whether it was one, and whether it wrote. */
@@ -113,58 +112,18 @@ function byDescendingPosition(a: string, b: string): number {
   return at(b) - at(a);
 }
 
-/**
- * A group and one provider it draws from — the target of every operation a
- * source's page offers.
- *
- * The literal segment is what keeps it from reading as a path into the document,
- * and it is load-bearing rather than decorative: a group's sources are a sequence,
- * so `groups.eng.2` names a *position*, and a provider's short id may be `2`. Two
- * operations spelled the same and meaning different things is the bug the rename
- * collision already was; a segment no document path can have is the cheapest way to
- * make that impossible.
- *
- * Two verbs, because the page adds two shapes: `provider` appends a mapping and
- * `person` appends an individual. Removal is spelled with `provider` alone — it
- * takes every source under that provider, whichever shape each one is.
- */
-const GROUP_PROVIDER = /^groups\.([^.]+)\.(provider|person)\.(.+)$/;
-
 function applyStructural(doc: Document, body: FormBody, op: string): void {
   const [verb, target] = [op.slice(0, op.indexOf(':')), op.slice(op.indexOf(':') + 1)];
   const path = dottedPath(target);
-  const scoped = GROUP_PROVIDER.exec(target);
 
   if (verb === 'remove') {
-    if (scoped) {
-      /*
-        Every source in the group that names this provider, **highest position
-        first**. Deleting from the front renumbers everything behind it, so the
-        second deletion would take the wrong source and the last would be out of
-        range — which is the same property `reconcileList` truncates from the end
-        for.
-      */
-      const root = doc.toJS({ maxAliasCount: 0 }) as Obj;
-      const positions = sourcePositions(root, scoped[1], scoped[3]);
-      for (const index of positions.reverse()) removeAt(doc, ['groups', scoped[1], index]);
-      return;
-    }
     removeAt(doc, path);
     return;
   }
 
+  const scoped = GROUP_ADD.exec(target);
   if (scoped) {
-    /*
-      One more source on the provider whose page this was pressed on, in the shape
-      the button says. Both come from the op — which `allOps` checked against what
-      the page offered — and not from a hidden control, which would be
-      caller-supplied on the endpoint that writes `admins`.
-
-      The seed is `addTarget`'s, so the round trip and the reconciliation that
-      rebuilds it a request later agree about what was made. Two spellings of the
-      same seed is how they would come to disagree.
-    */
-    appendSeqItem(doc, ['groups', scoped[1]], addTarget(op).seed ?? {});
+    appendGroupItem(doc, body, scoped[1].slice('groups.'.length), target);
     return;
   }
 
@@ -203,15 +162,52 @@ function applyStructural(doc: Document, body: FormBody, op: string): void {
       return;
     }
     default: {
-      // `groups.<name>` and `forges.<id>.repos` — the two collections whose add
-      // button carries no name, because the entry is identified by its contents.
-      if (/^groups\.[^.]+$/.test(target)) {
-        appendSeqItem(doc, path, {});
-        return;
-      }
+      // `forges.<id>.repos` — the one collection whose add button carries no name,
+      // because the entry is identified by its contents.
       if (/^forges\.[^.]+\.repos$/.test(target)) {
         appendSeqItem(doc, path, {});
       }
     }
+  }
+}
+
+function appendGroupItem(doc: Document, body: FormBody, name: string, target: string): void {
+  const kind = (submitted(body, `newkind:${target}`) ?? '').trim();
+  if (!(ROW_KINDS as readonly string[]).includes(kind)) return;
+
+  if (kind === 'reference') {
+    for (const chosen of submittedList(body, `newname:${target}.${kind}`)) {
+      const group = chosen.trim();
+      if (group === '' || group === name || doc.getIn(['groups', group]) === undefined) continue;
+      appendSeqItem(doc, ['groups', name], { group });
+    }
+    return;
+  }
+
+  const chosen = (submitted(body, `newname:${target}.${kind}`) ?? '').trim();
+  if (chosen === '') return;
+
+  const provider = doc.getIn(['auth', 'providers', chosen]);
+  if (provider === undefined) return;
+  const magicLink = doc.getIn(['auth', 'providers', chosen, 'type']) === 'magic-link';
+  const key = matchKeyOf(kind as RowKind, magicLink);
+  if (key === null) return;
+
+  const matches = parseLines(submitted(body, `newmatches:${target}.${kind}`) ?? '');
+  for (const match of matches.length > 0 ? matches : ['']) {
+    appendSeqItem(doc, ['groups', name], { provider: chosen, [key]: match });
+  }
+}
+
+function matchKeyOf(kind: RowKind, magicLink: boolean): 'id' | 'domain' | 'email' | null {
+  switch (kind) {
+    case 'group':
+      return magicLink ? null : 'id';
+    case 'domain':
+      return magicLink ? 'domain' : null;
+    case 'person':
+      return 'email';
+    default:
+      return null;
   }
 }

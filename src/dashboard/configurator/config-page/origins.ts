@@ -6,8 +6,7 @@ import { memberCollectionOf } from '../config-form/members';
 import { ConfigSectionPayload } from './payloads';
 
 /**
- * When each row of an index first appeared, and who put it there — read from the
- * version history, because the document has no such thing.
+ * Config Added by and Added At Stamps
  */
 export async function stampEntryOrigins(
   tenantId: string,
@@ -28,16 +27,16 @@ export async function stampEntryOrigins(
   );
 
   if (origins.size === 0) {
-    section.columns = section.columns?.slice(0, 2);
+    section.columns = section.columns?.slice(0, -2);
     return;
   }
 
   for (const entry of section.entries) {
     const origin = origins.get(entry.title);
-    entry.cells = [
+    entry.cells.push(
       origin ? appliedBy(origin) : UNKNOWN,
       origin ? stamp(origin.applied_at) : UNKNOWN,
-    ];
+    );
   }
 }
 

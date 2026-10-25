@@ -508,7 +508,7 @@
     },
     "groups": {
       "type": "object",
-      "description": "Internal group name -> the provider-qualified sources it draws from. A name may aggregate across providers, and it may draw from none: the name is what a repository grants against, and the directory group it maps to is often not known — or not yet created — when the name is. An empty group makes nobody a member, which fails closed, so the only thing it cannot be is the last thing granting administrator access.",
+      "description": "Maps a Speicher internal group name to the list of sources. A source is either a provider and a principal under it, or another internal group name. Membership is any-of: if a caller matches any source, they are a member of the group.",
       "propertyNames": {
         "$ref": "#/$defs/internalName"
       },
@@ -765,26 +765,38 @@
     },
     "groupSource": {
       "type": "object",
-      "description": "One way people arrive in an internal group. A group is a mapping first \u2014 a directory group id, or an email domain for a magic-link provider \u2014 and may also name individuals outright, which is the only mechanism there is where a provider emits no usable group ids: Google Workspace emits none at all, and an Entra app registration that was never configured to send the claim, or whose user is in more groups than the claim carries, emits none either. Exactly one of the four keys, because a source naming two things does not say which one it trusts.",
-      "required": ["provider"],
+      "description": "The source of a group membership. Can be a directory group id, an email domain for a magic-link provider, one persons email, or a reference to another group by its internal name. Exactly one of the five keys must be present.",
       "additionalProperties": false,
       "oneOf": [
         {
-          "required": ["id"]
+          "required": ["provider", "id"]
         },
         {
-          "required": ["domain"]
+          "required": ["provider", "domain"]
         },
         {
-          "required": ["subject"]
+          "required": ["provider", "subject"]
         },
         {
-          "required": ["email"]
+          "required": ["provider", "email"]
+        },
+        {
+          "required": ["group"],
+          "not": {
+            "anyOf": [
+              { "required": ["provider"] },
+              { "required": ["id"] },
+              { "required": ["domain"] },
+              { "required": ["subject"] },
+              { "required": ["email"] }
+            ]
+          }
         }
       ],
       "properties": {
         "provider": {
-          "$ref": "#/$defs/shortId"
+          "$ref": "#/$defs/shortId",
+          "description": "Short ID of the identity provider this source is under."
         },
         "id": {
           "type": "string",
@@ -799,15 +811,19 @@
           "format": "email",
           "description": "Address of one person, matched against the provider's email_claim. Mutable, reassignable, and on some providers set by a directory administrator rather than proven by the mailbox \u2014 so this is the convenient form and `subject` is the durable one. Refused on a provider whose issuer does not name one directory; see the loader."
         },
+        "group": {
+          "$ref": "#/$defs/internalName",
+          "description": "The internal name of another group. Every member of that group is a member of this one."
+        },
         "note": {
           "type": "string",
           "maxLength": 200,
-          "description": "Why this source is here, on any of the four shapes. Optional, and worth writing on all of them: a directory group id is thirty-six characters that carry no meaning to read, and a person is a name whose reason for being in a group nobody remembers a year later. It is what an access review reads."
+          "description": "Optional free text for later reference."
         },
         "until": {
           "type": "string",
           "format": "date",
-          "description": "Optional review date. Written on an individual in practice, and honoured on any source: a key this accepted and the resolver ignored would have an operator believe a dated mapping lapses. Enforced at resolution rather than at ingest, because membership is resolved per request \u2014 the day it passes the member stops being one, with no rebuild and no re-login."
+          "description": "Optional review date. A group source will loose effect after this date. If it's not set the source will be permanent."
         },
         "domain": {
           "type": "string",

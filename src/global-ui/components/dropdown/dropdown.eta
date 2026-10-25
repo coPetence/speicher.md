@@ -12,7 +12,8 @@
           type="radio"
           name="<%= it.name %>"
           value="<%= option.value %>"
-          form="add-member"
+          <% if (it.form !== null) { %>form="<%= it.form || 'add-member' %>"<% } %>
+          <% if (it.transient) { %>data-spr-transient<% } %>
           <%= (it.picked ? option.value === it.picked : index === 0) ? 'checked' : '' %>
           <% if (option.unavailable) { %>data-spr-unavailable<% } %>
           <% if (option.suggest) { %>data-spr-suggest="<%= option.suggest %>"<% } %>

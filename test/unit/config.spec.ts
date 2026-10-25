@@ -5,6 +5,7 @@ import { ConfigService, defaultBrand } from '../../src/config/config.service';
 import { interpolateEnv } from '../../src/config/env-interpolation';
 import { adminLockout } from '../../src/config/checks/admins';
 import { loadInstanceConfig } from '../../src/config/parser';
+import { referrersOf } from '../../src/config/groups';
 import { computeResolutionHash } from '../../src/config/resolution-hash';
 import { NEUTRAL_BRAND, gitRepositoryOwner } from '../../src/config/types';
 
@@ -533,7 +534,7 @@ describe('an individual in a group', () => {
     const loaded = load(
       withSource('{ provider: entra, subject: oid-42, note: "founding engineer" }'),
     );
-    expect(loaded.raw.groups?.engineering[0].subject).toBe('oid-42');
+    expect(new ConfigService(loaded).groupSources('engineering')[0].subject).toBe('oid-42');
   });
 
   it('accepts a person named by address', () => {
@@ -736,6 +737,212 @@ forges:
   it('resolves an identity with no email against an address source', () => {
     const sources = '    - { provider: entra, email: alice@example.test, note: n }';
     expect(resolve(sources, { subject: 'oid-42' })).toEqual([]);
+  });
+});
+
+describe('a group referencing another', () => {
+  const REFS = (groups: string) => `
+version: 1
+auth:
+  providers:
+    entra:
+      type: oidc
+      issuer: https://login.example.test/v2.0
+      client_id: abc
+groups:
+${groups}
+admins:
+  groups: [engineering]
+forges:
+  gh:
+    type: github
+    app_id: "1"
+    private_key: k
+    webhook_secret: s
+`;
+
+  const THREE = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  platform-ops:
+    - { provider: entra, id: "grp-ops" }
+  tech:
+    - { group: engineering, note: every engineer }
+    - { group: platform-ops }
+    - { provider: entra, subject: cto-oid, note: the CTO }`);
+
+  const resolve = (yaml: string, rawGroupIds: string[], subject = 'oid-42') =>
+    new ConfigService(load(yaml)).resolveInternalGroups(
+      'entra',
+      rawGroupIds,
+      { subject },
+      new Date('2026-06-01T12:00:00Z'),
+    );
+
+  it('makes a member of the referenced group a member of the referencing one', () => {
+    expect(resolve(THREE, ['grp-eng'])).toEqual(['engineering', 'tech']);
+    expect(resolve(THREE, ['grp-ops'])).toEqual(['platform-ops', 'tech']);
+    expect(resolve(THREE, [], 'cto-oid')).toEqual(['tech']);
+    expect(resolve(THREE, [])).toEqual([]);
+  });
+
+  it('follows a chain of references', () => {
+    const chain = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering }
+  staff:
+    - { group: tech }`);
+    expect(resolve(chain, ['grp-eng'])).toEqual(['engineering', 'staff', 'tech']);
+  });
+
+  it('is written before or after the group it names, either way', () => {
+    const later = REFS(`
+  tech:
+    - { group: engineering }
+  engineering:
+    - { provider: entra, id: "grp-eng" }`);
+    expect(resolve(later, ['grp-eng'])).toEqual(['engineering', 'tech']);
+  });
+
+  it('honours a review date on the reference, with nothing having run', () => {
+    const dated = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering, until: 2026-05-31 }`);
+    expect(resolve(dated, ['grp-eng'])).toEqual(['engineering']);
+  });
+
+  it('counts the sources of the referenced group as its own, each once', () => {
+    const twice = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  platform-ops:
+    - { provider: entra, id: "grp-ops" }
+    - { group: engineering }
+  tech:
+    - { group: engineering }
+    - { group: platform-ops }`);
+    const config = new ConfigService(load(twice));
+    expect(config.groupSources('tech').map((s) => s.id)).toEqual(['grp-eng', 'grp-ops']);
+    expect(config.groupSources('engineering').map((s) => s.id)).toEqual(['grp-eng']);
+    expect(config.groupItems('tech')).toHaveLength(2);
+  });
+
+  it('refuses a reference to a group that is not defined, and suggests the near miss', () => {
+    const missing = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: enginering }`);
+    expect(() => load(missing)).toThrow(/groups\.tech: references the group "enginering"/);
+    expect(() => load(missing)).toThrow(/Did you mean "engineering"/);
+  });
+
+  it('refuses a group that references itself', () => {
+    const self = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+    - { group: engineering }`);
+    expect(() => load(self)).toThrow(/groups\.engineering: This group references itself/);
+  });
+
+  it('refuses references that lead around in a circle, and names the circle', () => {
+    const cycle = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+    - { group: staff }
+  tech:
+    - { group: engineering }
+  staff:
+    - { group: tech }`);
+    expect(() => load(cycle)).toThrow(/engineering -> staff -> tech -> engineering/);
+  });
+
+  it('refuses a reference that also names a provider or a source key', () => {
+    const both = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { provider: entra, group: engineering }`);
+    expect(() => load(both)).toThrow(/schema validation/);
+    const two = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering, email: a@example.test }`);
+    expect(() => load(two)).toThrow(/schema validation/);
+  });
+
+  it('refuses a reference whose review date is not a date', () => {
+    const bad = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering, until: soon }`);
+    expect(() => load(bad)).toThrow(/groups\.tech\.0\.until: must match format "date"/);
+  });
+
+  it('says a combinator is reserved rather than merely unknown', () => {
+    const all = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - all: [{ group: engineering }]`);
+    expect(() => load(all)).toThrow(/"all" is reserved/);
+  });
+
+  it('keeps an administrator group populated through a reference', () => {
+    const admins = REFS(`
+  engineering:
+    - { group: platform-ops }
+  platform-ops:
+    - { provider: entra, id: "grp-ops" }`);
+    expect(adminLockout(load(admins).raw)).toBeNull();
+
+    const hollow = REFS(`
+  engineering:
+    - { group: platform-ops }
+  platform-ops: []`);
+    expect(adminLockout(load(hollow).raw)).toMatch(/"engineering" has no members/);
+  });
+
+  it('knows which groups reach through it, for a question of where it is used', () => {
+    const chain = REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering }
+  staff:
+    - { group: tech }
+  sales:
+    - { provider: entra, id: "grp-sales" }`);
+    const groups = load(chain).raw.groups;
+    expect(referrersOf(groups, 'engineering')).toEqual(['staff', 'tech']);
+    expect(referrersOf(groups, 'tech')).toEqual(['staff']);
+    expect(referrersOf(groups, 'staff')).toEqual([]);
+    expect(referrersOf(groups, 'sales')).toEqual([]);
+    expect(referrersOf(undefined, 'engineering')).toEqual([]);
+  });
+
+  it('does not move the resolution hash, because only the names decide what ingest accepts', () => {
+    const before = load(
+      REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { provider: entra, id: "grp-tech" }`),
+    );
+    const after = load(
+      REFS(`
+  engineering:
+    - { provider: entra, id: "grp-eng" }
+  tech:
+    - { group: engineering }`),
+    );
+    expect(after.resolutionHash).toBe(before.resolutionHash);
   });
 });
 

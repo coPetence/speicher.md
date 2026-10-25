@@ -25,7 +25,7 @@ import { mountChoices } from './configurator/choice-switch';
 import { mountCopies } from './configurator/copy-from-sibling-field';
 import { mountOriginPaths } from './configurator/origin-before-path';
 import { mountSwatches } from './configurator/colour-swatch-picker';
-import { mountGrowingTables } from './configurator/growing-source-tables';
+import { mountBulkRowRemoval } from './configurator/bulk-row-removal';
 import { mountPickLists } from './configurator/pick-list';
 import { mountChecks } from './configurator/live-connection-check';
 import { mountWidths } from './configurator/embedding-width-lookup';
@@ -34,6 +34,7 @@ import { mountKnownHostsTables } from './configurator/known-hosts-table';
 import { mountRepositoryIds } from './configurator/repository-id-from-url';
 import { mountLanding } from './configurator/land-on-changed-entry';
 import { mountPreviewFades } from './configurator/template-preview-fade';
+import { mountOptionSearches } from './configurator/option-search';
 
 function mount(): void {
   mountNav();
@@ -57,13 +58,14 @@ function mount(): void {
   mountCopy();
   mountWidths();
   mountSwatches();
-  mountGrowingTables();
+  mountBulkRowRemoval();
   mountPickLists();
   mountFragments();
   mountKnownHostsTables();
   mountRepositoryIds();
   mountLanding();
   mountPreviewFades();
+  mountOptionSearches();
 }
 
 if (document.readyState === 'loading') {

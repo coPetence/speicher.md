@@ -9,6 +9,10 @@
  */
 import { QueryTypes } from 'sequelize';
 
+import { Document } from 'yaml';
+
+import { referrersOf } from '../../config/groups';
+import { GroupItem } from '../../config/types';
 import { getSequelize } from '../../db/sequelize';
 import { memberOf, memberPrincipalPattern } from './config-form/members';
 import type { ConfigSectionPayload } from './config-page/payloads';
@@ -62,4 +66,45 @@ export async function stampUsage(
   const pattern = member && memberPrincipalPattern(member.section, member.id);
   if (!pattern) return;
   payload.usage = await memberUsage(tenantId, pattern);
+}
+
+/**
+ * Counts in how many repos a group is referenced
+ */
+export async function stampGroupUsage(
+  tenantId: string,
+  payload: ConfigSectionPayload,
+  groups: Record<string, GroupItem[]> | undefined,
+): Promise<void> {
+  const section = payload.section;
+  if (!section || section.id !== 'groups' || section.entries.length === 0) return;
+
+  const rows = await getSequelize().query<{ principal: string; repo_id: string }>(
+    `SELECT DISTINCT principal, d.repo_id
+       FROM documents d, unnest(d.effective_principals) AS principal
+      WHERE d.tenant_id = :tenantId AND principal LIKE 'group:%'`,
+    { type: QueryTypes.SELECT, replacements: { tenantId } },
+  );
+  const reposOf = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const name = row.principal.slice('group:'.length);
+    (reposOf.get(name) ?? reposOf.set(name, new Set()).get(name)!).add(row.repo_id);
+  }
+
+  for (const entry of section.entries) {
+    const reached = new Set<string>();
+    for (const name of [entry.title, ...referrersOf(groups, entry.title)]) {
+      for (const repo of reposOf.get(name) ?? []) reached.add(repo);
+    }
+    const count = reached.size;
+    entry.cells.unshift(
+      count === 0 ? 'none' : `${count} ${count === 1 ? 'repository' : 'repositories'}`,
+    );
+  }
+}
+
+export function groupsOf(doc: Document | null): Record<string, GroupItem[]> | undefined {
+  if (!doc) return undefined;
+  const groups = (doc.toJS({ maxAliasCount: 0 }) as { groups?: unknown }).groups;
+  return groups && typeof groups === 'object' ? (groups as Record<string, GroupItem[]>) : undefined;
 }
