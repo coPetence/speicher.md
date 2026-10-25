@@ -1,4 +1,4 @@
-# Publishes the container image and drafts a GitHub Release
+# Publishes the container image, drafts a GitHub Release and records the release in Linear
 
 name: release
 
@@ -142,3 +142,33 @@ jobs:
             --verify-tag \
             --draft \
             $PRERELEASE
+
+  # Records the release in Linear
+  # stabel releases use the Linear access key, pre-releases use the RC access key
+  linear:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # stable releases: scan from the last stable tag
+      # pre-releases scan from the last tag of any kind
+      - id: prev
+        env:
+          EXCLUDE: ${{ contains(github.ref_name, '-') && '' || '*-*' }}
+        run: |
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' ${EXCLUDE:+--exclude "$EXCLUDE"} "${GITHUB_SHA}^" 2>/dev/null || true)
+          echo "tag=$PREV" >> "$GITHUB_OUTPUT"
+
+      - uses: linear/linear-release-action@v0
+        with:
+          access_key: ${{ contains(github.ref_name, '-') && secrets.LINEAR_RC_ACCESS_KEY || secrets.LINEAR_ACCESS_KEY }}
+          name: ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+          base_ref: ${{ steps.prev.outputs.tag }}
+          links: |
+            https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
