@@ -1795,12 +1795,21 @@ describe('removing selected rows', () => {
         <form class="spr-config" method="post" action="/-/config/groups/eng"
               data-spr-config="groups/eng">
           <input type="hidden" name="__shape:groups.eng" value="group,person,group">
-          <button type="submit" name="op" value="remove-selected:groups.eng"
-                  class="spr-remove">Remove selected</button>
+          <div class="spr-table-actions">
+            <button type="submit" name="op" value="remove-selected:groups.eng"
+                    class="spr-remove">Remove selected</button>
+            <details class="spr-modal spr-index-add" data-spr-rows-add="groups.eng"></details>
+          </div>
           <div class="spr-rows spr-row-cards" data-spr-rows="groups.eng">
             ${row(0, 'group', 'id', 'grp-eng')}
             ${row(1, 'person', 'email', 'alice@example.test')}
             ${row(2, 'group', 'id', 'grp-ops')}
+          </div>
+          <div class="spr-empty-state" data-spr-rows-empty="groups.eng" hidden>
+            <p class="spr-empty">No members yet.</p>
+          </div>
+          <div class="spr-field" data-spr-shown-with-rows="groups.eng">
+            <input type="checkbox" name="admins.groups">
           </div>
           <button type="submit" name="op" value="remove-selected:groups"
                   class="spr-other-remove">Remove selected groups</button>
@@ -1883,6 +1892,35 @@ describe('removing selected rows', () => {
       'remove:groups.eng.0',
     );
     expect(shape()).toBe('person,group');
+  });
+
+  it('shows the empty state when the last row goes, and not before', () => {
+    const empty = () => document.querySelector<HTMLElement>('[data-spr-rows-empty]')!;
+    tick(0);
+    tick(1);
+    press();
+    expect(empty().hidden).toBe(true);
+
+    tick(0);
+    press();
+    expect(rows()).toHaveLength(0);
+    expect(shape()).toBe('');
+    expect(empty().hidden).toBe(false);
+  });
+
+  it('moves Add under the empty state and hides what needs a row, when the last one goes', () => {
+    const add = () => document.querySelector<HTMLElement>('[data-spr-rows-add]')!;
+    const admin = () => document.querySelector<HTMLElement>('[data-spr-shown-with-rows]')!;
+    tick(0);
+    press();
+    expect(add().closest('.spr-table-actions')).not.toBeNull();
+    expect(admin().hidden).toBe(false);
+
+    tick(0);
+    tick(1);
+    press();
+    expect(add().parentElement?.matches('[data-spr-rows-empty]')).toBe(true);
+    expect(admin().hidden).toBe(true);
   });
 
   it('leaves another list’s Remove selected to the server', () => {

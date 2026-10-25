@@ -1,5 +1,6 @@
-
 <% const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1), kindName = 'newkind:' + target %>
+<details class="spr-modal spr-index-add" data-spr-rows-add="<%= it.collection %>">
+  <summary><%~ it.addIcon || '+' %><span><%= add.label %></span></summary>
   <% /*
     Two panes, as the filter dialog on the sync status page is: the kinds of row
     on the left, the one control of the chosen kind on the right. The kinds are
@@ -103,3 +104,4 @@
       ><%~ it.addIcon || '' %><span><%= add.label %></span></button>
     </div>
   </div>
+</details>

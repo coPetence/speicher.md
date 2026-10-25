@@ -46,6 +46,8 @@ export function groupSection(root: Obj, name: string): SectionSource {
       membershipField(root, ['admins', 'groups'], 'admins.groups', 'Administrator access', {
         trueValue: name,
         help: 'Mark this group as an administrator group, so that its members can manage the instance through the dashboard.',
+        // A group with no members gives the power to nobody, so it is offered once there is one
+        shownWithRows: { collection: `groups.${name}`, rows: items.length },
       }),
     ],
     entries: [],
@@ -57,7 +59,7 @@ export function groupSection(root: Obj, name: string): SectionSource {
         columns: [],
         bulkRemoveOp: `remove-selected:groups.${name}`,
         entries: items.map((item, index) => rowEntry(root, name, index, item, others)),
-        emptyNote: 'No members yet, so nobody can see anything through this group.',
+        emptyNote: 'No members yet',
         add: rowAdd(
           root,
           name,

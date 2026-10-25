@@ -274,3 +274,10 @@
     margin: 0;
   }
 }
+
+@layer speicher.base {
+  /* Under an empty state, whose centred text the modal would otherwise take on */
+  .spr-empty-state > .spr-index-add .spr-modal-panel {
+    text-align: start;
+  }
+}
