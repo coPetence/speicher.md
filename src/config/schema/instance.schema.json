@@ -730,16 +730,20 @@
       "additionalProperties": false,
       "oneOf": [
         {
-          "required": ["provider", "id"]
+          "required": ["provider", "id"],
+          "not": { "required": ["group"] }
         },
         {
-          "required": ["provider", "domain"]
+          "required": ["provider", "domain"],
+          "not": { "required": ["group"] }
         },
         {
-          "required": ["provider", "subject"]
+          "required": ["provider", "subject"],
+          "not": { "required": ["group"] }
         },
         {
-          "required": ["provider", "email"]
+          "required": ["provider", "email"],
+          "not": { "required": ["group"] }
         },
         {
           "required": ["group"],
