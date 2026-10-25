@@ -121,8 +121,15 @@ groups:
     - { provider: entra, id: 'grp-eng' }
   everyone-at-example:
     - { provider: letter, domain: example.test }
+    # One person, so the form coverage walk sees the controls a person row has.
+    - { provider: letter, email: alice@example.test, note: joined before the domain }
   platform-ops:
     - { provider: entra, id: 'grp-ops' }
+  # A group made of other groups, which is the one shape of row that names no
+  # provider: the form coverage walk needs a `group` key on screen to see it.
+  tech:
+    - { group: engineering, note: every engineer }
+    - { group: platform-ops }
 
 admins:
   groups: [platform-ops]

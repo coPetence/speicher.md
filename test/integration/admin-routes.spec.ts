@@ -95,7 +95,6 @@ const CONTRACT: Record<string, Contract> = {
   },
   'GET /-/config/:section': { both: '/-/config/identity' },
   'GET /-/config/:section/:member': { both: '/-/config/identity/entra' },
-  'GET /-/config/:section/:member/:entry': { both: '/-/config/groups/engineering/entra' },
   'GET /-/config/preview/:template': {
     exempt:
       'A rendering rather than a document: the page is a fixed sample article ' +
@@ -123,13 +122,6 @@ const CONTRACT: Record<string, Contract> = {
       'github-app-manifest.spec.ts. It is where GitHub sends the browser back with ' +
       'a code. It saves the page with the App GitHub created and redirects to where ' +
       'the App is installed, or answers with the page when the save is refused.',
-  },
-  'POST /-/config/:section/:member/:entry': {
-    covered:
-      'config-editor.spec.ts, for the reason every save route here is: the request ' +
-      'is a multipart form built from a page that has to be opened first. It is ' +
-      'the same handler — `saveSection` — reached with a section id naming one ' +
-      'entry of one member.',
   },
   'POST /-/config/:section/:member': {
     covered:
@@ -296,12 +288,6 @@ describe('the order the config routes are mounted in', () => {
     );
     expect(order.indexOf('GET /-/config/brand/:hash')).toBeLessThan(
       order.indexOf('GET /-/config/:section/:member'),
-    );
-    expect(order.indexOf('GET /-/config/:section/:member/:entry')).toBeLessThan(
-      order.indexOf('GET /-/config/:section/:member'),
-    );
-    expect(order.indexOf('POST /-/config/:section/:member/:entry')).toBeLessThan(
-      order.indexOf('POST /-/config/:section/:member'),
     );
     expect(order.indexOf('POST /-/config/:section/:member')).toBeLessThan(
       order.indexOf('POST /-/config/:section'),

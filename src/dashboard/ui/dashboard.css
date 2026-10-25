@@ -19,6 +19,7 @@
 @import '../../global-ui/components/add/add.css';
 @import '../../global-ui/components/tile-badges/tile-badges.css';
 @import '../../global-ui/components/add-panel/add-panel.css';
+@import '../../global-ui/components/add-row-panel/add-row-panel.css';
 @import '../../global-ui/components/copy/copy.css';
 @import '../../global-ui/components/pager/pager.css';
 @import '../../global-ui/components/toast/toast.css';
@@ -191,7 +192,8 @@
   }
 
   .spr-choices label > input[type='checkbox'],
-  .spr-rows .spr-select-col input[type='checkbox'] {
+  .spr-rows .spr-select-col input[type='checkbox'],
+  .spr-entries .spr-select-col input[type='checkbox'] {
     appearance: none;
     display: grid;
     place-content: center;
@@ -208,7 +210,8 @@
   }
 
   .spr-choices label > input[type='checkbox']::before,
-  .spr-rows .spr-select-col input[type='checkbox']::before {
+  .spr-rows .spr-select-col input[type='checkbox']::before,
+  .spr-entries .spr-select-col input[type='checkbox']::before {
     content: '';
     inline-size: 0.3em;
     block-size: 0.6em;
@@ -222,24 +225,28 @@
   }
 
   .spr-choices label > input[type='checkbox']:checked,
-  .spr-rows .spr-select-col input[type='checkbox']:checked {
+  .spr-rows .spr-select-col input[type='checkbox']:checked,
+  .spr-entries .spr-select-col input[type='checkbox']:checked {
     border-color: var(--spr-accent);
     background: var(--spr-accent);
   }
 
   .spr-choices label > input[type='checkbox']:checked::before,
-  .spr-rows .spr-select-col input[type='checkbox']:checked::before {
+  .spr-rows .spr-select-col input[type='checkbox']:checked::before,
+  .spr-entries .spr-select-col input[type='checkbox']:checked::before {
     opacity: 1;
   }
 
   .spr-choices label > input[type='checkbox']:focus-visible,
-  .spr-rows .spr-select-col input[type='checkbox']:focus-visible {
+  .spr-rows .spr-select-col input[type='checkbox']:focus-visible,
+  .spr-entries .spr-select-col input[type='checkbox']:focus-visible {
     outline: 2px solid var(--spr-accent);
     outline-offset: 2px;
   }
 
   .spr-choices label > input[type='checkbox']:disabled,
-  .spr-rows .spr-select-col input[type='checkbox']:disabled {
+  .spr-rows .spr-select-col input[type='checkbox']:disabled,
+  .spr-entries .spr-select-col input[type='checkbox']:disabled {
     opacity: 0.6;
   }
 
@@ -289,12 +296,14 @@
 
   @media (forced-colors: active) {
     .spr-choices label > input[type='checkbox']:checked,
-    .spr-rows .spr-select-col input[type='checkbox']:checked {
+    .spr-rows .spr-select-col input[type='checkbox']:checked,
+    .spr-entries .spr-select-col input[type='checkbox']:checked {
       background: Highlight;
     }
 
     .spr-choices label > input[type='checkbox']::before,
-    .spr-rows .spr-select-col input[type='checkbox']::before {
+    .spr-rows .spr-select-col input[type='checkbox']::before,
+    .spr-entries .spr-select-col input[type='checkbox']::before {
       border-color: HighlightText;
     }
 
@@ -1040,30 +1049,354 @@
     margin-block: var(--spr-space-2) var(--spr-space-6);
   }
 
-  .spr-rows thead th {
-    white-space: normal;
-  }
-
-  .spr-rows tbody td {
-    vertical-align: middle;
-  }
-
   .spr-rows .spr-select-col {
     width: 1%;
     white-space: nowrap;
   }
 
-  .spr-rows .spr-select-col input[data-spr-idle] {
-    visibility: hidden;
-  }
-
-  .spr-rows tbody tr:has(.spr-select-col input:checked) {
-    background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));
-  }
-
   .spr-rows .spr-select-col input[type='checkbox'] {
     font-size: 1.4em;
     cursor: pointer;
+  }
+
+  .spr-row-cards {
+    --spr-row-grid: auto minmax(11rem, max-content) auto minmax(0, 1.2fr) minmax(0, 1fr) auto;
+    display: grid;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-row-card {
+    display: grid;
+    grid-template-columns: var(--spr-row-grid);
+    align-items: center;
+    gap: var(--spr-space-4);
+  }
+
+  .spr-row-card {
+    padding: var(--spr-space-3) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+  }
+
+  .spr-row-card:has(.spr-select-col input:checked) {
+    border-color: var(--spr-accent);
+    background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));
+  }
+
+  .spr-row-card-source {
+    white-space: nowrap;
+  }
+
+  .spr-row-card-source:has(.spr-icon) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: var(--spr-space-3);
+    align-items: center;
+    line-height: 1.25;
+  }
+
+  .spr-row-card-source:has(.spr-icon) > .spr-entry-name {
+    display: contents;
+  }
+
+  .spr-row-card-source .spr-entry-name > span {
+    font-size: var(--spr-font-size-small);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-row-card-equals {
+    display: inline-flex;
+    color: var(--spr-muted);
+  }
+
+  .spr-row-card-equals .spr-icon {
+    width: 1.5em;
+    height: 1.5em;
+    margin: 0;
+  }
+
+  .spr-row-card-source .spr-icon {
+    grid-row: 1 / span 2;
+    width: 1.6em;
+    height: 1.6em;
+    margin: 0;
+  }
+
+  .spr-row-card-source > .spr-entry-sub {
+    display: block;
+    grid-column: 2;
+    margin: 0;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-row-card-match {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    min-width: 0;
+  }
+
+  .spr-row-card-match > code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .spr-row-card-link {
+    display: inline-flex;
+    flex: none;
+    color: var(--spr-muted);
+  }
+
+  .spr-row-card-link:hover {
+    color: var(--spr-fg);
+  }
+
+  .spr-row-card-link .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-row-card-meta {
+    display: grid;
+    gap: 0;
+    min-width: 0;
+    font-size: var(--spr-font-size-small);
+    line-height: 1.35;
+  }
+
+  .spr-row-card-note,
+  .spr-row-card-until {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    min-width: 0;
+  }
+
+  .spr-row-card-note > span,
+  .spr-row-card-until > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .spr-row-card-note .spr-icon,
+  .spr-row-card-until .spr-icon {
+    flex: none;
+    width: 1em;
+    height: 1em;
+    margin: 0;
+    color: var(--spr-muted);
+  }
+
+  .spr-row-card-note,
+  .spr-row-card-until,
+  .spr-row-card-empty {
+    color: var(--spr-muted);
+  }
+
+  .spr-row-card-until-passed,
+  .spr-row-card-until-passed .spr-icon {
+    color: var(--spr-status-fail);
+  }
+
+  .spr-row-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.2em;
+    block-size: 2.2em;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-muted);
+    cursor: pointer;
+  }
+
+  .spr-row-edit:hover,
+  .spr-row-card:has(.spr-row-edit-toggle:checked) .spr-row-edit {
+    border-color: var(--spr-accent);
+    color: var(--spr-fg);
+  }
+
+  .spr-row-card:has(.spr-row-edit-toggle:focus-visible) .spr-row-edit {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: 2px;
+  }
+
+  .spr-row-edit .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-row-edit-dialog {
+    display: none;
+  }
+
+  .spr-row-card:has(.spr-row-edit-toggle:checked) .spr-row-edit-dialog {
+    display: contents;
+  }
+
+  .spr-row-edit-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--spr-bg) 72%, transparent);
+    cursor: default;
+  }
+
+  .spr-row-edit-panel {
+    width: min(36rem, calc(100vw - var(--spr-space-8) * 2));
+    justify-items: stretch;
+    white-space: normal;
+  }
+
+  .spr-row-edit-via {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+    font-weight: normal;
+  }
+
+  .spr-row-edit-fields {
+    display: grid;
+    gap: var(--spr-space-4);
+  }
+
+  .spr-modal-actions > .spr-row-edit-done {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spr-space-2) var(--spr-space-5);
+    border: var(--spr-border) solid var(--spr-accent);
+    border-radius: var(--spr-radius);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font: inherit;
+    font-weight: var(--spr-weight-strong);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-modal-actions > .spr-row-edit-done:hover {
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  .spr-row-edit-field {
+    display: grid;
+    gap: var(--spr-space-1);
+    min-width: 0;
+  }
+
+  .spr-row-edit-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .spr-row-edit-link {
+    margin-inline-start: auto;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .spr-row-edit-link p {
+    display: inline;
+    margin: 0;
+  }
+
+  .spr-row-edit-field > input[type='text'],
+  .spr-row-edit-field > .spr-select {
+    width: 100%;
+  }
+
+  .spr-row-edit-field > input[type='text'] {
+    padding: var(--spr-space-2) var(--spr-space-3);
+    padding-inline-start: var(--spr-input-lead);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+    min-width: 0;
+  }
+
+  .spr-row-edit-field > .spr-help {
+    margin: 0;
+  }
+
+  @media (max-width: 47.99rem) {
+    .spr-row-card {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      row-gap: var(--spr-space-2);
+      column-gap: var(--spr-space-3);
+    }
+
+    .spr-row-card-source {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .spr-row-card-source > .spr-entry-name {
+      white-space: normal;
+    }
+
+    .spr-row-card-equals {
+      display: none;
+    }
+
+    .spr-row-card-match {
+      grid-column: 2 / -1;
+      grid-row: 2;
+    }
+
+    .spr-row-card-match > code {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .spr-row-card-meta {
+      grid-column: 2 / -1;
+      grid-row: 3;
+    }
+
+    .spr-row-card-note > span {
+      white-space: normal;
+    }
+
+    .spr-row-edit {
+      grid-column: 3;
+      grid-row: 1;
+      align-self: start;
+    }
+
+    .spr-row-edit-dialog {
+      grid-column: 1 / -1;
+    }
+
+    [data-spr-config='groups'] .spr-entries th:nth-child(n + 4),
+    [data-spr-config='groups'] .spr-entries td:nth-child(n + 4) {
+      display: none;
+    }
+
+    .spr-index-bar .spr-filter {
+      flex: 1 1 100%;
+    }
+
+    .spr-index-bar .spr-filter .spr-input-icon {
+      flex: 1 1 auto;
+      max-width: none;
+    }
   }
 
   .spr-table-head {
@@ -1084,7 +1417,13 @@
     margin-block: 0;
   }
 
-  .spr-table-head:not(:has(+ table input[type='checkbox']:checked)) .spr-remove {
+  .spr-table-head:not(
+      :has(
+        + table input[type='checkbox']:checked,
+        + .spr-row-cards .spr-select-col input[type='checkbox']:checked
+      )
+    )
+    .spr-remove {
     display: none;
   }
 
@@ -1148,6 +1487,7 @@
   }
 
   .spr-entries .spr-icon,
+  .spr-rows tbody th .spr-icon,
   .spr-lines .spr-icon {
     width: 1.1em;
     height: 1.1em;
@@ -1156,14 +1496,34 @@
     align-self: center;
   }
 
-  .spr-entries tbody th > .spr-entry-name {
+  .spr-entries tbody th > .spr-entry-name,
+  .spr-rows tbody th > .spr-entry-name {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: var(--spr-space-2);
   }
 
-  .spr-entries tbody th > .spr-entry-sub {
+  .spr-rows tbody th {
+    width: 1%;
+    font-weight: normal;
+    white-space: nowrap;
+  }
+
+  .spr-rows tbody th > .spr-entry-name {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .spr-table-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    margin-inline-start: auto;
+  }
+
+  .spr-entries tbody th > .spr-entry-sub,
+  .spr-rows tbody th > .spr-entry-sub {
     display: block;
     margin-block-start: var(--spr-space-1);
     color: var(--spr-muted);
@@ -1589,6 +1949,33 @@
     width: 1em;
     height: 1em;
     margin: 0;
+  }
+
+  /* Remove selected on an index: the bar's own button, drawn only while a row is ticked */
+  .spr-index-bar .spr-index-remove {
+    display: none;
+    border-color: var(--spr-status-fail);
+    color: var(--spr-status-fail);
+  }
+
+  body:has(.spr-entries .spr-select-col input[type='checkbox']:checked)
+    .spr-index-bar
+    .spr-index-remove {
+    display: inline-flex;
+  }
+
+  .spr-entries .spr-select-col {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .spr-entries .spr-select-col input[type='checkbox'] {
+    font-size: 1.4em;
+    cursor: pointer;
+  }
+
+  .spr-entries tbody tr:has(.spr-select-col input:checked) {
+    background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));
   }
 
   .spr-index-op {

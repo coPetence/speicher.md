@@ -337,9 +337,9 @@ describe('coverage of the schema', () => {
     }
 
     const add = buildSections(doc).find((section) => section.id === 'groups/engineering')!
-      .addOps[0];
-    expect(add.nameOptions!.length).toBeGreaterThan(12);
-    expect(add.nameOptions!.every((option) => option.mark !== '')).toBe(true);
+      .tables![0].add!;
+    expect(add.kinds[0].options.length).toBeGreaterThan(12);
+    expect(add.kinds[0].options.every((option) => option.mark !== '')).toBe(true);
   });
 
   it('renders all three provider shapes and both forge shapes', () => {
@@ -833,7 +833,7 @@ describe('a provider’s directory block', () => {
       `issuer: ${entraIssuerFor('a-tenant-guid')}`,
     );
     const source = buildSections(loadDocument(entra)).find(
-      (section) => section.id === 'groups/engineering/entra',
+      (section) => section.id === 'groups/engineering',
     )!;
     const mapping = ofKind(
       allFields([source]).find((f) => /^groups\.engineering\.\d+\.id$/.test(f.path)),
@@ -844,14 +844,20 @@ describe('a provider’s directory block', () => {
     expect(link).toContain('portal.azure.com');
     expect(link).toContain(`groupId/${mapping.value}`);
     expect(link).toContain('rel="noopener noreferrer nofollow"');
+
+    // And the card's read-only line links out to the same page
+    const line = source.tables![0].entries[0].lines[0];
+    expect(line.href).toContain('portal.azure.com');
+    expect(line.href).toContain(`groupId/${mapping.value}`);
   });
 
   it('links nothing on a provider whose portal this is not', () => {
     const source = buildSections(loadDocument(FULL)).find(
-      (section) => section.id === 'groups/engineering/entra',
+      (section) => section.id === 'groups/engineering',
     )!;
     const mapping = allFields([source]).find((f) => /^groups\.engineering\.\d+\.id$/.test(f.path))!;
     expect(mapping.link).toBe('');
+    expect(source.tables![0].entries[0].lines[0].href).toBeUndefined();
   });
 
   it('offers nothing to copy on a GitHub directory, which has its own client', () => {
@@ -1229,60 +1235,127 @@ describe('the defaults a new member arrives with', () => {
   });
 });
 
-describe('a group source', () => {
+describe('a group’s rows', () => {
   const twice = () => {
     const doc = loadDocument(FULL);
     appendSeqItem(doc, ['groups', 'engineering'], { provider: 'entra', id: 'grp-eng-2' });
     return doc;
   };
 
-  const rowsOf = (
-    doc: ReturnType<typeof loadDocument>,
-    sectionId: string,
-    table?: string,
-  ): SectionEntry[] => {
-    const section = buildSections(doc).find((s) => s.id === sectionId)!;
-    if (!section.tables) return section.entries;
-    const wanted = table ?? section.tables[0].title;
-    return section.tables.find((t) => t.title === wanted)!.entries;
+  const mixed = () => {
+    const doc = loadDocument(FULL);
+    appendSeqItem(doc, ['groups', 'engineering'], {
+      provider: 'entra',
+      email: 'alice@example.test',
+      note: 'contractor',
+    });
+    appendSeqItem(doc, ['groups', 'engineering'], { group: 'platform-ops' });
+    appendSeqItem(doc, ['groups', 'engineering'], { provider: 'letter', domain: 'example.test' });
+    return doc;
   };
 
-  const matchFieldsOf = (doc: ReturnType<typeof loadDocument>, sectionId: string, at = 0) =>
-    Object.fromEntries(rowsOf(doc, sectionId)[at].fields.map((f) => [f.path.split('.').pop(), f]));
+  const rowsOf = (doc: ReturnType<typeof loadDocument>, name: string): SectionEntry[] =>
+    buildSections(doc).find((s) => s.id === `groups/${name}`)!.tables![0].entries;
 
-  it('is one row per provider, however many matches are written against it', () => {
-    const rows = rowsOf(twice(), 'groups/engineering');
-    expect(rows.map((r) => r.title)).toEqual(['entra']);
-    expect(rows[0].lines.map((l) => l.value)).toEqual(['grp-eng', 'grp-eng-2']);
-  });
+  const keysOf = (row: SectionEntry) => row.fields.map((f) => f.path.split('.').pop());
 
-  it('opens the provider, not the position — so the URL survives a removal above it', () => {
-    expect(rowsOf(twice(), 'groups/engineering')[0].href).toBe(
-      '/-/config/groups/engineering/entra',
+  const fieldsOf = (doc: ReturnType<typeof loadDocument>, name: string, at = 0) =>
+    Object.fromEntries(rowsOf(doc, name)[at].fields.map((f) => [f.path.split('.').pop(), f]));
+
+  it('is one row per item of the list, in the order the document has them', () => {
+    const rows = rowsOf(mixed(), 'engineering');
+    expect(rows.map((r) => r.position)).toEqual([0, 1, 2, 3]);
+    expect(rows.map((r) => r.title)).toEqual([
+      'IDP group',
+      'Individual email',
+      'Group',
+      'Email domain',
+    ]);
+    expect(rows.map((r) => r.subtitle)).toEqual(['entra', 'entra', '', 'letter']);
+    expect(rows.map((r) => r.kind)).toEqual(['group', 'person', 'reference', 'group']);
+    expect(rows.map((r) => r.removeOp)).toEqual(
+      [0, 1, 2, 3].map((i) => `remove:groups.engineering.${i}`),
     );
+    expect(rows.every((r) => r.href === '')).toBe(true);
   });
 
-  it('lists every match for that provider on its page, one row each', () => {
-    const rows = rowsOf(twice(), 'groups/engineering/entra');
-    expect(rows).toHaveLength(3);
-    expect(rows[2].removeOp).toBeNull();
-    expect(rows[0].href).toBe('');
-    expect(rows[0].removeOp).toBe('remove:groups.engineering.0');
-    expect(rows[1].removeOp).toBe('remove:groups.engineering.1');
+  it('has no page per provider any more, only the group’s own', () => {
+    expect(buildSections(mixed()).some((s) => s.id.startsWith('groups/engineering/'))).toBe(false);
+    const page = buildSections(mixed()).find((s) => s.id === 'groups/engineering')!;
+    expect(page.tables).toHaveLength(1);
+    expect(page.tables![0].bulkRemoveOp).toBe('remove-selected:groups.engineering');
+    expect(page.tables![0].columns).toEqual([]);
+    // The expiry's help travels with its control, which only the opened card shows
+    const until = page.tables![0].entries[0].fields.find((f) => f.path.endsWith('.until'))!;
+    expect(until.help).toMatch(/a real expiry rather than a reminder/);
+  });
+
+  it('says what a row matches, its note, and its expiry in words', () => {
+    const doc = loadDocument(FULL);
+    doc.setIn(['groups', 'engineering', 0, 'note'], 'the Engineering list');
+    doc.setIn(['groups', 'engineering', 0, 'until'], '2099-01-01');
+    const lines = rowsOf(doc, 'engineering')[0].lines;
+    expect(lines.map((l) => l.label)).toEqual(['Group', 'Note', 'Expire by']);
+    expect(lines[0].value).toBe('grp-eng');
+    expect(lines[1].value).toBe('the Engineering list');
+    expect(lines[2].value).toMatch(/^expires in \d+ years \(2099-01-01\)$/);
+
+    expect(lines[2].failed).toBe(false);
+
+    const bare = rowsOf(loadDocument(FULL), 'engineering')[0].lines;
+    expect(bare[1].value).toBe('');
+    expect(bare[2].value).toBe('');
+    expect(bare[2].failed).toBe(false);
+
+    doc.setIn(['groups', 'engineering', 0, 'until'], '2020-01-01');
+    const passed = rowsOf(doc, 'engineering')[0].lines[2];
+    expect(passed.value).toMatch(/^expired \d+ years ago \(2020-01-01\)$/);
+    expect(passed.failed).toBe(true);
+  });
+
+  it('asks each shape for its own key, and a note and an expiry on every one', () => {
+    const doc = mixed();
+    expect(keysOf(rowsOf(doc, 'engineering')[0])).toEqual(['id', 'domain', 'note', 'until']);
+    expect(keysOf(rowsOf(doc, 'engineering')[1])).toEqual(['subject', 'email', 'note', 'until']);
+    expect(keysOf(rowsOf(doc, 'engineering')[2])).toEqual(['group', 'note', 'until']);
   });
 
   it('asks a provider that emits group ids for an id, and carries the domain empty', () => {
-    const fields = matchFieldsOf(loadDocument(FULL), 'groups/engineering/entra');
+    const fields = fieldsOf(loadDocument(FULL), 'engineering');
     expect(fields.id?.inapplicable).toBe(false);
     expect(fields.id?.value).toBe('grp-eng');
     expect(fields.domain?.inapplicable).toBe(true);
   });
 
   it('asks a magic-link provider for a domain, and carries the id empty', () => {
-    const fields = matchFieldsOf(loadDocument(FULL), 'groups/everyone-at-example/letter');
+    const fields = fieldsOf(loadDocument(FULL), 'everyone-at-example');
     expect(fields.domain?.inapplicable).toBe(false);
     expect(fields.domain?.value).toBe('example.test');
     expect(fields.id?.inapplicable).toBe(true);
+  });
+
+  it('offers a reference every other group, and never the group itself', () => {
+    const select = ofKind(fieldsOf(loadDocument(FULL), 'tech').group, 'select');
+    expect(select.value).toBe('engineering');
+    expect(select.options.map((o) => o.value)).toEqual([
+      'engineering',
+      'everyone-at-example',
+      'platform-ops',
+    ]);
+  });
+
+  it('keeps showing a reference to a group that is not there, rather than picking another', () => {
+    const doc = loadDocument(FULL);
+    doc.setIn(['groups', 'tech', 0, 'group'], 'nobody');
+    const select = ofKind(fieldsOf(doc, 'tech').group, 'select');
+    expect(select.value).toBe('nobody');
+    expect(select.options[0].value).toBe('nobody');
+  });
+
+  it('carries the provider on a source, and nothing on a reference', () => {
+    const rows = rowsOf(mixed(), 'engineering');
+    expect(rows[0].carried.map((f) => f.path)).toEqual(['groups.engineering.0.provider']);
+    expect(rows[2].carried).toEqual([]);
   });
 
   it('carries nothing in the key it does not ask for, so a save clears it', () => {
@@ -1290,9 +1363,9 @@ describe('a group source', () => {
     doc.setIn(['groups', 'everyone-at-example', 0, 'id'], 'left-behind');
     expect(serialise(doc)).toContain('left-behind');
 
-    const section = buildSections(doc).find((s) => s.id === 'groups/everyone-at-example/letter')!;
+    const section = buildSections(doc).find((s) => s.id === 'groups/everyone-at-example')!;
     const body = Object.fromEntries(allFields([section]).map((f) => [f.path, rendered(f)]));
-    applyForm(doc, body, 'groups/everyone-at-example/letter');
+    applyForm(doc, body, 'groups/everyone-at-example');
 
     expect(serialise(doc)).not.toContain('left-behind');
     expect(serialise(doc)).toContain('example.test');
@@ -1301,15 +1374,15 @@ describe('a group source', () => {
   it('shows what a match looks like, from the provider’s own kind', () => {
     const doc = twice();
     appendSeqItem(doc, ['groups', 'engineering'], { provider: 'hub', id: 'acme/platform' });
-    const placeholderOf = (sectionId: string) =>
+    const placeholderOf = (name: string, at: number) =>
       ofKind(
-        rowsOf(doc, sectionId)[0].fields.find((f) => !f.inapplicable),
+        rowsOf(doc, name)[at].fields.find((f) => !f.inapplicable),
         'text',
       ).placeholder;
 
-    expect(placeholderOf('groups/engineering/hub')).toBe('org/team-slug');
-    expect(placeholderOf('groups/engineering/entra')).toBe('group identifier');
-    expect(placeholderOf('groups/everyone-at-example/letter')).toBe('example.com');
+    expect(placeholderOf('engineering', 2)).toBe('org/team-slug');
+    expect(placeholderOf('engineering', 0)).toBe('group identifier');
+    expect(placeholderOf('everyone-at-example', 0)).toBe('example.com');
 
     const entra = loadDocument(FULL);
     entra.setIn(
@@ -1318,7 +1391,7 @@ describe('a group source', () => {
     );
     expect(
       ofKind(
-        rowsOf(entra, 'groups/engineering/entra')[0].fields.find((f) => !f.inapplicable),
+        rowsOf(entra, 'engineering')[0].fields.find((f) => !f.inapplicable),
         'text',
       ).placeholder,
     ).toMatch(/UUID/);
@@ -1326,11 +1399,9 @@ describe('a group source', () => {
 
   it('carries the provider’s own logo on the row, by kind', () => {
     const doc = loadDocument(FULL);
-    const rowMark = (group: string) =>
-      buildSections(doc).find((s) => s.id === `groups/${group}`)!.entries[0].mark;
-
-    expect(rowMark('engineering')).toBe('openid');
-    expect(rowMark('everyone-at-example')).toBe('mail');
+    expect(rowsOf(doc, 'engineering')[0].mark).toBe('openid');
+    expect(rowsOf(doc, 'everyone-at-example')[0].mark).toBe('mail');
+    expect(rowsOf(doc, 'tech')[0].mark).toBe('');
 
     const index = buildSections(doc).find((s) => s.id === 'groups')!;
     const marks = index.entries.flatMap((e) => e.lines.map((l) => l.mark));
@@ -1338,103 +1409,319 @@ describe('a group source', () => {
     expect(marks).toContain('mail');
   });
 
+  it('says on the index which groups a group is made of', () => {
+    const index = buildSections(loadDocument(FULL)).find((s) => s.id === 'groups')!;
+    const tech = index.entries.find((e) => e.title === 'tech')!;
+    expect(tech.lines.map((l) => l.value)).toEqual(['groups (engineering, platform-ops)']);
+    expect(tech.search).toContain('platform-ops');
+  });
+
   it('draws nothing for a source naming a provider this instance does not have', () => {
     const doc = loadDocument(FULL);
     doc.setIn(['groups', 'engineering', 0, 'provider'], 'nobody');
-    expect(buildSections(doc).find((s) => s.id === 'groups/engineering')!.entries[0].mark).toBe('');
+    expect(rowsOf(doc, 'engineering')[0].mark).toBe('');
+    expect(rowsOf(doc, 'engineering')[0].subtitle).toBe('nobody');
   });
 
-  it('shows a source naming no provider, with no page and its own removal', () => {
+  it('shows a source naming no provider, with its own removal', () => {
     const doc = loadDocument(FULL);
     doc.deleteIn(['groups', 'engineering', 0, 'provider']);
-    const row = buildSections(doc).find((s) => s.id === 'groups/engineering')!.entries[0];
-    expect(row.title).toBe('no provider');
-    expect(row.href).toBe('');
+    const row = rowsOf(doc, 'engineering')[0];
+    expect(row.title).toBe('IDP group');
+    expect(row.subtitle).toBe('');
     expect(row.removeOp).toBe('remove:groups.engineering.0');
-    expect(buildSections(doc).some((s) => s.id.startsWith('groups/engineering/'))).toBe(false);
   });
 
-  it('removes every match under a provider when the source itself goes', () => {
-    const doc = twice();
-    applyForm(doc, { op: 'remove:groups.engineering.provider.entra' }, 'groups/engineering');
-    expect(doc.toJS().groups.engineering).toEqual([]);
+  it('offers every shape of row this instance can take, each through what fits it', () => {
+    const page = buildSections(loadDocument(FULL)).find((s) => s.id === 'groups/engineering')!;
+    expect(page.addOps).toEqual([]);
+    const add = page.tables![0].add!;
+    expect(add.op).toBe('add:groups.engineering.row');
+    expect(add.kinds.map((k) => k.value)).toEqual(['group', 'domain', 'person', 'reference']);
 
-    expect(serialise(doc)).toContain('grp-ops');
+    const options = (value: string) => add.kinds.find((k) => k.value === value)!.options;
+    expect(options('group').map((o) => o.value)).toEqual(['entra', 'hub']);
+    expect(options('domain').map((o) => o.value)).toEqual(['letter']);
+    expect(options('person').map((o) => o.value)).toEqual(['entra', 'letter', 'hub']);
+    expect(options('reference').map((o) => o.value)).toEqual([
+      'everyone-at-example',
+      'platform-ops',
+      'tech',
+    ]);
+    expect(options('person').every((o) => o.mark !== '')).toBe(true);
   });
 
-  it('adds a match on the provider whose page it was pressed on', () => {
+  it('leaves out a shape nothing can take, and the control when none can', () => {
+    const lone = loadDocument(FULL);
+    for (const name of ['everyone-at-example', 'platform-ops', 'tech']) {
+      lone.deleteIn(['groups', name]);
+    }
+    lone.deleteIn(['admins', 'groups']);
+    lone.deleteIn(['auth', 'providers', 'letter']);
+    expect(
+      buildSections(lone)
+        .find((s) => s.id === 'groups/engineering')!
+        .tables![0].add!.kinds.map((k) => k.value),
+    ).toEqual(['group', 'person']);
+
+    const nothing = loadDocument(FULL);
+    nothing.deleteIn(['auth']);
+    for (const name of ['everyone-at-example', 'platform-ops', 'tech']) {
+      nothing.deleteIn(['groups', name]);
+    }
+    nothing.deleteIn(['admins']);
+    expect(
+      buildSections(nothing).find((s) => s.id === 'groups/engineering')!.tables![0].add,
+    ).toBeUndefined();
+  });
+
+  it('grows the list the modal belongs to', () => {
+    expect(addTarget('add:groups.engineering.row')).toEqual({ path: 'groups.engineering' });
+    expect(addTarget('add:forges.onprem.repos')).toEqual({ path: 'forges.onprem.repos' });
+  });
+
+  it('appends a mapping asking for the key its provider matches on', () => {
     const doc = loadDocument(FULL);
-    applyForm(doc, { op: 'add:groups.engineering.provider.entra' }, 'groups/engineering/entra');
-    expect(doc.getIn(['groups', 'engineering', 1, 'provider'])).toBe('entra');
-  });
-
-  it('rebuilds a row added on a provider’s page as a row of that page', () => {
-    const doc = loadDocument(FULL);
-    const before = (doc.toJS().groups.engineering as unknown[]).length;
     applyForm(
       doc,
       {
-        [`${SHAPE_PREFIX}groups.engineering`]: `${'group,'.repeat(before)}group`,
-        [`groups.engineering.${before}.id`]: 'grp-typed-in',
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'group',
+        'newname:groups.engineering.row.group': 'entra',
       },
-      'groups/engineering/entra',
+      'groups/engineering',
     );
+    expect(doc.toJS().groups.engineering[1]).toEqual({ provider: 'entra', id: '' });
 
-    expect(doc.getIn(['groups', 'engineering', before, 'provider'])).toBe('entra');
-    expect(doc.getIn(['groups', 'engineering', before, 'id'])).toBe('grp-typed-in');
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'domain',
+        'newname:groups.engineering.row.domain': 'letter',
+      },
+      'groups/engineering',
+    );
+    // The empty mapping above was dropped by the save that added this one
+    expect(doc.toJS().groups.engineering[1]).toEqual({ provider: 'letter', domain: '' });
   });
 
-  it('draws mappings and people as two tables, from one sequence', () => {
+  it('appends a row per line typed into the modal, each with its provider', () => {
     const doc = loadDocument(FULL);
-    appendSeqItem(doc, ['groups', 'engineering'], {
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'group',
+        'newname:groups.engineering.row.group': 'entra',
+        'newmatches:groups.engineering.row.group': ' grp-one \n\ngrp-two\r\n',
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering.slice(1)).toEqual([
+      { provider: 'entra', id: 'grp-one' },
+      { provider: 'entra', id: 'grp-two' },
+    ]);
+
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'person',
+        'newname:groups.engineering.row.person': 'letter',
+        'newmatches:groups.engineering.row.person': 'alice@example.test',
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering[3]).toEqual({
+      provider: 'letter',
+      email: 'alice@example.test',
+    });
+    expect(
+      buildSections(loadDocument(FULL))
+        .find((s) => s.id === 'groups/engineering')!
+        .tables![0].add!.kinds.map((k) => k.matches?.label),
+    ).toEqual(['Group ids', 'Email domains', 'Email addresses', undefined]);
+  });
+
+  it('appends a person with the key that makes them one', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'person',
+        'newname:groups.engineering.row.person': 'entra',
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering[1]).toEqual({ provider: 'entra', email: '' });
+  });
+
+  it('appends a reference per group that was ticked', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'reference',
+        'newname:groups.engineering.row.reference': 'platform-ops',
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering[1]).toEqual({ group: 'platform-ops' });
+
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'reference',
+        'newname:groups.engineering.row.reference': [
+          'tech',
+          'engineering',
+          'nobody',
+          'everyone-at-example',
+        ],
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering.slice(2)).toEqual([
+      { group: 'tech' },
+      { group: 'everyone-at-example' },
+    ]);
+
+    const kinds = buildSections(loadDocument(FULL)).find((s) => s.id === 'groups/engineering')!
+      .tables![0].add!.kinds;
+    expect(kinds.map((k) => k.multiple ?? false)).toEqual([false, false, false, true]);
+  });
+
+  it('appends nothing for a name the document does not have, the group itself, or a shape the provider cannot take', () => {
+    const doc = loadDocument(FULL);
+    const before = serialise(doc);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'group',
+        'newname:groups.engineering.row.group': 'nobody',
+      },
+      'groups/engineering',
+    );
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'reference',
+        'newname:groups.engineering.row.reference': 'nobody',
+      },
+      'groups/engineering',
+    );
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'reference',
+        'newname:groups.engineering.row.reference': 'engineering',
+      },
+      'groups/engineering',
+    );
+    // A domain through a provider that signs people in by group, and the other way round
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'domain',
+        'newname:groups.engineering.row.domain': 'entra',
+      },
+      'groups/engineering',
+    );
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'group',
+        'newname:groups.engineering.row.group': 'letter',
+      },
+      'groups/engineering',
+    );
+    expect(serialise(doc)).toBe(before);
+  });
+
+  it('drops a row nobody typed into on the save after it was added', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'person',
+        'newname:groups.engineering.row.person': 'entra',
+      },
+      'groups/engineering',
+    );
+    const section = buildSections(doc).find((s) => s.id === 'groups/engineering')!;
+    const body = Object.fromEntries(allFields([section]).map((f) => [f.path, rendered(f)]));
+    applyForm(doc, body, 'groups/engineering');
+    expect(doc.toJS().groups.engineering).toEqual([{ provider: 'entra', id: 'grp-eng' }]);
+  });
+
+  it('keeps a row that was typed into, with its provider', () => {
+    const doc = loadDocument(FULL);
+    applyForm(
+      doc,
+      {
+        op: 'add:groups.engineering.row',
+        'newkind:groups.engineering.row': 'person',
+        'newname:groups.engineering.row.person': 'entra',
+      },
+      'groups/engineering',
+    );
+    const section = buildSections(doc).find((s) => s.id === 'groups/engineering')!;
+    const body = Object.fromEntries(allFields([section]).map((f) => [f.path, rendered(f)]));
+    applyForm(
+      doc,
+      { ...body, 'groups.engineering.1.email': 'alice@example.test' },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering[1]).toEqual({
       provider: 'entra',
       email: 'alice@example.test',
-      note: 'contractor',
     });
-    appendSeqItem(doc, ['groups', 'engineering'], { provider: 'entra', id: 'grp-eng-2' });
-
-    const section = buildSections(doc).find((s) => s.id === 'groups/engineering/entra')!;
-    expect(section.tables?.map((t) => t.title)).toEqual(['entra groups', 'People']);
-
-    expect(rowsOf(doc, section.id).map((e) => e.fields[0].path)).toEqual([
-      'groups.engineering.0.id',
-      'groups.engineering.2.id',
-      'groups.engineering.3.id',
-    ]);
-    const people = rowsOf(doc, section.id, 'People');
-    expect(people).toHaveLength(2);
-    expect(people[0].fields.map((f) => f.path.split('.').pop())).toEqual([
-      'subject',
-      'email',
-      'note',
-      'until',
-    ]);
-
-    const shape = shapeControls(doc, section).find((c) => c.name.endsWith('groups.engineering'));
-    expect(shape?.value).toBe('group,person,group');
   });
 
-  it('gives a mapping a note and an expiry, as the people have', () => {
-    const doc = loadDocument(FULL);
-    const section = buildSections(doc).find((s) => s.id === 'groups/engineering/entra')!;
-    expect(section.tables?.[0].columns.map((c) => c.label)).toEqual([
-      'entra group id',
-      'Note',
-      'Expire by',
+  it('tells the page the shape of every position, each row its own', () => {
+    const doc = mixed();
+    const section = buildSections(doc).find((s) => s.id === 'groups/engineering')!;
+    const shape = shapeControls(doc, section).find((c) => c.name.endsWith('groups.engineering'));
+    expect(shape?.value).toBe('group,person,reference,group');
+    expect(section.tables![0].entries.map((entry) => entry.kind)).toEqual([
+      'group',
+      'person',
+      'reference',
+      'group',
     ]);
-    expect(section.tables?.[0].bulkRemoveOp).toBe('remove-selected:groups.engineering');
+  });
 
-    const expireBy = section.tables![0].columns[2];
-    expect(expireBy.help).toMatch(/a real expiry rather than a reminder/);
-
-    const person = section.tables![1].columns[0];
-    expect(person.help).toContain('`subject`');
-    expect(renderHelp(person.help)).toContain('<code>subject</code>');
-    expect(rowsOf(doc, section.id)[0].fields.map((f) => f.path.split('.').pop())).toEqual([
-      'id',
-      'domain',
-      'note',
-      'until',
+  it('rebuilds a position in the shape the page says it holds, so the values land', () => {
+    // The person at 1 was removed in the browser, which renumbered the reference
+    // and the domain behind it; the page says what each position is now
+    const doc = mixed();
+    applyForm(
+      doc,
+      {
+        [`${SHAPE_PREFIX}groups.engineering`]: 'group,reference,group',
+        'groups.engineering.0.provider': 'entra',
+        'groups.engineering.0.id': 'grp-eng',
+        'groups.engineering.1.group': 'platform-ops',
+        'groups.engineering.2.provider': 'letter',
+        'groups.engineering.2.domain': 'example.test',
+        'groups.engineering.2.id': '',
+      },
+      'groups/engineering',
+    );
+    expect(doc.toJS().groups.engineering).toEqual([
+      { provider: 'entra', id: 'grp-eng' },
+      { group: 'platform-ops' },
+      { provider: 'letter', domain: 'example.test' },
     ]);
   });
 
@@ -1446,25 +1733,14 @@ describe('a group source', () => {
     }
   });
 
-  it('seeds an added person with the key that makes them one', () => {
-    expect(addTarget('add:groups.engineering.person.entra')).toEqual({
-      path: 'groups.engineering',
-      kind: 'person',
-      seed: { provider: 'entra', email: '' },
-    });
-    expect(addTarget('add:groups.engineering.provider.entra')).toEqual({
-      path: 'groups.engineering',
-      kind: 'group',
-      seed: { provider: 'entra' },
-    });
-  });
-
-  it('carries every position of the list, whichever row draws it', () => {
-    const doc = twice();
-    const index = buildSections(doc).find((s) => s.id === 'groups/engineering')!;
-    const carried = index.entries.flatMap((e) => e.carried.map((f) => f.path));
-    expect(carried).toContain('groups.engineering.0.id');
-    expect(carried).toContain('groups.engineering.1.id');
+  it('renames a group in every reference to it, and the result still loads', () => {
+    const doc = loadDocument(FULL);
+    expect(renameMember(doc, 'groups', 'engineering', 'eng')).toBe(true);
+    const out = serialise(doc);
+    expect(out).toContain('  eng:\n');
+    expect(out).toContain('{ group: eng, note: every engineer }');
+    expect(out).not.toMatch(/group: engineering\b/);
+    expect(() => loadInstanceConfig(out)).not.toThrow();
   });
 });
 

@@ -24,6 +24,22 @@ export const validateInstanceSchema: ValidateFunction = ajv.compile(instanceSche
 export const validateSpeicherSchema: ValidateFunction = ajv.compile(speicherSchema);
 export const validateFrontmatterSchema: ValidateFunction = ajv.compile(frontmatterSchema);
 
+/** The instance path of one item of a group's list */
+const GROUP_ITEM = /^\/groups\/[^/]+\/\d+$/;
+
+/** We reserve those names for future advanced logical expressions in group configuration */
+const RESERVED_COMBINATORS = new Set([
+  'any',
+  'all',
+  'not',
+  'and',
+  'or',
+  'except',
+  'xor',
+  'nor',
+  'nand',
+]);
+
 export function formatAjvErrors(errors: ErrorObject[] | null | undefined): string[] {
   if (!errors?.length) return [];
   const seen = new Set<string>();
@@ -32,7 +48,11 @@ export function formatAjvErrors(errors: ErrorObject[] | null | undefined): strin
     const path = err.instancePath.replace(/^\//, '').replace(/\//g, '.') || '<root>';
     let message = `${path}: ${err.message}`;
     if (err.keyword === 'additionalProperties') {
-      message = `${path}: unknown key "${(err.params as { additionalProperty: string }).additionalProperty}"`;
+      const key = (err.params as { additionalProperty: string }).additionalProperty;
+      message = `${path}: unknown key "${key}"`;
+      if (GROUP_ITEM.test(err.instancePath) && RESERVED_COMBINATORS.has(key)) {
+        message += `. The name "${key}" is reserved for future advanced logical expressions in group configuration.`;
+      }
     }
     if (err.keyword === 'enum') {
       const allowed = (err.params as { allowedValues: unknown[] }).allowedValues;

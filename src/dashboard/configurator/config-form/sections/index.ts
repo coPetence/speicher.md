@@ -14,13 +14,12 @@ import { Document } from 'yaml';
 import { at } from '../config-fields';
 import type { Obj } from '../config-fields';
 import type { FormSection } from '../model';
-import { forgeIds, groupNames, groupProviders, providerIds, type KindHint } from '../members';
+import { forgeIds, groupNames, providerIds, type KindHint } from '../members';
 
 import { adminUserSection, adminsSection } from './admins';
 import { appearanceSection, brandingSection, logosSection } from './branding';
 import { groupSection } from './groups/group';
 import { groupsSection } from './groups/list';
-import { groupProviderSection } from './groups/sources';
 import { identitySection, providerSection } from './identity';
 import { mailSection } from './mail';
 import { notificationsSection } from './notifications';
@@ -39,14 +38,8 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
     // One section per provider
     ...providerIds(root).map((id) => providerSection(root, id, hint)),
     groupsSection(root),
-    // One section per group, plus a subsection per provider within that group
-    ...groupNames(root).flatMap((name) => [
-      groupSection(root, name),
-      // One subsection per provider that has sources in this group
-      ...groupProviders(root, name)
-        .filter((provider) => provider !== '')
-        .map((provider) => groupProviderSection(root, name, provider)),
-    ]),
+    // One section per group: its rows are on that one page
+    ...groupNames(root).map((name) => groupSection(root, name)),
     sourcesSection(root),
     // One section per forge
     ...forgeIds(root).map((id) => forgeSection(root, id)),

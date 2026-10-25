@@ -45,7 +45,7 @@ import { sendGithubAppManifest } from '../ui/views/github-app-manifest/github-ap
 import { submitted } from './config-form/decode/body';
 import { diffConfigVersions } from './config-form/diff';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
-import { entryHrefFor, isMemberId, memberOf, memberSectionId, nounOf } from './config-form/members';
+import { entryHrefFor, isMemberId, memberSectionId, nounOf } from './config-form/members';
 import { readUploads } from './config-form/upload';
 import { SectionChecks } from './config-page/checks';
 import { ConfigPageService } from './config-page/config-page.service';
@@ -68,7 +68,7 @@ import {
   ConfigSectionPayload,
 } from './config-page/payloads';
 import { ConfigSaveService, provenanceOf } from './config-page/save';
-import { stampUsage } from './member-usage';
+import { groupsOf, stampGroupUsage, stampUsage } from './member-usage';
 
 @Controller('-')
 export class ConfigController {
@@ -254,25 +254,6 @@ export class ConfigController {
     sendBrandImage(res, image.mediaType, image.bytes, 'private, no-store');
   }
 
-  /** A single entry within a member (e.g. a group source) */
-  @Get('config/:section/:member/:entry')
-  async memberEntryPage(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('section') section: string,
-    @Param('member') member: string,
-    @Param('entry') entry: string,
-    @Query('saved') saved?: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const sectionId = `${section}/${member}/${entry}`;
-    if (!memberOf(sectionId)) return this.respond.notFound(req, res);
-
-    return this.memberAnswer(req, res, caller, sectionId, saved, undefined, undefined);
-  }
-
   /** A member page (provider, group, source or list entry) */
   @Get('config/:section/:member')
   async memberPage(
@@ -330,24 +311,6 @@ export class ConfigController {
     // Runs storage or mail check when the user asked for one
     await this.checks.stampSectionCheck(payload, state.storedYaml, check !== undefined);
     this.sectionAnswer(req, res, caller, sectionId, payload);
-  }
-
-  /** Save a member entry (e.g. a group source) */
-  @Post('config/:section/:member/:entry')
-  async saveMemberEntry(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('section') section: string,
-    @Param('member') member: string,
-    @Param('entry') entry: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const sectionId = `${section}/${member}/${entry}`;
-    if (!memberOf(sectionId)) return this.respond.notFound(req, res);
-
-    return this.save(req, res, caller, sectionId);
   }
 
   /** Save a member (provider, group, source or list entry) */
@@ -419,6 +382,7 @@ export class ConfigController {
     }
     // Shows which config version each entry was introduced in
     await stampEntryOrigins(caller.tenantId, payload);
+    await stampGroupUsage(caller.tenantId, payload, groupsOf(state.doc));
     // Runs storage or mail check when the user asked for one
     await this.checks.stampSectionCheck(payload, state.storedYaml, check !== undefined);
 

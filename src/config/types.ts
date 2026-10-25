@@ -88,6 +88,19 @@ export interface GroupSource {
   until?: string;
 }
 
+/** Group references another group */
+export interface GroupReference {
+  group: string;
+  note?: string;
+  until?: string;
+}
+
+export type GroupItem = GroupSource | GroupReference;
+
+export function isGroupReference(item: GroupItem): item is GroupReference {
+  return 'group' in item && typeof (item as GroupReference).group === 'string';
+}
+
 export interface GitRepoConfig {
   // A named repo inside a forge, referenced by id in a SpeicherConfig
   id: string;
@@ -272,8 +285,8 @@ export interface InstanceConfig {
   };
   // Global admins and maintainers, applies to all repos
   admins?: PrincipalSet;
-  // Groups of principals keyed by group name, referenced from SpeicherConfig
-  groups?: Record<string, GroupSource[]>;
+  // A list is any-of; see GroupItem
+  groups?: Record<string, GroupItem[]>;
   // Repos visible without authentication
   public?: PublicConfig;
   // Forge connections, keyed by forge name

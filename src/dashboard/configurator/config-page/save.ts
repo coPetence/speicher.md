@@ -14,7 +14,7 @@ import { SaveActor, saveInstanceConfig, validateForSave } from '../../../config/
 import { ConfigWatcher } from '../../../config/watcher';
 import { nextSetupPage, setupStateOf } from '../../setup/steps';
 import { applyForm } from '../config-form/apply';
-import { reshaped, shapeControls } from '../config-form/collections';
+import { addTarget, reshaped, shapeControls } from '../config-form/collections';
 import type { KnownHostsField } from '../config-form/config-fields';
 import { FETCH_HOST_KEYS_OP } from '../config-form/config-fields';
 import { dottedPath, loadDocument, serialise } from '../config-form/document';
@@ -23,7 +23,7 @@ import { canCreateMember, isMemberId, memberOf, memberSectionId } from '../confi
 import { allFields } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { Uploads, fillUploads } from '../config-form/upload';
-import { stampUsage } from '../member-usage';
+import { groupsOf, stampGroupUsage, stampUsage } from '../member-usage';
 import { SectionChecks, stampUnsavedHostKeys } from './checks';
 import { ConfigPageService, carryUnsavedSecrets } from './config-page.service';
 import { stampEntryOrigins } from './origins';
@@ -79,7 +79,7 @@ function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] 
     return { path: op.slice(FETCH_HOST_KEYS_OP.length), focus: false };
   }
   if (op.startsWith('add:')) {
-    const target = op.slice('add:'.length);
+    const target = addTarget(op).path;
     const list = doc.getIn(dottedPath(target));
     if (!isSeq(list) || list.items.length === 0) return undefined;
     return { path: `${target}.${list.items.length - 1}`, focus: true };
@@ -318,10 +318,10 @@ export class ConfigSaveService {
     const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);
 
     const changed = edited_ || amended || created || hostKeys?.changed === true;
-    // Only re-serialise when a value actually moved. Rendering an untouched
-    // document back out would normalise its formatting, so opening the form and
-    // pressing Save would append a version that differs by whitespace alone.
-    const edited = changed ? serialise(doc) : state.storedYaml;
+    const edited =
+      changed && serialise(doc) !== serialise(loadDocument(state.storedYaml))
+        ? serialise(doc)
+        : state.storedYaml;
     // Everything from here describes the *edited* document, so a refused save hands
     // back the operator's own work rather than the version on disk.
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
@@ -329,6 +329,7 @@ export class ConfigSaveService {
     await stampBrandImages(caller.tenantId, payload);
     await stampPickListOptions(caller.tenantId, payload);
     await stampEntryOrigins(caller.tenantId, payload);
+    await stampGroupUsage(caller.tenantId, payload, groupsOf(doc));
     await this.checks.stampDirectoryStatus(payload, false);
     await this.checks.stampRepositoryStatus(payload, edited);
     await this.checks.stampGithubAppLinks(payload, edited);

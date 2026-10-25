@@ -1,0 +1,105 @@
+
+<% const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1), kindName = 'newkind:' + target %>
+  <% /*
+    Two panes, as the filter dialog on the sync status page is: the kinds of row
+    on the left, the one control of the chosen kind on the right. The kinds are
+    radios rather than buttons, so the choice reaches the server with no script;
+    the panels are hidden by the reveal island through `data-spr-shown-with`, and
+    all of them show where nothing runs.
+  */ %>
+  <div class="spr-modal-panel spr-add-row-dialog" role="dialog" aria-labelledby="<%= add.op.replace(/[^a-z0-9]+/gi, '-') %>-title">
+    <h2 class="spr-modal-title spr-add-row-title" id="<%= add.op.replace(/[^a-z0-9]+/gi, '-') %>-title">
+      <%= add.title %>
+    </h2>
+    <div class="spr-add-row-body">
+      <fieldset class="spr-add-row-kinds" aria-label="<%= add.question %>">
+        <% /* The marker sits beside the label, not inside it, so pressing it explains the kind rather than picking it */ %>
+        <% add.kinds.forEach(function (kind, index) { %>
+        <div class="spr-add-row-kind">
+          <label>
+            <input
+              type="radio"
+              name="<%= kindName %>"
+              value="<%= kind.value %>"
+              <%= index === 0 ? 'checked' : '' %>
+              data-spr-transient
+            >
+            <%~ (it.kindIcons || {})[kind.icon] || '' %>
+            <span><%= kind.label %></span>
+          </label>
+          <% if (kind.help) { %><%~ include('@info', { field: { path: add.op + '-' + kind.value, label: kind.label, help: kind.help } }) %><% } %>
+          <span class="spr-add-row-kind-chevron"><%~ it.chevronIcon || '' %></span>
+        </div>
+        <% }) %>
+      </fieldset>
+      <div class="spr-add-row-panels">
+        <% add.kinds.forEach(function (kind) { %>
+        <div class="spr-add-row-panel" data-spr-shown-with="<%= kindName %>" data-spr-shown-when="<%= kind.value %>">
+          <% if (!kind.multiple) { %><label for="n-<%= add.op %>-<%= kind.value %>"><%= kind.nameLabel %></label><% } %>
+          <% /*
+            A provider is picked from the picture dropdown, which draws each logo
+            beside its name and the chosen one on the closed control: an
+            `<option>` cannot hold a picture. A group has no logo, so a select does.
+          */ %>
+          <% if (kind.multiple) { %>
+          <% /* Several at once: a searchable list of boxes, each ticked one becoming a row */ %>
+          <fieldset class="spr-choices spr-add-row-list" data-spr-option-list aria-label="<%= kind.nameLabel %>">
+            <span class="spr-input-icon spr-add-row-search-box">
+              <%~ it.searchIcon || '' %>
+              <input type="search" class="spr-add-row-search" placeholder="Search <%= kind.nameLabel.toLowerCase() %>…"
+                     aria-label="Search <%= kind.nameLabel.toLowerCase() %>" data-spr-option-search
+                     autocomplete="off" spellcheck="false" data-spr-transient>
+            </span>
+            <div class="spr-add-row-options">
+              <% kind.options.forEach(function (option) { %>
+              <label data-spr-option="<%= option.label.toLowerCase() %>">
+                <input type="checkbox" name="newname:<%= target %>.<%= kind.value %>" value="<%= option.value %>" data-spr-transient>
+                <span><%= option.label %></span>
+              </label>
+              <% }) %>
+            </div>
+          </fieldset>
+          <% } else if (kind.options.some(function (option) { return option.mark; })) { %>
+          <%~ include('@dropdown', { options: kind.options, name: 'newname:' + target + '.' + kind.value, form: null, transient: true, optionMarks: it.optionMarks }) %>
+          <% } else { %>
+          <%~ include('@select', {
+            attributes: {
+              id: 'n-' + add.op + '-' + kind.value,
+              name: 'newname:' + target + '.' + kind.value,
+              'data-spr-transient': true,
+            },
+            options: kind.options.map(function (option) {
+              return { value: option.value, label: option.label };
+            }),
+          }) %>
+          <% } %>
+          <% if (kind.matches) { %>
+          <div class="spr-add-label">
+            <label for="m-<%= add.op %>-<%= kind.value %>"><%= kind.matches.label %></label>
+            <%~ include('@info', { field: { path: add.op + '-' + kind.value + '-matches', label: kind.matches.label, help: kind.matches.help } }) %>
+          </div>
+          <textarea
+            id="m-<%= add.op %>-<%= kind.value %>"
+            name="newmatches:<%= target %>.<%= kind.value %>"
+            rows="10"
+            placeholder="<%= kind.matches.placeholder %>"
+            spellcheck="false"
+            autocomplete="off"
+            data-spr-transient
+          ></textarea>
+          <% } %>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <div class="spr-modal-actions">
+      <% /* Closes the modal and nothing else; the island does the closing, as it does for Escape */ %>
+      <button type="button" class="spr-add-row-cancel" data-spr-modal-cancel>Cancel</button>
+      <button
+        type="submit"
+        name="op"
+        value="<%= add.op %>"
+        class="spr-primary spr-add-row-submit"
+      ><%~ it.addIcon || '' %><span><%= add.label %></span></button>
+    </div>
+  </div>

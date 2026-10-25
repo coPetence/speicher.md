@@ -1,13 +1,5 @@
 /**
- * Groups, and the sources they draw from
- *
- * The widest surface here, because a group maps a name to directory group ids
- * *and* may name people, and those are two tables built from one sequence. The
- * first column is headed by the provider's own name, so the entry is a provider
- * rather than a position; `sourcePositions` turns a name back into positions
- *
- * A trailing row carries nothing, so an opened-and-saved page goes back out byte
- * for byte
+ * List all the sources and references a group has
  */
 
 import { scalarString } from '../../document';
@@ -23,6 +15,7 @@ import {
   memberSectionId,
   nounOf,
   providerMark,
+  referencePositions,
   sourcePositions,
 } from '../../members';
 import { sectionHead } from '../registry';
@@ -42,7 +35,9 @@ export function groupsSection(root: Obj): SectionSource {
     fields: [],
     entries: names.map((name) => groupEntry(root, name, admins)),
     layout: 'table',
-    columns: ['Group', 'Sources', 'Added by', 'Added'],
+    columns: ['Group', 'Used in', 'Added by', 'Added'],
+    hideLines: true,
+    bulkRemoveOp: 'remove-selected:groups',
     searchable: true,
     // Search covers group name, provider id and group ids
     searchPlaceholder: 'Name, provider or group id',
@@ -73,8 +68,17 @@ function providerLine(root: Obj, name: string, provider: string, elide: boolean)
   return `${provider || 'no provider'} (${matches.join(', ')})`;
 }
 
+/** The groups a group references, as one line, or null when it references none */
+function referenceLine(root: Obj, name: string): string | null {
+  const names = referencePositions(root, name).map(
+    (index) => matchLine(root, name, index, false).value,
+  );
+  return names.length === 0 ? null : `groups (${names.join(', ')})`;
+}
+
 function groupEntry(root: Obj, name: string, adminGroups: string[]): SectionEntry {
   const providers = groupProviders(root, name);
+  const references = referenceLine(root, name);
   const isAdmin = adminGroups.includes(name);
   return {
     href: `/-/config/${memberSectionId('groups', name)}`,
@@ -84,18 +88,22 @@ function groupEntry(root: Obj, name: string, adminGroups: string[]): SectionEntr
     icon: '',
     badges: isAdmin ? [{ label: 'Administrators', icon: 'shield' }] : [],
     lines:
-      providers.length === 0
+      providers.length === 0 && references === null
         ? [{ label: '', value: 'no sources yet', mark: '' }]
-        : providers.map((provider) => ({
-            label: '',
-            value: providerLine(root, name, provider, true),
-            mark: providerMark(root, provider),
-          })),
+        : [
+            ...providers.map((provider) => ({
+              label: '',
+              value: providerLine(root, name, provider, true),
+              mark: providerMark(root, provider),
+            })),
+            ...(references === null ? [] : [{ label: '', value: references, mark: '' }]),
+          ],
     cells: [],
     search: [
       name,
       ...(isAdmin ? ['administrators'] : []),
       ...providers.map((provider) => providerLine(root, name, provider, false)),
+      ...(references === null ? [] : [references]),
     ]
       .join(' ')
       .toLowerCase(),

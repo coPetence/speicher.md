@@ -1,8 +1,7 @@
 import { Document, isMap, isSeq } from 'yaml';
 
-import { appendSeqItem, renameMapKey, setNodeAt, writeAt } from './document';
-import type { Obj } from './config-fields';
-import { MemberRef, memberPath, seedMember, sourcePositions } from './members';
+import { renameMapKey, setNodeAt, writeAt } from './document';
+import { MemberRef, memberPath, seedMember } from './members';
 
 /**
  * Edits to a document that are about a member as a whole — whether it exists,
@@ -10,43 +9,22 @@ import { MemberRef, memberPath, seedMember, sourcePositions } from './members';
  * any one of its values, which is what `decode/` does.
  */
 
-/**
- * Whether the document already has the member a page is about.
- *
- * Two questions with one name, because the route that creates a member is one
- * route and a branch inside it would be the second place that knows what a member
- * *is*. A member of a map or of a sequence is a node, so the answer is whether
- * there is one; an entry is a **view** over its member's sequence — every source
- * of this group naming this provider — so the answer is whether that view has
- * anything in it.
- */
+/** Whether the document already has the member a page is about. */
 export function memberExists(doc: Document, ref: MemberRef): boolean {
-  if (ref.entry === null) return doc.getIn(memberPath(ref)) !== undefined;
-  const root = doc.toJS({ maxAliasCount: 0 }) as Obj;
-  return sourcePositions(root, ref.id, ref.entry).length > 0;
+  return doc.getIn(memberPath(ref)) !== undefined;
 }
 
 /**
  * Bring the member a page is about into existence, in the document it belongs to.
  *
- * One entry point for the same reason `memberExists` is one, and the entry case is
- * why it writes rather than returning a value to be written: an entry is not a
- * node at a path, it is one more item in its member's list, and the member itself
- * may not exist yet. **Creating a group and its first source is one save** — the
- * modal on the groups index asks for the name and the provider and lands here — so
- * the seed has to be able to make both. A group seeded on its own page would be an
- * empty list, which the schema refuses, on a page with no control that could fill
- * it in.
+ * `setNodeAt` rather than `setIn` with a plain object — see the note on that
+ * function: a plain array survives serialising and then fails on the first write
+ * *into* it. A group is seeded as an empty list, which loads: a group with no
+ * item makes nobody a member, so nothing has to be typed before the name can be
+ * saved, and its rows are added on its own page.
  */
 export function seedMemberInto(doc: Document, ref: MemberRef, kind: string): void {
-  if (ref.entry === null) {
-    // `setNodeAt` rather than `setIn` with a plain object — see the note on that
-    // function: a plain array survives serialising and then fails on the first
-    // write *into* it.
-    setNodeAt(doc, memberPath(ref), seedMember(ref, kind));
-    return;
-  }
-  appendSeqItem(doc, memberPath(ref), { provider: ref.entry });
+  setNodeAt(doc, memberPath(ref), seedMember(ref, kind));
 }
 
 /**
@@ -65,12 +43,14 @@ export function renameMember(doc: Document, section: string, from: string, to: s
 }
 
 /**
- * Rename a group, and the one other place in this document that names it.
+ * Rename a group, and the two other places in this document that name it.
  *
- * `admins.groups` is that place, and it is the one that matters: a dangling entry
+ * `admins.groups` is one, and it is the one that matters most: a dangling entry
  * there is not a group that grants nothing, it is an administrator block that
- * resolves to fewer people — and the loader refuses a document whose `admins.groups`
- * names a group the map does not define, so a missed reference cannot be stored.
+ * resolves to fewer people. A `group:` item on another group's list is the other,
+ * and a dangling one there is a group that lost members. The loader refuses a
+ * document naming a group the map does not define in either place, so a missed
+ * reference cannot be stored.
  *
  * What this cannot reach is every `access:` block in every repository, which name
  * groups by exactly this name and are not this instance's documents to edit. Such
@@ -91,7 +71,26 @@ function renameGroup(doc: Document, from: string, to: string): boolean {
     });
   }
 
+  forEachGroupItem(doc, (name, index) => {
+    if (doc.getIn(['groups', name, index, 'group']) === from) {
+      writeAt(doc, ['groups', name, index, 'group'], to);
+    }
+  });
+
   return true;
+}
+
+/** Every position of every group's list, as the group's name and the position */
+function forEachGroupItem(doc: Document, visit: (name: string, index: number) => void): void {
+  const groups = doc.getIn(['groups'], true);
+  if (!isMap(groups)) return;
+  for (const item of groups.items) {
+    const name = keyOf(item.key);
+    if (name === null) continue;
+    const items = doc.getIn(['groups', name], true);
+    if (!isSeq(items)) continue;
+    items.items.forEach((_, index) => visit(name, index));
+  }
 }
 
 /**
@@ -116,20 +115,11 @@ function renameProvider(doc: Document, from: string, to: string): boolean {
     writeAt(doc, ['auth', 'default_provider'], to);
   }
 
-  const groups = doc.getIn(['groups'], true);
-  if (isMap(groups)) {
-    for (const item of groups.items) {
-      const name = keyOf(item.key);
-      if (name === null) continue;
-      const sources = doc.getIn(['groups', name], true);
-      if (!isSeq(sources)) continue;
-      sources.items.forEach((_, index) => {
-        if (doc.getIn(['groups', name, index, 'provider']) === from) {
-          writeAt(doc, ['groups', name, index, 'provider'], to);
-        }
-      });
+  forEachGroupItem(doc, (name, index) => {
+    if (doc.getIn(['groups', name, index, 'provider']) === from) {
+      writeAt(doc, ['groups', name, index, 'provider'], to);
     }
-  }
+  });
 
   const admins = doc.getIn(['admins', 'users'], true);
   if (isSeq(admins)) {

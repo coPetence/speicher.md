@@ -50,7 +50,11 @@ export function sendConfigSection(
         // rendering and not to the payload — see `provider-marks.ts`.
         marks_sprite: markSprite([
           payload.section?.mark ?? '',
-          ...(payload.section?.entries ?? []).flatMap((entry) => [
+          ...[
+            ...(payload.section?.entries ?? []),
+            // A table's rows carry marks too: a group's rows each name a provider
+            ...(payload.section?.tables ?? []).flatMap((table) => table.entries),
+          ].flatMap((entry) => [
             entry.mark,
             // A line carries one too: a group draws from more than one provider,
             // and the sprite is built from what the page draws rather than from
@@ -114,6 +118,9 @@ export function sendConfigSection(
               ...op.typeOptions,
               ...(op.nameOptions ?? []),
             ]),
+            ...(payload.section?.tables ?? []).flatMap((table) =>
+              (table.add?.kinds ?? []).flatMap((kind) => kind.options),
+            ),
           ]
             .map((option) => option.mark ?? '')
             .filter((mark) => mark !== '')
@@ -159,8 +166,25 @@ export function sendConfigSection(
         // The pencil beside a member's name. Inline, for the reason the back
         // arrow is: the page's sprite is what the left column named.
         pencil_icon: payload.section?.renameOp ? renderInlineIcon('pencil', 'spr-icon') : '',
+        // The pen on each card of a row list, which opens the card for editing
+        edit_icon: renderInlineIcon('pencil', 'spr-icon'),
+        // The arrow from what a card is to what it matches, and the marks in
+        // front of its note and its expiry
+        equals_icon: renderInlineIcon('arrow-right', 'spr-icon'),
+        note_icon: renderInlineIcon('sticky-note', 'spr-icon'),
+        // The arrow out on a match that has a page elsewhere, e.g. in the Entra portal
+        external_icon: renderInlineIcon('external-link', 'spr-icon'),
+        expiry_icon: renderInlineIcon('calendar-clock', 'spr-icon'),
         // The plus on the Add tile, inline for the same reason.
         add_icon: renderInlineIcon('plus', 'spr-icon'),
+        // The chevron on each kind of the Add members modal, as the filter dialog draws its groups
+        chevron_icon: renderInlineIcon('chevron-right', 'spr-icon'),
+        // And the icon in front of each kind, by name
+        kind_icons: Object.fromEntries(
+          (payload.section?.tables ?? [])
+            .flatMap((table) => table.add?.kinds ?? [])
+            .map((kind) => [kind.icon, renderInlineIcon(kind.icon, 'spr-icon')]),
+        ),
         // The drawing over an index with nothing in it, for the sections that
         // have one. Asked of the id and not of the entries: the island shows and
         // hides the block as a filter is typed, so it is on the page either way.
@@ -306,11 +330,9 @@ function titleOfSection(id: string): string {
   // A member of a sequence has a position rather than a name, so `0` is not a
   // title. It is drawn as the field model draws it — the noun and its place in the
   // list — which is the only thing that can be said about it without a document.
-  // An *entry* is named by the provider it is about, so it is titled like any other
-  // member: what it is a page of is a name.
   if (member) {
     const position = memberPosition(member);
-    if (!position) return member.entry ?? member.id;
+    if (!position) return member.id;
     const noun = nounOf(member.section);
     return `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${position.at + 1}`;
   }
