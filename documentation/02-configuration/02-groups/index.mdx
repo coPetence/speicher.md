@@ -4,7 +4,7 @@ icon: users
 
 # Groups
 
-Repositories never grant access to external providers directly. They use Speicher’s internal group names (like `staff` or `engineering`, etc.).
+Repositories never grant access to external providers directly. They use Speicher’s internal group names (like `staff` or `engineering`).
 
 - A repository's `.speicher.yaml` for example contains `access: [staff]`.
 - An administrator decides what `staff` means (an Entra group, a GitHub team, an email domain, specific people, or a mix of these).
@@ -36,17 +36,27 @@ If your provider does not support group claims, use **Individual email** rules i
 
 ### 1. Create a Group
 
+<Steps>
 1. Go to **Configuration → Groups**.
+
 2. Select **Add a group**.
+
 3. Enter a **Short id** (for example, `staff`). This is the ID used in `.speicher.yaml`.
+
+</Steps>
 
 <!-- screenshot: the Groups page with the "Add a group" popup -->
 
 ### 2. Add Members
 
+<Steps>
 1. Open the group's page and select **Add members**.
+
 2. Choose a source type (**IDP group**, **Email domain**, **Individual email**, or **Another group**).
+
 3. Fill in the required provider and identifier details.
+
+</Steps>
 
 <!-- screenshot: the "Add members" popup -->
 
