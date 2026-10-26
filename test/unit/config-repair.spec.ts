@@ -27,20 +27,16 @@ describe('repairing an instance config', () => {
     const yaml = `${MINIMAL}# The look of the instance
 theme:
   template: default
-  tui: true
-  rounded_corners: false
+  sparkles: true
+  glitter: false
 brand:
   name: Acme
-  wallpaper_all_themes: true
+  mascot: true
 `;
     expect(() => loadInstanceConfig(yaml)).toThrow();
 
     const repaired = repairInstanceConfig(yaml);
-    expect(repaired.removed.sort()).toEqual([
-      'brand.wallpaper_all_themes',
-      'theme.rounded_corners',
-      'theme.tui',
-    ]);
+    expect(repaired.removed.sort()).toEqual(['brand.mascot', 'theme.glitter', 'theme.sparkles']);
     expect(repaired.remaining).toEqual([]);
     expect(repaired.yaml).toContain('# The look of the instance');
     expect(repaired.yaml).toContain('template: default');

@@ -297,7 +297,7 @@ describe('rollback', () => {
 });
 
 describe('versions that do not load', () => {
-  const broken = `${FIXTURE_YAML}\ntheme:\n  template: default\n  tui: true\n`;
+  const broken = `${FIXTURE_YAML}\ntheme:\n  template: default\n  sparkles: true\n`;
 
   async function storeBroken(times: number): Promise<void> {
     for (let i = 0; i < times; i++) await store(broken);
@@ -317,7 +317,7 @@ describe('versions that do not load', () => {
       expect(page.text).toContain('Versions 2–4 do not load</h2>');
       expect(page.text).toContain('<span>Problems in versions 2–4</span>');
       expect(page.text).toContain(
-        '<span class="spr-version-label">Versions 2–4</span><span>theme: unknown key &quot;tui&quot;</span>',
+        '<span class="spr-version-label">Versions 2–4</span><span>theme: unknown key &quot;sparkles&quot;</span>',
       );
       expect(page.text).not.toContain('<span class="spr-version-label">Version 3</span>');
       expect(page.text).toContain('<span>Changes made by Repair</span>');
@@ -348,14 +348,14 @@ describe('versions that do not load', () => {
   it('show what repairing changes, and save the rest as a new version that loads', async () => {
     await storeBroken(1);
     const page = await history().expect(200);
-    expect(page.text).toMatch(/<tr class="spr-diff-remove">[\s\S]*?tui: true/);
+    expect(page.text).toMatch(/<tr class="spr-diff-remove">[\s\S]*?sparkles: true/);
 
     const saved = await repair(2).expect(303);
     expect(saved.headers['location']).toBe('/-/config/history?from=2&to=3');
 
     const newest = await getNewestConfigVersion(harness.tenantId);
     expect(newest?.version).toBe(3);
-    expect(newest?.yaml).not.toContain('tui');
+    expect(newest?.yaml).not.toContain('sparkles');
     expect(newest?.yaml).toContain('template: default');
     expect(config.configVersion).toBe(3);
     expect(config.skippedConfigVersions).toEqual([]);

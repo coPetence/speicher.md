@@ -496,7 +496,7 @@ describe('downloading the configuration', () => {
     expect(history).toContain('href="/-/config/download?version=1" download');
     expect(history).toContain('href="/-/config/download?version=2" download');
     expect(history).toContain('bootstrap a new instance');
-    expect(history).toContain('href="https://docs.speicher.md/operate/configuration"');
+    expect(history).toContain('href="https://docs.speicher.md/operations/backups"');
     expect(history).toContain('<svg class="spr-external"');
     expect(history).not.toContain('[documentation](');
 
