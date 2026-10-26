@@ -1,3 +1,5 @@
+/* Colors from Tokyo Night (https://github.com/folke/tokyonight.nvim), Apache License 2.0, © Folke Lemaitre */
+
 @layer speicher.theme {
   /* Light is Tokyo Night Day, dark is Tokyo Night */
   :root {
