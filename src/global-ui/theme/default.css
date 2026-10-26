@@ -1027,6 +1027,10 @@
       padding-inline: var(--spr-gutter);
     }
 
+    .spr-layout[data-article] > .spr-pane > .spr-main:has(> .spr-article > .spr-repos-empty) {
+      align-content: center;
+    }
+
     .spr-layout[data-article] > .spr-pane > .spr-main > .spr-article:has(> .spr-repos) {
       grid-column: 1 / -1;
     }
@@ -2187,6 +2191,10 @@
 
   .spr-empty-state-page .spr-empty-art {
     width: calc(var(--spr-space-8) * 10);
+  }
+
+  .spr-repos-empty .spr-empty-art {
+    width: calc(var(--spr-space-8) * 5);
   }
 
   .spr-signin-options {

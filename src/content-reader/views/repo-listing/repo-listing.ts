@@ -5,6 +5,7 @@ import { ConfigService } from '../../../config/config.service';
 import { islandUrl } from '../../assets.controller';
 import { pageChrome } from '../../chrome';
 import { cardCover } from '../../covers';
+import { emptyStateArt } from '../../empty-state';
 import { RoutingService } from '../../routing';
 import { renderTemplate, sendHtml } from '../../views';
 import { renderPage } from '../../../global-ui/global-views/page-layout/page-layout';
@@ -18,10 +19,14 @@ export function sendRoot(
   config: ConfigService,
   routing: RoutingService,
   authenticated: boolean,
+  isAdmin: boolean,
   repos: VisibleRepo[],
 ): void {
   const body = renderTemplate('content-reader/views/repo-listing', {
     authenticated,
+    is_admin: isAdmin,
+    has_content_source: config.hasContentSource,
+    empty_art: repos.length === 0 ? emptyStateArt('sources') : '',
     repos: repos.map((repo, index) => {
       const base = routing.publicBaseFor({
         namespace: repo.namespace,
