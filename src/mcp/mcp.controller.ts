@@ -1,18 +1,9 @@
 /**
  * MCP (Model Context Protocol) API endpoint
  *
- * Exposes a single POST endpoint for all MCP JSON-RPC methods, no SSE streaming
- *
- * Supports protocol version negotiation via `mcp-protocol-version` header
- * CORS-like origin check: rejects requests from origins that do not match
- * `SPEICHER_PUBLIC_URL` when that env var is set
- *
- * Two addresses, so a client learns from the first response whether to sign in:
- * - `/mcp` always requires authentication and challenges anonymous callers
- * - `/mcp/public` never challenges and serves only public repos, to anyone
- * Clients only offer OAuth when the first response is a 401, and some never
- * ask again, so one address must not answer both ways
- * The WWW-Authenticate challenge is sourced from the OAuth metadata
+ * Exposed Endoint:
+ * - `/mcp` always requires authentication
+ * - `/mcp/public` does not require authentication, but only reads public pages
  */
 import { Body, Controller, Delete, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
