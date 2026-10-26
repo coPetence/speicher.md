@@ -290,7 +290,6 @@ describe('the overview', () => {
     expect(cards.map(hrefOf)).toEqual([
       '/-/config/history',
       '/-/config/environment',
-      '/-/config/backup',
       ...CONFIG_NAV_SECTIONS.map((section) => `/-/config/${section.id}`),
     ]);
 
@@ -437,8 +436,8 @@ describe('the form', () => {
 });
 
 describe('downloading the configuration', () => {
-  const download = () => request(app.getHttpServer()).get('/-/config/download').set('cookie', ops);
-  const backupPage = () => request(app.getHttpServer()).get('/-/config/backup').set('cookie', ops);
+  const download = (query = '') =>
+    request(app.getHttpServer()).get(`/-/config/download${query}`).set('cookie', ops);
 
   it('is served as a file the browser saves, not a page it renders', async () => {
     const res = await download().expect(200);
@@ -458,12 +457,6 @@ describe('downloading the configuration', () => {
       expect(res.headers['content-disposition']).toBe(
         'attachment; filename="docs.example.test.instance.yaml"',
       );
-      const json = await request(app.getHttpServer())
-        .get('/-/config')
-        .set('cookie', ops)
-        .set('accept', 'application/json')
-        .expect(200);
-      expect(json.body.backup_filename).toBe('docs.example.test.instance.yaml');
     } finally {
       if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
       else process.env.SPEICHER_PUBLIC_URL = before;
@@ -477,11 +470,40 @@ describe('downloading the configuration', () => {
     expect(res.text).not.toContain(REDACTED);
     expect(res.text).toContain('client_secret: ${AUTH_PROVIDERS_ENTRA_CLIENT_SECRET}');
     expect(res.text).toContain('${TEST_GH_PRIVATE_KEY}');
-    expect((await backupPage().expect(200)).text).toContain('AUTH_PROVIDERS_ENTRA_CLIENT_SECRET');
     expect((await overview().expect(200)).text).not.toContain('AUTH_PROVIDERS_ENTRA_CLIENT_SECRET');
-    const json = await backupPage().set('accept', 'application/json').expect(200);
-    expect(json.body.variables).toEqual(['AUTH_PROVIDERS_ENTRA_CLIENT_SECRET']);
-    expect(json.body.yaml).toBe(res.text);
+  });
+
+  it('serves any saved version, named by its number', async () => {
+    await storeLiteralSecret();
+    const first = await download('?version=1').expect(200);
+    expect(first.headers['content-disposition']).toBe(
+      'attachment; filename="speicher.instance.yaml"',
+    );
+    expect(first.text).not.toContain('AUTH_PROVIDERS_ENTRA_CLIENT_SECRET');
+    const second = await download('?version=2').expect(200);
+    expect(second.text).toContain('client_secret: ${AUTH_PROVIDERS_ENTRA_CLIENT_SECRET}');
+    expect(second.text).toBe((await download().expect(200)).text);
+
+    await download('?version=99').expect(404);
+    await download('?version=nonsense').expect(404);
+  });
+
+  it('is offered beside every version in the history, which the backup page gave way to', async () => {
+    await storeLiteralSecret();
+    const history = (
+      await request(app.getHttpServer()).get('/-/config/history').set('cookie', ops).expect(200)
+    ).text;
+    expect(history).toContain('href="/-/config/download?version=1" download');
+    expect(history).toContain('href="/-/config/download?version=2" download');
+    expect(history).toContain('bootstrap a new instance');
+    expect(history).toContain('href="https://docs.speicher.md/operate/configuration"');
+    expect(history).toContain('<svg class="spr-external"');
+    expect(history).not.toContain('[documentation](');
+
+    const html = (await overview().expect(200)).text;
+    expect(html).not.toContain('href="/-/config/backup"');
+    expect(html).not.toContain('<details class="spr-yaml">');
+    await request(app.getHttpServer()).get('/-/config/backup').set('cookie', ops).expect(404);
   });
 
   it('carries the logo, which the page elides for length rather than secrecy', async () => {
@@ -489,27 +511,13 @@ describe('downloading the configuration', () => {
     expect((await download().expect(200)).text).toContain('data:image/png;base64');
   });
 
-  it('is offered by its own page, which the overview opens instead of the file', async () => {
-    const html = (await overview().expect(200)).text;
-    expect(html).toContain('href="/-/config/backup"');
-    expect(html).not.toContain('href="/-/config/download"');
-    expect(html).toContain('speicher.instance.yaml');
-    expect(html).not.toContain('<details class="spr-yaml">');
-
-    const page = (await backupPage().expect(200)).text;
-    expect(page).toContain('href="/-/config/download"');
-    expect(page).toContain('speicher.instance.yaml');
-    expect(page).toContain('<svg class="spr-link-mark"');
-    expect(page).toContain('href="https://docs.speicher.md/operate/configuration"');
-    expect(page).not.toContain('[documentation](');
-    expect(page).not.toContain('<details class="spr-yaml">');
-  });
-
   it("is the reader's 404 for anybody who is not an administrator", async () => {
     await request(app.getHttpServer()).get('/-/config/download').expect(404);
-    await request(app.getHttpServer()).get('/-/config/backup').expect(404);
     const alice = await sessionCookieFor(harness.tenantId, 'alice');
-    await request(app.getHttpServer()).get('/-/config/backup').set('cookie', alice).expect(404);
+    await request(app.getHttpServer())
+      .get('/-/config/download?version=1')
+      .set('cookie', alice)
+      .expect(404);
   });
 
   describe('and from the binary', () => {

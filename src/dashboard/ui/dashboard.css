@@ -1118,19 +1118,42 @@
     border-block-start: var(--spr-border) solid var(--spr-line);
   }
 
-  .spr-versions a {
-    display: block;
+  .spr-versions li {
+    display: flex;
+  }
+
+  .spr-versions li > a {
     padding: var(--spr-space-3);
     color: inherit;
     text-decoration: none;
   }
 
-  .spr-versions a:hover {
+  .spr-versions li > a:first-child {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
+  .spr-versions li:hover {
     background: var(--spr-surface);
   }
 
-  .spr-versions a[aria-current] {
+  .spr-versions li:has(> a[aria-current]) {
     background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));
+  }
+
+  .spr-version-download {
+    display: flex;
+    align-items: center;
+    color: var(--spr-muted);
+  }
+
+  .spr-versions .spr-version-download:hover {
+    color: var(--spr-accent);
+  }
+
+  .spr-version-download > .spr-icon {
+    width: 1.1em;
+    height: 1.1em;
   }
 
   .spr-version-name {

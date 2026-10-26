@@ -58,13 +58,6 @@ export interface ConfigOverviewPayload extends ConfigCommon {
   // it — it offers it as a file — but a JSON caller still receives it here, which
   // is what keeps the download from being a second answer to the same question.
   yaml: string;
-  // What the download is called
-  backup_filename: string;
-}
-
-export interface ConfigBackupPayload extends ConfigCommon, ConfigBackup {
-  // Size of the file in bytes
-  bytes: number;
 }
 
 export interface ConfigEnvironmentPayload {

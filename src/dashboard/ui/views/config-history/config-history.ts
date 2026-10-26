@@ -9,6 +9,7 @@ import { diffConfigVersions } from '../../../configurator/config-form/diff';
 import type { RepairPreview } from '../../../configurator/repair-preview';
 import { DashboardResponder } from '../../../respond';
 import { skippedVersionsNote } from '../../config-notes';
+import { HISTORY_BLURB } from '../../instance-blurbs';
 
 /** The version history and, when two are picked, the diff between them */
 export interface HistoryPayload {
@@ -35,7 +36,7 @@ export function sendConfigHistory(
   status?: number,
 ): void {
   respond.send(req, res, isAdmin, {
-    section: 'config',
+    section: 'history',
     title: 'Configuration history',
     payload,
     // The compare selector submits itself on change, and hides its button. An
@@ -50,7 +51,9 @@ export function sendConfigHistory(
         versions: data.versions.map((v) => ({ ...v, applied_ago: relativeTime(v.applied_at) })),
         // The mark on Restore, inline like every mark under `/-/`: the page's
         // sprite is what the left column names.
+        blurb: HISTORY_BLURB,
         restore_icon: renderInlineIcon('rotate-ccw', 'spr-icon'),
+        download_icon: renderInlineIcon('download', 'spr-icon'),
         skipped_note:
           data.skipped.length > 0 && data.running_version !== null
             ? skippedVersionsNote(

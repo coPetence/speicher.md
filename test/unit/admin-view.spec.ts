@@ -104,6 +104,13 @@ describe('the section list', () => {
     expect(empty).toContain('/-/connections');
   });
 
+  it('files the version history and the environment under Instance', () => {
+    const nav = dashboardNav('history', true, { showSetup: false }).html;
+    expect(nav).toContain('href="/-/config#instance"');
+    expect(nav).toMatch(/href="\/-\/config\/history"[^>]*aria-current="page"/);
+    expect(nav).toContain('href="/-/config/environment"');
+  });
+
   it('draws a hidden section when it is the page you are on', () => {
     expect(dashboardNav('status', true, { showSetup: false, hasContent: false }).html).toContain(
       '/-/status',

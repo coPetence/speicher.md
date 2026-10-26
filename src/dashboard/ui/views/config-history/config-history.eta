@@ -3,6 +3,7 @@
 <%~ include('@crumbs', { crumbs: [{ href: '/-/config', title: 'Configuration' }, { title: 'Configuration history' }] }) %>
 
 <h1>Configuration history</h1>
+<p class="spr-section-blurb"><%~ md(it.blurb) %></p>
 
 <% if (it.skipped_note) { %>
 <%~ include('@note', it.skipped_note) %>
@@ -29,7 +30,6 @@
     <ol>
       <% it.versions.forEach(function (v) { %>
       <li>
-        
         <a href="/-/config/history?to=<%= v.version %>"<% if (v.version === it.to) { %> aria-current="true"<% } %>>
           
           <span class="spr-version-name">
@@ -45,6 +45,7 @@
                   || (v.origin === 'setup' ? 'written during first-run setup' : '—') %>
           </span>
         </a>
+        <a class="spr-version-download" href="/-/config/download?version=<%= v.version %>" download aria-label="Download version <%= v.version %>" title="Download version <%= v.version %>"><%~ it.download_icon %></a>
       </li>
       <% }) %>
     </ol>

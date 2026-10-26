@@ -30,6 +30,10 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'page:dead-jobs':
     'failed jobs, gave up, retry, stuck, worker errors, dead letter, logs, what went wrong',
   'page:config': 'settings, options, instance configuration, yaml, versions, history, preferences',
+  'page:instance': 'this instance, versions, environment, backup, maintenance',
+  'page:history':
+    'versions, rollback, restore, repair, diff, compare, changes, undo, backup, export, download, yaml, bootstrap',
+  'page:environment': 'env, environment variables, process, startup, secrets, variables',
   'page:connections':
     'tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',
 
