@@ -16,6 +16,7 @@ import { sendMagicLink } from './views/magic-link/magic-link';
 import { sendMagicLinkSentScreen } from './views/magic-link-sent/magic-link-sent';
 import { sendProviderChoice, sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
+import { BROWSER_BINDING_COOKIE, bindBrowser } from './browser-binding';
 import { callbackUrl, originOf } from './callback-url';
 import { callerOf } from './caller.middleware';
 import { GithubAuthService } from './github.service';
@@ -24,9 +25,6 @@ import { MagicLinkService } from './magic-link.service';
 import { OidcService, safeRedirect } from './oidc.service';
 import { SessionService } from './session.service';
 import { catchAllProviders, emailDomain, providersForEmail } from './sign-in-routing';
-import { mintToken } from './tokens';
-
-const BROWSER_BINDING_COOKIE = 'speicher_binding';
 
 /**
  * Sign-in, sign-out, and identity endpoints
@@ -323,17 +321,7 @@ export class AuthController {
   ): Promise<void> {
     if (providerId && email.includes('@')) {
       if (await this.perIpOk(req)) {
-        let binding = req.cookies?.[BROWSER_BINDING_COOKIE];
-        if (typeof binding !== 'string' || !binding) {
-          binding = mintToken(16);
-          res.cookie(BROWSER_BINDING_COOKIE, binding, {
-            httpOnly: true,
-            secure: !env('SPEICHER_INSECURE_COOKIES'),
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 60 * 60_000,
-          });
-        }
+        const binding = bindBrowser(req, res);
         await this.magic
           .request(tenantId, providerId, email, originOf(req), binding, redirectTo)
           .catch((err) => this.log.error('magic link failed', { error: (err as Error).message }));
@@ -348,6 +336,7 @@ export class AuthController {
    * Redeem a magic link from the email
    *
    * Requires the browser binding cookie set when the link was requested
+   * Promotes the first admin when the link was sent from the setup wizard
    */
   @Get('magic/callback')
   async redeemMagicLink(
@@ -383,9 +372,7 @@ export class AuthController {
       );
       return;
     }
-    await this.sessions.create(tenant.id, redeemed.identity, [], res);
-    await this.noteAdminLogin(tenant.id, redeemed.identity, []);
-    res.redirect(302, redeemed.redirectTo);
+    await this.finishLogin(tenant.id, redeemed, res);
   }
 
   @Post('logout')

@@ -19,6 +19,7 @@ import { STEP_PROSE, SetupStepId } from '../../src/dashboard/setup/steps';
 import { unclaimedInstanceConfig } from '../../src/dashboard/setup/unclaimed';
 import { LoginFlow } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
+import { Mailer } from '../../src/notify/mailer';
 import { formBody } from '../helpers/form';
 import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp } from '../helpers/http';
@@ -34,6 +35,7 @@ const ORIGINAL_PUBLIC_URL = process.env.SPEICHER_PUBLIC_URL;
 const ORIGINAL_SOURCE = process.env[CONFIG_SOURCE_ENV];
 const ORIGINAL_PATH = process.env[INSTANCE_CONFIG_PATH_ENV];
 const ORIGINAL_INSECURE = process.env.SPEICHER_INSECURE_COOKIES;
+const sent: { to: string; subject: string; text: string }[] = [];
 
 beforeAll(async () => {
   harness = await createHarness();
@@ -46,7 +48,12 @@ beforeEach(async () => {
   process.env[INSTANCE_CONFIG_PATH_ENV] = '/nonexistent/speicher.instance.yaml';
   await reset();
   config = new ConfigService(unclaimedInstanceConfig());
-  app = await bootTestApp(config);
+  sent.length = 0;
+  const mailer = new Mailer(config);
+  mailer.send = async (to, subject, text) => {
+    sent.push({ to, subject, text });
+  };
+  app = await bootTestApp(config, [], [{ token: Mailer, value: mailer }]);
 });
 
 afterEach(async () => {
@@ -72,6 +79,8 @@ async function reset(): Promise<void> {
   await db.query(`DELETE FROM setup_claims`, { type: QueryTypes.DELETE });
   await db.query(`DELETE FROM instance_configs`, { type: QueryTypes.DELETE });
   await db.query(`DELETE FROM login_flows`, { type: QueryTypes.DELETE });
+  await db.query(`DELETE FROM magic_link_tokens`, { type: QueryTypes.DELETE });
+  await db.query(`DELETE FROM rate_limits`, { type: QueryTypes.DELETE });
   await db.query(`UPDATE tenants SET first_admin_login_at = NULL, setup_reopen_count = 0`, {
     type: QueryTypes.UPDATE,
   });
@@ -576,6 +585,111 @@ describe('the proving login through GitHub', () => {
   });
 });
 
+describe('the proving login through a magic link', () => {
+  async function askForLink(agent: Agent, email: string): Promise<string> {
+    const answered = await agent
+      .post('/-/setup/prove')
+      .send({ provider: 'links', email })
+      .expect(200);
+    expect(answered.text).toContain(`A sign-in link was sent to ${email}.`);
+    return /token=([^\s]+)/.exec(sent[sent.length - 1].text)?.[1] ?? '';
+  }
+
+  it('names the address the first administrator, by its lowercase email', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    expect(page.text).toContain('action="/-/setup/prove"');
+    expect(page.text).toContain('value="links"');
+    expect(page.text).toContain('type="email" name="email"');
+    // The answer is this page, not a redirect elsewhere
+    expect(formAction(page)).toBe(`form-action 'self'`);
+
+    const token = await askForLink(agent, 'Ada@Example.test');
+    expect(sent.map(({ to, subject }) => [to, subject])).toEqual([
+      ['ada@example.test', 'Become the Speicher administrator'],
+    ]);
+
+    const done = await agent.get(`/api/auth/magic/callback?token=${token}`).expect(302);
+    expect(done.headers.location).toBe('/-/setup');
+
+    const newest = await getNewestConfigVersion(harness.tenantId);
+    expect(loadInstanceConfig(newest!.yaml).raw.admins?.users).toEqual([
+      {
+        provider: 'links',
+        subject: 'ada@example.test',
+        note: 'First administrator: ada@example.test',
+      },
+    ]);
+    expect(await setup.claimWindowOpen(harness.tenantId)).toBe(false);
+  });
+
+  it('is offered beside an OIDC provider, each in its own form', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+
+    const page = await agent.get('/-/setup/administrator').expect(200);
+    expect(page.text).toContain('value="wizard"');
+    expect(page.text).toContain('value="links"');
+    expect(formAction(page)).toBe(`form-action 'self' ${idp.issuer}`);
+  });
+
+  it('only works in the browser that claimed the instance', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+    const token = await askForLink(agent, 'ada@example.test');
+
+    await browser().get(`/api/auth/magic/callback?token=${token}`).expect(400);
+    expect(
+      loadInstanceConfig((await getNewestConfigVersion(harness.tenantId))!.yaml).raw.admins,
+    ).toBeUndefined();
+  });
+
+  it('writes nothing when the instance got an administrator in the meantime', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+    const token = await askForLink(agent, 'ada@example.test');
+
+    expect(
+      await runCli(['admin', 'add', '--provider', 'links', '--email', 'zoe@example.test']),
+    ).toBe(0);
+    await config.adopt(loadInstanceConfig((await getNewestConfigVersion(harness.tenantId))!.yaml));
+
+    await agent.get(`/api/auth/magic/callback?token=${token}`).expect(302);
+    expect(
+      loadInstanceConfig((await getNewestConfigVersion(harness.tenantId))!.yaml).raw.admins?.users,
+    ).toEqual([expect.objectContaining({ email: 'zoe@example.test' })]);
+  });
+
+  it('is not something an ordinary magic-link request can turn into', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+
+    // Before an administrator exists nobody has a grant, so nothing is sent
+    await agent.post('/api/auth/magic').send({ provider: 'links', email: 'ada@example.test' });
+    expect(sent).toEqual([]);
+  });
+
+  it('is refused to anybody who did not claim this instance', async () => {
+    const agent = await claim();
+    await addMailTransport(agent);
+    await addMagicLink(agent);
+
+    await browser()
+      .post('/-/setup/prove')
+      .send({ provider: 'links', email: 'mallory@example.test' })
+      .expect(404);
+    expect(sent).toEqual([]);
+  });
+});
+
 describe('the proving login behind a proxy', () => {
   /*
     The request reaches the app as 127.0.0.1, as it would through a proxy that
@@ -644,19 +758,18 @@ describe('what the proving login refuses', () => {
   it('refuses to start with no provider a login can be completed through', async () => {
     const agent = await claim();
     const refused = await agent.post('/-/setup/prove').send({}).expect(400);
-    expect(refused.text).toContain('OpenID Connect');
+    expect(refused.text).toContain('No identity provider is available');
     expect(await LoginFlow.count()).toBe(0);
   });
 
-  it('does not offer a magic-link provider, which proves a mailbox and not a login', async () => {
+  it('sends no magic link without an address to send it to', async () => {
     const agent = await claim();
     await addMailTransport(agent);
     await addMagicLink(agent);
 
-    const page = await agent.get('/-/setup/administrator').expect(200);
-    expect(page.text).not.toContain('action="/-/setup/prove"');
-    await agent.post('/-/setup/prove').send({ provider: 'links' }).expect(400);
-    expect(await LoginFlow.count()).toBe(0);
+    const refused = await agent.post('/-/setup/prove').send({ provider: 'links' }).expect(400);
+    expect(refused.text).toContain('Enter your full email address.');
+    expect(sent).toEqual([]);
   });
 
   it('is not reachable by anybody who did not claim this instance', async () => {

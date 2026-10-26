@@ -4,11 +4,13 @@ import { DashboardResponder } from '../../../../respond';
 import { ADMINISTRATOR_SECTION_ID } from '../../../../setup/setup-sections';
 import { renderTemplate } from '../../../../../content-reader/views';
 
-/** A configured OIDC or GitHub provider the first-admin login can be completed through */
+/** A configured provider the first-admin login can be completed through */
 export interface ProvableProvider {
   id: string;
   /** The display name, for the page's list */
   name: string;
+  /** A redirect to an OIDC or GitHub provider, or a magic link sent by email */
+  kind: 'redirect' | 'magic-link';
 }
 
 /** The data for the become-administrator page */
@@ -18,12 +20,13 @@ export interface AdministratorPayload {
   /** True once an administrator exists, which leaves nothing to prove */
   done: boolean;
   error: string | null;
+  /** The address a proving magic link was just sent to, if any */
+  sentTo: string | null;
 }
 
 /**
- * Sends the become-administrator page, whose form posts to /-/setup/prove
+ * Sends the become-administrator page
  *
- * The post answers with a redirect to the provider, which form-action must allow
  */
 export function sendSetupAdministrator(
   respond: DashboardResponder,
