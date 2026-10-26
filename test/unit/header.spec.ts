@@ -181,7 +181,7 @@ describe('the appearance control', () => {
     };
     const glass = wallpaperFor(none, 'glass');
     expect(glass.light).toMatch(
-      /^\/-\/static\/wallpaper-daniele-buso-qzUenL35ZYw-[0-9a-f]+\.webp$/,
+      /^\/-\/static\/wallpaper-jeremy-bishop-cEeEtjedNls-[0-9a-f]+\.webp$/,
     );
     expect(glass.dark).toMatch(
       /^\/-\/static\/wallpaper-benjamin-voros-phIFdC6lA4E-[0-9a-f]+\.webp$/,

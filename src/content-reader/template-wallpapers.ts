@@ -10,9 +10,9 @@ export interface TemplatePhoto {
 export const TEMPLATE_WALLPAPERS: Record<string, { light: TemplatePhoto; dark: TemplatePhoto }> = {
   glass: {
     light: {
-      file: 'daniele-buso-qzUenL35ZYw',
-      photographer: 'Daniele Buso',
-      source: 'https://unsplash.com/photos/qzUenL35ZYw',
+      file: 'jeremy-bishop-cEeEtjedNls',
+      photographer: 'Jeremy Bishop',
+      source: 'https://unsplash.com/photos/cEeEtjedNls',
     },
     dark: {
       file: 'benjamin-voros-phIFdC6lA4E',
