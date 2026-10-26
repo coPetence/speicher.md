@@ -275,7 +275,7 @@
           "type": "string",
           "maxLength": 45000,
           "pattern": "^(data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "Square Favicon as base64 data URI (max 32 KB PNG, WebP or SVG at least 32x32)"
+          "description": "The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels."
         },
         "wallpaper": {
           "type": "string",
@@ -779,7 +779,7 @@
         "same_browser": {
           "type": "boolean",
           "default": true,
-          "description": "Redeemable only in the browser that requested it. Breaks request-on-laptop-open-on-phone."
+          "description": "Whether a link only works in the browser it was requested from. Turn it off to let people request a link on one device and open it on another."
         },
         "domains": {
           "type": "array",

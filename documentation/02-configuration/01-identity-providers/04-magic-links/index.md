@@ -108,5 +108,6 @@ auth:
 | `auth.providers.<id>.token_ttl` | string | `15m` |  | How long a sign-in link stays valid after it is sent. A link can be used only once. |
 | `auth.providers.<id>.session_ttl` | string | `30d` |  | How long a sign-in stays valid. |
 | `auth.providers.<id>.same_browser` | boolean | `true` |  | Whether a link only works in the browser it was requested from. Turn it off to let people request a link on one device and open it on another. |
+| `auth.providers.<id>.domains` | list of string |  |  | Offer this provider only for addresses at these domains. Absent means it is offered for every address. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

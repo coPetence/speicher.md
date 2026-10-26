@@ -119,6 +119,9 @@ Every colour key is listed under `theme.palette` in the [instance configuration 
 | `brand.logo` | string |  |  | The header logo: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set. |
 | `brand.logo_dark` | string |  |  | The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. |
 | `brand.icon` | string |  |  | The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels. |
+| `brand.wallpaper` | string |  |  | Wallpaper behind the pages as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG) |
+| `brand.wallpaper_dark` | string |  |  | Wallpaper for dark mode as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG) |
+| `brand.wallpaper_all_themes` | boolean | `false` |  | Whether the uploaded wallpaper is shown in every theme. When this is turned off, only themes with a wallpaper of their own, such as Glass, show it. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->
 

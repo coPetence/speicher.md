@@ -176,11 +176,23 @@ The template for all pages: `default`, `blueprint`, `editorial` or `workspace`. 
 
 The typeface of the body text. Each value uses fonts already installed on the reader's device; web fonts are not loaded.
 
+### `theme.rounded_corners`
+
+**Type:** boolean · **Default:** `true`
+
+Whether corners are rounded. Off sets every corner radius to 0, whatever the template chooses.
+
+### `theme.tui`
+
+**Type:** boolean · **Default:** `false`
+
+Whether pages look like a terminal: monospace text, square corners and terminal-style headings, links and lists. Works with every template.
+
 ### `theme.palette`
 
 **Type:** object
 
-Colours that replace the template's own, separately for light and dark mode. A colour you leave out keeps the template's value. The palette applies to the documentation, not to the dashboard.
+The palette replaces individual colours of the template. It is used to match the documentation and the admin pages to your brand colours. Colours you leave empty keep the default colours.
 
 ### `theme.palette.light`
 
@@ -584,6 +596,24 @@ The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, a
 
 The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels.
 
+### `brand.wallpaper`
+
+**Type:** string
+
+Wallpaper behind the pages as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG)
+
+### `brand.wallpaper_dark`
+
+**Type:** string
+
+Wallpaper for dark mode as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG)
+
+### `brand.wallpaper_all_themes`
+
+**Type:** boolean · **Default:** `false`
+
+Whether the uploaded wallpaper is shown in every theme. When this is turned off, only themes with a wallpaper of their own, such as Glass, show it.
+
 ## attribution
 
 **Type:** boolean · **Default:** `true`
@@ -706,13 +736,19 @@ The claim in the sign-in token that holds the person's email address. Access gra
 
 **Type:** list of string
 
-Home-realm discovery: send users at these domains here without a picker.
+Offer this provider only for addresses at these domains. Absent means it is offered for every address.
 
 #### `auth.providers.<id>.session_ttl`
 
 **Type:** string · **Default:** `8h`
 
 How long a sign-in stays valid. Groups are read only at sign-in, so a removed group membership keeps working until the session ends.
+
+#### `auth.providers.<id>.connection_idle_ttl`
+
+**Type:** string · **Default:** `30d`
+
+If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`.
 
 #### `auth.providers.<id>.directory`
 
@@ -800,6 +836,12 @@ How long a sign-in stays valid.
 
 Whether a link only works in the browser it was requested from. Turn it off to let people request a link on one device and open it on another.
 
+#### `auth.providers.<id>.domains`
+
+**Type:** list of string
+
+Offer this provider only for addresses at these domains. Absent means it is offered for every address.
+
 ### `auth.providers.<id>` with `type: github`
 
 #### `auth.providers.<id>.type`
@@ -831,6 +873,18 @@ GitHub Enterprise Server only.
 **Type:** string · **Default:** `8h`
 
 Team memberships are read once, at sign-in, so a team somebody has been taken out of keeps working for them until this expires and they sign in again.
+
+#### `auth.providers.<id>.connection_idle_ttl`
+
+**Type:** string · **Default:** `30d`
+
+If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`.
+
+#### `auth.providers.<id>.domains`
+
+**Type:** list of string
+
+Offer this provider only for addresses at these domains. Absent means it is offered for every address.
 
 #### `auth.providers.<id>.directory`
 
@@ -972,7 +1026,7 @@ Optional for admins; mandatory for content grants.
 
 **Type:** map
 
-Internal group name -> the provider-qualified sources it draws from. A name may aggregate across providers, and it may draw from none: the name is what a repository grants against, and the directory group it maps to is often not known — or not yet created — when the name is. An empty group makes nobody a member, which fails closed, so the only thing it cannot be is the last thing granting administrator access.
+References another Speicher group by its internal name. All members of the referenced groups will be members of this group.
 
 ### `groups.<name>`
 
@@ -982,11 +1036,13 @@ Internal group name -> the provider-qualified sources it draws from. A name may 
 
 **Type:** object
 
-One way people arrive in an internal group. A group is a mapping first — a directory group id, or an email domain for a magic-link provider — and may also name individuals outright, which is the only mechanism there is where a provider emits no usable group ids: Google Workspace emits none at all, and an Entra app registration that was never configured to send the claim, or whose user is in more groups than the claim carries, emits none either. Exactly one of the four keys, because a source naming two things does not say which one it trusts. Set exactly one of: `id`, `domain`, `subject`, `email`.
+The source of a group membership. Can be a directory group id, an email domain for a magic-link provider, one persons email, or a reference to another group by its internal name. Exactly one of the five keys must be present. Set exactly one of: `provider` + `id`, `provider` + `domain`, `provider` + `subject`, `provider` + `email`, `group`.
 
 ### `groups.<name>[].provider`
 
-**Type:** string · **Required**
+**Type:** string
+
+Short ID of the identity provider you want to reference.
 
 ### `groups.<name>[].id`
 
@@ -1006,17 +1062,23 @@ Value of the provider's subject_claim, naming one person rather than a mapping. 
 
 Address of one person, matched against the provider's email_claim. Mutable, reassignable, and on some providers set by a directory administrator rather than proven by the mailbox — so this is the convenient form and `subject` is the durable one. Refused on a provider whose issuer does not name one directory; see the loader.
 
+### `groups.<name>[].group`
+
+**Type:** string
+
+The internal name of another group. Every member of that group is a member of this one.
+
 ### `groups.<name>[].note`
 
 **Type:** string
 
-Why this source is here, on any of the four shapes. Optional, and worth writing on all of them: a directory group id is thirty-six characters that carry no meaning to read, and a person is a name whose reason for being in a group nobody remembers a year later. It is what an access review reads.
+Optional free text for later reference.
 
 ### `groups.<name>[].until`
 
 **Type:** string (date)
 
-Optional review date. Written on an individual in practice, and honoured on any source: a key this accepted and the resolver ignored would have an operator believe a dated mapping lapses. Enforced at resolution rather than at ingest, because membership is resolved per request — the day it passes the member stops being one, with no rebuild and no re-login.
+Optional expiry date. A group source will loose effect after this date. If it's not set the source will be permanent.
 
 ### `groups.<name>[].domain`
 
