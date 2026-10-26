@@ -1,6 +1,6 @@
 <h1>Connected applications</h1>
 <p class="spr-empty">
-  You can connect OAuth applications like a MCP server to your account. They will be able to read the same pages you can. Find out more in our <a href="https://docs.speicher.md/ai-assistants">documentation</a>.
+  You can connect OAuth applications like an MCP server to your account. They will be able to read the same pages you can. Find out more in our <a href="https://docs.speicher.md/ai-assistants">documentation</a>.
 </p>
 
 <% if (it.revoked) { %>
