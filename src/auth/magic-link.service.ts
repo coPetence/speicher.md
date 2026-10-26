@@ -16,7 +16,6 @@ import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { Op, QueryTypes } from 'sequelize';
 
-import { CallerIdentity } from '../authz/caller';
 import { parseDurationWithFallback } from '../common/time';
 import { Logger, rootLogger } from '../common/logger';
 import { emailPrincipal, groupPrincipal, subjectPrincipal } from '../common/principals';
@@ -25,13 +24,9 @@ import { MagicLinkProviderConfig, providerType } from '../config/types';
 import { MagicLinkToken, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { Mailer } from '../notify/mailer';
+import { CompletedLogin } from './login-result';
 import { safeRedirect } from './oidc.service';
 import { hashToken, mintToken, safeEqual } from './tokens';
-
-export interface RedeemedMagicLink {
-  identity: CallerIdentity;
-  redirectTo: string;
-}
 
 @Injectable()
 export class MagicLinkService {
@@ -57,7 +52,9 @@ export class MagicLinkService {
     origin: string,
     browserBinding: string | null,
     redirectTo = '/',
+    options: { namesFirstAdmin?: boolean } = {},
   ): Promise<void> {
+    const namesFirstAdmin = options.namesFirstAdmin === true;
     const address = email.trim().toLowerCase();
     const provider = this.magicProvider(providerId);
 
@@ -66,7 +63,7 @@ export class MagicLinkService {
       return;
     }
 
-    if (!(await this.addressAppearsInSomeAcl(tenantId, providerId, address))) {
+    if (!namesFirstAdmin && !(await this.addressAppearsInSomeAcl(tenantId, providerId, address))) {
       this.log.info('magic-link requested for an address with no grant; nothing sent');
       return;
     }
@@ -81,19 +78,26 @@ export class MagicLinkService {
       browser_binding:
         provider.same_browser !== false && browserBinding ? hashToken(browserBinding) : null,
       redirect_to: safeRedirect(redirectTo),
+      names_first_admin: namesFirstAdmin,
       expires_at: new Date(Date.now() + ttl),
     });
 
     const link = `${origin}/api/auth/magic/callback?token=${encodeURIComponent(token)}`;
-    await this.mailer.send(
-      address,
-      'Your Speicher sign-in link',
-      `Sign in: ${link}\n\nThis link expires in ${provider.token_ttl ?? '15m'} and can be used once.\n`,
-    );
+    const expiry = `This link expires in ${provider.token_ttl ?? '15m'} and can be used once.\n`;
+    if (namesFirstAdmin) {
+      await this.mailer.send(
+        address,
+        'Become the Speicher administrator',
+        `Sign in to become the first administrator of this instance: ${link}\n\n` +
+          `Open it in the browser you set up the instance in. ${expiry}`,
+      );
+      return;
+    }
+    await this.mailer.send(address, 'Your Speicher sign-in link', `Sign in: ${link}\n\n${expiry}`);
   }
 
   /**
-   * Consume a token and return the caller identity and the page to open, or null
+   * Consume a token and return the completed login, or null
    *
    * Refused when the optional browser binding does not match
    */
@@ -101,7 +105,7 @@ export class MagicLinkService {
     tenantId: string,
     token: string,
     browserBinding: string | null,
-  ): Promise<RedeemedMagicLink | null> {
+  ): Promise<CompletedLogin | null> {
     const row = await MagicLinkToken.findOne({
       where: {
         tenant_id: tenantId,
@@ -129,7 +133,9 @@ export class MagicLinkService {
         email: row.email,
         displayName: row.email,
       },
+      rawGroupIds: [],
       redirectTo: safeRedirect(row.redirect_to ?? '/'),
+      namesFirstAdmin: row.names_first_admin === true,
     };
   }
 

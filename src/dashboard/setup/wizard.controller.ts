@@ -3,18 +3,19 @@
  *
  * Reachable only by an instance admin (aka. a claimed session)
  * The overview lists the steps with their `STEP_PROSE` copy, and cards for what remains
- * Only the last step happens here: prove starts an OIDC or GitHub login whose
- * callback writes the first administrator and closes the claim window
  */
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { FORGE_TYPES, PROVIDER_KINDS } from '../configurator/config-form/members';
 import { DashboardResponder } from '../respond';
-import { callbackUrl } from '../../auth/callback-url';
+import { bindBrowser } from '../../auth/browser-binding';
+import { callbackUrl, originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
 import { GithubAuthService } from '../../auth/github.service';
+import { MagicLinkService } from '../../auth/magic-link.service';
 import { OidcService } from '../../auth/oidc.service';
+import { emailDomain } from '../../auth/sign-in-routing';
 import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { providerType } from '../../config/types';
@@ -39,6 +40,7 @@ export class SetupWizardController {
     private readonly config: ConfigService,
     private readonly oidc: OidcService,
     private readonly github: GithubAuthService,
+    private readonly magic: MagicLinkService,
     private readonly tenancy: TenancyService,
     private readonly respond: DashboardResponder,
   ) {}
@@ -60,9 +62,10 @@ export class SetupWizardController {
   }
 
   /**
-   * Starts the OIDC or GitHub login that writes the first administrator on callback
+   * Starts the login that writes the first administrator on callback: a redirect
+   * to the OIDC or GitHub provider, or a magic link sent to the submitted address
    *
-   * Refused once an administrator exists, or when no such provider is configured:
+   * Refused once an administrator exists, or when no provider is configured:
    * the login would have nothing to write either way
    */
   @Post('setup/prove')
@@ -85,9 +88,13 @@ export class SetupWizardController {
         caller.isAdmin,
         this.config.hasAdministrator
           ? 'An administrator already exists. The instance is closed to further claims.'
-          : 'No OpenID Connect or GitHub provider is available to sign in. Add one first.',
+          : 'No identity provider is available to sign in. Add one first.',
         400,
       );
+    }
+
+    if (providerType(this.config.provider(chosen)!) === 'magic-link') {
+      return await this.sendProvingLink(req, res, caller.isAdmin, tenant.id, chosen);
     }
 
     // The callback writes this login's identity into admins, then returns to the wizard
@@ -119,6 +126,41 @@ export class SetupWizardController {
     }
   }
 
+  /**
+   * Sends the magic link used to promote first administrator
+   *
+   * Bound to this browser, so the link only works where the instance was claimed
+   */
+  private async sendProvingLink(
+    req: Request,
+    res: Response,
+    isAdmin: boolean,
+    tenantId: string,
+    providerId: string,
+  ): Promise<void> {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (emailDomain(email) === null) {
+      return await this.administratorAnswer(
+        req,
+        res,
+        isAdmin,
+        'Enter your full email address.',
+        400,
+      );
+    }
+
+    await this.magic.request(
+      tenantId,
+      providerId,
+      email,
+      originOf(req),
+      bindBrowser(req, res),
+      '/-/setup',
+      { namesFirstAdmin: true },
+    );
+    await this.administratorAnswer(req, res, isAdmin, null, 200, email);
+  }
+
   /** The overview payload: steps in order, and cards only for what can still be added */
   private payload(error: string | null): WizardPayload {
     const hasAdmin = this.config.hasAdministrator;
@@ -142,18 +184,14 @@ export class SetupWizardController {
     };
   }
 
-  /**
-   * Providers that can be used to prove an administrator: OIDC or GitHub
-   * Magic-link is not provable, since it needs mail to be configured first
-   * These providers are availiable for the initital administrator promotion
-   */
   private provable(): ProvableProvider[] {
     return this.config.providerShortIds
-      .filter((id) => {
-        const provider = this.config.provider(id);
-        return provider !== undefined && providerType(provider) !== 'magic-link';
-      })
-      .map((id) => ({ id, name: this.config.providerName(id) }));
+      .filter((id) => this.config.provider(id) !== undefined)
+      .map((id) => ({
+        id,
+        name: this.config.providerName(id),
+        kind: providerType(this.config.provider(id)!) === 'magic-link' ? 'magic-link' : 'redirect',
+      }));
   }
 
   /** Sends the become-administrator page with the providers for the form */
@@ -163,6 +201,7 @@ export class SetupWizardController {
     isAdmin: boolean,
     error: string | null,
     status?: number,
+    sentTo: string | null = null,
   ): Promise<void> {
     const provable = this.provable();
     sendSetupAdministrator(
@@ -170,7 +209,7 @@ export class SetupWizardController {
       req,
       res,
       isAdmin,
-      { provable, done: this.config.hasAdministrator, error },
+      { provable, done: this.config.hasAdministrator, error, sentTo },
       await this.formActions(provable),
       status,
     );
@@ -182,7 +221,8 @@ export class SetupWizardController {
    */
   private async formActions(provable: ProvableProvider[]): Promise<string[]> {
     const origins = await Promise.all(
-      provable.map(async ({ id }) => {
+      provable.map(async ({ id, kind }) => {
+        if (kind === 'magic-link') return null;
         try {
           return providerType(this.config.provider(id)!) === 'github'
             ? this.github.authorizationOrigin(id)

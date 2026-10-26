@@ -1,6 +1,9 @@
-
+<%
+  var redirects = it.provable.filter(function (option) { return option.kind === 'redirect'; });
+  var links = it.provable.filter(function (option) { return option.kind === 'magic-link'; });
+%>
 <% if (!it.done && !it.provable.length) { %>
-<%~ include('@note', { level: 'warn', html: md('This step needs an OpenID Connect provider, such as Entra ID, or a GitHub provider. Email magic links cannot be used here. [Add a provider](/-/config/identity), then come back.') }) %>
+<%~ include('@note', { level: 'warn', html: md('This step needs an identity provider: OpenID Connect, such as Entra ID, GitHub, or a magic-link provider. [Add a provider](/-/config/identity), then come back.') }) %>
 <% } %>
 
 <h1>Administrator</h1>
@@ -18,26 +21,39 @@
 <%~ include('@note', { level: 'fail', text: it.error, role: 'status' }) %>
 <% } %>
 
-<% if (it.provable.length) { %>
+<% if (it.sentTo) { %>
+<%~ include('@note', { level: 'ok', text: 'A sign-in link was sent to ' + it.sentTo + '. Open it in this browser to become the administrator.', role: 'status' }) %>
+<% } %>
+
+<% if (redirects.length) { %>
 <form method="post" action="/-/setup/prove" class="spr-form">
-  <% if (it.provable.length > 1) { %>
+  <% if (redirects.length > 1) { %>
   <label for="spr-prove-provider">Identity provider</label>
   <%~ include('@select', {
     attributes: { id: 'spr-prove-provider', name: 'provider' },
-    options: it.provable.map(function (option) {
+    options: redirects.map(function (option) {
       return { value: option.id, label: option.name };
     }),
   }) %>
   <% } else { %>
-  <input type="hidden" name="provider" value="<%= it.provable[0].id %>" />
+  <input type="hidden" name="provider" value="<%= redirects[0].id %>" />
   <% } %>
   <button type="submit">
-    <% if (it.provable.length === 1) { %>
-    Sign in with <%= it.provable[0].name %>
+    <% if (redirects.length === 1) { %>
+    Sign in with <%= redirects[0].name %>
     <% } else { %>
     Sign in
     <% } %>
   </button>
 </form>
 <% } %>
+
+<% links.forEach(function (option) { %>
+<form method="post" action="/-/setup/prove" class="spr-form">
+  <input type="hidden" name="provider" value="<%= option.id %>" />
+  <label for="spr-prove-email-<%= option.id %>">Email address for <%= option.name %></label>
+  <input id="spr-prove-email-<%= option.id %>" type="email" name="email" required autocomplete="email" />
+  <button type="submit">Send sign-in link</button>
+</form>
+<% }) %>
 <% } %>
