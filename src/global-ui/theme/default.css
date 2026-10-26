@@ -1488,6 +1488,7 @@
   .spr-code-copy > .spr-icon {
     width: 1em;
     height: 1em;
+    margin: 0;
   }
 
   .spr-main :not(pre) > code {
