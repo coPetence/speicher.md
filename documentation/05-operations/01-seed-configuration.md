@@ -26,7 +26,7 @@ This is different from `SPEICHER_CONFIG_SOURCE=file`, where the file stays the c
 
 ## 1. Write the file
 
-Put a `speicher.instance.yaml` next to your `compose.yml`. A minimal file needs an identity provider and an administrator:
+Put a `speicher.instance.yaml` next to your `docker-compose.yaml`. A minimal file needs an identity provider and an administrator:
 
 ```yaml
 version: 1
@@ -58,7 +58,7 @@ Keep secrets out of the file and reference them as `${VAR}` instead. The stored 
 
 ## 2. Mount it into the containers
 
-Add the file, its path and the secrets to the shared block of your `compose.yml`:
+Add the file, its path and the secrets to the shared block of your `docker-compose.yaml`:
 
 ```yaml
 x-speicher: &speicher

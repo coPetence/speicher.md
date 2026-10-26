@@ -1446,6 +1446,50 @@
     overflow-x: auto;
   }
 
+  .spr-code {
+    position: relative;
+  }
+
+  .spr-code-copy {
+    position: absolute;
+    top: var(--spr-space-2);
+    right: var(--spr-space-2);
+    display: inline-flex;
+    padding: var(--spr-space-2);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+    color: var(--spr-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .spr-code:hover > .spr-code-copy,
+  .spr-code-copy:focus-visible,
+  .spr-code-copy[data-spr-state] {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .spr-code-copy {
+      opacity: 1;
+    }
+  }
+
+  .spr-code-copy:hover {
+    color: var(--spr-fg);
+  }
+
+  .spr-code-copy[data-spr-state='copied'] {
+    color: var(--spr-status-ok);
+  }
+
+  .spr-code-copy > .spr-icon {
+    width: 1em;
+    height: 1em;
+  }
+
   .spr-main :not(pre) > code {
     background: var(--spr-surface);
     padding: 0.1em var(--spr-space-2);

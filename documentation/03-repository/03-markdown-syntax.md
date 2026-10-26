@@ -6,12 +6,7 @@ icon: file-text
 
 Speicher reads CommonMark with the usual GitHub additions, plus callouts, wikilinks, footnotes and a set of MDX components. Pages render to plain HTML, so everything here works without JavaScript.
 
-By default, Speicher reads every `.md` file in the repository except `README.md` files. To also read `.mdx` files, add them to `sync.include` in `.speicher.yaml`:
-
-```yaml
-sync:
-  include: ['**/*.md', '**/*.mdx']
-```
+By default, Speicher reads every `.md` and `.mdx` file in the repository except `README.md` files. To change that, set [`sync`](01-speicher-yaml.md#choosing-files-with-sync) in `.speicher.yaml`.
 
 ## Pages and folders
 

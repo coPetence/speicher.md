@@ -3,8 +3,8 @@
  *
  * Intercepts same-origin document links to fetch fragments instead of full pages
  * Persists expanded folders in sessionStorage so the tree survives fragment navigations
- * Initiates the other islands that need mounting — tabs, covers, peek, beacon,
- * resizer, article details slides
+ * Initiates the other islands that need mounting — tabs, covers, code copy buttons,
+ * peek, beacon, resizer, article details slides
  *
  * The server returns a Fragment (JSON with html, title, symbols) when the request
  * carries X-Speicher-Fragment.  The response tree must match the shell's repo or
@@ -14,6 +14,7 @@
  */
 
 import { countFragment, mountBeacon } from './beacon';
+import { mountCodeCopy } from './code-copy';
 import { mountCovers } from './cover-tile';
 import { mountPeek } from './peek';
 import { mountResizer } from './resize';
@@ -167,6 +168,7 @@ async function navigate(url: string, push: boolean): Promise<boolean> {
   // Mount islands on the newly injected content
   mountTabs(main);
   mountCovers(main);
+  mountCodeCopy(main);
 
   const destination = new URL(response.url);
   const wanted = new URL(url, location.href);
@@ -268,6 +270,7 @@ function start(): void {
   mountDetailsSlide('.spr-article details');
   mountTabs();
   mountCovers();
+  mountCodeCopy();
 
   document.addEventListener('click', (event) => {
     if (event.defaultPrevented || event.button !== 0) return;

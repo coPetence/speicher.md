@@ -11,9 +11,14 @@ Speicher runs as two processes from the same container image:
 
 Both use one PostgreSQL database with the `pgvector` extension, and share one volume for the git mirrors and asset files.
 
+## Prerequisites
+
+- **Docker** with the **Compose plugin**. Install Docker Engine and the `docker-compose-plugin` package. To check that both are installed, run `docker compose version`.
+- **Port 3000** is free on your machine. If it is taken, change the port mapping of the `web` service in the compose file.
+
 ## 1. Create the compose file
 
-Create a directory for the instance, for example `speicher/`, and put this `compose.yml` in it:
+Create a directory for the instance, for example `speicher/`, and save the following as `docker-compose.yaml` inside it:
 
 ```yaml
 x-speicher: &speicher
@@ -41,7 +46,7 @@ services:
       retries: 30
     restart: unless-stopped
 
-  # Applies database migrations, then exits. Web and worker wait for it.
+  # Applies database migrations on every start, then exits. Web and worker wait for it.
   migrate:
     <<: *speicher
     command: ['speicher', 'migrate', 'up']
@@ -73,12 +78,16 @@ volumes:
 Next to it, create a `.env` file with a password for the database:
 
 ```sh
-POSTGRES_PASSWORD=<a long random password>
+POSTGRES_PASSWORD=<password>
 ```
 
-:::note
-Web and worker refuse to start while database migrations are pending. That is why the `migrate` service runs first, on every start. When nothing is pending, it exits right away.
-:::
+To generate a password and write the `.env` file in one step, run this command in the directory:
+
+```sh
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" > .env
+```
+
+**On a server**, Speicher must be served over HTTPS. This is a requirement since we use OIDC for authentication. Therefore if you plan to deploy Speicher on a server, make sure to set up a reverse proxy with TLS before proceeding. To do this follow the steps in [Reverse proxy and TLS](../05-operations/04-reverse-proxy-and-tls.md).
 
 ## 2. Start the instance
 
@@ -94,39 +103,17 @@ web-1  | {"level":"warn","ctx":"config","msg":"no instance configuration; servin
 web-1  | {"level":"info","ctx":"main","msg":"listening","port":3000}
 ```
 
-The first line is expected. A new instance has no configuration yet (unless you [seed it from a file](../05-operations/01-seed-configuration.md)), and you create it in the browser in the next step.
+The first line is expected. A new instance has no configuration yet (unless you [seed it from a file](../05-operations/01-seed-configuration.md)). The second line indicates that the web server is running and listening on port 3000. You can now configure the instance in the browser.
 
 ## 3. Open it in your browser
 
-Open [http://localhost:3000](http://localhost:3000). You will see the claim page, which is where you [set up the instance](02-setup-instance.md).
+Open [http://localhost:3000](http://localhost:3000), or the address of your server. You will see the claim page.
 
-## Running on a server
-
-The compose file above is enough to try Speicher on your own machine; to properly setup Speicher.md the following is recommended:
-
-- **Serve it over HTTPS.** Put a reverse proxy with TLS in front of the web service. Speicher sets its cookies as `Secure`, so browsers refuse to sign in over plain HTTP on any host other than `localhost`. Even `localhost` only works in Chrome, Edge and Firefox; Safari rejects `Secure` cookies over HTTP. For HTTP-only local testing, set `SPEICHER_INSECURE_COOKIES=true` to drop the `Secure` flag. Never do this in production.
-- **Set `SPEICHER_PUBLIC_URL`** to the address people use, for example `https://docs.example.com`. Magic links, webhook deliveries and the sitemap use it.
-- **Set `SPEICHER_TRUST_PROXY` to `uniquelocal`.** Without it, Speicher sees every request as coming from the proxy over HTTP. Sign-in callbacks then point to the wrong address, and rate limiting counts all visitors as one.
-- **Bind the port to the proxy only**, for example `'127.0.0.1:3000:3000'` when the proxy runs on the same host.
-
-[Reverse proxy and TLS](../05-operations/04-reverse-proxy-and-tls.md) has complete, tested setups for Caddy and nginx.
-
-<!-- generated: env-vars SPEICHER_DATABASE_URL,SPEICHER_PUBLIC_URL,SPEICHER_TRUST_PROXY,PORT -->
-<!-- prettier-ignore-start -->
-| Variable | Default | Read by | Description |
-| -------- | ------- | ------- | ----------- |
-| `SPEICHER_DATABASE_URL` | `postgres://speicher:speicher@127.0.0.1:55432/speicher` | web + worker | PostgreSQL connection string. The database must be reachable at boot; a missing or refused connection prevents startup. |
-| `SPEICHER_PUBLIC_URL` | — | web + worker | The public URL of this instance, used in webhook deliveries, magic links, and the sitemap. When unset, the request host is used instead. |
-| `SPEICHER_TRUST_PROXY` | `loopback` | web | Which proxies to believe about the client address and protocol: `loopback`, `linklocal`, `uniquelocal`, IP addresses or subnets, comma-separated. In Docker, set `uniquelocal`; `true` and hop counts are not accepted. |
-| `PORT` | `3000` | web | TCP port the HTTP server listens on. |
-<!-- prettier-ignore-end -->
-<!-- /generated -->
-
-Every other setting is listed under [Environment variables](../06-reference/02-environment-variables.md).
+**[Continue with setting up the instance →](02-setup-instance.md)**
 
 ## Updating
 
-Pull the new image and start again. The `migrate` service applies any new migrations before web and worker start.
+Pull the new image and start the docker containers again. The `migrate` service applies any new migrations before web and worker start.
 
 ```sh
 docker compose pull

@@ -54,13 +54,9 @@ Unless you or your administrator change them, these are the patterns:
 
 ```yaml
 sync:
-  include: ['**/*.md']
+  include: ['**/*.md', '**/*.mdx']
   exclude: ['**/README.md']
 ```
-
-:::caution
-By default, only `.md` files are published, not `.mdx`. If your repository has MDX files, add `'**/*.mdx'` to `include`.
-:::
 
 - Patterns are matched against the file's path **below `ingest_root`**, also in a folder's `.speicher.yaml`. To exclude `docs/guides/old/` with `ingest_root: docs`, write `guides/old/**`, even in `docs/guides/.speicher.yaml`.
 - Patterns are case-sensitive: `**/README.md` does not exclude `readme.md`.
@@ -174,7 +170,7 @@ Every key of `.speicher.yaml` is listed under [Repository configuration](../06-r
 | Key | Type | Default | Required | Description |
 | --- | --- | --- | --- | --- |
 | `sync` | object |  |  | Which Markdown files to publish. |
-| `sync.include` | list of string |  |  | Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md`; add `**/*.mdx` to publish MDX files. In a folder, it replaces the inherited list. |
+| `sync.include` | list of string |  |  | Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md` and `**/*.mdx`. In a folder, it replaces the inherited list. |
 | `sync.exclude` | list of string |  |  | Glob patterns of Markdown files not to publish, matched against the path below `ingest_root`. Defaults to `**/README.md`. In a folder, it adds to the inherited list. Exclude wins over include. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->
