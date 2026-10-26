@@ -1278,6 +1278,12 @@
     color: var(--spr-status-fail);
   }
 
+  .spr-row-card-actions {
+    display: flex;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-row-delete,
   .spr-row-edit {
     display: inline-flex;
     align-items: center;
@@ -1288,7 +1294,14 @@
     border-radius: var(--spr-radius);
     background: var(--spr-bg);
     color: var(--spr-muted);
+    padding: 0;
+    font: inherit;
     cursor: pointer;
+  }
+
+  .spr-row-delete:hover {
+    border-color: var(--spr-status-fail);
+    color: var(--spr-status-fail);
   }
 
   .spr-row-edit:hover,
@@ -1302,6 +1315,7 @@
     outline-offset: 2px;
   }
 
+  .spr-row-delete .spr-icon,
   .spr-row-edit .spr-icon {
     width: 1em;
     height: 1em;
@@ -1446,7 +1460,7 @@
       white-space: normal;
     }
 
-    .spr-row-edit {
+    .spr-row-card-actions {
       grid-column: 3;
       grid-row: 1;
       align-self: start;

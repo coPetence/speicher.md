@@ -508,7 +508,7 @@
     },
     "groups": {
       "type": "object",
-      "description": "Maps a Speicher internal group name to the list of sources. A source is either a provider and a principal under it, or another internal group name. Membership is any-of: if a caller matches any source, they are a member of the group.",
+      "description": "References another Speicher group by its internal name. All members of the referenced groups will be members of this group.",
       "propertyNames": {
         "$ref": "#/$defs/internalName"
       },
@@ -800,7 +800,7 @@
       "properties": {
         "provider": {
           "$ref": "#/$defs/shortId",
-          "description": "Short ID of the identity provider this source is under."
+          "description": "Short ID of the identity provider you want to reference."
         },
         "id": {
           "type": "string",
@@ -827,7 +827,7 @@
         "until": {
           "type": "string",
           "format": "date",
-          "description": "Optional review date. A group source will loose effect after this date. If it's not set the source will be permanent."
+          "description": "Optional expiry date. A group source will loose effect after this date. If it's not set the source will be permanent."
         },
         "domain": {
           "type": "string",

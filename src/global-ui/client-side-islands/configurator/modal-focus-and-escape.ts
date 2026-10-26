@@ -72,7 +72,7 @@ function mountToggledModals(): void {
     open.parentElement?.querySelector<HTMLElement>(`label[for="${open.id}"]`)?.focus();
   });
 
-  // Done keeps the dialog open over a field the browser would refuse, and says why
+  // Save keeps the dialog open over a field the browser would refuse, and says why
   addEventListener('click', (event) => {
     if (!(event.target instanceof Element)) return;
     const done = event.target.closest('.spr-row-edit-done');

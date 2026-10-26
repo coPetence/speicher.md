@@ -35,13 +35,10 @@ export function buildSections(doc: Document, hint?: KindHint): FormSection[] {
   const root = doc.toJS({ maxAliasCount: 0 }) as Obj;
   return [
     identitySection(root),
-    // One section per provider
     ...providerIds(root).map((id) => providerSection(root, id, hint)),
     groupsSection(root),
-    // One section per group: its rows are on that one page
     ...groupNames(root).map((name) => groupSection(root, name)),
     sourcesSection(root),
-    // One section per forge
     ...forgeIds(root).map((id) => forgeSection(root, id)),
     publicSection(root),
     brandingSection(root),

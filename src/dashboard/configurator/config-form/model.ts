@@ -103,23 +103,18 @@ export function column(label: string, help = ''): TableColumn {
   return { label, help };
 }
 
-/** One shape of row a table's Add modal offers, with what that shape is drawn through */
 export interface TableAddKind {
   value: string;
   label: string;
-  // Lucide icon name drawn in front of the label
+  // Lucide icon name
   icon: string;
   // Help markup under the label
   help?: string;
-  // Label of the control that names what the row is drawn through
+  // Label of the control
   nameLabel: string;
   options: Option[];
-  // True where several of the options may be picked at once, each becoming a
-  // row: drawn as a searchable list of boxes rather than a select
+  // True when multi select
   multiple?: boolean;
-  // The text area under the select, one match per line, where the kind takes
-  // one: a row is added per line, and one empty row when nothing was typed.
-  // Absent where the select is the whole match, e.g. a reference to a group
   matches?: { label: string; placeholder: string; help: string };
 }
 
