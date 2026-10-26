@@ -7,7 +7,7 @@ import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
 import { renderHelp } from '../../../../global-ui/help-markup';
 import { missingHostKeysText, unreadableLinesText } from '../../../../global-ui/known-hosts-notes';
 import type { Note } from '../../../../global-ui/note';
-import { loadNotes, versionNotes } from '../../config-notes';
+import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
 import { memberOf, memberPosition, nounOf } from '../../../configurator/config-form/members';
 import { allFields, cardItems } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
@@ -42,6 +42,7 @@ export function sendConfigSection(
     embedsFrames: payload.section
       ? allFields([payload.section]).some((f) => f.kind === 'template')
       : false,
+    overlay: brokenVersionsDialog,
     page: (data) =>
       renderTemplate('dashboard/ui/views/config-section', {
         ...(data as unknown as Record<string, unknown>),

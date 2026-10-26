@@ -49,6 +49,7 @@ import {
   ConfigSectionPayload,
   ConfigState,
 } from './payloads';
+import { previewRepair } from '../repair-preview';
 import { UNCLAIMED_YAML } from '../../setup/unclaimed';
 
 /**
@@ -122,6 +123,11 @@ export class ConfigPageService {
         running_version: this.config.configVersion,
         resolution_hash: this.config.resolutionHash,
         skipped: this.config.skippedConfigVersions,
+        repair:
+          source === 'database' &&
+          this.config.skippedConfigVersions.some((skip) => skip.version === editingVersion)
+            ? previewRepair(yaml)
+            : null,
         waiting_on: this.waitingOn(editingVersion, yaml),
         waiting_consequences: this.waitingConsequences(editingVersion, yaml),
         unreadable,

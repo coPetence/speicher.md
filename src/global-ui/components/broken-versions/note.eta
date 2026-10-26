@@ -1,0 +1,2 @@
+<p><%= it.versions %> <%= it.count === 1 ? 'does' : 'do' %> not load. This instance runs on the latest valid version <%= it.running %>.</p>
+<%~ include('@broken-versions', { ...it, linksHistory: false }) %>

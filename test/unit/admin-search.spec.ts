@@ -257,9 +257,9 @@ describe('what the corpus never carries', () => {
     expect(searchable).toContain('playbooks');
   });
 
-  it('offers no page the column would not draw', () => {
+  it('offers the pages the column draws, the sync status before there is content too', () => {
     const bare = searchDashboard('sync status', SECTIONS, { hasContent: false });
-    expect(bare.hits.map((hit) => hit.href)).not.toContain('/-/status');
+    expect(bare.hits.map((hit) => hit.href)).toContain('/-/status');
     expect(searchDashboard('sync status', SECTIONS, EVERYTHING).hits.map((h) => h.href)).toContain(
       '/-/status',
     );

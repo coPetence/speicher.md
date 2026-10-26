@@ -8,10 +8,10 @@
  *
  * Not using an off-shelf diff library to keep the bundle small
  */
-import { REDACTED, displayYaml } from './redact';
 import { loadDocument } from './document';
 import { buildSections } from './fields';
 import { allFields } from './model';
+import { REDACTED, displayYaml } from './redact';
 
 export type DiffKind = 'same' | 'add' | 'remove' | 'gap';
 
@@ -20,6 +20,7 @@ export interface DiffLine {
   text: string;
   oldNumber: number | null;
   newNumber: number | null;
+  hidden?: DiffLine[];
 }
 
 export interface ConfigDiff {
@@ -149,22 +150,25 @@ function collapse(lines: DiffLine[]): DiffLine[] {
   });
 
   const out: DiffLine[] = [];
-  let skipped = 0;
+  let skipped: DiffLine[] = [];
   lines.forEach((entry, index) => {
     if (keep[index]) {
-      if (skipped > 0) {
-        out.push(line('gap', `${skipped} unchanged line${skipped === 1 ? '' : 's'}`, null, null));
-        skipped = 0;
+      if (skipped.length > 0) {
+        out.push(gap(skipped));
+        skipped = [];
       }
       out.push(entry);
       return;
     }
-    skipped++;
+    skipped.push(entry);
   });
-  if (skipped > 0 && out.length > 0) {
-    out.push(line('gap', `${skipped} unchanged line${skipped === 1 ? '' : 's'}`, null, null));
-  }
+  if (skipped.length > 0 && out.length > 0) out.push(gap(skipped));
   return out;
+}
+
+function gap(hidden: DiffLine[]): DiffLine {
+  const count = hidden.length;
+  return { ...line('gap', `${count} unchanged line${count === 1 ? '' : 's'}`, null, null), hidden };
 }
 
 // Returns paths whose raw value changed but whose redacted display is identical

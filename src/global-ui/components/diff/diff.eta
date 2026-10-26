@@ -1,0 +1,25 @@
+
+<div class="spr-scroll">
+  <table class="spr-diff">
+    <tbody>
+      <% it.diff.lines.forEach(function (line) { %>
+      <% if (line.kind === 'gap') { %>
+    </tbody>
+    <tbody class="spr-diff-fold">
+      <tr class="spr-diff-gap">
+        <td class="spr-diff-num" colspan="2">…</td>
+        <td class="spr-diff-text"><label><input type="checkbox" class="spr-visually-hidden"><%= line.text %></label></td>
+      </tr>
+      <% const hiddenLines = line.hidden || []; %>
+      <% hiddenLines.forEach(function (hidden) { %>
+      <%~ include('@diff/row', { line: hidden }) %>
+      <% }) %>
+    </tbody>
+    <tbody>
+      <% } else { %>
+      <%~ include('@diff/row', { line: line }) %>
+      <% } %>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

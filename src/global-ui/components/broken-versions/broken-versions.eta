@@ -1,0 +1,50 @@
+<%
+  const repairable = it.repair && it.repair.remaining.length === 0;
+  const summary = it.count === 1
+    ? it.problemCount + (it.problemCount === 1 ? ' problem' : ' problems') + ' in version ' + it.editing
+    : 'Problems in versions ' + it.oldest + '–' + it.editing;
+%>
+<details class="spr-sync-problems spr-version-problems">
+  <summary><span><%= summary %></span></summary>
+  <ul>
+    <% it.groups.forEach(function (group) { %>
+    <li><span class="spr-version-label"><%= group.label %></span><span><% group.problems.forEach(function (problem, index) { %><%~ index > 0 ? '<br>' : '' %><%= problem %><% }) %></span></li>
+    <% }) %>
+  </ul>
+</details>
+<% if (it.repair) { %>
+<% if (repairable && it.repair.diff && !it.repair.diff.identical) { %>
+<details class="spr-sync-problems spr-repair-changes">
+  <summary><span>Changes made by Repair</span></summary>
+  <%~ include('@diff', { diff: it.repair.diff }) %>
+</details>
+<% } else if (!repairable) { %>
+<details class="spr-sync-problems">
+  <summary><span>Version <%= it.editing %> cannot be repaired</span></summary>
+  <ul>
+    <% it.repair.remaining.forEach(function (problem) { %>
+    <li><span><%= problem %></span></li>
+    <% }) %>
+  </ul>
+</details>
+<% } %>
+<div class="spr-note-actions">
+  <% if (repairable) { %>
+  <form class="spr-form" method="post" action="/-/config/repair">
+    <input type="hidden" name="version" value="<%= it.editing %>">
+    <button type="submit" class="spr-button spr-primary"><%~ it.icons.repair %>Repair version <%= it.editing %></button>
+  </form>
+  <% } %>
+  <form class="spr-form" method="post" action="/-/config/restore">
+    <input type="hidden" name="version" value="<%= it.running %>">
+    <button type="submit" class="spr-button"><%~ it.icons.restore %>Restore version <%= it.running %></button>
+  </form>
+  <% if (it.linksHistory) { %>
+  <a class="spr-button" href="/-/config/history"><%~ it.icons.history %>Version history</a>
+  <% } %>
+  <span class="spr-info">
+    <button class="spr-info-mark" type="button" aria-label="About repair and restore" aria-describedby="help-version-fixes">i</button>
+    <span class="spr-info-note" role="tooltip" id="help-version-fixes"><%~ md('**Repair** removes the invalid lines from version ' + it.editing + '. **Restore** saves version ' + it.running + ' again as a new version. Later changes are dropped but stay in the history.') %></span>
+  </span>
+</div>
+<% } %>

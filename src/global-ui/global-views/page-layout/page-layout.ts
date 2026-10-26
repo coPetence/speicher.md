@@ -108,6 +108,8 @@ export interface PageChrome {
   brandNameAlign?: BrandNameAlign;
 
   attribution?: boolean;
+
+  overlay?: string | null;
 }
 
 /** Wraps body markup in the layout template */

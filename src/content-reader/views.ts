@@ -84,13 +84,23 @@ function loadComponents(dir: string, name: string): void {
   }
 }
 
-/** Renders an .eta template: HTML-escaped, auto-trim disabled */
-export function renderTemplate(name: string, data: Record<string, unknown>): string {
+function ensureComponents(): void {
   if (!componentsLoaded || !isProduction()) {
     loadComponents(COMPONENT_DIR, '');
     componentsLoaded = true;
   }
+}
+
+/** Renders an .eta template: HTML-escaped, auto-trim disabled */
+export function renderTemplate(name: string, data: Record<string, unknown>): string {
+  ensureComponents();
   return eta.renderString(templateSource(name), data);
+}
+
+/** Renders a component on its own (name has the format `@diff`) */
+export function renderComponent(name: string, data: Record<string, unknown>): string {
+  ensureComponents();
+  return eta.render(name, data);
 }
 
 export const NAV_WIDTH_COOKIE = 'speicher_nav_width';
