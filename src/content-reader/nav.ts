@@ -1,5 +1,5 @@
 import { ChildRow } from '../authz/content/types';
-import { iconOf, renderIconRef } from './icons';
+import { DEFAULT_ICONS, iconOf, renderIconRef } from './icons';
 import { escapeHtml } from './views';
 
 /**
@@ -82,19 +82,19 @@ export function buildNavTree(nodes: ChildRow[], basePath: string, currentPath: s
     nodes.find((n) => n.slug_path === '');
 
   const html = `<ul class="spr-nav-root spr-nav-tree">${
-    start ? renderStart(start, basePath, currentPath, used) : ''
+    start ? renderIndexLink(start, basePath, currentPath, used) : ''
   }${roots.map((n) => renderNode(n, basePath, currentPath, used)).join('')}</ul>`;
   return { html, icons: used };
 }
 
 /** Renders the repo's start page as the tree's first entry */
-function renderStart(
+function renderIndexLink(
   start: ChildRow,
   basePath: string,
   currentPath: string,
   used: string[],
 ): string {
-  const icon = start.icon ?? START_ICON;
+  const icon = start.icon ?? DEFAULT_ICONS.start;
   used.push(icon);
   return (
     `<li class="spr-nav-leaf spr-nav-start"><a href="${escapeHtml(`${basePath}/`)}"` +
@@ -102,8 +102,6 @@ function renderStart(
     `${renderIconRef(icon)}<span>${escapeHtml(start.title)}</span></a></li>`
   );
 }
-
-const START_ICON = 'house';
 
 /** True when the node or one of its descendants is the current page */
 function containsCurrent(node: TreeNode, currentPath: string): boolean {
