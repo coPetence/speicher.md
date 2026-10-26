@@ -1,3 +1,5 @@
+/* Colors from Nord (https://github.com/nordtheme/nord), MIT License, © Sven Greb */
+
 @layer speicher.theme {
   /* Light is built on Nord's Snow Storm, dark on its Polar Night */
   :root {

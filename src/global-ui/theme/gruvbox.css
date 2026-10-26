@@ -1,3 +1,5 @@
+/* Colors from Gruvbox (https://github.com/morhetz/gruvbox), MIT License, © Pavel Pertsev (morhetz) */
+
 @layer speicher.theme {
   /* Light is Gruvbox light, dark is Gruvbox dark, both at medium contrast */
   :root {
