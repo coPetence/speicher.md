@@ -102,38 +102,30 @@
 
   @media (min-width: 48rem) {
     .spr-pane {
-      border: var(--spr-border) solid color-mix(in oklab, var(--spr-line) 60%, transparent);
-      box-shadow: 0 var(--spr-space-3) var(--spr-space-8)
-        color-mix(in oklab, var(--spr-fg) 12%, transparent);
+      border: var(--spr-border) solid color-mix(in oklab, var(--spr-fg) 16%, transparent);
     }
 
     .spr-layout[data-wallpaper] > .spr-pane:has(> .spr-main > .spr-article > .spr-repos) {
       border-color: transparent;
-      box-shadow: none;
     }
   }
 
   @media not all and (min-width: 48rem) {
     .spr-layout[data-wallpaper] > .spr-pane > .spr-main {
-      border: var(--spr-border) solid color-mix(in oklab, var(--spr-line) 60%, transparent);
-      box-shadow: 0 var(--spr-space-3) var(--spr-space-8)
-        color-mix(in oklab, var(--spr-fg) 12%, transparent);
+      border: var(--spr-border) solid color-mix(in oklab, var(--spr-fg) 16%, transparent);
     }
 
     .spr-layout[data-wallpaper]
       > .spr-pane:has(> .spr-main > .spr-article > .spr-repos)
       > .spr-main {
       border-color: transparent;
-      box-shadow: none;
     }
   }
 
   .spr-account-menu,
   .spr-main a[data-spr-preview]::after {
     background: color-mix(in oklab, var(--spr-surface) 70%, transparent);
-    border-color: color-mix(in oklab, var(--spr-line) 60%, transparent);
-    box-shadow: 0 var(--spr-space-2) var(--spr-space-7)
-      color-mix(in oklab, var(--spr-fg) 14%, transparent);
+    border-color: color-mix(in oklab, var(--spr-fg) 16%, transparent);
     backdrop-filter: blur(20px) saturate(160%);
   }
 
@@ -148,6 +140,6 @@
 
   .spr-cards li {
     background: color-mix(in oklab, var(--spr-surface) 55%, transparent);
-    border-color: color-mix(in oklab, var(--spr-line) 70%, transparent);
+    border-color: color-mix(in oklab, var(--spr-fg) 16%, transparent);
   }
 }
