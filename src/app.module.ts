@@ -20,7 +20,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardRepository } from './dashboard/dashboard.repository';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
-import { ConfigController } from './dashboard/configurator/config.controller';
+import { CONFIG_CONTROLLERS } from './dashboard/configurator/config-controllers';
 import { ConnectionsController } from './dashboard/connections.controller';
 import { ConfigPageService } from './dashboard/configurator/config-page/config-page.service';
 import { ConfigWatcher } from './config/watcher';
@@ -77,7 +77,7 @@ import { SearchService } from './content-reader/search/search.service';
   controllers: [
     HealthController,
     DashboardController,
-    ConfigController,
+    ...CONFIG_CONTROLLERS,
     // Liveness and readiness probes
     ConnectionsController,
     // Active WebSocket connections, admin only

@@ -6,7 +6,7 @@ import request from 'supertest';
 import { AuthController } from '../../src/auth/auth.controller';
 import { BrandController, StaticController } from '../../src/content-reader/assets.controller';
 import { ReadController } from '../../src/content-reader/read.controller';
-import { ConfigController } from '../../src/dashboard/configurator/config.controller';
+import { CONFIG_CONTROLLERS } from '../../src/dashboard/configurator/config-controllers';
 import { ConnectionsController } from '../../src/dashboard/connections.controller';
 import { DashboardController } from '../../src/dashboard/dashboard.controller';
 import { SetupController } from '../../src/dashboard/setup/setup.controller';
@@ -202,7 +202,7 @@ function routesOf(controller: new (...args: never[]) => unknown): string[] {
 const MOUNTED = [
   HealthController,
   DashboardController,
-  ConfigController,
+  ...CONFIG_CONTROLLERS,
   ConnectionsController,
   SetupWizardController,
 ]
@@ -227,7 +227,7 @@ function pathsOf(controller: new (...args: never[]) => unknown): { path: string 
 const ALL_ROUTES = [
   HealthController,
   DashboardController,
-  ConfigController,
+  ...CONFIG_CONTROLLERS,
   SetupWizardController,
   SetupController,
   ReadController,
@@ -270,7 +270,7 @@ describe('route syntax', () => {
 
 describe('the order the config routes are mounted in', () => {
   it('keeps the named ones ahead of the parametrised one', () => {
-    const order = routesOf(ConfigController);
+    const order = CONFIG_CONTROLLERS.flatMap(routesOf);
     expect(order.indexOf('GET /-/config/history')).toBeLessThan(
       order.indexOf('GET /-/config/:section'),
     );
