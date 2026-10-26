@@ -7,7 +7,7 @@ import type { EntryLine } from '../../model';
 import { providerFormKind, providerType } from '../../members';
 
 export const EXPIRE_BY_HELP =
-  'Optional date the membership expires, written YYYY-MM-DD. For example, 2026-12-31. A date in the past removes the member immediately. Leave empty for no expiry.';
+  'Optional date the membership expires at (format YYYY-MM-DD). A date in the past removes the member immediately. Leave empty for no expiry.';
 
 const ID_ELIDE_OVER = 12;
 const ID_KEEP = 8;

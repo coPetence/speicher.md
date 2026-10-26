@@ -193,14 +193,6 @@
         <% } %>
       </div>
       <% } %>
-      <% /*
-        What the row says, read-only, then the pen that opens its controls in a
-        modal. The pen is a label on a box no script has to run for, so the modal
-        opens and closes without one — the backdrop and Done are labels on the
-        same box — and the box is not named, so it is never submitted. A row that
-        names nobody yet opens on arrival, which is the row Add members just made
-        to be filled in.
-      */ %>
       <% const match = entry.lines[0], note = entry.lines[1], until = entry.lines[2];
          const editId = 'edit-' + collection.replace(/[^a-z0-9]+/gi, '-') + '-' + entry.position;
          const opens = !match || !match.value || match.value === 'not filled in'; %>
@@ -214,7 +206,12 @@
       </div>
       <% if (it.editable) { %>
       <input type="checkbox" class="spr-clipped spr-row-edit-toggle" id="<%= editId %>"<%= opens ? ' checked' : '' %> data-spr-transient>
-      <label class="spr-row-edit" for="<%= editId %>" aria-label="Edit <%= entry.search || 'this row' %>"><%~ it.edit_icon || '' %></label>
+      <div class="spr-row-card-actions">
+        <% if (entry.removeOp) { %>
+        <button type="submit" name="op" value="<%= entry.removeOp %>" class="spr-row-delete" aria-label="Remove <%= entry.search || 'this row' %>"><%~ it.remove_icon || '' %></button>
+        <% } %>
+        <label class="spr-row-edit" for="<%= editId %>" aria-label="Edit <%= entry.search || 'this row' %>"><%~ it.edit_icon || '' %></label>
+      </div>
       <% } %>
       <div class="spr-row-edit-dialog">
         <% if (it.editable) { %><label class="spr-row-edit-backdrop" for="<%= editId %>" aria-hidden="true"></label><% } %>
@@ -228,7 +225,6 @@
               <span class="spr-row-edit-label">
                 <label for="f-<%= f.path %>"><%= f.label %></label>
                 <% if (f.help) { %><%~ include('@info', { field: { path: f.path, label: f.label, help: f.help } }) %><% } %>
-                <% /* Where the value has a page elsewhere, the way there sits at the row's right */ %>
                 <% if (f.link) { %><span class="spr-row-edit-link"><%~ md(f.link) %></span><% } %>
               </span>
               <% if (f.kind === 'select') { %>
@@ -249,7 +245,7 @@
           </div>
           <% if (it.editable) { %>
           <div class="spr-modal-actions">
-            <label class="spr-row-edit-done" for="<%= editId %>">Done</label>
+            <button type="submit" name="intent" value="apply" class="spr-row-edit-done">Save</button>
           </div>
           <% } %>
         </div>
@@ -258,10 +254,6 @@
     <% }) %>
   </div>
 <% } %>
-<% /*
-  Drawn under a list too, hidden, so the bulk removal island can show it when
-  the last row goes without a round trip
-*/ %>
 <% if (it.table_empty_art) { %>
 <div class="spr-empty-state" data-spr-rows-empty="<%= collection %>"<%= table.entries.length > 0 ? ' hidden' : '' %>>
   <%~ it.table_empty_art %>

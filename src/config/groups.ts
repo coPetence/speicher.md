@@ -9,7 +9,6 @@ export type GroupCondition =
   | { kind: 'source'; source: GroupSource }
   | { kind: 'reference'; reference: GroupReference };
 
-/** The condition one group's list spells */
 export function conditionOf(items: GroupItem[]): GroupCondition {
   return {
     kind: 'any',

@@ -15,10 +15,7 @@ import {
 const MULTI_TENANT_ISSUER = /\/(common|organizations|consumers)\/v2\.0\/?$/;
 
 /**
- * checkGroups checks every item of every group. A source's provider must exist,
- * `domain` and `id` must fit the provider's type, and `until` must be a date. A
- * reference must name a group that is defined and is not the group itself, and
- * the references of all groups together must not form a cycle.
+ * checks every item of every group. makes sure every source leads to a provider
  *
  * @param config the loaded instance config
  * @param problems the list that problems are added to

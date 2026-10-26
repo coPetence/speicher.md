@@ -30,7 +30,7 @@ import {
 export function groupSection(root: Obj, name: string): SectionSource {
   const ids = providerIds(root);
   const items = groupItems(root, name);
-  // A group that already reaches this one would close a cycle the save refuses
+  // Refuse cycles in the references of groups
   const referrers = referrersOf(at(root, ['groups']) as Record<string, GroupItem[]>, name);
   const others = groupNames(root).filter((other) => other !== name && !referrers.includes(other));
   const referenced = items.filter(isReferenceItem).map((item) => scalarString(item.group));
@@ -46,7 +46,6 @@ export function groupSection(root: Obj, name: string): SectionSource {
       membershipField(root, ['admins', 'groups'], 'admins.groups', 'Administrator access', {
         trueValue: name,
         help: 'Mark this group as an administrator group, so that its members can manage the instance through the dashboard.',
-        // A group with no members gives the power to nobody, so it is offered once there is one
         shownWithRows: { collection: `groups.${name}`, rows: items.length },
       }),
     ],
@@ -85,14 +84,13 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
   const providerOption = (id: string) => ({ value: id, label: id, mark: providerMark(root, id) });
   const magicLink = ids.filter((id) => providerType(root, id) === 'magic-link');
   const directory = ids.filter((id) => providerType(root, id) !== 'magic-link');
-  const perLine =
-    'One per line. Each becomes a row, so a note and an expiry can be written against it; leave it empty for one row to fill in on the page.';
+  const perLine = 'Add one or more entries (one per line)';
   const kinds = [
     {
       value: SOURCE_GROUP,
       label: 'IDP group',
       icon: 'users',
-      help: 'Everybody in a group of the provider, by the id the provider emits.',
+      help: "Reference a group from a configured identity provider. The group's members are added to this group.",
       nameLabel: 'Provider',
       options: directory.map(providerOption),
       matches: {
@@ -105,7 +103,7 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
       value: 'domain',
       label: 'Email domain',
       icon: 'at-sign',
-      help: 'Everybody signing in with an address at a domain. Magic-link providers only.',
+      help: 'Add every person with an email address at one of the listed domains. Only works with magic-link providers.',
       nameLabel: 'Provider',
       options: magicLink.map(providerOption),
       matches: { label: 'Email domains', placeholder: 'example.com', help: perLine },
@@ -114,7 +112,7 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
       value: SOURCE_PERSON,
       label: 'Individual email',
       icon: 'mail',
-      help: 'One person, by email address.',
+      help: 'Add one or more individual email addresses.',
       nameLabel: 'Provider',
       options: ids.map(providerOption),
       matches: { label: 'Email addresses', placeholder: 'alice@example.com', help: perLine },
@@ -123,7 +121,7 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
       value: SOURCE_REFERENCE,
       label: 'Another group',
       icon: 'layers',
-      help: 'Every member of another internal group. Several may be picked at once, one row each.',
+      help: "Reference another group in this instance. The other group's members are added to this group.",
       nameLabel: 'Groups',
       options: others.map((other) => ({ value: other, label: other })),
       multiple: true,
@@ -163,8 +161,6 @@ function rowEntry(
     mark: providerMark(root, provider),
     icon: '',
     badges: [],
-    // What the card shows while it is not being edited: the match, the note, and
-    // the expiry in words with the date it stands for
     lines: [
       { ...line, href },
       { label: 'Note', value: scalarString(item.note), mark: '' },
@@ -172,7 +168,6 @@ function rowEntry(
         label: 'Expire by',
         value: until === '' ? '' : `${describeExpiry(until)} (${until})`,
         mark: '',
-        // Past, so the row matches nobody any more: said in the failure colour
         failed: until !== '' && isExpired(until, new Date()),
       },
     ],
