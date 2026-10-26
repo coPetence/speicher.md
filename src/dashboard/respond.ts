@@ -38,6 +38,8 @@ export interface DashboardAnswer<T> {
 
   page: (payload: T) => string; // Renders the page body from the payload
 
+  overlay?: (payload: T) => string | null;
+
   status?: number; // HTTP status; 200 when unset
 
   embedsFrames?: boolean; // Allow the page to be embedded in a frame
@@ -93,6 +95,7 @@ export class DashboardResponder {
           title: answer.title,
           searchQuery: answer.searchQuery,
           body: answer.page(answer.payload),
+          overlay: answer.overlay?.(answer.payload) ?? null,
           isAdmin,
           nonce,
           island: answer.island,
@@ -127,6 +130,7 @@ export function renderDashboardPage(
     subsection?: string;
     title: string;
     body: string;
+    overlay?: string | null;
     isAdmin: boolean;
     nonce: string;
 
@@ -177,5 +181,7 @@ export function renderDashboardPage(
 
     // No attribution footer on admin pages
     attribution: false,
+
+    overlay: page.overlay,
   });
 }

@@ -4380,8 +4380,9 @@ describe('when the running version is not the newest', () => {
         .set('cookie', ops)
         .expect(200);
 
-      expect(page.text).toContain('because the newer one does not load');
-      expect(page.text).toContain('Version 2:');
+      expect(page.text).toContain('Version 2 does not load</h2>');
+      expect(page.text).toContain('The current instance config version is 1.');
+      expect(page.text).toContain('<span class="spr-version-label">Version 2</span>');
       expect(page.text).toContain('must have required property');
       expect(page.text).not.toContain('saved but not yet in force');
     } finally {

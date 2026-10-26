@@ -2,10 +2,13 @@ import type { Request, Response } from 'express';
 
 import { relativeTime } from '../../../../common/time';
 import { ConfigVersion } from '../../../../config/loader';
+import type { SkippedConfigVersion } from '../../../../config/types';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
 import { diffConfigVersions } from '../../../configurator/config-form/diff';
+import type { RepairPreview } from '../../../configurator/repair-preview';
 import { DashboardResponder } from '../../../respond';
+import { skippedVersionsNote } from '../../config-notes';
 
 /** The version history and, when two are picked, the diff between them */
 export interface HistoryPayload {
@@ -17,6 +20,8 @@ export interface HistoryPayload {
   error: string | null;
   problems: string[];
   versions: ReturnType<typeof summarise>[];
+  skipped: SkippedConfigVersion[];
+  repair: RepairPreview | null;
 }
 
 /** Sends the configuration history */
@@ -46,6 +51,15 @@ export function sendConfigHistory(
         // The mark on Restore, inline like every mark under `/-/`: the page's
         // sprite is what the left column names.
         restore_icon: renderInlineIcon('rotate-ccw', 'spr-icon'),
+        skipped_note:
+          data.skipped.length > 0 && data.running_version !== null
+            ? skippedVersionsNote(
+                data.skipped,
+                data.skipped[0].version,
+                data.running_version,
+                editable ? data.repair : null,
+              )
+            : null,
         restored_note: data.restored
           ? {
               level: 'ok',
@@ -67,8 +81,13 @@ export function sendConfigHistory(
 }
 
 /** One row of the history list. The text itself is not part of it. */
-export function summarise(version: ConfigVersion, running: number | null) {
+export function summarise(
+  version: ConfigVersion,
+  running: number | null,
+  skipped: SkippedConfigVersion[],
+) {
   return {
+    loads: !skipped.some((skip) => skip.version === version.version),
     version: version.version,
     applied_at: version.applied_at,
     // Null is the seeded version: nobody applied it, it was already what the

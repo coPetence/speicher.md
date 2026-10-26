@@ -500,8 +500,9 @@ describe('the dashboard says which mode is in force', () => {
       .get('/-/config')
       .set('cookie', cookie)
       .expect(200);
-    expect(page.text).toContain('because the newer one does not load');
-    expect(page.text).toContain('Version 2:');
+    expect(page.text).toContain('Version 2 does not load</h2>');
+    expect(page.text).toContain('The current instance config version is 1.');
+    expect(page.text).toContain('<span class="spr-version-label">Version 2</span>');
     expect(page.text).toContain('SPEICHER_TEST_NEVER_SET');
   });
 

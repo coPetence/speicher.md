@@ -168,6 +168,126 @@
     padding-inline-start: var(--spr-space-4);
   }
 
+  .spr-note > .spr-note-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spr-space-3);
+    margin: var(--spr-space-3) 0 0 calc(-1 * (1.25em + var(--spr-space-3)));
+  }
+
+  .spr-note-actions > form {
+    display: contents;
+  }
+
+  .spr-blocker {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    justify-items: center;
+    padding: var(--spr-space-8) var(--spr-space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: color-mix(in srgb, var(--spr-bg) 88%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Auto margins centre the panel, and let a tall one scroll from its top */
+  .spr-blocker-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spr-space-4);
+    width: min(48rem, 100%);
+    margin-block: auto;
+    padding: var(--spr-space-6);
+    border: var(--spr-border) solid var(--spr-status-fail);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-surface);
+    color: var(--spr-fg);
+  }
+
+  .spr-blocker-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin: 0;
+    font-size: var(--spr-font-size-figure);
+  }
+
+  .spr-blocker-title > .spr-icon {
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    color: var(--spr-status-fail);
+  }
+
+  .spr-blocker-panel > p {
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .spr-blocker-panel > .spr-version-problems {
+    padding: var(--spr-space-3) var(--spr-space-4);
+    border: var(--spr-border) solid color-mix(in srgb, var(--spr-status-fail) 40%, transparent);
+    border-radius: var(--spr-radius);
+    background: color-mix(in srgb, var(--spr-status-fail) 10%, transparent);
+  }
+
+  .spr-version-problems > summary {
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-sync-problems.spr-version-problems ul {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--spr-space-1) var(--spr-space-4);
+  }
+
+  .spr-sync-problems.spr-version-problems li {
+    display: contents;
+    line-height: 1.5;
+  }
+
+  .spr-version-label {
+    color: var(--spr-muted);
+    white-space: nowrap;
+  }
+
+  .spr-blocker-panel > .spr-note-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spr-space-3);
+    padding-top: var(--spr-space-4);
+    border-top: var(--spr-border) solid var(--spr-line);
+  }
+
+  .spr-note-actions > a.spr-button {
+    color: var(--spr-fg);
+    text-decoration: none;
+  }
+
+  .spr-repair-changes > .spr-scroll {
+    margin: var(--spr-space-2) 0 0;
+  }
+
+  .spr-repair-changes .spr-diff {
+    background: var(--spr-bg);
+  }
+
+  .spr-form button.spr-primary {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+  }
+
+  .spr-primary:not(:disabled):hover,
+  .spr-form button.spr-primary:not(:disabled):hover {
+    border-color: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
   .spr-nav a[aria-current='true'] {
     background: var(--spr-surface);
     color: var(--spr-fg);
@@ -924,8 +1044,8 @@
     }
 
     .spr-history {
-      flex: 1 1 auto;
-      min-block-size: 0;
+      flex: 1 1 0;
+      min-block-size: 28rem;
       margin-block-end: 0;
       overflow-y: auto;
     }
@@ -958,6 +1078,12 @@
 
   .spr-history-bar .spr-form {
     margin: 0;
+  }
+
+  @media (scripting: enabled) {
+    .spr-history-bar [data-spr-compare] button[type='submit'] {
+      display: none;
+    }
   }
 
   .spr-history-bar .spr-history-restore {
@@ -1022,6 +1148,13 @@
     font-weight: normal;
   }
 
+  .spr-main .spr-scroll > table.spr-diff {
+    display: table;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
   .spr-diff {
     width: 100%;
     border-collapse: collapse;
@@ -1058,6 +1191,25 @@
     color: var(--spr-muted);
     background: var(--spr-surface);
     font-style: italic;
+  }
+
+  .spr-diff-fold:not(:has(input:checked)) > tr:not(.spr-diff-gap),
+  .spr-diff-fold:has(input:checked) > .spr-diff-gap {
+    display: none;
+  }
+
+  .spr-diff-gap label {
+    display: block;
+    cursor: pointer;
+  }
+
+  .spr-diff-gap:hover td {
+    color: var(--spr-fg);
+  }
+
+  .spr-diff-gap:has(input:focus-visible) td {
+    outline: 2px solid var(--spr-accent);
+    outline-offset: -2px;
   }
 
   .spr-advanced {

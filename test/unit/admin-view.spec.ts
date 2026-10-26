@@ -94,20 +94,14 @@ describe('the section list', () => {
     expect(dashboardNav('status', true).html).toContain('/-/config');
   });
 
-  it('drops the sections that can only report nothing, until there is content', () => {
+  it('draws the sync status before there is content', () => {
     const empty = dashboardNav('config', true, {
       showSetup: false,
       hasContent: false,
     }).html;
-    expect(empty).not.toContain('/-/status');
+    expect(empty).toContain('/-/status');
     expect(empty).toContain('/-/config');
     expect(empty).toContain('/-/connections');
-
-    const stocked = dashboardNav('config', true, {
-      showSetup: false,
-      hasContent: true,
-    }).html;
-    expect(stocked).toContain('/-/status');
   });
 
   it('draws a hidden section when it is the page you are on', () => {

@@ -4,7 +4,7 @@ import { ConfigOverviewPayload } from '../../../configurator/config-page/payload
 import { DashboardResponder } from '../../../respond';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
-import { loadNotes, versionNotes } from '../../config-notes';
+import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
 
 /** Sends the configuration overview */
 export function sendConfig(
@@ -19,6 +19,7 @@ export function sendConfig(
     section: 'config',
     title: 'Configuration',
     payload,
+    overlay: brokenVersionsDialog,
     page: (data) =>
       renderTemplate('dashboard/ui/views/config-overview', {
         ...(data as unknown as Record<string, unknown>),

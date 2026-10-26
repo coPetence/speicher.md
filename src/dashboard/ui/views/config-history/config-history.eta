@@ -4,6 +4,10 @@
 
 <h1>Configuration history</h1>
 
+<% if (it.skipped_note) { %>
+<%~ include('@note', it.skipped_note) %>
+<% } %>
+
 <% if (it.restored_note) { %>
 <%~ include('@note', it.restored_note) %>
 <% } %>
@@ -32,6 +36,7 @@
             #<%= v.version %>
             <time class="spr-version-meta" datetime="<%= v.applied_at %>" title="<%= String(v.applied_at).slice(0, 19).replace('T', ' ') %>"><%= v.applied_ago %></time>
             <% if (v.running) { %><%~ include('@badge', { level: 'ok', label: 'running' }) %><% } %>
+            <% if (!v.loads) { %><%~ include('@badge', { level: 'fail', label: 'does not load' }) %><% } %>
           </span>
           <span class="spr-version-meta">
             
@@ -67,7 +72,7 @@
     </form>
     
     <% var selected = it.versions.find(function (v) { return v.version === it.to; }); %>
-    <% if (it.editable && selected && !selected.running) { %>
+    <% if (it.editable && selected && !selected.running && selected.loads) { %>
     <form method="post" action="/-/config/restore" class="spr-form spr-history-restore">
       <input type="hidden" name="version" value="<%= it.to %>">
       <button type="submit"><%~ it.restore_icon || '' %>Restore version <%= it.to %></button>
@@ -83,25 +88,7 @@
     <% if (it.diff.identical) { %>
     <%~ include('@note', { level: 'idle', text: 'These two versions are identical.' }) %>
     <% } else { %>
-    <div class="spr-scroll">
-      <table class="spr-diff">
-        <tbody>
-          <% it.diff.lines.forEach(function (line) { %>
-          <tr class="spr-diff-<%= line.kind %>">
-            <% if (line.kind === 'gap') { %>
-            <td class="spr-diff-num" colspan="2">…</td>
-            <td class="spr-diff-text"><%= line.text %></td>
-            <% } else { %>
-            <td class="spr-diff-num"><%= line.oldNumber === null ? '' : line.oldNumber %></td>
-            <td class="spr-diff-num"><%= line.newNumber === null ? '' : line.newNumber %></td>
-            
-            <td class="spr-diff-text"><%= line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' ' %> <%= line.text %></td>
-            <% } %>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
+    <%~ include('@diff', { diff: it.diff }) %>
     <% } %>
     <% } %>
   </div>

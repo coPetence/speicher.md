@@ -6,6 +6,7 @@ import { ConfigSource, SkippedConfigVersion } from '../../../config/types';
 import { ShapeControl } from '../config-form/collections';
 import { FormSection } from '../config-form/model';
 import { MemberUsage } from '../member-usage';
+import { RepairPreview } from '../repair-preview';
 
 /** What `/-/config` and its pages carry, in both representations. */
 
@@ -28,6 +29,8 @@ export interface ConfigCommon {
   running_version: number | null;
   resolution_hash: string;
   skipped: SkippedConfigVersion[];
+  // What repairing the newest version changes, null when it loads or cannot be saved
+  repair: RepairPreview | null;
   // Keys that changed and require a restart
   waiting_on: string[];
   // Explanations of what breaks until restart

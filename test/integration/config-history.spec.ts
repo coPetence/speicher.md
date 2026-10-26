@@ -131,6 +131,23 @@ describe('the difference between two versions', () => {
     expect(page.text).toContain('unchanged lines');
   });
 
+  it('keeps the unchanged lines behind each gap, to be opened in place', async () => {
+    await store(FIXTURE_YAML.replace('subject_claim: oid', 'subject_claim: sub'));
+    const json = await history('?from=1&to=2').set('accept', 'application/json').expect(200);
+    type Line = { kind: string; oldNumber: number | null; hidden?: Line[] };
+    const lines: Line[] = json.body.diff.lines;
+    expect(lines.some((line) => line.kind === 'gap')).toBe(true);
+    // Opened, the gaps leave no line of the old version out
+    const opened = lines.flatMap((line) => (line.kind === 'gap' ? (line.hidden ?? []) : [line]));
+    const numbers = opened.flatMap((line) => (line.oldNumber === null ? [] : [line.oldNumber]));
+    expect(numbers).toEqual(numbers.map((_, index) => index + 1));
+
+    const page = await history('?from=1&to=2').expect(200);
+    expect(page.text).toMatch(
+      /<tbody class="spr-diff-fold">\s*<tr class="spr-diff-gap">[\s\S]*?<input type="checkbox"[\s\S]*?<tr class="spr-diff-same">/,
+    );
+  });
+
   it('counts what moved', async () => {
     await store(`${FIXTURE_YAML}\ntheme:\n  template: editorial\n`);
     const json = await history('?from=1&to=2').set('accept', 'application/json').expect(200);
@@ -276,5 +293,93 @@ describe('rollback', () => {
     } finally {
       process.env[CONFIG_SOURCE_ENV] = 'database';
     }
+  });
+});
+
+describe('versions that do not load', () => {
+  const broken = `${FIXTURE_YAML}\ntheme:\n  template: default\n  tui: true\n`;
+
+  async function storeBroken(times: number): Promise<void> {
+    for (let i = 0; i < times; i++) await store(broken);
+    config.adopt(await loadActiveInstanceConfig());
+  }
+
+  const repair = (version: unknown) =>
+    request(app.getHttpServer()).post('/-/config/repair').set('cookie', ops).send({ version });
+
+  it('cover the settings pages with a dialog that only offers the fixes', async () => {
+    await storeBroken(3);
+    for (const path of ['/-/config', '/-/config/branding']) {
+      const page = await request(app.getHttpServer()).get(path).set('cookie', ops).expect(200);
+
+      expect(page.text).toMatch(/<div class="spr-layout"[^>]* inert>/);
+      expect(page.text).toContain('role="alertdialog"');
+      expect(page.text).toContain('Versions 2–4 do not load</h2>');
+      expect(page.text).toContain('<span>Problems in versions 2–4</span>');
+      expect(page.text).toContain(
+        '<span class="spr-version-label">Versions 2–4</span><span>theme: unknown key &quot;tui&quot;</span>',
+      );
+      expect(page.text).not.toContain('<span class="spr-version-label">Version 3</span>');
+      expect(page.text).toContain('<span>Changes made by Repair</span>');
+      expect(page.text).toMatch(
+        /<form class="spr-form" method="post" action="\/-\/config\/repair">\s*<input type="hidden" name="version" value="4">\s*<button type="submit" class="spr-button spr-primary">[\s\S]*?Repair version 4<\/button>/,
+      );
+      expect(page.text).toContain('Restore version 1');
+      expect(page.text).toContain('href="/-/config/history"');
+      expect(page.text).toContain('aria-label="About repair and restore"');
+    }
+  });
+
+  it('are marked in the history, which stays open and offers the same fixes', async () => {
+    await storeBroken(2);
+    const page = await history().expect(200);
+
+    expect(page.text).not.toContain('role="alertdialog"');
+    expect(page.text).toContain(
+      'Versions 2–3 do not load. This instance runs on the latest valid version 1.',
+    );
+    expect(page.text).toContain('Repair version 3');
+    const badges = page.text.match(/does not load<\/span>/g) ?? [];
+    expect(badges).toHaveLength(2);
+    // The compared version is the newest, which does not load, so it offers no restore
+    expect(page.text).not.toContain('Restore version 3');
+  });
+
+  it('show what repairing changes, and save the rest as a new version that loads', async () => {
+    await storeBroken(1);
+    const page = await history().expect(200);
+    expect(page.text).toMatch(/<tr class="spr-diff-remove">[\s\S]*?tui: true/);
+
+    const saved = await repair(2).expect(303);
+    expect(saved.headers['location']).toBe('/-/config/history?from=2&to=3');
+
+    const newest = await getNewestConfigVersion(harness.tenantId);
+    expect(newest?.version).toBe(3);
+    expect(newest?.yaml).not.toContain('tui');
+    expect(newest?.yaml).toContain('template: default');
+    expect(config.configVersion).toBe(3);
+    expect(config.skippedConfigVersions).toEqual([]);
+  });
+
+  it('send a stale repair back to the history, and save nothing', async () => {
+    await storeBroken(1);
+    const answer = await repair(1).expect(303);
+    expect(answer.headers['location']).toBe('/-/config/history');
+    expect(await versionCount()).toBe(2);
+  });
+
+  it('say so when removing is not enough, and offer only the running version', async () => {
+    await store(FIXTURE_YAML.replace('${TEST_ENTRA_CLIENT_SECRET}', '${SPEICHER_TEST_NEVER_SET}'));
+    config.adopt(await loadActiveInstanceConfig());
+
+    const page = await request(app.getHttpServer()).get('/-/config').set('cookie', ops).expect(200);
+    expect(page.text).toContain('<span>Version 2 cannot be repaired</span>');
+    expect(page.text).toContain('SPEICHER_TEST_NEVER_SET');
+    expect(page.text).not.toContain('Repair version 2');
+    expect(page.text).toContain('Restore version 1');
+
+    const refused = await repair(2).expect(409);
+    expect(refused.text).toContain('Version 2 cannot be repaired.');
+    expect(await versionCount()).toBe(2);
   });
 });

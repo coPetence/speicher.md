@@ -1,0 +1,5 @@
+<tr class="spr-diff-<%= it.line.kind %>">
+  <td class="spr-diff-num"><%= it.line.oldNumber === null ? '' : it.line.oldNumber %></td>
+  <td class="spr-diff-num"><%= it.line.newNumber === null ? '' : it.line.newNumber %></td>
+  <td class="spr-diff-text"><%= it.line.kind === 'add' ? '+' : it.line.kind === 'remove' ? '-' : ' ' %> <%= it.line.text %></td>
+</tr>

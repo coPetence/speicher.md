@@ -60,7 +60,6 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     href: '/-/status',
     icon: 'activity',
     adminOnly: false,
-    needsContent: true,
     hiddenDuringSetup: 'unless-current',
   },
   // Hangs off Sync status: a dead job is a sync that stopped

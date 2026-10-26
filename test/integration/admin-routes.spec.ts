@@ -167,6 +167,12 @@ const CONTRACT: Record<string, Contract> = {
       'discovery.spec.ts. The same shape, and it writes: asserting it here would ' +
       'move every dead job in the fixture back onto the queue.',
   },
+  'POST /-/config/repair': {
+    covered:
+      'config-history.spec.ts. The same shape as restore: a browser is redirected ' +
+      'to the history showing what changed, a JSON caller is told the versions, ' +
+      'and asserting it here would mean writing a config version.',
+  },
   'POST /-/config/restore': {
     covered:
       'config-history.spec.ts. The one route whose representations are not one ' +
@@ -278,6 +284,9 @@ describe('the order the config routes are mounted in', () => {
       order.indexOf('GET /-/config/:section'),
     );
     expect(order.indexOf('POST /-/config/restore')).toBeLessThan(
+      order.indexOf('POST /-/config/:section'),
+    );
+    expect(order.indexOf('POST /-/config/repair')).toBeLessThan(
       order.indexOf('POST /-/config/:section'),
     );
     expect(order.indexOf('GET /-/config/:section/:member')).toBeLessThan(

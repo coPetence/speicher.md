@@ -1,0 +1,7 @@
+<div class="spr-blocker">
+  <div class="spr-blocker-panel" role="alertdialog" aria-modal="true" aria-labelledby="spr-blocker-title" aria-describedby="spr-blocker-intro">
+    <h2 class="spr-blocker-title" id="spr-blocker-title"><%~ it.icons.fail %><%= it.versions %> <%= it.count === 1 ? 'does' : 'do' %> not load</h2>
+    <p id="spr-blocker-intro">The current instance config version is <%= it.running %>. Nothing can be saved until you repair version <%= it.editing %> or restore version <%= it.running %>.</p>
+    <%~ include('@broken-versions', { ...it, linksHistory: true }) %>
+  </div>
+</div>
