@@ -144,7 +144,7 @@ jobs:
             $PRERELEASE
 
   # Records the release in Linear
-  # stabel releases use the Linear access key, pre-releases use the RC access key
+  # stable releases use the Linear access key, pre-releases use the RC access key
   linear:
     needs: release
     runs-on: ubuntu-latest
