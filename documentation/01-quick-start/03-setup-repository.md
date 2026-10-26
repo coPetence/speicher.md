@@ -4,7 +4,7 @@ icon: folder-git-2
 
 # Publish your first repository
 
-Speicher serves the Markdown files of a git repository. To publish one, you add a small configuration file to it and connect it to your instance.
+Speicher publishes a Git repository once it has a `.speicher.yaml` file at its root and a content source of your instance has access to the repository. Each Markdown file becomes a page at `/<owner>/<repository>/…`. It can be read by the groups configured under `access` in the `.speicher.yaml`.
 
 ## 1. Add `.speicher.yaml` to the repository
 
@@ -17,9 +17,9 @@ access:
   groups: [staff]
 ```
 
-`access` defines who may read the repository, as explained in [Access](../03-repository/02-access.md). `staff` is one of the group names you created [during setup](02-setup-instance.md#3-create-groups). Speicher rejects a repository whose root configuration has no `access`, so nothing is published by accident.
+`access` defines who may read the repository, as explained in [Access](../03-repository/02-access.md). `staff` is one of the group names you created [during setup](02-setup-instance.md#3-create-groups). Speicher rejects a repository whose root configuration has no `access`, so nothing can be published by accident.
 
-Some other settings are useful from the start:
+Some other settings that are useful from the start:
 
 ```yaml
 version: 1
@@ -34,33 +34,31 @@ display:
   title: 'Engineering Handbook'
 ```
 
-Every key is listed under [Repository configuration](../06-reference/04-repository-configuration.md).
+Every key you can use here is listed under [Repository configuration](../06-reference/04-repository-configuration.md).
 
-Commit and push the file.
+When you're done, commit and push the file.
 
 ## 2. How your files become pages
 
-- Every `.md` file becomes a page, except `README.md` files, and every folder becomes a section in the navigation. To publish `.mdx` files too, add them to [`sync.include`](../03-repository/01-speicher-yaml.md#choosing-files-with-sync).
-- A number prefix sets the order and is left out of the URL: `01-install.md` is listed before `02-configure.md` and served as `/install`.
-- An `index.md` in a folder becomes the folder's own page.
-- Images and other files that your pages link to are served under the same access rules as the pages.
+- **Pages:** every `.md` and `.mdx` file becomes a page. `README.md` files are excluded by default. To change which files are ingested, set [`sync.include` and `sync.exclude`](../03-repository/01-speicher-yaml.md#choosing-files-with-sync).
+- **URLs:** a page's URL is its path in the repository, in lower case and without the extension. `guides/Setup.md` is served at `/<owner>/<repository>/guides/setup`.
+- **Folders:** every folder becomes a section in the navigation. If you want to have a custom page for a folder, create an `index.md` or `index.mdx` file in that folder and it will be served at the folder's own URL.
+- **Order:** a number prefix of up to three digits, followed by `-`, `_`, `.` or a space, sets the position in the navigation and is left out of the URL. `01-install.md` is listed before `02-configure.md` and served at `…/install`. Files without a prefix can be ordered with `sidebar_position` (Docusaurus) or `sidebar.order` (Starlight) in the frontmatter.
+- **Titles:** the page title is the `title` in the frontmatter, otherwise the first `# Heading`, otherwise the file name. See [Page title](../03-repository/03-markdown-syntax.md#page-title).
+- **Files:** images and other files that a page links to are served with the same access rules as the page.
 
-If your repository already uses Docusaurus or Starlight, Speicher reads their sidebar ordering from the frontmatter too.
+## 3. Give the content source access to the repository
 
-## 3. Connect the repository
+Speicher reads the repository through the content source you added [during setup](02-setup-instance.md#4-add-a-content-source). Make sure that source covers this repository:
 
-In the dashboard, open **Configuration → Content sources** and add a source:
+- **GitHub App:** the App must be installed on the repository. If you installed it on selected repositories only, add this one, as described in [Install the App](../02-configuration/03-content-sources/01-github/index.md#3-install-the-app).
+- **Plain git remote:** the source reads only the repositories listed in it. Add this one by its remote URL, as described in [Add a repository](../02-configuration/03-content-sources/02-plain-git-remote/index.md#2-add-a-repository).
 
-- **[GitHub App](../02-configuration/03-content-sources/01-github/index.md)**: for repositories on GitHub. Speicher finds every repository the app is installed on, and GitHub notifies it on every push, so changes appear shortly after.
-- **[Plain git remote](../02-configuration/03-content-sources/02-plain-git-remote/index.md)**: for any other git host, such as GitLab, Gitea, Forgejo or Bitbucket. Give the repository's `https://` URL with an access token, or its `ssh://` URL with a read-only deploy key. Speicher checks the remote for changes every hour by default.
-
-:::note
-A repository is only served after its `.speicher.yaml` has been read, so connecting a repository, that has none, publishes nothing.
-:::
+If you have no content source yet, add one first, as described in [Add a content source](02-setup-instance.md#4-add-a-content-source).
 
 ## 4. Wait for the first sync
 
-The worker now clones the repository and builds its pages and search index. **Sync status** in the dashboard shows the progress, and the error if a sync fails.
+The worker now clones the repository and builds its pages and search index. To see the progress of the synchronization, check the **Sync status** page in the dashboard.
 
 To sync a repository right away instead of waiting for the next check, run:
 
@@ -72,9 +70,9 @@ docker compose exec web speicher sync-repo-content <owner>/<repository>
 
 A repository is served at `/<owner>/<repository>`, where the owner is the account or organization in its URL. `https://github.com/acme/handbook` is served at `https://<your-host>/acme/handbook`.
 
-Everyone in a group that its `access` lists can now read it after signing in.
+After signing in, the members of the groups listed under `access` in `.speicher.yaml` can read the repository. With `groups: [staff]` from step 1, that is everyone in `staff`.
 
 ## Next steps
 
-- [Control who can read what](../03-repository/02-access.md): restrict folders further, grant access to individual people, or publish pages to the public.
+- [Access](../03-repository/02-access.md): narrow access in individual folders with their own `.speicher.yaml`, grant individual people access until a set date, or make pages publicly available without sign-in.
 - [Connect an AI assistant](../04-ai-assistants/01-index.mdx) to chat with your documentation.

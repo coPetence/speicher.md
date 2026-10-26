@@ -9,7 +9,6 @@ With a magic-link provider, people sign in with their email address instead of a
 ## 0. Before you start
 
 - Magic links need a [mail transport](../../08-mail-transport/index.md). Configure it first. Speicher refuses a magic-link provider while no mail transport is configured.
-- A magic-link provider cannot sign in the [first administrator](../../../01-quick-start/02-setup-instance.md#5-become-the-first-administrator) of a new instance. If magic links are your only provider, add the first administrator with `speicher admin add` instead, as described in [Without an OpenID Connect provider](../../../01-quick-start/02-setup-instance.md#without-an-openid-connect-provider).
 
 ## How signing in works
 

@@ -168,7 +168,7 @@ Which Markdown files to publish.
 
 **Type:** list of string
 
-Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md`; add `**/*.mdx` to publish MDX files. In a folder, it replaces the inherited list.
+Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md` and `**/*.mdx`. In a folder, it replaces the inherited list.
 
 ### `sync.exclude`
 

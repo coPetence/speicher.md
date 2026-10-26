@@ -4,65 +4,36 @@ icon: network
 
 # Reverse proxy and TLS
 
-Speicher serves plain HTTP on port 3000 and expects a reverse proxy in front of it to handle HTTPS. This page shows two setups, both tested with the Docker Compose file from the [quick start](../01-quick-start/01-self-hosted.md):
+Speicher serves plain HTTP on port 3000. This page sets up a proxy, to serve HTTPS, for the Docker Compose file from the [quick start guide](../01-quick-start/01-self-hosted.md). There are two options to set up the proxy:
 
-- [Caddy in the Compose file](#caddy-in-the-compose-file), which gets and renews certificates by itself. Use it if nothing else runs on the server.
-- [nginx on the host](#nginx-on-the-host), if you already run nginx there.
+- [Caddy in the Compose file](#caddy-in-the-compose-file) gets and renews certificates by itself. Use it if you do not plan to run any other services on the same server.
+- [nginx on the host](#nginx-on-the-host), if you already run nginx there or want to use it for other services as well.
 
-Whichever you use, Speicher needs the three settings below.
+## Before you start
 
-## What Speicher needs
+- Choose the domain for Speicher, for example `docs.example.com`, and point its DNS record at the server. In every step below, replace `docs.example.com` with your domain.
+- Open ports 80 and 443 on the server.
 
-**HTTPS.** Speicher marks its cookies as `Secure`, so browsers only send them back over HTTPS. Over plain HTTP, sign-in fails on every host except `localhost`.
+## 1. Set the public URL and the trusted proxy
 
-**`SPEICHER_PUBLIC_URL`** set to the address people use, for example `https://docs.example.com`, with no path and no trailing slash. Speicher builds absolute links from it:
-
-- sign-in callbacks and magic links
-- the sign-in metadata that AI assistants read when they connect to the MCP server, which is not served at all without it
-- the sitemap of public pages
-
-The MCP server also refuses browser requests from any other origin.
-
-**`SPEICHER_TRUST_PROXY`** set so that Speicher believes the `X-Forwarded-For` and `X-Forwarded-Proto` headers your proxy sends. Otherwise Speicher thinks every request came over plain HTTP from the proxy's address, and rate limiting counts all anonymous visitors as one.
-
-In a Docker Compose setup, set it to `uniquelocal`:
+In `docker-compose.yaml`, under `environment:` in the `x-speicher` block, set your domain as the public URL and add the trusted proxy:
 
 ```yaml
+SPEICHER_PUBLIC_URL: https://docs.example.com
 SPEICHER_TRUST_PROXY: uniquelocal
 ```
 
-The default, `loopback`, does not work in Docker. Requests reach the container from a private Docker network address, never from `127.0.0.1`, even when the proxy runs on the same host.
+Write the URL without a path or a trailing slash.
 
-`uniquelocal` trusts every private network address (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `fc00::/7`). Make sure only the proxy can reach port 3000, as both setups below do. Otherwise anyone on your network could send forged headers. You can also give the proxy's exact address or subnet, for example `172.18.0.0/16`, or several values separated by commas.
+Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-Forwarded-Proto` only when the request comes from a trusted address. The proxy connects from a private IPv4 address: Caddy from its address on the Docker network, nginx on the host from the gateway of the Docker bridge. By setting `SPEICHER_TRUST_PROXY` to `uniquelocal` we trust all private IP addresses. For other values of `SPEICHER_TRUST_PROXY`, see [Trusted proxies](#trusted-proxies).
 
-:::caution
-Do not set `SPEICHER_TRUST_PROXY` to `true` or to a number of hops. Speicher passes the value on as a list of addresses, so `true` stops the web process from starting with `invalid IP address: true`, and a number is ignored.
-:::
+## 2. Set up the proxy
 
-## Caddy in the Compose file
+### Caddy in the Compose file
 
-Caddy requests a certificate from Let's Encrypt and renews it by itself. Before you start, point your domain's DNS record at the server, and open ports 80 and 443.
+1. In the `web` service, remove `ports`, so only Caddy can reach Speicher.
 
-Create a `Caddyfile` next to your `compose.yml`:
-
-```
-docs.example.com {
-	reverse_proxy web:3000
-}
-```
-
-Then change `compose.yml`:
-
-1. Under `environment:` in the `x-speicher` block, set the public URL and trust the proxy:
-
-   ```yaml
-   SPEICHER_PUBLIC_URL: https://docs.example.com
-   SPEICHER_TRUST_PROXY: uniquelocal
-   ```
-
-2. Remove the `ports` from the `web` service, so only Caddy can reach it.
-
-3. Add the Caddy service and its volumes:
+2. Add the Caddy service and its volumes to `docker-compose.yaml`, next to the existing ones:
 
    ```yaml
    services:
@@ -85,73 +56,112 @@ Then change `compose.yml`:
      caddy-config:
    ```
 
-   Keep the existing services and volumes; these are added to them. The `caddy-data` volume holds the certificates, so they survive a restart.
+3. Create a `Caddyfile` next to `docker-compose.yaml`, with your domain in the first line:
 
-Start everything with `docker compose up -d`. Caddy forwards the client's address, the protocol and the original host by itself, so nothing else is needed.
-
-## nginx on the host
-
-If nginx runs directly on the server, change `compose.yml` in two places:
-
-1. Under `environment:` in the `x-speicher` block, add the same two variables as for Caddy:
-
-   ```yaml
-   SPEICHER_PUBLIC_URL: https://docs.example.com
-   SPEICHER_TRUST_PROXY: uniquelocal
+   ```
+   docs.example.com {
+   	reverse_proxy web:3000
+   }
    ```
 
-2. In the `web` service, publish the port on `127.0.0.1` only, so nothing but nginx can reach it:
+4. Start the containers:
+
+   ```sh
+   docker compose up -d
+   ```
+
+:::info
+Caddy will request a certificate from Let's Encrypt on the first start. This only succeeds once the DNS record of your domain points at the server and ports 80 and 443 are open.
+:::
+
+### nginx on the host
+
+1. In the `web` service, publish the port on `127.0.0.1` only, so nothing but nginx can reach Speicher:
 
    ```yaml
    ports:
      - '127.0.0.1:3000:3000'
    ```
 
-Then add a site to nginx. The certificate paths are examples; use the ones from your certificate tool, such as Certbot.
+2. Get a certificate for your domain, for example with Certbot.
 
-```nginx
-server {
-    listen 80;
-    server_name docs.example.com;
-    return 301 https://$host$request_uri;
-}
+3. Add a site to nginx. Replace `docs.example.com` with your domain, and the certificate paths with the ones your certificate tool created:
 
-server {
-    listen 443 ssl;
-    http2 on;
-    server_name docs.example.com;
+   ```nginx
+   server {
+       listen 80;
+       server_name docs.example.com;
+       return 301 https://$host$request_uri;
+   }
 
-    ssl_certificate     /etc/letsencrypt/live/docs.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/docs.example.com/privkey.pem;
+   server {
+       listen 443 ssl;
+       http2 on;
+       server_name docs.example.com;
 
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
+       ssl_certificate     /etc/letsencrypt/live/docs.example.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/docs.example.com/privkey.pem;
 
-The three `proxy_set_header` lines are required. Without `X-Forwarded-Proto`, Speicher does not know the request came over HTTPS.
+       location / {
+           proxy_pass http://127.0.0.1:3000;
+           proxy_set_header Host              $host;
+           proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
 
-## Other proxies
+4. Reload nginx and start Speicher:
+
+   ```sh
+   sudo nginx -t && sudo systemctl reload nginx
+   docker compose up -d
+   ```
+
+### Other proxies
 
 Any reverse proxy works if it:
 
-- terminates HTTPS and forwards to port 3000 over HTTP
+- serves HTTPS and forwards to port 3000 over HTTP
 - sends `X-Forwarded-For` and `X-Forwarded-Proto`, and passes on the original `Host` header
 - is the only thing that can reach port 3000
 
-Speicher uses no WebSockets or long-lived connections, so no special timeouts are needed. If your proxy sets an `X-Request-Id` header, Speicher uses it as the request id in its logs, so you can match proxy and Speicher log lines.
+Speicher uses no WebSockets or long-lived connections, so the proxy needs no special timeouts.
 
-## Check that it works
+## 3. Check that it works
 
-1. Open `https://docs.example.com/-/readyz`. It answers `{"status":"ready",…}` once Speicher can serve requests.
-2. Sign in. If the identity provider complains about the redirect URI, compare it with the callback URL `https://docs.example.com/api/auth/callback` (for GitHub sign-in, `https://docs.example.com/api/auth/github/callback`), and check `SPEICHER_PUBLIC_URL`.
-3. Open `https://docs.example.com/.well-known/oauth-authorization-server`. The `issuer` must be your public URL. AI assistants read this when they connect.
+1. To check that Speicher answers over HTTPS, run:
 
-If you use the [GitHub App](../02-configuration/03-content-sources/01-github/index.md) content source, GitHub must also be able to reach the instance from the internet to deliver webhooks.
+   ```sh
+   curl https://docs.example.com/-/readyz
+   ```
+
+   It answers with `{"status":"ready",…}` once Speicher can serve requests.
+
+2. To check that Speicher uses your public URL, run:
+
+   ```sh
+   curl https://docs.example.com/.well-known/oauth-authorization-server
+   ```
+
+   The `issuer` in the answer must be your public URL.
+
+If you use the [GitHub App](../02-configuration/03-content-sources/01-github/index.md) content source, GitHub must also reach the instance from the internet to deliver webhooks.
+
+**[Continue with setting up the instance →](../01-quick-start/02-setup-instance.md)**
+
+## Trusted proxies
+
+`SPEICHER_TRUST_PROXY` lists the addresses from which Speicher accepts the `X-Forwarded-For` and `X-Forwarded-Proto` headers. Give one or more of these values, separated by commas:
+
+| Value                   | Trusts                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `uniquelocal`           | private network addresses: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `fc00::/7`. Use it with Docker. |
+| `loopback` (default)    | `127.0.0.1` and `::1`, for a proxy on the same host when Speicher does not run in Docker                       |
+| `linklocal`             | `169.254.0.0/16` and `fe80::/10`                                                                               |
+| an IP address or subnet | that address only, for example the proxy's Docker network `172.18.0.0/16`                                      |
+
+In Docker, requests reach Speicher from a private Docker network address, even when the proxy runs on the same host, so the default `loopback` does not work there. With `uniquelocal`, make sure only the proxy can reach port 3000, as both setups above do. Otherwise anyone on your network could send forged headers.
 
 ## Settings
 
