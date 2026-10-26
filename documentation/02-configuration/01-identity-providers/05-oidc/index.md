@@ -120,8 +120,9 @@ The issuer must name one tenant or realm. Multi-tenant issuers, such as Entra's 
 | `auth.providers.<id>.subject_claim` | string | `sub` |  | The claim in the sign-in token that holds the person's permanent id. Most providers use `sub`. |
 | `auth.providers.<id>.groups_claim` | string | `groups` |  | The claim in the sign-in token that lists the person's groups. Without it, or if the provider sends none (such as Google), the person belongs to no provider groups and can only be added to groups by email or subject. |
 | `auth.providers.<id>.email_claim` | string | `email` |  | The claim in the sign-in token that holds the person's email address. Access granted by email is matched against it. |
-| `auth.providers.<id>.domains` | list of string |  |  | Home-realm discovery: send users at these domains here without a picker. |
+| `auth.providers.<id>.domains` | list of string |  |  | Offer this provider only for addresses at these domains. Absent means it is offered for every address. |
 | `auth.providers.<id>.session_ttl` | string | `8h` |  | How long a sign-in stays valid. Groups are read only at sign-in, so a removed group membership keeps working until the session ends. |
+| `auth.providers.<id>.connection_idle_ttl` | string | `30d` |  | If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`. |
 | `auth.providers.<id>.directory` | object |  |  | Optional read access to the provider's directory. Speicher uses it to resolve email grants to people, count group members and notice people who have left. |
 | `auth.providers.<id>.directory.type` | `graph`, `github` |  | yes | graph = Microsoft Graph; github = GitHub organisation API |
 | `auth.providers.<id>.directory.tenant_id` | string |  |  | graph: the id of the Entra tenant to read. |
