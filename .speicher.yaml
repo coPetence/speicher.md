@@ -2,7 +2,7 @@
 version: 1
 
 access:
-  groups: [internal]
+  groups: [public]
 
 ingest_root: documentation
 
