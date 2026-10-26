@@ -1053,6 +1053,7 @@ describe('the admin stylesheet', () => {
 
   it('gives every inline icon a size, because the markup carries none', () => {
     const unsized = [...DASHBOARD_RULES.matchAll(/([^{}]*\.spr-icon[^{}]*)\{([^}]*)\}/g)]
+      .filter(([selector]) => selector.replace(/:has\([^()]*\)/g, '').includes('.spr-icon'))
       .filter(([, , body]) => !/\b(width|height|inline-size|block-size|font-size)\s*:/.test(body))
       .map(([, selector]) => selector.trim());
     expect(unsized).toEqual([]);
@@ -1821,10 +1822,15 @@ describe('the checkbox', () => {
   });
 
   it('hides Remove selected until something is selected, without a script', () => {
-    const hidden = declarationsOf(
-      ".spr-table-head:not(:has(+ table input[type='checkbox']:checked)) .spr-remove",
+    const hidden = rulePreludes(DASHBOARD_RULES).find(
+      ([selector]) =>
+        selector.startsWith('.spr-table-head:not(') && selector.endsWith('.spr-remove'),
     );
-    expect(hidden).toMatch(/display:\s*none/);
+    expect(hidden?.[0]).toContain("+ table input[type='checkbox']:checked");
+    expect(hidden?.[0]).toContain(
+      "+ .spr-row-cards .spr-select-col input[type='checkbox']:checked",
+    );
+    expect(hidden?.[1]).toMatch(/display:\s*none/);
   });
 
   it('lets a table of values space itself', () => {
@@ -1833,7 +1839,7 @@ describe('the checkbox', () => {
 
   it('draws a table row’s selection box with this rule, not a second one', () => {
     expect(DASHBOARD_RULES).toMatch(
-      /\.spr-choices label > input\[type='checkbox'\],\s*\.spr-rows \.spr-select-col input\[type='checkbox'\]\s*\{/,
+      /\.spr-choices label > input\[type='checkbox'\],\s*\.spr-rows \.spr-select-col input\[type='checkbox'\],\s*\.spr-entries \.spr-select-col input\[type='checkbox'\]\s*\{/,
     );
     expect(declarationsOf(`${ROW_BOX}:checked`)).toBe(
       declarationsOf(".spr-choices label > input[type='checkbox']:checked"),

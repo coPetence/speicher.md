@@ -1132,14 +1132,13 @@
   }
 
   .spr-row-cards {
-    --spr-row-grid: auto minmax(11rem, max-content) auto minmax(0, 1.2fr) minmax(0, 1fr) auto;
     display: grid;
     gap: var(--spr-space-2);
   }
 
   .spr-row-card {
     display: grid;
-    grid-template-columns: var(--spr-row-grid);
+    grid-template-columns: auto minmax(11rem, max-content) auto minmax(0, 1.2fr) minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--spr-space-4);
   }
@@ -1264,7 +1263,6 @@
     width: 1em;
     height: 1em;
     margin: 0;
-    color: var(--spr-muted);
   }
 
   .spr-row-card-note,
@@ -1273,8 +1271,7 @@
     color: var(--spr-muted);
   }
 
-  .spr-row-card-until-passed,
-  .spr-row-card-until-passed .spr-icon {
+  .spr-row-card-until-passed {
     color: var(--spr-status-fail);
   }
 
@@ -1473,15 +1470,6 @@
     [data-spr-config='groups'] .spr-entries th:nth-child(n + 4),
     [data-spr-config='groups'] .spr-entries td:nth-child(n + 4) {
       display: none;
-    }
-
-    .spr-index-bar .spr-filter {
-      flex: 1 1 100%;
-    }
-
-    .spr-index-bar .spr-filter .spr-input-icon {
-      flex: 1 1 auto;
-      max-width: none;
     }
   }
 
@@ -2185,6 +2173,15 @@
   }
 
   @media not all and (min-width: 48rem) {
+    .spr-index-bar .spr-filter {
+      flex: 1 1 100%;
+    }
+
+    .spr-index-bar .spr-filter .spr-input-icon {
+      flex: 1 1 auto;
+      max-width: none;
+    }
+
     .spr-header > .spr-progress {
       order: 1;
       flex-basis: 100%;
