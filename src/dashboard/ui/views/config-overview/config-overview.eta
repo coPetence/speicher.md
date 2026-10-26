@@ -12,7 +12,7 @@
         <%~ it.tile_icons.history || '' %>
         <div>
           <h4><a href="/-/config/history">Version history</a></h4>
-          <p class="spr-card-sub">Every stored version, the difference between any two, and rollback.</p>
+          <p class="spr-card-sub"><%~ md(it.history_blurb) %></p>
         </div>
       </div>
       <%~ it.page_arrow %>
@@ -23,17 +23,7 @@
         <%~ it.tile_icons.terminal || '' %>
         <div>
           <h4><a href="/-/config/environment">Environment</a></h4>
-          <p class="spr-card-sub">Every variable this process reads, and what it was started with.</p>
-        </div>
-      </div>
-      <%~ it.page_arrow %>
-    </section>
-    <section class="spr-tile spr-tile-page">
-      <div class="spr-tile-head">
-        <%~ it.tile_icons.download || '' %>
-        <div>
-          <h4><a href="/-/config/backup">Backup</a></h4>
-          <p class="spr-card-sub">Download this configuration as <code><%= it.backup_filename %></code>, to keep somewhere the database is not.</p>
+          <p class="spr-card-sub"><%~ md(it.environment_blurb) %></p>
         </div>
       </div>
       <%~ it.page_arrow %>

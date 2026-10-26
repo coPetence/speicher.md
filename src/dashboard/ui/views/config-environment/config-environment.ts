@@ -4,6 +4,7 @@ import { ConfigEnvironmentPayload } from '../../../configurator/config-page/payl
 import { DashboardResponder } from '../../../respond';
 import { readByLabel } from '../../../../common/env';
 import { renderTemplate } from '../../../../content-reader/views';
+import { ENVIRONMENT_BLURB } from '../../instance-blurbs';
 
 /** Sends the environment page: every variable this process reads */
 export function sendConfigEnvironment(
@@ -14,11 +15,12 @@ export function sendConfigEnvironment(
   payload: ConfigEnvironmentPayload,
 ): void {
   respond.send(req, res, isAdmin, {
-    section: 'config',
+    section: 'environment',
     title: 'Environment',
     payload,
     page: (data) =>
       renderTemplate('dashboard/ui/views/config-environment', {
+        blurb: ENVIRONMENT_BLURB,
         // The registry's word for a variable both entrypoints read is `both`,
         // which is what a JSON caller receives and what code compares against.
         // What a person is shown names the two processes — see `readByLabel`,

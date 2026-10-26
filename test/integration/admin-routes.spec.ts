@@ -85,13 +85,12 @@ const CONTRACT: Record<string, Contract> = {
   'GET /-/config': { both: '/-/config' },
   'GET /-/config/history': { both: '/-/config/history' },
   'GET /-/config/environment': { both: '/-/config/environment' },
-  'GET /-/config/backup': { both: '/-/config/backup' },
   'GET /-/config/download': {
     exempt:
-      'A file, not a document in two encodings: it serves the same `yaml` the ' +
-      'overview’s payload already carries, with a filename and a disposition on ' +
-      'top. A JSON caller reads it off `GET /-/config` and has no second question ' +
-      'to ask here. Asserted in config-editor.spec.ts.',
+      'A file, not a document in two encodings: without a version it serves the ' +
+      'same `yaml` the overview’s payload already carries, with a filename and a ' +
+      'disposition on top, and with one it serves that saved version. Asserted in ' +
+      'config-editor.spec.ts.',
   },
   'GET /-/config/:section': { both: '/-/config/identity' },
   'GET /-/config/:section/:member': { both: '/-/config/identity/entra' },
@@ -278,9 +277,6 @@ describe('the order the config routes are mounted in', () => {
       order.indexOf('GET /-/config/:section'),
     );
     expect(order.indexOf('GET /-/config/download')).toBeLessThan(
-      order.indexOf('GET /-/config/:section'),
-    );
-    expect(order.indexOf('GET /-/config/backup')).toBeLessThan(
       order.indexOf('GET /-/config/:section'),
     );
     expect(order.indexOf('POST /-/config/restore')).toBeLessThan(

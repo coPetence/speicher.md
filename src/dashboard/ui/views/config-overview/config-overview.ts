@@ -5,6 +5,7 @@ import { DashboardResponder } from '../../../respond';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
 import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
+import { ENVIRONMENT_BLURB, HISTORY_BLURB } from '../../instance-blurbs';
 
 /** Sends the configuration overview */
 export function sendConfig(
@@ -32,6 +33,8 @@ export function sendConfig(
           opens are recognised by the same mark; the three instance cards are
           pages this list does not know, so their names are given here.
         */
+        history_blurb: HISTORY_BLURB,
+        environment_blurb: ENVIRONMENT_BLURB,
         tile_icons: Object.fromEntries(
           [...data.sections.map((section) => section.icon), ...INSTANCE_CARD_ICONS]
             .filter((icon) => icon !== '')
@@ -55,9 +58,4 @@ export function sendConfig(
   });
 }
 
-/**
- * The marks on the overview's three instance cards — the version history, the
- * environment and the download. Named here rather than in the template because
- * the template is handed rendered markup, never a name to look up.
- */
-const INSTANCE_CARD_ICONS = ['history', 'terminal', 'download'];
+const INSTANCE_CARD_ICONS = ['history', 'terminal'];

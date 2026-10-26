@@ -43,7 +43,6 @@ import { FormSection, allFields } from '../config-form/model';
 import { displayYaml } from '../config-form/redact';
 import {
   ConfigBackup,
-  ConfigBackupPayload,
   ConfigEnvironmentPayload,
   ConfigOverviewPayload,
   ConfigSectionPayload,
@@ -164,39 +163,23 @@ export class ConfigPageService {
       // away as: this one elides the logo for length and says nothing in place of a
       // literal secret, where the download references it. Two strings for two jobs.
       yaml: displayYaml(state.storedYaml),
-
-      // The name `GET /-/config/download` saves the file as, shown on the card
-      // that opens the backup page
-      backup_filename: configDownloadFilename(),
     };
   }
 
   /**
-   * backupPage returns what the `/-/config/backup` page shows for the given state:
-   * the file `backup` produces, together with its size in bytes.
+   * backup returns a stored configuration as a file to download, with every secret
+   * replaced by an environment variable reference.
+   *
+   * @param tenantId the tenant the configuration belongs to
+   * @param yaml the stored configuration
+   * @param version the saved version it is, null when it comes from the file
    */
-  async backupPage(state: ConfigState): Promise<ConfigBackupPayload> {
-    const backup = await this.backup(state);
-    return {
-      ...state.common,
-      ...backup,
-      // Bytes, not characters: the file is what is saved, and a group's name or an
-      // operator's note may be outside ASCII.
-      bytes: Buffer.byteLength(backup.yaml, 'utf8'),
-    };
-  }
-
-  /**
-   * backup returns the stored configuration of the given state as a file to
-   * download, with every secret replaced by an environment variable
-   * reference.
-   */
-  async backup(state: ConfigState): Promise<ConfigBackup> {
+  async backup(tenantId: string, yaml: string, version: number | null): Promise<ConfigBackup> {
     let exported;
     try {
-      exported = exportConfig(await inlineBrandImages(state.tenantId, state.storedYaml), {
+      exported = exportConfig(await inlineBrandImages(tenantId, yaml), {
         host: instanceHost(),
-        version: state.common.editing_version,
+        version,
       });
     } catch (err) {
       if (!(err instanceof ConfigError)) throw err;

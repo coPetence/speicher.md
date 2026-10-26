@@ -13,6 +13,9 @@ export type DashboardSection =
   | 'analytics'
   | 'dead-jobs'
   | 'config'
+  | 'instance'
+  | 'history'
+  | 'environment'
   | 'connections'
   | 'setup';
 
@@ -112,6 +115,32 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     needsContent: true,
     hiddenDuringSetup: 'unless-current',
     disabled: true,
+  },
+  {
+    id: 'instance',
+    label: 'Instance',
+    href: '/-/config#instance',
+    icon: 'server',
+    adminOnly: true,
+    hiddenDuringSetup: 'always',
+  },
+  {
+    id: 'history',
+    label: 'Version history',
+    href: '/-/config/history',
+    icon: 'history',
+    adminOnly: true,
+    hiddenDuringSetup: 'always',
+    parent: 'instance',
+  },
+  {
+    id: 'environment',
+    label: 'Environment',
+    href: '/-/config/environment',
+    icon: 'terminal',
+    adminOnly: true,
+    hiddenDuringSetup: 'always',
+    parent: 'instance',
   },
   // The reader's own connections, open to any signed-in caller
   {

@@ -1,20 +1,19 @@
 /**
- * The instance pages beside the settings: backup and download, the environment report,
- * the template preview, and the stored brand images
  */
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { callerOf } from '../../auth/caller.middleware';
 import { BRAND_IMAGES, checkBrandBytes } from '../../config/brand';
 import { brandImagesByHash } from '../../config/brand-store';
 import { ConfigService } from '../../config/config.service';
+import { configVersionAt } from '../../config/loader';
 import { sendBrandImage } from '../../content-reader/assets.controller';
 import { sendHtml } from '../../content-reader/views';
 import { DashboardResponder } from '../respond';
 import { isPreviewableTemplate, renderTemplatePreview } from '../ui/template-preview';
-import { sendConfigBackup } from '../ui/views/config-backup/config-backup';
 import { sendConfigEnvironment } from '../ui/views/config-environment/config-environment';
+import { pickVersion } from './config-http';
 import { ConfigPageService } from './config-page/config-page.service';
 
 @Controller('-')
@@ -25,23 +24,27 @@ export class ConfigInstanceController {
     private readonly respond: DashboardResponder,
   ) {}
 
-  /** Backup page: export the current config as a downloadable YAML file */
-  @Get('config/backup')
-  async configBackup(@Req() req: Request, @Res() res: Response): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const payload = await this.page.backupPage(await this.page.state(caller));
-    sendConfigBackup(this.respond, req, res, caller.isAdmin, payload);
-  }
-
-  /** Raw YAML download of the current config */
+  /** Raw YAML download of a saved version, or of the stored config when the request does not include a specific version */
   @Get('config/download')
-  async downloadConfig(@Req() req: Request, @Res() res: Response): Promise<void> {
+  async downloadConfig(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('version') version?: string,
+  ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    const backup = await this.page.backup(await this.page.state(caller));
+    let source: { yaml: string; version: number | null };
+    if (version === undefined) {
+      const state = await this.page.state(caller);
+      source = { yaml: state.storedYaml, version: state.common.editing_version };
+    } else {
+      const picked = pickVersion(version, null);
+      const stored = picked === null ? null : await configVersionAt(caller.tenantId, picked);
+      if (!stored) return this.respond.notFound(req, res);
+      source = stored;
+    }
+    const backup = await this.page.backup(caller.tenantId, source.yaml, source.version);
 
     res.setHeader('Content-Type', 'application/yaml; charset=utf-8');
     // Forces the browser to download rather than display
