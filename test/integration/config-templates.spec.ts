@@ -93,13 +93,12 @@ describe('the operational surface', () => {
     expect(reader.text).toContain('--spr-font-body:Georgia');
   });
 
-  it('gives an operator neither, on every page under /-/', async () => {
+  it('gives an operator both too, on every page under /-/', async () => {
     for (const url of ['/-/status', '/-/config/branding', '/-/config/branding/appearance']) {
       const page = await from(url);
-      expect(page.text).toContain(`href="${stylesheetUrl('default')}"`);
-      expect(page.text).not.toContain(`href="${stylesheetUrl(other)}"`);
-      expect(page.text).not.toContain('--spr-accent');
-      expect(page.text).not.toContain('--spr-font-body');
+      expect(page.text).toContain(`href="${stylesheetUrl(other)}"`);
+      expect(page.text).toContain('--spr-accent:#8a4b2f');
+      expect(page.text).toContain('--spr-font-body:Georgia');
     }
   });
 

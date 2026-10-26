@@ -202,7 +202,7 @@ export function renderInlineIcon(name: string, className: string): string {
  * fact that lets the folder-and-landing-page merge in the nav prefer whichever
  * of the two was named.
  */
-export const DEFAULT_ICONS = { page: 'file-text', folder: 'folder' } as const;
+export const DEFAULT_ICONS = { page: 'file-text', folder: 'folder', start: 'house' } as const;
 
 /** The name a row is drawn with: its own icon, else the default for its kind */
 export function iconOf(row: { icon: string | null | undefined; kind?: 'page' | 'folder' }): string {
