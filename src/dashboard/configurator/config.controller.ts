@@ -1,77 +1,31 @@
 /**
- * Dashboard pages and actions for instance config
+ * The config editor: the overview, and the pages of sections, members and entries with their saves
  *
- * All admin routes, mounted at /-/config
  * The `add` query parameter on a section or member page redirects to create an entry
  * The `check` query parameter triggers diagnostic checks on a section
  * The `saved` query parameter shows which version was last saved
  * `wantsJson` determines HTML vs JSON response; JSON routes return data, HTML routes
  * render pages
- * Restore is gated on the config source being `database`
  */
-import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
-import { FLOW_TTL_MS } from '../../auth/github.service';
 import { ResolvedCaller } from '../../authz/caller';
-import { env } from '../../common/env';
-import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
-import { BRAND_IMAGES, checkBrandBytes } from '../../config/brand';
-import { brandImagesByHash } from '../../config/brand-store';
 import { ConfigService } from '../../config/config.service';
-import {
-  ConfigVersion,
-  configVersionAt,
-  getNewestConfigVersion,
-  listConfigVersions,
-  saveInstanceConfig,
-} from '../../config/loader';
-import { repairInstanceConfig } from '../../config/repair';
-import { ConfigWatcher } from '../../config/watcher';
-import { sendBrandImage } from '../../content-reader/assets.controller';
-import { sendHtml } from '../../content-reader/views';
+import { configVersionAt } from '../../config/loader';
 import { DashboardResponder, wantsJson } from '../respond';
-import { isPreviewableTemplate, renderTemplatePreview } from '../ui/template-preview';
-import { sendConfigBackup } from '../ui/views/config-backup/config-backup';
-import { sendConfigEnvironment } from '../ui/views/config-environment/config-environment';
-import {
-  HistoryPayload,
-  sendConfigHistory,
-  summarise,
-} from '../ui/views/config-history/config-history';
 import { sendConfig } from '../ui/views/config-overview/config-overview';
-import { sendConfigSection } from '../ui/views/config-section/config-section';
-import { sendGithubAppManifest } from '../ui/views/github-app-manifest/github-app-manifest';
-import { submitted } from './config-form/decode/body';
-import { diffConfigVersions } from './config-form/diff';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
-import { entryHrefFor, isMemberId, memberSectionId, nounOf } from './config-form/members';
+import { entryHrefFor, isMemberId, memberSectionId } from './config-form/members';
 import { readUploads } from './config-form/upload';
+import { pickVersion, redirectTo, sendSection } from './config-http';
 import { SectionChecks } from './config-page/checks';
 import { ConfigPageService } from './config-page/config-page.service';
-import {
-  GITHUB_APP_FORM_COOKIE,
-  GithubAppManifestError,
-  GithubAppManifestService,
-  MANIFEST_TARGETS,
-  appFields,
-  carryForm,
-  githubAppCallbackPath,
-  uploadsOf,
-  writeStoredValues,
-} from './config-page/github-app-manifest';
 import { stampEntryOrigins } from './config-page/origins';
-import {
-  ConfigBackupPayload,
-  ConfigEnvironmentPayload,
-  ConfigOverviewPayload,
-  ConfigSectionPayload,
-} from './config-page/payloads';
-import { ConfigSaveService, provenanceOf } from './config-page/save';
+import { ConfigSectionPayload } from './config-page/payloads';
+import { ConfigSaveService } from './config-page/save';
 import { groupsOf, stampGroupUsage, stampUsage } from './member-usage';
-import { RepairPreview, previewRepair } from './repair-preview';
 
 @Controller('-')
 export class ConfigController {
@@ -80,9 +34,7 @@ export class ConfigController {
     private readonly page: ConfigPageService,
     private readonly checks: SectionChecks,
     private readonly saves: ConfigSaveService,
-    private readonly watcher: ConfigWatcher,
     private readonly respond: DashboardResponder,
-    private readonly manifests: GithubAppManifestService,
   ) {}
 
   /** Config overview page: all section summaries */
@@ -92,228 +44,7 @@ export class ConfigController {
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
     const state = await this.page.state(caller);
-    this.overviewAnswer(req, res, caller, this.page.overview(state));
-  }
-
-  /** Version history page with optional diff between two versions */
-  @Get('config/history')
-  async configHistory(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('restored') restored?: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const versions = await listConfigVersions(caller.tenantId);
-    const running = this.config.configVersion;
-
-    const toVersion = pickVersion(to, versions[0]?.version ?? null);
-    const fromVersion = pickVersion(from, versionBefore(versions, toVersion) ?? toVersion);
-
-    const left = fromVersion === null ? null : await configVersionAt(caller.tenantId, fromVersion);
-    const right = toVersion === null ? null : await configVersionAt(caller.tenantId, toVersion);
-
-    this.historyAnswer(req, res, caller, {
-      running_version: running,
-      from: left?.version ?? null,
-      to: right?.version ?? null,
-      diff: left && right ? diffConfigVersions(left.yaml, right.yaml) : null,
-      restored: pickVersion(restored, null),
-      error: null,
-      problems: [],
-      versions: versions.map((version) =>
-        summarise(version, running, this.config.skippedConfigVersions),
-      ),
-      skipped: this.config.skippedConfigVersions,
-      repair: await this.repairOfNewest(caller.tenantId),
-    });
-  }
-
-  /** Backup page: export the current config as a downloadable YAML file */
-  @Get('config/backup')
-  async configBackup(@Req() req: Request, @Res() res: Response): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    this.backupAnswer(req, res, caller, await this.page.backupPage(await this.page.state(caller)));
-  }
-
-  /** Raw YAML download of the current config */
-  @Get('config/download')
-  async downloadConfig(@Req() req: Request, @Res() res: Response): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const backup = await this.page.backup(await this.page.state(caller));
-
-    res.setHeader('Content-Type', 'application/yaml; charset=utf-8');
-    // Forces the browser to download rather than display
-    res.setHeader('Content-Disposition', `attachment; filename="${backup.filename}"`);
-    // Not persisted; the YAML contains live secrets
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.status(200).send(backup.yaml);
-  }
-
-  /** Environment variable report page */
-  @Get('config/environment')
-  configEnvironment(@Req() req: Request, @Res() res: Response): void {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    this.environmentAnswer(req, res, caller, this.page.environment());
-  }
-
-  /** Restore a previous config version from history */
-  @Post('config/restore')
-  async restoreConfig(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body: { version?: unknown },
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const version = pickVersion(body?.version, null);
-    const source = version === null ? null : await configVersionAt(caller.tenantId, version);
-    if (!source) return this.respond.notFound(req, res);
-
-    try {
-      const saved = await saveInstanceConfig(caller.tenantId, source.yaml, provenanceOf(caller));
-      await this.watcher.refresh();
-
-      if (wantsJson(req)) {
-        res.setHeader('Vary', 'Accept');
-        res.setHeader('Cache-Control', 'private, no-store');
-        res.status(200).json({ restored: source.version, saved: saved.version });
-        return;
-      }
-      // Redirect back to history so the user sees the restored version highlighted
-      return this.redirectTo(res, `/-/config/history?restored=${source.version}`);
-    } catch (err) {
-      if (err instanceof ConfigReadOnlyError || err instanceof ConfigError) {
-        return this.historyAnswer(
-          req,
-          res,
-          caller,
-          await this.failedHistory(
-            caller.tenantId,
-            err.message.split('\n')[0],
-            err instanceof ConfigError ? err.problems : [],
-          ),
-          409,
-        );
-      }
-      throw err;
-    }
-  }
-
-  /** Save the repaired version as a new version */
-  @Post('config/repair')
-  async repairConfig(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body: { version?: unknown },
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-
-    const broken = await this.brokenNewest(caller.tenantId);
-    if (!broken || broken.version !== pickVersion(body?.version, null)) {
-      return this.redirectTo(res, '/-/config/history');
-    }
-
-    try {
-      const repaired = repairInstanceConfig(broken.yaml);
-      if (repaired.remaining.length > 0) {
-        return this.historyAnswer(
-          req,
-          res,
-          caller,
-          await this.failedHistory(
-            caller.tenantId,
-            `Version ${broken.version} cannot be repaired.`,
-            repaired.remaining,
-          ),
-          409,
-        );
-      }
-      const saved = await saveInstanceConfig(caller.tenantId, repaired.yaml, provenanceOf(caller));
-      await this.watcher.refresh();
-
-      if (wantsJson(req)) {
-        res.setHeader('Vary', 'Accept');
-        res.setHeader('Cache-Control', 'private, no-store');
-        res.status(200).json({ repaired: broken.version, saved: saved.version });
-        return;
-      }
-      return this.redirectTo(res, `/-/config/history?from=${broken.version}&to=${saved.version}`);
-    } catch (err) {
-      if (err instanceof ConfigReadOnlyError || err instanceof ConfigError) {
-        return this.historyAnswer(
-          req,
-          res,
-          caller,
-          await this.failedHistory(
-            caller.tenantId,
-            err.message.split('\n')[0],
-            err instanceof ConfigError ? err.problems : [],
-          ),
-          409,
-        );
-      }
-      throw err;
-    }
-  }
-
-  /** Preview a template with demo content, in a frame */
-  @Get('config/preview/:template')
-  previewTemplate(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('template') template: string,
-  ): void {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-    if (!isPreviewableTemplate(template)) return this.respond.notFound(req, res);
-
-    sendHtml(res, (nonce) => renderTemplatePreview(req, this.config, template, nonce), {
-      // The preview is shown in an iframe on the same origin
-      framedBySelf: true,
-    });
-  }
-
-  /**
-   * A stored brand image, for the thumbnail beside its picker
-   */
-  @Get('config/brand/:hash')
-  async configBrandImage(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('hash') hash: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    if (!caller.isAdmin) return this.respond.notFound(req, res);
-    if (!/^[0-9a-f]{64}$/.test(hash)) return this.respond.notFound(req, res);
-
-    const stored = (await brandImagesByHash(caller.tenantId, [hash])).get(hash);
-    const inline = this.config.brandImages.find((image) => image.hash === hash);
-
-    const image = stored
-      ? { mediaType: stored.media_type, bytes: stored.bytes }
-      : inline && { mediaType: inline.mediaType, bytes: inline.bytes };
-    if (!image) return this.respond.notFound(req, res);
-
-    const fits = BRAND_IMAGES.some(
-      (spec) =>
-        spec.types[image.mediaType] !== undefined &&
-        checkBrandBytes(image.bytes, image.mediaType, spec) === null,
-    );
-    if (!fits) return this.respond.notFound(req, res);
-
-    sendBrandImage(res, image.mediaType, image.bytes, 'private, no-store');
+    sendConfig(this.respond, req, res, caller.isAdmin, this.page.overview(state));
   }
 
   /** A member page (provider, group, source or list entry) */
@@ -338,7 +69,7 @@ export class ConfigController {
     }
 
     const href = typeof add === 'string' ? entryHrefFor(sectionId, add, kind ?? '') : null;
-    if (href) return this.redirectTo(res, href);
+    if (href) return redirectTo(res, href);
 
     return this.memberAnswer(req, res, caller, sectionId, saved, kind, check);
   }
@@ -395,12 +126,6 @@ export class ConfigController {
     return this.save(req, res, caller, sectionId, kind);
   }
 
-  private redirectTo(res: Response, href: string): void {
-    res.setHeader('Vary', 'Accept');
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.redirect(303, href);
-  }
-
   /** Section page: list entries, with optional filter and add */
   @Get('config/:section')
   async configSection(
@@ -419,7 +144,7 @@ export class ConfigController {
     if (!isConfigSection(sectionId)) return this.respond.notFound(req, res);
 
     const href = typeof add === 'string' ? entryHrefFor(sectionId, add, kind ?? '') : null;
-    if (href) return this.redirectTo(res, href);
+    if (href) return redirectTo(res, href);
 
     const state = await this.page.state(caller);
     // Pass query and kind to pre-filter the entries and select the creation kind
@@ -440,7 +165,7 @@ export class ConfigController {
       const landing = offered
         ? entryHrefFor(sectionId, offered.suggest ?? offered.value, kind)
         : null;
-      if (landing) return this.redirectTo(res, landing);
+      if (landing) return redirectTo(res, landing);
     }
     // Shows which config version each entry was introduced in
     await stampEntryOrigins(caller.tenantId, payload);
@@ -498,199 +223,13 @@ export class ConfigController {
           outcome.status,
         );
       case 'redirect':
-        return this.redirectTo(res, outcome.href);
+        return redirectTo(res, outcome.href);
       case 'json':
         res.status(outcome.status).json(outcome.body);
         return;
       case 'notFound':
         return this.respond.notFound(req, res);
     }
-  }
-
-  /** Hand the browser over to GitHub to create one of the GitHub Apps of a source or an identity provider */
-  @Post('config/:section/:member/:app/manifest')
-  async startGithubAppManifest(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('section') section: string,
-    @Param('member') member: string,
-    @Param('app') app: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    const targetOf = MANIFEST_TARGETS[section]?.[app];
-    if (!caller.isAdmin || !targetOf || !isMemberId(section, member)) {
-      return this.respond.notFound(req, res);
-    }
-    const sectionId = memberSectionId(section, member);
-
-    const uploads = await readUploads(req, res);
-    const body = req.body as Record<string, unknown>;
-    const baseUrl = (submitted(body, `${targetOf(member).path.join('.')}.base_url`) ?? '').trim();
-    try {
-      if (this.config.configSource !== 'database') {
-        throw new GithubAppManifestError(new ConfigReadOnlyError(this.config.sourcePath).message);
-      }
-      if (uploads.refusal) throw new GithubAppManifestError(uploads.refusal);
-      const target = targetOf(member, baseUrl);
-      const { handoff, sealedForm } = await this.manifests.start(
-        caller.tenantId,
-        target,
-        // Each App on a page has its own organization field
-        (submitted(body, `${app}:owner`) ?? '').trim(),
-        originOf(req),
-        carryForm(body, uploads),
-      );
-
-      res.cookie(GITHUB_APP_FORM_COOKIE, sealedForm, {
-        httpOnly: true,
-        secure: !env('SPEICHER_INSECURE_COOKIES'),
-        sameSite: 'lax',
-        path: githubAppCallbackPath(target.sectionId, target.app),
-        maxAge: FLOW_TTL_MS,
-      });
-      sendGithubAppManifest(res, handoff);
-    } catch (err) {
-      if (!(err instanceof GithubAppManifestError)) throw err;
-      return this.manifestRefused(req, res, caller, sectionId, err);
-    }
-  }
-
-  /** Where GitHub sends the browser back after it created one of the GitHub Apps of a source or an identity provider */
-  @Get('config/:section/:member/:app/manifest/callback')
-  async completeGithubAppManifest(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('section') section: string,
-    @Param('member') member: string,
-    @Param('app') appSegment: string,
-    @Query('code') code?: string,
-    @Query('state') state?: string,
-  ): Promise<void> {
-    const caller = callerOf(req);
-    const targetOf = MANIFEST_TARGETS[section]?.[appSegment];
-    if (!caller.isAdmin || !targetOf || !isMemberId(section, member)) {
-      return this.respond.notFound(req, res);
-    }
-    const sectionId = memberSectionId(section, member);
-
-    const sealedForm: unknown = req.cookies?.[GITHUB_APP_FORM_COOKIE];
-    res.clearCookie(GITHUB_APP_FORM_COOKIE, {
-      path: githubAppCallbackPath(sectionId, appSegment),
-    });
-    try {
-      if (typeof code !== 'string' || typeof state !== 'string') {
-        throw new GithubAppManifestError(
-          'GitHub sent the browser back without a code. To create the App, start again on this page.',
-        );
-      }
-      if (typeof sealedForm !== 'string') {
-        throw new GithubAppManifestError(
-          'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
-        );
-      }
-      const form = await this.manifests.claim(
-        caller.tenantId,
-        sectionId,
-        appSegment,
-        state,
-        sealedForm,
-      );
-      const baseUrl = (
-        submitted(form.body, `${targetOf(member).path.join('.')}.base_url`) ?? ''
-      ).trim();
-      const target = targetOf(member, baseUrl);
-
-      const configState = await this.page.state(caller);
-      if (target.member === 'new' && configState.doc?.hasIn(target.path)) {
-        const noun = nounOf(section);
-        throw new GithubAppManifestError(
-          `The ${noun} "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new ${noun}, start again with another short id.`,
-        );
-      }
-      const app = await this.manifests.convert(target, code);
-
-      // Saved as the page's Save button saves it, with the App's credentials entered manually
-      const outcome = await this.saves.save({
-        caller,
-        sectionId,
-        kind: target.kind,
-        json: false,
-        readBody: async () => ({
-          uploads: uploadsOf(form),
-          body: {
-            ...form.body,
-            ...appFields(target, app),
-            [target.switchName]: 'manual',
-            intent: 'apply',
-          },
-        }),
-        amend: (doc) => writeStoredValues(doc, target, app),
-      });
-      const installUrl = `${app.html_url}/installations/new`;
-
-      if (outcome.kind === 'redirect') return this.redirectTo(res, installUrl);
-      if (outcome.kind !== 'page') return this.respond.notFound(req, res);
-      outcome.payload.notice = target.unsavedNotice(installUrl);
-      return this.sectionAnswer(
-        req,
-        res,
-        caller,
-        outcome.sectionId,
-        outcome.payload,
-        outcome.status,
-      );
-    } catch (err) {
-      if (!(err instanceof GithubAppManifestError)) throw err;
-      return this.manifestRefused(req, res, caller, sectionId, err);
-    }
-  }
-
-  /** The page the App is created for, with the reason the manifest flow stopped */
-  private async manifestRefused(
-    req: Request,
-    res: Response,
-    caller: ResolvedCaller,
-    sectionId: string,
-    err: GithubAppManifestError,
-  ): Promise<void> {
-    const state = await this.page.state(caller);
-    let payload = await this.page.sectionPayload(state, sectionId);
-    // A new source or provider is not stored yet, so its page is a draft
-    if (!payload.section) {
-      const draft = this.page.draftPayload(state, sectionId, 'github');
-      if (!draft) return this.respond.notFound(req, res);
-      payload = draft;
-    }
-    payload.error = err.message;
-    this.sectionAnswer(req, res, caller, sectionId, payload, 400);
-  }
-
-  private overviewAnswer(
-    req: Request,
-    res: Response,
-    caller: ResolvedCaller,
-    payload: ConfigOverviewPayload,
-    status?: number,
-  ): void {
-    sendConfig(this.respond, req, res, caller.isAdmin, payload, status);
-  }
-
-  private backupAnswer(
-    req: Request,
-    res: Response,
-    caller: ResolvedCaller,
-    payload: ConfigBackupPayload,
-  ): void {
-    sendConfigBackup(this.respond, req, res, caller.isAdmin, payload);
-  }
-
-  private environmentAnswer(
-    req: Request,
-    res: Response,
-    caller: ResolvedCaller,
-    payload: ConfigEnvironmentPayload,
-  ): void {
-    sendConfigEnvironment(this.respond, req, res, caller.isAdmin, payload);
   }
 
   private sectionAnswer(
@@ -701,87 +240,6 @@ export class ConfigController {
     payload: ConfigSectionPayload,
     status?: number,
   ): void {
-    sendConfigSection(
-      this.respond,
-      req,
-      res,
-      caller.isAdmin,
-      sectionId,
-      payload,
-      this.config.hasAdministrator,
-      status,
-    );
+    sendSection(this.respond, this.config, req, res, caller, sectionId, payload, status);
   }
-
-  /** The newest saved version when it does not load, null otherwise */
-  private async brokenNewest(tenantId: string): Promise<{ version: number; yaml: string } | null> {
-    if (this.config.configSource !== 'database') return null;
-    const newest = await getNewestConfigVersion(tenantId);
-    return newest &&
-      this.config.skippedConfigVersions.some((skip) => skip.version === newest.version)
-      ? newest
-      : null;
-  }
-
-  private async repairOfNewest(tenantId: string): Promise<RepairPreview | null> {
-    const broken = await this.brokenNewest(tenantId);
-    return broken ? previewRepair(broken.yaml) : null;
-  }
-
-  /** The history page with the reason a restore or a repair failed */
-  private async failedHistory(
-    tenantId: string,
-    error: string,
-    problems: string[],
-  ): Promise<HistoryPayload> {
-    const versions = await listConfigVersions(tenantId);
-    return {
-      running_version: this.config.configVersion,
-      from: null,
-      to: null,
-      diff: null,
-      restored: null,
-      error,
-      problems,
-      versions: versions.map((v) =>
-        summarise(v, this.config.configVersion, this.config.skippedConfigVersions),
-      ),
-      skipped: this.config.skippedConfigVersions,
-      repair: await this.repairOfNewest(tenantId),
-    };
-  }
-
-  private historyAnswer(
-    req: Request,
-    res: Response,
-    caller: ResolvedCaller,
-    payload: HistoryPayload,
-    status?: number,
-  ): void {
-    sendConfigHistory(
-      this.respond,
-      req,
-      res,
-      caller.isAdmin,
-      payload,
-      this.config.configSource === 'database',
-      status,
-    );
-  }
-}
-
-/** Safely parse a version number from a query string or body value */
-function pickVersion(raw: unknown, fallback: number | null): number | null {
-  if (typeof raw !== 'string' && typeof raw !== 'number') return fallback;
-  const text = String(raw).trim();
-  if (text === '') return fallback;
-  const value = Number(text);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-/** Find the version immediately before the given one in the list */
-function versionBefore(versions: ConfigVersion[], version: number | null): number | null {
-  if (version === null) return null;
-  const index = versions.findIndex((v) => v.version === version);
-  return index === -1 ? null : (versions[index + 1]?.version ?? null);
 }
