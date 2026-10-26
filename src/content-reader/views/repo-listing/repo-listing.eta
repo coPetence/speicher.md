@@ -1,14 +1,26 @@
 
 <div class="spr-article">
+<% if (it.authenticated && !it.repos.length) { %>
+<div class="spr-empty-state spr-empty-state-page spr-repos-empty">
+  <%~ it.empty_art %>
+  <% if (!it.is_admin) { %>
+  <h1>No documentation yet</h1>
+  <p class="spr-empty">No repository on this instance is shared with you yet.</p>
+  <% } else if (!it.has_content_source) { %>
+  <h1>No repositories yet</h1>
+  <p class="spr-empty"><%~ md('Speicher reads documentation from the repositories of a content source. To add one, open [Content sources](/-/config/sources).') %></p>
+  <% } else { %>
+  <h1>No repositories yet</h1>
+  <p class="spr-empty"><%~ md('Speicher has not found a repository with a speicher.yaml yet. To see the current synchronization status, open [Sync status](/-/status).') %></p>
+  <% } %>
+</div>
+<% } else { %>
 <h1>Speicher</h1>
 <% if (!it.authenticated) { %>
 <p class="spr-empty">
   You are not signed in. <a href="/api/auth/login">Sign in</a> to see the
   documentation you have access to.
 </p>
-<% } else if (!it.repos.length) { %>
-
-<p class="spr-empty">There is nothing here.</p>
 <% } else { %>
 
 <ul class="spr-repos">
@@ -27,5 +39,6 @@
   </li>
   <% }) %>
 </ul>
+<% } %>
 <% } %>
 </div>

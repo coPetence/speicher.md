@@ -93,7 +93,7 @@ export class ReadController {
     const repos = await this.pages.listVisibleRepos(caller.principals, caller.tenantId);
     // If there is no public repo sign in is required
     if (repos.length === 0 && redirectToSignIn(req, res, this.config)) return;
-    sendRoot(req, res, this.config, this.routing, caller.identity !== null, repos);
+    sendRoot(req, res, this.config, this.routing, caller.identity !== null, caller.isAdmin, repos);
   }
 
   // Serves the claim-code page when the instance has no administrator yet
