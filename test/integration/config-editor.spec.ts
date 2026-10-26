@@ -2033,7 +2033,7 @@ describe('the groups section', () => {
     expect(html).not.toContain('spr-table-title');
     expect(html).not.toContain('spr-row-cards-col');
     expect(html).toMatch(
-      /Expire by<\/label>\s*<span class="spr-info">[\s\S]*a real expiry rather than a reminder/,
+      /Expire by<\/label>\s*<span class="spr-info">[\s\S]*A date in the past removes the member immediately/,
     );
 
     // What the cards say while closed, and the pen that opens each
@@ -2055,9 +2055,14 @@ describe('the groups section', () => {
     expect(html).toContain('name="groups.engineering.1.email"');
     expect(html).toMatch(/<span>Individual email<\/span>/);
 
-    expect(html.match(/value="remove:groups\.engineering\.\d+"/g)).toEqual([
-      'value="remove:groups.engineering.0"',
-      'value="remove:groups.engineering.1"',
+    // Each row is ticked for the bulk removal, and carries its own remove button
+    expect(html.match(/name="select" value="remove:groups\.engineering\.\d+"/g)).toEqual([
+      'name="select" value="remove:groups.engineering.0"',
+      'name="select" value="remove:groups.engineering.1"',
+    ]);
+    expect(html.match(/name="op" value="remove:groups\.engineering\.\d+"/g)).toEqual([
+      'name="op" value="remove:groups.engineering.0"',
+      'name="op" value="remove:groups.engineering.1"',
     ]);
   });
 

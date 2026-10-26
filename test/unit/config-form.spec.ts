@@ -1329,7 +1329,7 @@ describe('a group’s rows', () => {
     expect(page.tables![0].columns).toEqual([]);
     // The expiry's help travels with its control, which only the opened card shows
     const until = page.tables![0].entries[0].fields.find((f) => f.path.endsWith('.until'))!;
-    expect(until.help).toMatch(/a real expiry rather than a reminder/);
+    expect(until.help).toMatch(/A date in the past removes the member immediately/);
   });
 
   it('says what a row matches, its note, and its expiry in words', () => {

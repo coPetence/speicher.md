@@ -58,7 +58,7 @@ export function groupSection(root: Obj, name: string): SectionSource {
         columns: [],
         bulkRemoveOp: `remove-selected:groups.${name}`,
         entries: items.map((item, index) => rowEntry(root, name, index, item, others)),
-        emptyNote: 'No members yet',
+        emptyNote: 'No members yet.',
         add: rowAdd(
           root,
           name,
