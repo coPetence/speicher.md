@@ -1,0 +1,103 @@
+---
+icon: users
+---
+
+# Groups
+
+Repositories never grant access to external providers directly. They use Speicher’s internal group names (like `staff` or `engineering`, etc.).
+
+- A repository's `.speicher.yaml` for example contains `access: [staff]`.
+- An administrator decides what `staff` means (an Entra group, a GitHub team, an email domain, specific people, or a mix of these).
+
+## How Membership Works
+
+A group is a list of membership rules. A user becomes a member as soon as **any** rule matches them.
+
+Rules are evaluated instantly on every request. If you add, edit, or delete a rule, changes apply immediately without forcing users to sign in again.
+
+## Group Sources Reference
+
+Use these rules to add members to a group:
+
+| Source Type          | Supported Providers              | What to Enter                     | Description & Best Practices                                                                                                                                                                                                                                                                                                             |
+| :------------------- | :------------------------------- | :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **IDP group**        | OpenID Connect, Entra ID, GitHub | Provider + Group ID               | Matches everyone in that provider group.<br>• **Entra ID:** Use the group's **Object ID** (requires [emitting groups claim](../01-identity-providers/02-entra-id/index.mdx#2-emit-the-groups-claim)).<br>• **GitHub:** Use `org/team-slug` (Organizations only).<br>• **OpenID Connect:** Use the ID from the configured `groups_claim`. |
+| **Email domain**     | Magic links only                 | Domain name (e.g., `company.com`) | Matches anyone who signs in with an address at that domain.<br>**Caution:** Never use public domains like `gmail.com`.                                                                                                                                                                                                                   |
+| **Individual email** | All providers                    | Person's email address            | Matches one specific person.<br>**Caution:** Do not use with public directory endpoints (like Microsoft `/common/v2.0`). Use `subject` instead if you need a permanent ID that survives email renames.                                                                                                                                   |
+| **Another group**    | Current instance                 | Internal group name               | Adds all members of another group to this one. You can chain groups together (e.g., `product` includes `engineering` and `design`).                                                                                                                                                                                                      |
+
+:::note
+If your provider does not support group claims, use **Individual email** rules instead.
+:::
+
+---
+
+## Manage Groups in the Dashboard
+
+### 1. Create a Group
+
+1. Go to **Configuration → Groups**.
+2. Select **Add a group**.
+3. Enter a **Short id** (for example, `staff`). This is the ID used in `.speicher.yaml`.
+
+<!-- screenshot: the Groups page with the "Add a group" popup -->
+
+### 2. Add Members
+
+1. Open the group's page and select **Add members**.
+2. Choose a source type (**IDP group**, **Email domain**, **Individual email**, or **Another group**).
+3. Fill in the required provider and identifier details.
+
+<!-- screenshot: the "Add members" popup -->
+
+---
+
+## Usage Examples
+
+### In a Repository (`.speicher.yaml`)
+
+```yaml
+version: 1
+access: [staff, partners]
+
+maintainers:
+  groups: [docs-team]
+```
+
+### Administrator Access
+
+To grant full admin rights, open the group's page and turn on **Administrator access**.
+
+### Public Access
+
+The group name `public` is reserved. It automatically includes everyone, including unauthenticated visitors.
+
+---
+
+## Important Exceptions & Limitations
+
+- **Group Cache Sync:** External provider groups are read when the user signs in. If a user leaves a group at the provider, Speicher updates its access at the next sign-in. If a `directory` is configured, Speicher refreshes group memberships when the cache expires (default: 1 hour).
+- **Entra Limit:** Users in more than ~200 Entra groups do not receive a group claim and will resolve to zero groups.
+- **Renaming Groups:** Renaming a group in the dashboard does **not** update `.speicher.yaml` files. Update your repositories first to avoid `unknown group` errors.
+
+---
+
+## All settings
+
+<!-- generated: schema instance#/properties/groups -->
+<!-- prettier-ignore-start -->
+| Key | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `groups` | map |  |  | References another Speicher group by its internal name. All members of the referenced groups will be members of this group. |
+| `groups.<name>` | list of object |  |  |  |
+| `groups.<name>[]` | object |  |  | The source of a group membership. Can be a directory group id, an email domain for a magic-link provider, one persons email, or a reference to another group by its internal name. Exactly one of the five keys must be present. Set exactly one of: `provider` + `id`, `provider` + `domain`, `provider` + `subject`, `provider` + `email`, `group`. |
+| `groups.<name>[].provider` | string |  |  | Short ID of the identity provider you want to reference. |
+| `groups.<name>[].id` | string |  |  | Group id as the provider emits it in groups_claim (oidc), or "org/team-slug" (github). |
+| `groups.<name>[].subject` | string |  |  | Value of the provider's subject_claim, naming one person rather than a mapping. For a magic-link provider the subject IS the lowercased email address. The strongest of the four keys: a subject is assigned by the provider and cannot be set by the person it identifies, so it survives a rename and cannot be claimed by somebody else. |
+| `groups.<name>[].email` | string (email) |  |  | Address of one person, matched against the provider's email_claim. Mutable, reassignable, and on some providers set by a directory administrator rather than proven by the mailbox — so this is the convenient form and `subject` is the durable one. Refused on a provider whose issuer does not name one directory; see the loader. |
+| `groups.<name>[].group` | string |  |  | The internal name of another group. Every member of that group is a member of this one. |
+| `groups.<name>[].note` | string |  |  | Optional free text for later reference. |
+| `groups.<name>[].until` | string (date) |  |  | Optional expiry date. A group source will loose effect after this date. If it's not set the source will be permanent. |
+| `groups.<name>[].domain` | string |  |  | Email domain as the group. magic-link providers only. The "address already appears in some ACL" check that gates link sending includes domain membership. Never use a freemail domain — it would grant anyone who can receive mail there. |
+<!-- prettier-ignore-end -->
+<!-- /generated -->
