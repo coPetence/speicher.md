@@ -20,7 +20,7 @@ docker compose exec web speicher <command> [options]
 speicher migrate [up|down|status]
 ```
 
-Applies or reverts database migrations. down reverts the last migration, up applies all pending migrations, status shows pending migrations.
+Manage database migrations: up applies pending migrations (default), down reverts the last, status lists pending migrations.
 
 ## rebuild
 
@@ -28,7 +28,7 @@ Applies or reverts database migrations. down reverts the last migration, up appl
 speicher rebuild [--purge]
 ```
 
-Rebuilds the pages of every repository from its current commit, even if the commit has not changed. With `--purge`, it deletes the stored content first but keeps the search embeddings. The command only queues the work, and the worker carries it out.
+Queue a rebuild of all repository pages from their current commits, even if unchanged. --purge deletes stored content first but keeps search embeddings. A worker runs the rebuild.
 
 ## claim
 
@@ -36,7 +36,7 @@ Rebuilds the pages of every repository from its current commit, even if the comm
 speicher claim [<code>]
 ```
 
-Approves a browser that is waiting to set up this instance. If you run the command without a code, it lists the browsers that are waiting. A code expires after an hour.
+Approve a browser to set up this instance, or omit the code to list waiting browsers. Codes expire after one hour.
 
 ## reopen-claim-window
 
@@ -44,7 +44,7 @@ Approves a browser that is waiting to set up this instance. If you run the comma
 speicher reopen-claim-window
 ```
 
-Reopens the claim window. This could be needed if the claim window was closed and no administrator is configured, for example after a configuration rollback. If an administrator is still configured but cannot sign in, run `speicher admin add` instead.
+Reopen the claim window when no administrator is configured. If an existing administrator cannot sign in, use `speicher admin add` instead.
 
 ## jobs
 
@@ -52,7 +52,7 @@ Reopens the claim window. This could be needed if the claim window was closed an
 speicher jobs list [--status <status>] [--limit <number>] | retry (<id> | --all | --kind <kind>)
 ```
 
-Lists the jobs in the queue or puts dead jobs back on it. To see the queued jobs, run `speicher jobs list`. To put a dead job back on the queue, run `speicher jobs retry <id>`.
+List queued jobs or retry dead jobs.
 
 ## sync-repo-list
 
@@ -60,7 +60,7 @@ Lists the jobs in the queue or puts dead jobs back on it. To see the queued jobs
 speicher sync-repo-list [<forge>]
 ```
 
-Fetches the list of repositories from the provided forge or all configured forges if none was provided. It then updates the list of repositories in the database to match the fetched list. New repositories are added, renamed ones are updated, and repositories that are no longer present are removed. This command only queues the job, it does not await its completion.
+Queue a repository list sync for one forge or all configured forges. Adds new repositories, updates renamed ones, and removes missing ones. Does not wait for completion.
 
 ## sync-repo-content
 
@@ -68,7 +68,7 @@ Fetches the list of repositories from the provided forge or all configured forge
 speicher sync-repo-content <namespace>/<slug> [--force]
 ```
 
-Fetches the newest commit of one repository and rebuilds its pages, assets and search data from it. If the commit has not changed since the last successful sync, nothing is rebuilt. With `--force`, the command rebuilds the repository even if the commit has not changed. You name the repository as `<namespace>/<slug>`, or as `<slug>` alone if no other namespace uses it. The command only queues the work, and the worker carries it out.
+Queue a sync of a repository’s latest commit to rebuild pages, assets and search data. Unchanged commits are skipped unless --force is set. Use <namespace>/<slug>, or <slug> if unique. A worker runs the sync.
 
 ## repos
 
@@ -76,7 +76,7 @@ Fetches the newest commit of one repository and rebuilds its pages, assets and s
 speicher repos list
 ```
 
-List every repository registered on this instance.
+List registered repositories.
 
 ## forges
 
@@ -84,7 +84,7 @@ List every repository registered on this instance.
 speicher forges list
 ```
 
-List every content source configured on this instance.
+List configured forges.
 
 ## config
 
@@ -92,7 +92,7 @@ List every content source configured on this instance.
 speicher config export [<path>] [--with-secrets]
 ```
 
-Writes the instance configuration to the given file, or to stdout if you give no path. An existing file is never overwritten. Secrets stored in the configuration are replaced by environment variable references, unless you add --with-secrets.
+Export configuration to a new file or stdout. Existing files are not overwritten. Secrets become environment variable references unless --with-secrets is used.
 
 ## admin
 
@@ -100,6 +100,6 @@ Writes the instance configuration to the given file, or to stdout if you give no
 speicher admin add (--email <address> | --subject <id> --note <text>) [--provider <id>]
 ```
 
-Adds an administrator to the stored configuration, identified by an email address or by the subject claim of their identity provider. This requires a stored configuration. If no configuration is stored yet, open the instance in a browser and claim it there instead.
+Add an administrator by email or identity-provider subject ID. Requires a stored configuration; otherwise, open the instance in a browser to claim it.
 <!-- prettier-ignore-end -->
 <!-- /generated -->

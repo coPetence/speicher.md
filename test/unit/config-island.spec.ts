@@ -689,14 +689,66 @@ describe('the save bar', () => {
     await settle();
     pressSave();
 
+    // The first problem, and how many more; no field on the page to name
     expect(status()?.textContent).toBe(
-      'instance config failed schema validation: auth.providers.link.token_ttl: must match pattern "^[0-9]+(s|m|h|d)$"',
+      'auth.providers.link.token_ttl: must match pattern "^[0-9]+(s|m|h|d)$" (1 more)',
     );
     expect(status()?.textContent).not.toContain('`');
     expect(status()?.textContent).not.toContain('session_ttl');
   });
 
-  it('says a problem carrying a link as the words it is made of', async () => {
+  it('marks the field a check refused, names it by its label, and clears it once fixed', async () => {
+    render();
+    const field = document.createElement('div');
+    field.className = 'spr-field';
+    field.innerHTML =
+      '<label for="f-mail.from">From<span class="spr-required">*</span></label>' +
+      '<input id="f-mail.from" name="mail.from" value="">';
+    form().prepend(field);
+    const refusal = {
+      ok: false,
+      json: async () => ({
+        error: 'Fix the errors below before saving.',
+        error_code: 'config.schema',
+        problems: ['This is required'],
+        problem_codes: ['schema.required'],
+        problem_paths: ['mail.from'],
+        verdict: null,
+      }),
+    };
+    fetchMock.mockResolvedValue(refusal);
+    run();
+
+    type('brand.name', 'Handbook');
+    await settle();
+    // Nothing is marked before Save is pressed, as nothing is said
+    expect(field.classList.contains('spr-field-invalid')).toBe(false);
+
+    pressSave();
+    expect(status()?.textContent).toBe('The field From is required');
+    expect(field.classList.contains('spr-field-invalid')).toBe(true);
+    expect(field.getAttribute('data-spr-problem')).toBe('schema.required');
+    const input = field.querySelector('input')!;
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe(
+      'This is required',
+    );
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        error: null,
+        verdict: { changed: [], rebuild: false, effect: 'hot', hotReloadAvailable: true },
+      }),
+    });
+    type('mail.from', 'docs@example.test');
+    await settle();
+    expect(field.classList.contains('spr-field-invalid')).toBe(false);
+    expect(input.hasAttribute('aria-invalid')).toBe(false);
+    expect(field.querySelector('.spr-field-problem')).toBeNull();
+  });
+
+  it('says a problem carrying a link with the link working, not as markup', async () => {
     render();
     fetchMock.mockResolvedValue({
       ok: false,
@@ -719,6 +771,31 @@ describe('the save bar', () => {
     expect(status()?.textContent).toContain('Configure it under Mail transport, then');
     expect(status()?.textContent).not.toContain('/-/config/mail');
     expect(status()?.textContent).not.toContain('[');
+    const link = status()?.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/-/config/mail');
+    expect(link?.textContent).toBe('Mail transport');
+  });
+
+  it('links the headline too, and never to another site over plain http', async () => {
+    render();
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error:
+          'No administrator is configured. Add one under [Administrators](/-/config/admins), ' +
+          'or see [the guide](http://evil.test/).',
+        verdict: null,
+      }),
+    });
+    run();
+
+    type('brand.name', 'Handbook');
+    await settle();
+    pressSave();
+
+    const links = Array.from(status()?.querySelectorAll('a') ?? []);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/-/config/admins']);
+    expect(status()?.textContent).toContain('or see the guide.');
   });
 
   it('offers Save again once the document loads, and says what saving costs', async () => {

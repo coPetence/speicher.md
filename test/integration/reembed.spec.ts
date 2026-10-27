@@ -143,14 +143,15 @@ describe('reembed', () => {
     const current = stubEmbeddingClient(NEW, hashingVector);
 
     const dying = new EmbedService(current.client);
+    const killed = new Error('worker killed');
     let slices = 0;
     const real = current.client.embed.bind(current.client);
     jest.spyOn(current.client, 'embed').mockImplementation(async (texts) => {
       slices += 1;
-      if (slices > 2) throw new Error('worker killed');
+      if (slices > 2) throw killed;
       return real(texts);
     });
-    await expect(dying.embedPending(harness.tenantId)).rejects.toThrow('worker killed');
+    await expect(dying.embedPending(harness.tenantId)).rejects.toBe(killed);
 
     const half = await counts();
     expect(half.current).toBeGreaterThan(0);

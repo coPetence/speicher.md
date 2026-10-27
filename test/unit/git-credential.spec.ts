@@ -110,7 +110,7 @@ describe('any other transport', () => {
   it('is refused rather than fetched', async () => {
     await expect(
       withGitCredential('git://git.example.test/ops/handbook.git', {}, async () => null),
-    ).rejects.toThrow(/transport/);
+    ).rejects.toFailWith('git.transport-unsupported');
   });
 });
 

@@ -3,6 +3,8 @@
   const f = it.field, editable = it.editable;
   const component =
     f.kind === 'duration' || f.kind === 'bytes' ? 'amount' : f.kind === 'url' ? 'text' : f.kind;
+  // Mark invalid fields and show save errors below the control
+  const problems = f.problems || [];
 %>
   <% if (f.inapplicable) { %>
   <input
@@ -12,7 +14,8 @@
   >
   <% } else { %>
   <div
-    class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %><%= f.wide ? ' spr-field-wide' : '' %><%= f.inColumn ? ' spr-field-in-column' : '' %>"
+    class="spr-field spr-field-<%= f.kind %><%= f.startsRow ? ' spr-field-break' : '' %><%= f.wide ? ' spr-field-wide' : '' %><%= f.inColumn ? ' spr-field-in-column' : '' %><%= problems.length ? ' spr-field-invalid' : '' %>"
+    <% if (problems.length) { %>data-spr-problem="<%= problems.map(function (p) { return p.code; }).join(' ') %>"<% } %>
     <% if (f.kind === 'secret' && f.upload && editable) { %>data-spr-drop-zone<% } %>
     <% if (f.shownWith) { %>data-spr-shown-with="<%= f.shownWith %>"<% } %>
     <% if (f.shownWithRows) { %>data-spr-shown-with-rows="<%= f.shownWithRows.collection %>"<%= f.shownWithRows.rows === 0 ? ' hidden' : '' %><% } %>
@@ -20,13 +23,17 @@
   >
     <%~ include('@config-fields/' + component, it) %>
 
+    <% problems.forEach(function (problem, i) { %>
+    <p class="spr-field-problem"<% if (i === 0) { %> id="f-<%= f.path %>-problem"<% } %>><%~ md(problem.text) %></p>
+    <% }) %>
+
     <% if (f.fact) { %>
     <p class="spr-help">
       <%~ md(f.fact) %>
     </p>
     <% } %>
     <% if (f.status) { %>
-    <%~ include('@note', { level: f.status.level, text: f.status.label, detail: f.status.detail }) %>
+    <%~ include('@note', { level: f.status.level, text: f.status.label, detail: f.status.detail, data: { 'spr-status': f.status.code } }) %>
     <% } else if (f.checkHref) { %>
     <%~ include('@note', { level: 'idle', check: { href: f.checkHref, at: f.path } }) %>
     <% } %>

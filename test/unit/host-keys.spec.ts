@@ -130,8 +130,8 @@ describe('whether known_hosts holds a key for a server', () => {
       `    known_hosts: other.test ssh-ed25519 ${ED25519}`,
     );
     expect(withoutKeys).not.toBe(FULL);
-    expect(() => validateForSave(withoutKeys)).toThrow(/no trusted host key/);
-    expect(() => validateForSave(FULL)).not.toThrow(/host key/);
+    expect(() => validateForSave(withoutKeys)).toRefuseWith('forges.host-key-missing');
+    expect(() => validateForSave(FULL)).not.toRefuseWith('forges.host-key-missing');
   });
 });
 
@@ -158,10 +158,12 @@ describe('fetching the host keys of a git source', () => {
 
     expect(asked).toEqual(['example.test']);
     expect(answer?.changed).toBe(true);
-    expect(answer?.status.level).toBe('warn');
-    expect(answer?.status.detail).toContain(
-      'Save only if their fingerprints match the published ones',
-    );
+    // Fetched and not saved yet, so the page asks to compare the fingerprints
+    expect(answer?.status).toMatchObject({
+      code: 'host-keys.fetched',
+      level: 'warn',
+      facts: { hosts: 'example.test' },
+    });
     expect(field(serialise(doc)).keys).toEqual([
       { host: 'example.test', type: 'ssh-ed25519', fingerprint: ED25519_FINGERPRINT },
     ]);
@@ -176,8 +178,11 @@ describe('fetching the host keys of a git source', () => {
     const answer = await checks.fetchHostKeys(doc, 'sources/onprem', FETCH, FULL);
 
     expect(answer?.changed).toBe(false);
-    expect(answer?.status.level).toBe('ok');
-    expect(answer?.status.detail).toBe('The keys of example.test are already saved.');
+    expect(answer?.status).toMatchObject({
+      code: 'host-keys.unchanged',
+      level: 'ok',
+      facts: { hosts: 'example.test' },
+    });
     expect(serialise(doc)).toBe(before);
   });
 
@@ -193,8 +198,11 @@ describe('fetching the host keys of a git source', () => {
     const answer = await checks.fetchHostKeys(doc, 'sources/onprem', FETCH, FULL);
 
     expect(answer?.changed).toBe(true);
-    expect(answer?.status.level).toBe('warn');
-    expect(answer?.status.detail).toContain('example.test are not saved yet');
+    expect(answer?.status).toMatchObject({
+      code: 'host-keys.fetched',
+      level: 'warn',
+      facts: { hosts: 'example.test' },
+    });
   });
 
   it('changes nothing and says why when the server does not answer', async () => {
@@ -207,8 +215,11 @@ describe('fetching the host keys of a git source', () => {
     const answer = await checks.fetchHostKeys(doc, 'sources/onprem', FETCH);
 
     expect(answer?.changed).toBe(false);
-    expect(answer?.status.level).toBe('fail');
-    expect(answer?.status.detail).toContain('did not answer');
+    expect(answer?.status).toMatchObject({
+      code: 'host-keys.none-fetched',
+      level: 'fail',
+      facts: { failed: 'example.test' },
+    });
     expect(serialise(doc)).toBe(before);
   });
 
@@ -242,8 +253,7 @@ describe('fetching the host keys of a git source', () => {
 
     const unsaved = page(serialise(doc));
     stampUnsavedHostKeys(unsaved, FULL);
-    expect(noteOf(unsaved)?.level).toBe('warn');
-    expect(noteOf(unsaved)?.detail).toContain('not saved yet');
+    expect(noteOf(unsaved)).toMatchObject({ code: 'host-keys.unsaved', level: 'warn' });
 
     const saved = page(serialise(doc));
     stampUnsavedHostKeys(saved, serialise(doc));

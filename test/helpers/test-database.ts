@@ -5,6 +5,8 @@
  * One module, so the database `ensureDatabase` creates and the one `test/setup.ts`
  * opens cannot come apart. `scripts/ensure-databases.ts` reads it too.
  */
+import { CodedError } from '../../src/common/errors';
+
 export const DEFAULT_TEST_DATABASE_URL =
   'postgres://speicher:speicher@127.0.0.1:55432/speicher_test';
 
@@ -27,7 +29,8 @@ export function testDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
  */
 export function assertTestDatabase(name: string): void {
   if (name.endsWith(TEST_DATABASE_SUFFIX)) return;
-  throw new Error(
+  throw new CodedError(
+    'test-database.refused',
     `refusing to truncate database "${name}": the test suite only runs against a ` +
       `database whose name ends in "${TEST_DATABASE_SUFFIX}". ` +
       `Unset SPEICHER_DATABASE_URL, or point it at ${DEFAULT_TEST_DATABASE_URL}.`,

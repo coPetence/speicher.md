@@ -1,14 +1,11 @@
 /**
- * YAML 1.2 core schema, no anchors, aliases, or merge keys
- *
- * The `yaml` library defaults to YAML 1.1 which coerces `yes`/`no` to booleans
- * Locking to 1.2 core schema avoids that
- * Anchors and aliases are forbidden because the resolved graph, not the raw tree,
- *   determines validity and schema alone cannot catch every misuse
- * Merge keys are resolved into aliases by the library, so they are also excluded
+ * YAML 1.2 core schema keeps yes/no as strings
+ * Anchors, aliases, and merge keys are forbidden
  */
 
 import { Document, parseDocument, visit, isAlias, isNode, isScalar, LineCounter } from 'yaml';
+
+import { CodedError } from './errors';
 
 export interface YamlParseResult<T = unknown> {
   value: T;
@@ -16,12 +13,14 @@ export interface YamlParseResult<T = unknown> {
   lineOf(keyPath: string): number | null;
 }
 
-export class YamlError extends Error {
+/** Syntax errors and forbidden YAML features */
+export type YamlCode = 'yaml.syntax' | 'yaml.alias' | 'yaml.anchor' | 'yaml.merge-key';
+
+export class YamlError extends CodedError<YamlCode> {
   readonly line: number | null;
 
-  constructor(message: string, line: number | null) {
-    super(line === null ? message : `line ${line}: ${message}`);
-    this.name = 'YamlError';
+  constructor(code: YamlCode, message: string, line: number | null) {
+    super(code, line === null ? message : `line ${line}: ${message}`);
     this.line = line;
   }
 }
@@ -42,7 +41,7 @@ export function parseStrictDocument(source: string): {
 
   if (doc.errors.length > 0) {
     const first = doc.errors[0];
-    throw new YamlError(first.message, first.linePos?.[0]?.line ?? null);
+    throw new YamlError('yaml.syntax', first.message, first.linePos?.[0]?.line ?? null);
   }
 
   const lineAt = (offset: number | undefined) =>
@@ -50,13 +49,25 @@ export function parseStrictDocument(source: string): {
 
   visit(doc, (_key, node) => {
     if (isAlias(node)) {
-      throw new YamlError(`alias "*${node.source}" is not permitted`, lineAt(node.range?.[0]));
+      throw new YamlError(
+        'yaml.alias',
+        `alias "*${node.source}" is not permitted`,
+        lineAt(node.range?.[0]),
+      );
     }
     if (isNode(node) && node.anchor) {
-      throw new YamlError(`anchor "&${node.anchor}" is not permitted`, lineAt(node.range?.[0]));
+      throw new YamlError(
+        'yaml.anchor',
+        `anchor "&${node.anchor}" is not permitted`,
+        lineAt(node.range?.[0]),
+      );
     }
     if (isScalar(node) && typeof node.value === 'string' && node.value === '<<') {
-      throw new YamlError('merge key "<<" is not permitted', lineAt(node.range?.[0]));
+      throw new YamlError(
+        'yaml.merge-key',
+        'merge key "<<" is not permitted',
+        lineAt(node.range?.[0]),
+      );
     }
   });
 
@@ -64,10 +75,8 @@ export function parseStrictDocument(source: string): {
 }
 
 /**
- * Parse and throw on any error, anchor, alias or merge key
- *
- * Returns a plain JS value via `doc.toJS()` which throws on unresolved aliases
- *   (`maxAliasCount: 0`) as a safety net in case the pre-emptive visit misses one
+ * Parse strict YAML into a JS value with key-path line lookup
+ * maxAliasCount: 0 adds a fallback check against aliases
  */
 
 export function parseStrictYaml<T = unknown>(source: string): YamlParseResult<T> {

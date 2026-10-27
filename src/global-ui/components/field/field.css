@@ -129,3 +129,17 @@
     background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));
   }
 }
+
+/* Highlight invalid controls and show field errors */
+@layer speicher.base {
+  .spr-field-invalid [aria-invalid='true'] {
+    border-color: var(--spr-status-fail);
+    box-shadow: 0 0 0 1px var(--spr-status-fail);
+  }
+  /* Inline error text, not a callout */
+  .spr-field-problem {
+    margin: 0;
+    color: var(--spr-status-fail);
+    font-size: var(--spr-font-size-small);
+  }
+}

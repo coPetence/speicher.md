@@ -2,6 +2,7 @@ import { Document, isSeq } from 'yaml';
 
 import { carryProviderRows } from '../../../auth/provider-rename';
 import { ResolvedCaller } from '../../../authz/caller';
+import { wordingFor } from '../../../common/config-problems';
 import { ConfigError, ConfigReadOnlyError } from '../../../common/errors';
 import { rootLogger } from '../../../common/logger';
 import { brandRef } from '../../../config/brand';
@@ -28,15 +29,9 @@ import { SectionChecks, stampUnsavedHostKeys } from './checks';
 import { ConfigPageService, carryUnsavedSecrets } from './config-page.service';
 import { stampEntryOrigins } from './origins';
 import { ConfigSectionPayload } from './payloads';
+import { fieldPathOf, stampProblems } from './problem-stamp';
 
-/**
- * What a save asks of the HTTP layer, and nothing more.
- *
- * The save decides; the controller answers. Keeping `Request` and `Response` out
- * of this file is what lets every branch below be read as a decision rather than
- * as a sequence of writes to a socket — and the four kinds are every answer the
- * two save routes have ever given.
- */
+// Save result mapped to an HTTP response
 export type SaveOutcome =
   | { kind: 'page'; sectionId: string; payload: ConfigSectionPayload; status?: number }
   | { kind: 'redirect'; href: string }
@@ -47,13 +42,9 @@ export interface SaveRequest {
   caller: ResolvedCaller;
   sectionId: string;
   kind?: string;
-  // Whether the caller asked for the document rather than a page
+  // Return the document instead of an HTML page
   json: boolean;
-  /**
-   * The body, parsed when the save is ready for it. A callback rather than a value,
-   * because a `file`-mode refusal is given before anything is decoded — see the
-   * check on `payload.editable` — and the multipart body is not read at all then.
-   */
+  // Defer body parsing until read-only checks pass
   readBody: () => Promise<{ uploads: Uploads; body: Record<string, unknown> }>;
   amend?: (doc: Document) => boolean;
 }
@@ -62,17 +53,7 @@ function pageOf(sectionId: string, payload: ConfigSectionPayload, status?: numbe
   return { kind: 'page', sectionId, payload, status };
 }
 
-/**
- * Where the page lands after an op added an entry to a list, removed one from it or
- * fetched host keys, or null for any other op. After `add:` it is the new entry, e.g.
- * `forges.git.repos.2`, and its first field is focused. After `remove:` it is the entry
- * that took the removed one's place, else the one before it, else the list itself,
- * whose Add button is there. After Fetch host keys it is the known hosts field, whose
- * card the page opens at
- *
- * @param doc the document the op was applied to
- * @param op the submitted op
- */
+// Land on the added entry, nearest remaining entry, or fetched host keys field
 function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] {
   if (typeof op !== 'string') return undefined;
   if (op.startsWith(FETCH_HOST_KEYS_OP)) {
@@ -93,18 +74,24 @@ function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] 
   return { path: at >= 0 ? `${target}.${at}` : target, focus: false };
 }
 
-/**
- * The page handed back with the loader's reason on it: the first line as the
- * headline, and every problem beneath it. One spelling, so the five places a save
- * can be refused cannot come to say it differently.
- */
+// Show save errors on the page and affected fields using dashboard wording
 function refused(
   payload: ConfigSectionPayload,
   err: ConfigError | ConfigReadOnlyError,
 ): ConfigSectionPayload {
-  return err instanceof ConfigError
-    ? { ...payload, error: err.message.split('\n')[0], problems: err.problems }
-    : { ...payload, error: err.message };
+  if (!(err instanceof ConfigError)) return { ...payload, error: err.message };
+
+  const [, ...shown] = stampProblems(payload, [err.summary, ...err.issues]);
+  return {
+    ...payload,
+    error: wordingFor(err.summary, 'dashboard'),
+    error_code: err.code,
+    problems: err.issues.map((p) => wordingFor(p, 'dashboard')),
+    problem_codes: err.issues.map((p) => p.code),
+    error_path: err.summary.path ? fieldPathOf(err.summary.path) : null,
+    problem_paths: err.issues.map((p) => (p.path ? fieldPathOf(p.path) : null)),
+    problems_shown: shown,
+  };
 }
 
 export function provenanceOf(caller: ResolvedCaller): SaveActor {
@@ -116,12 +103,7 @@ export function provenanceOf(caller: ResolvedCaller): SaveActor {
   };
 }
 
-/**
- * A save, whichever page it came from.
- *
- * The POST routes differ in what they let a caller name — one of the nine,
- * or a provider — and in nothing else. Everything below is about the document.
- */
+// Shared save logic for section and provider routes
 export class ConfigSaveService {
   constructor(
     private readonly config: ConfigService,
@@ -130,12 +112,7 @@ export class ConfigSaveService {
     private readonly watcher: ConfigWatcher,
   ) {}
 
-  /**
-   * Apply a rename and save it, or answer why it was refused.
-   *
-   * Both this and the save below hand the whole document to `saveInstanceConfig`,
-   * so a rename is checked exactly as hard as a value.
-   */
+  // Rename and save with full document validation
   private async rename(
     caller: ResolvedCaller,
     json: boolean,
@@ -154,7 +131,7 @@ export class ConfigSaveService {
       return refuse(`"${to}" is not a name this key may take: lower case, digits and hyphens.`);
     }
 
-    // On a copy, so a refusal hands back the operator's edits with the old name on them
+    // Rename a copy so refusals preserve edits under the old name
     const renamed = loadDocument(edited);
     if (!renameMember(renamed, from.section, from.id, to)) {
       return refuse(`There is already a ${noun} called "${to}".`);
@@ -167,7 +144,7 @@ export class ConfigSaveService {
         provenanceOf(caller),
       );
 
-      // Sessions and OAuth grants name the provider, so they move with it
+      // Move sessions and OAuth grants to the new provider name
       if (from.section === 'identity') {
         const log = rootLogger.child('config');
         try {
@@ -218,88 +195,50 @@ export class ConfigSaveService {
   }: SaveRequest): Promise<SaveOutcome> {
     const state = await this.page.state(caller);
     const payload = await this.page.sectionPayload(state, sectionId);
-    // Every answer below is a submission rendered back, so whatever is in the boxes
-    // was typed in a browser and is stored nowhere. That is what the unload guard
-    // protects, and it is not the question `pending` answers — see `holds_work`.
+    // Protect submitted work with the unload guard, independently of pending changes
     payload.holds_work = true;
 
-    // The same list the GET carries: every answer below re-renders this page, and a
-    // modal that came back empty would read as "nothing depends on this name".
+    // Keep dependency lists populated when re-rendering
     await stampUsage(caller.tenantId, sectionId, payload);
 
-    // Refused before anything is decoded, and deliberately so. Running the whole
-    // form through the loader first would answer a `file`-mode operator with
-    // "your configuration is invalid" when the true answer is that this instance
-    // does not accept writes at all. `saveInstanceConfig` refuses again on its own
-    // account; this is the one that gives the right reason.
+    // Reject read-only mode before parsing or validation can obscure the reason
     if (!payload.editable) {
       const refusal = new ConfigReadOnlyError(this.config.sourcePath);
       return pageOf(sectionId, { ...payload, error: refusal.message }, 409);
     }
 
-    // The form posts `multipart/form-data`, because one of its controls is a file
-    // picker and a picker without JavaScript has no other encoding — so the body is
-    // parsed by multer when this asks for it, not by the urlencoded parser, and the
-    // routes carry no `@Body()`: the decorator resolves before the handler runs and
-    // would hand back the empty object multer is about to replace.
+    // Parse multipart data here; @Body() would run before multer populates it
     const { uploads, body } = await readBody();
 
     let doc;
     try {
       doc = loadDocument(state.storedYaml);
     } catch (err) {
-      // The stored document does not parse, so there is no form to edit it with.
-      // Only reachable on an instance whose newest version is broken, which the
-      // page already says outright.
+      // Invalid stored YAML cannot be edited through the form
       return pageOf(sectionId, { ...payload, error: (err as Error).message }, 409);
     }
 
-    // The width the model named in this form returns, asked for when the model is
-    // entered. Answered before anything else is decoded, because a width is not a
-    // save: nothing here may create a member or refuse the page over a problem the
-    // rest of the document has. See `SectionChecks.probeWidth`.
+    // Probe width without creating members or validating unrelated settings
     if (body.intent === 'width' && sectionId === 'embedding') {
       return { kind: 'json', ...(await this.checks.probeWidth(doc, body)) };
     }
 
-    // A page for a member that does not exist yet brings it into existence, before
-    // a single value is decoded — otherwise there is no section to decode against
-    // and the save would write nothing behind a 200. The id is the route's, the
-    // kind is checked against the closed list, and the seed is the one
-    // `draftPayload` rendered from, so what is created is what was on screen.
+    // Seed new members before decoding so the form has a matching section
     const member = memberOf(sectionId);
     const created = member !== null && canCreateMember(member, kind) && !memberExists(doc, member);
     if (created && member) {
       seedMemberInto(doc, member, kind ?? '');
     }
 
-    // A provider being created has no issuer yet, so nothing in the document says
-    // which kind of OIDC provider it is — the kind the page was opened with is what
-    // decides which controls were rendered, and decoding has to build the same form
-    // that was submitted or it reads the tenant box as an issuer. See `KindHint`.
-    // A content source's kind is written by its seed, so its document answers and
-    // it needs no hint; a group has one shape, so there is nothing to remember.
+    // New identity providers need a kind hint until their issuer is set
     const hint =
       created && member?.section === 'identity' && kind !== undefined
         ? { provider: member.id, kind }
         : undefined;
-    // Kept on the page, so a refused save comes back still knowing what it is
-    // making — every collection whose members have shapes, not only the one that
-    // also needs a hint. `creating` is asked of the stored document, so it stays
-    // true until a save succeeds.
+    // Preserve the selected kind when a creation form is returned unsaved
     if (payload.creating && created && kind !== undefined) payload.creating_kind = kind;
 
-    /*
-      What was uploaded, entering the submission under the paths the form offered.
-
-      Here rather than beside the parse, because the model it is checked against
-      does not exist until the document has been loaded and a member being created
-      has been seeded — and the first save of a new GitHub source is exactly the
-      request carrying its `.pem`. The bytes then travel as a value and are decoded
-      by the same walk as every box, so a file cannot reach a path the form did not
-      just render, which is the property that matters on the endpoint that writes
-      `admins`.
-    */
+    // Accept uploads only for fields offered by the loaded, seeded form
     const offered = sectionOf(doc, sectionId, hint);
     const refusal =
       uploads.refusal ??
@@ -308,13 +247,10 @@ export class ConfigSaveService {
         return brandRef(image);
       }));
 
-    // Only this section's fields, ops and collections. An absent control is a
-    // *value* for a checkbox, so decoding the whole model against one section's
-    // submission would turn off every switch on the other seven — see `applyForm`.
+    // Decode only this section to avoid clearing checkboxes in other sections
     const { structural, changed: edited_ } = applyForm(doc, body, sectionId, hint);
     const amended = amend?.(doc) ?? false;
-    // The Fetch host keys button: a round trip like Add, which writes the fetched keys
-    // into the edited document and stores nothing. See `SectionChecks.fetchHostKeys`
+    // Fetch host keys into the edited document without saving
     const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);
 
     const changed = edited_ || amended || created || hostKeys?.changed === true;
@@ -322,8 +258,7 @@ export class ConfigSaveService {
       changed && serialise(doc) !== serialise(loadDocument(state.storedYaml))
         ? serialise(doc)
         : state.storedYaml;
-    // Everything from here describes the *edited* document, so a refused save hands
-    // back the operator's own work rather than the version on disk.
+    // Rebuild from edits so refused saves preserve submitted work
     payload.section = sectionOf(doc, sectionId, hint) ?? null;
 
     await stampBrandImages(caller.tenantId, payload);
@@ -352,7 +287,7 @@ export class ConfigSaveService {
       return pageOf(sectionId, { ...payload, error: refusal }, 400);
     }
 
-    // The pencil's rename, which is a save: the renamed member lives at a new URL
+    // Renaming saves the member at a new URL
     const renameTo = body['rename'];
     if (
       payload.section?.renameOp &&
@@ -363,26 +298,13 @@ export class ConfigSaveService {
       return this.rename(caller, json, sectionId, payload, edited, renameTo.trim());
     }
 
-    // Adding or removing an entry is a round trip, not a save: the operator has
-    // asked for somewhere to type, and an empty provider does not validate yet.
+    // List edits and host-key fetches re-render without validating or saving
     if (structural || hostKeys) {
       payload.landing = landingOf(doc, body.op);
       return pageOf(sectionId, payload);
     }
 
-    /*
-      And so is moving a control that decides which controls exist.
-
-      Picking a different asset driver asks for boxes that are not on the page —
-      an Azure account, an S3 bucket — and the schema requires them, so validating
-      here would refuse the save for a key the operator has no way to fill in. The
-      page comes back asking its new questions instead, with everything else they
-      had typed still in it, and the next save is the one that stores it.
-
-      Read off the section rebuilt from the *edited* document and compared against
-      what the page said it was showing, because this round trip stores nothing —
-      see `Field.reshapes`.
-    */
+    // Show newly required controls before validating or saving
     if (payload.section && reshaped(payload.section, body)) {
       return pageOf(sectionId, payload);
     }
@@ -390,18 +312,9 @@ export class ConfigSaveService {
     const by = provenanceOf(caller);
     let proposed;
     try {
-      // The real loader, the real code path — literally the call `saveInstanceConfig`
-      // makes. Anything the process would refuse to boot on is refused here, with
-      // the loader's own message and problem list, and so is anything the *save*
-      // refuses that a boot would not: a document leaving nobody able to administer
-      // the instance is legitimate to boot into and never legitimate to write, and
-      // the check that tells the operator so has to be the one the button obeys.
+      // Use the save validator, including administrator lockout checks
       proposed = validateForSave(edited, {
-        // The same relaxation the save itself makes, from the same fact — the
-        // check and the button have to agree about what is refusable, or the
-        // island tells an operator a document is fine and the save then refuses
-        // it. See `provenanceOf`: a `setup` write happens while the claim window
-        // is open, which is the way back in the lockout guard exists to protect.
+        // Match the save's setup exemption from administrator requirements
         requireAdministrator: by.origin !== 'setup',
       });
     } catch (err) {
@@ -413,13 +326,10 @@ export class ConfigSaveService {
 
     if (body.intent !== 'apply') return pageOf(sectionId, payload);
 
-    // Taken before the save, because `ConfigService` is mutable and the refresh
-    // below adopts the new version into the very object this would be read from
-    // afterwards. Only during the first run: it answers "did this save finish a
-    // step", which is a question nothing else on this surface asks.
+    // Capture setup progress before refresh mutates the config service
     const beforeSave = by.origin === 'setup' ? setupStateOf(this.config) : null;
 
-    // Check if the stored config is the same as the one we are trying to save. If so, we don't need to save it again.
+    // Skip saving unchanged YAML
     if (edited === state.storedYaml) {
       if (json) {
         payload.pending = false;
@@ -432,9 +342,7 @@ export class ConfigSaveService {
     try {
       const saved = await saveInstanceConfig(caller.tenantId, edited, by);
 
-      // Adopt it now rather than up to a poll interval from now, so the admin who
-      // made the change reads the truth on the page that reports it. Other replicas
-      // pick it up on their own timer.
+      // Refresh locally now; other replicas update on their next poll
       const refresh = await this.watcher.refresh();
 
       if (json) {
@@ -442,50 +350,19 @@ export class ConfigSaveService {
         payload.editing_version = saved.version;
         payload.running_version = this.config.configVersion;
         payload.waiting_on = refresh.waiting;
-        // Nothing is held any more: this document *is* the stored one now.
+        // Submitted work is now stored
         payload.pending = false;
         payload.holds_work = false;
         return pageOf(sectionId, payload);
       }
 
-      // Redirect rather than render, and for the reason the restore route already
-      // does it: a rendered POST response leaves the browser holding a submission
-      // it will offer to send again, and `appendConfigVersion` has no dedupe — it
-      // is an unconditional `max(version) + 1`. So a reload appended a second
-      // version identical to the first, with the operator's own history as the
-      // casualty. This was the one write under `/-/` that had not been given the
-      // treatment its neighbour has carried since it was written.
-      //
-      // What the redirect costs is the verdict, and losing it is right rather than
-      // merely acceptable: `compareConfigs` exists to be read while the button is
-      // still unpressed. Afterwards it describes something that already happened,
-      // which is a toast — see the note on that function. The three facts worth
-      // keeping all survive the round trip. `saved` is read back out of its row on
-      // the GET, `waiting_on` is recomputed there from the stored document anyway,
-      // and `running_version` comes off the service.
-      /*
-        And during the first run, a save that finished a step hands over to the next
-        one rather than landing back on the page it was made on.
-
-        The flow is a checklist somebody is working through, and the next move is
-        something it already knows; making them find it in the column or on the bar
-        is the clicking-around this exists to remove. It forwards only where the
-        save *changed* the answer — see `nextSetupPage` — so correcting a value on
-        something already configured leaves the operator where they were.
-
-        No `?saved=` on that path, deliberately. The toast says "Saved." and would
-        be saying it over a page nobody saved; what confirms the save there is the
-        progress bar, whose point for that step is now ticked — which is the better
-        answer anyway, because it says *what* was finished rather than that
-        something was.
-      */
+      // Redirect after saving to prevent reloads from creating duplicate versions
+      // Advance newly completed setup steps without a saved toast on the next page
       const forward = beforeSave ? nextSetupPage(beforeSave, this.config, sectionId) : null;
 
       return { kind: 'redirect', href: forward ?? `/-/config/${sectionId}?saved=${saved.version}` };
     } catch (err) {
-      // `file` mode: refused, not ignored, and not a 404 either — this caller can
-      // see the page, so they get the reason rather than a surface that pretends
-      // not to exist.
+      // Show save-time refusals on the form
       if (err instanceof ConfigReadOnlyError || err instanceof ConfigError) {
         return pageOf(sectionId, refused(payload, err), 409);
       }

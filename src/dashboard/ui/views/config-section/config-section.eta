@@ -54,10 +54,12 @@
 <% } %>
 
 <% if (it.error) { %>
-<%~ include('@note', { level: 'fail', text: it.error }) %>
-<% if (it.problems.length > 0) { %>
-<% const shown = it.problems_html || it.problems; %>
-<%~ include('@problems', { problems: shown, html: true }) %>
+<% /* Show the error headline only when no field or list problems exist */ %>
+<% if (it.problems.length === 0) { %>
+<%~ include('@note', { level: 'fail', html: it.error_html, data: it.error_code ? { 'spr-problem': it.error_code } : {} }) %>
+<% } %>
+<% if (it.problems_html.length > 0) { %>
+<%~ include('@problems', { problems: it.problems_html, html: true, codes: it.listed_codes }) %>
 <% } %>
 <% } %>
 
@@ -132,9 +134,9 @@
       data-spr-config="<%= it.section_id %>" <%= it.pending ? 'data-spr-pending' : '' %>
       <%= it.landing && it.landing.focus ? 'data-spr-landing-focus' : '' %>
       <%= it.holds_work ? 'data-spr-holds-work' : '' %>
-      <%= it.error || it.problems.length > 0 ? 'data-spr-attempted' : '' %>>
+      <%= it.error || it.problems.length > 0 ? 'data-spr-attempted' : '' %><% if (it.error_code) { %> data-spr-refused="<%= it.error_code %>"<% } %>>
 
-<%/* Enter in a field submits through the form's first submit button; keeping that one disabled makes Enter do nothing, so only Save saves */%>
+<%/* Prevent Enter from saving */%>
 <button type="submit" disabled hidden tabindex="-1" aria-hidden="true"></button>
 
 <% if (it.editable) { it.shape.forEach(function (control) { %>
@@ -144,8 +146,7 @@
 <% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon } %>
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <%
-  // The Add control sits in the head over a list, and under the empty state
-  // where there is none yet; the bulk removal island moves it down when the last row goes
+  // Place Add above rows or below the empty state; bulk removal moves it when the last row is removed
   const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1);
   const addRow = it.editable && table.add
     ? include('@add-row-panel', { add: table.add, collection: collection, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon })
@@ -166,8 +167,9 @@
   <div class="spr-rows spr-row-cards" data-spr-rows="<%= collection %>">
     <% table.entries.forEach(function (entry) { %>
     <% const shown = entry.fields.filter(function (f) { return !f.inapplicable });
-       const cleared = entry.fields.filter(function (f) { return f.inapplicable }); %>
-    <div class="spr-row-card" data-spr-position="<%= entry.position %>"<%~ entry.kind ? ' data-spr-kind="' + entry.kind + '"' : '' %><%~ it.landing && it.landing.path === collection + '.' + entry.position ? ' id="spr-landing"' : '' %>>
+       const cleared = entry.fields.filter(function (f) { return f.inapplicable });
+       const rowProblems = entry.problems || []; %>
+    <div class="spr-row-card<%= rowProblems.length ? ' spr-row-invalid' : '' %>"<% if (rowProblems.length) { %> data-spr-problem="<%= rowProblems.map(function (p) { return p.code; }).join(' ') %>"<% } %> data-spr-position="<%= entry.position %>"<%~ entry.kind ? ' data-spr-kind="' + entry.kind + '"' : '' %><%~ it.landing && it.landing.path === collection + '.' + entry.position ? ' id="spr-landing"' : '' %>>
       <div class="spr-select-col">
         <% if (entry.removeOp && it.editable) { %>
         <input type="checkbox" name="select" value="<%= entry.removeOp %>"
@@ -195,7 +197,8 @@
       <% } %>
       <% const match = entry.lines[0], note = entry.lines[1], until = entry.lines[2];
          const editId = 'edit-' + collection.replace(/[^a-z0-9]+/gi, '-') + '-' + entry.position;
-         const opens = !match || !match.value || match.value === 'not filled in'; %>
+         // Open incomplete or invalid rows to show fields and errors
+         const opens = !match || !match.value || match.value === 'not filled in' || rowProblems.length > 0; %>
       <span class="spr-row-card-equals" aria-hidden="true"><%~ it.equals_icon || '→' %></span>
       <div class="spr-row-card-match">
         <% if (match && match.value && match.value !== 'not filled in') { %><code title="<%= match.value %>"><%= match.value %></code><% if (match.href) { %> <a class="spr-row-card-link" href="<%= match.href %>" target="_blank" rel="noopener noreferrer nofollow" aria-label="Open <%= match.value %> in Entra ID"><%~ it.external_icon || '↗' %></a><% } %><% } else { %><span class="spr-row-card-empty">not filled in</span><% } %>
@@ -220,8 +223,10 @@
             <%= entry.title || 'Member' %><% if (entry.subtitle) { %> <span class="spr-row-edit-via">via <%= entry.subtitle %></span><% } %>
           </h2>
           <div class="spr-row-edit-fields">
-            <% shown.forEach(function (f) { %>
-            <div class="spr-row-edit-field">
+            <% shown.forEach(function (f) {
+               const fieldProblems = f.problems || [];
+               const invalid = fieldProblems.length > 0; %>
+            <div class="spr-row-edit-field<%= invalid ? ' spr-field-invalid' : '' %>"<% if (invalid) { %> data-spr-problem="<%= fieldProblems.map(function (p) { return p.code; }).join(' ') %>"<% } %>>
               <span class="spr-row-edit-label">
                 <label for="f-<%= f.path %>"><%= f.label %></label>
                 <% if (f.help) { %><%~ include('@info', { field: { path: f.path, label: f.label, help: f.help } }) %><% } %>
@@ -229,7 +234,13 @@
               </span>
               <% if (f.kind === 'select') { %>
               <%~ include('@select', {
-                attributes: { id: 'f-' + f.path, name: f.path, disabled: !it.editable },
+                attributes: {
+                  id: 'f-' + f.path,
+                  name: f.path,
+                  disabled: !it.editable,
+                  'aria-invalid': invalid ? 'true' : null,
+                  'aria-describedby': invalid ? 'f-' + f.path + '-problem' : null,
+                },
                 options: f.options.map(function (option) {
                   return { value: option.value, label: option.label, selected: option.value === f.value };
                 }),
@@ -238,8 +249,12 @@
               <input id="f-<%= f.path %>" name="<%= f.path %>" type="text" value="<%= f.value %>"
                      <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
                      <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
+                     <% if (invalid) { %>aria-invalid="true" aria-describedby="f-<%= f.path %>-problem"<% } %>
                      spellcheck="false" autocomplete="off" <%= it.editable ? '' : 'disabled' %>>
               <% } %>
+              <% fieldProblems.forEach(function (problem, i) { %>
+              <p class="spr-field-problem"<% if (i === 0) { %> id="f-<%= f.path %>-problem"<% } %>><%~ md(problem.text) %></p>
+              <% }) %>
             </div>
             <% }) %>
           </div>
@@ -279,7 +294,8 @@
     </thead>
     <tbody>
       <% it.section.entries.forEach(function (entry) { %>
-      <tr data-spr-row="<%= entry.search %>">
+      <% const rowProblems = entry.problems || []; %>
+      <tr data-spr-row="<%= entry.search %>"<% if (rowProblems.length) { %> class="spr-row-invalid" data-spr-problem="<%= rowProblems.map(function (p) { return p.code; }).join(' ') %>"<% } %>>
         <% if (it.editable && it.section.bulkRemoveOp) { %>
         <td class="spr-select-col">
           <% if (entry.removeOp) { %>
@@ -306,6 +322,9 @@
           <% if (entry.subtitle) { %>
           <span class="spr-entry-sub"><%= entry.subtitle %></span>
           <% } %>
+          <% rowProblems.forEach(function (problem) { %>
+          <p class="spr-field-problem"><%~ md(problem.text) %></p>
+          <% }) %>
         </th>
         <% if (!it.section.hideLines) { %>
         <td>
@@ -415,7 +434,7 @@
 </div>
 <% } %>
 <%
-  // An Add button with `beforeCard` is drawn before that card, every other one after the last card
+  // Place Add buttons before their beforeCard index, or after all cards by default
   const cardAdds = it.editable ? it.section.addOps.filter(function (a) { return !a.opensPage }) : [];
   const addsBefore = function (index) {
     return cardAdds.filter(function (a) { return a.beforeCard === index });
@@ -446,7 +465,7 @@
 <% } %>
 
 <% if (it.section.status) { %>
-<%~ include('@note', { level: it.section.status.level, text: it.section.status.label, detail: it.section.status.detail, className: 'spr-section-status' }) %>
+<%~ include('@note', { level: it.section.status.level, text: it.section.status.label, detail: it.section.status.detail, data: { 'spr-status': it.section.status.code }, className: 'spr-section-status' }) %>
 <% } else if (it.section.checkHref) { %>
 <%~ include('@note', { level: 'idle', className: 'spr-section-status', check: { href: it.section.checkHref } }) %>
 <% } %>

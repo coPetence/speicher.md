@@ -3,6 +3,7 @@ import { rootLogger, runWithLogContext } from '../../src/common/logger';
 let written: string[];
 let spy: jest.SpyInstance;
 let before: string | undefined;
+let noColor: string | undefined;
 
 beforeEach(() => {
   written = [];
@@ -11,12 +12,17 @@ beforeEach(() => {
     return true;
   });
   before = process.env.SPEICHER_LOG_FORMAT;
+  // Colour depends on whether stderr is a terminal, so a run in one would differ
+  noColor = process.env.NO_COLOR;
+  process.env.NO_COLOR = '1';
 });
 
 afterEach(() => {
   spy.mockRestore();
   if (before === undefined) delete process.env.SPEICHER_LOG_FORMAT;
   else process.env.SPEICHER_LOG_FORMAT = before;
+  if (noColor === undefined) delete process.env.NO_COLOR;
+  else process.env.NO_COLOR = noColor;
 });
 
 describe('the pretty log format', () => {

@@ -1981,7 +1981,7 @@ describe('a kind whose prerequisite is on another page', () => {
 
     const noMail = serialise(withoutMail());
     expect(noMail).toContain('type: magic-link');
-    expect(() => loadInstanceConfig(noMail)).toThrow(/mail transport/);
+    expect(() => loadInstanceConfig(noMail)).toRefuseWith('providers.magic-link-needs-mail');
   });
 });
 

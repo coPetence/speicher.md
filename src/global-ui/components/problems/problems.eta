@@ -1,7 +1,7 @@
 
 <ul class="spr-problems">
-  <% it.problems.forEach(function (problem) { %>
-  <li>
+  <% it.problems.forEach(function (problem, i) { %>
+  <li<% if (it.codes && it.codes[i]) { %> data-spr-problem="<%= it.codes[i] %>"<% } %>>
     <% if (it.html) { %><%~ problem %><% } else { %><%= problem %><% } %>
   </li>
   <% }) %>

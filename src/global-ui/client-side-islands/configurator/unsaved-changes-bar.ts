@@ -1,31 +1,20 @@
 /**
- * Unsaved changes bar on configuration forms
- *
- * Tracks form changes via snapshot comparison, runs debounced server-side checks
- * The form gets `data-spr-live` once JS attaches, `data-spr-pending` on change
- * `data-spr-check` holds the status state for CSS: pending, invalid, checking, ready
- *
- * Server-rendered `data-spr-pending` carries over if the session has unsaved changes
- * `data-spr-holds-work` warns that navigating away would lose server-side changes
- *
- * A problem is held back until Save is first pressed, so a page reached by Add does
- * not open on an error; from then on it is shown as it changes. Server-rendered
- * `data-spr-attempted` marks a page that came back from a refused submission
- *
- * Not checked on every keystroke: debounced at 400ms
+ * Track unsaved changes and debounce validation
+ * Show problems after a save attempt
  */
 
 import { configForm } from './config-form-handle';
-import { CheckAnswer, UNSAVED, constraintProblem, describe, plain } from './check-verdict-wording';
+import { CheckAnswer, UNSAVED, constraintProblem, describe, linked } from './check-verdict-wording';
+import { FieldProblem, clearFieldProblems, fieldLabel, markFieldProblems } from './field-problems';
 import { snapshot } from './form-change-snapshot';
 
-const PENDING = 'data-spr-pending'; // Form has unsaved changes
-const HOLDS_WORK = 'data-spr-holds-work'; // Server-side changes would be lost on navigate
-const LIVE = 'data-spr-live'; // JS is attached to this form
-const STATE = 'data-spr-check'; // Status state for CSS: pending, invalid, checking, ready
-const ATTEMPTED = 'data-spr-attempted'; // A submission was refused, so problems are shown
-const DEBOUNCE_MS = 400; // Delay before checking after input stops
-const SLOW_CHECK_MS = 100; // Show "Checking…" if server takes longer than this
+const PENDING = 'data-spr-pending'; // Unsaved changes
+const HOLDS_WORK = 'data-spr-holds-work'; // Server work lost on navigation
+const LIVE = 'data-spr-live'; // JS active
+const STATE = 'data-spr-check'; // CSS validation state
+const ATTEMPTED = 'data-spr-attempted'; // Show validation problems
+const DEBOUNCE_MS = 400; // Input debounce
+const SLOW_CHECK_MS = 100; // Delay checking indicator
 
 export function mountConfigBar(): void {
   const form = configForm();
@@ -37,8 +26,7 @@ export function mountConfigBar(): void {
 
   form.setAttribute(LIVE, '');
 
-  // The bar floats at the foot of the window but lines up with the form, whose
-  // edges only the browser can measure, reaching past them by --spr-bar-reach
+  // Align the floating bar with the form, extending by --spr-bar-reach
   const align = (): void => {
     const box = form.getBoundingClientRect();
     actions.style.left = `calc(${box.left}px - var(--spr-bar-reach))`;
@@ -60,8 +48,8 @@ export function mountConfigBar(): void {
   let inFlight: AbortController | undefined;
   let submitting = false;
 
-  let attempted = form.hasAttribute(ATTEMPTED); // Save has been pressed, so problems are shown
-  let problem: string | null = null; // What the latest check found wrong, shown or not
+  let attempted = form.hasAttribute(ATTEMPTED); // Show problems after a save attempt
+  let problem: string | null = null; // Latest problem, possibly hidden
 
   const isPending = (): boolean => serverPending || snapshot(form) !== baseline;
 
@@ -69,8 +57,12 @@ export function mountConfigBar(): void {
 
   const say = (state: string, text: string): void => {
     form.setAttribute(STATE, state);
-    status.textContent = text;
+    // Link to problem locations
+    status.replaceChildren(...linked(text));
   };
+
+  // Latest problems; mark fields after a save attempt
+  let found: FieldProblem[] = [];
 
   const refuse = (text: string): void => {
     problem = text;
@@ -80,13 +72,41 @@ export function mountConfigBar(): void {
       return;
     }
     save.disabled = true;
+    markFieldProblems(form, found);
     say('invalid', text);
+  };
+
+  // Summarize the first problem with its field label and remaining count
+  const refusalOf = (payload: CheckAnswer): string => {
+    const texts = payload.problems ?? [];
+    found = texts.length
+      ? texts.map((text, i) => ({
+          text,
+          code: payload.problem_codes?.[i] ?? '',
+          path: payload.problem_paths?.[i] ?? null,
+        }))
+      : payload.error
+        ? [
+            {
+              text: payload.error,
+              code: payload.error_code ?? '',
+              path: payload.error_path ?? null,
+            },
+          ]
+        : [];
+    const [first] = found;
+    if (!first) return payload.error ?? 'This configuration would not load.';
+    const label = first.path === null ? null : fieldLabel(form, first.path);
+    const more = found.length > 1 ? ` (${found.length - 1} more)` : '';
+    if (label && first.code === 'schema.required') return `The field ${label} is required${more}`;
+    return `${label ? `${label}: ` : ''}${first.text}${more}`;
   };
 
   const check = async (): Promise<void> => {
     inFlight?.abort();
 
     if (!form.checkValidity()) {
+      found = [];
       refuse(constraintProblem(form));
       return;
     }
@@ -94,7 +114,7 @@ export function mountConfigBar(): void {
     const controller = new AbortController();
     inFlight = controller;
 
-    // Show "Checking…" after SLOW_CHECK_MS only if this request is still current
+    // Delay the indicator; ignore stale requests
     const slow = setTimeout(() => {
       if (controller === inFlight) say('checking', 'Checking…');
     }, SLOW_CHECK_MS);
@@ -111,19 +131,19 @@ export function mountConfigBar(): void {
         signal: controller.signal,
       });
 
-      // A newer check was scheduled; discard this stale response
+      // Ignore stale responses
       if (controller !== inFlight) return;
 
       const payload = (await response.json()) as CheckAnswer;
 
       if (!response.ok) {
-        const detail = plain(payload.problems?.[0]);
-        const headline = payload.error ?? 'This configuration would not load.';
-        refuse(detail ? `${headline}: ${detail}` : headline);
+        refuse(refusalOf(payload));
         return;
       }
 
       problem = null;
+      found = [];
+      clearFieldProblems(form);
       save.disabled = false;
       say('ready', describe(payload.verdict));
     } catch (err) {
@@ -160,7 +180,7 @@ export function mountConfigBar(): void {
   };
 
   const touch = (): void => {
-    // What the last check found may just have been fixed; the next check says
+    // Clear the previous problem until rechecked
     problem = null;
     update();
   };
@@ -168,11 +188,12 @@ export function mountConfigBar(): void {
   form.addEventListener('input', touch);
   form.addEventListener('change', touch);
 
-  // The first press of Save shows what is held back. A known problem stops the save;
+  // First save attempt shows problems and blocks known failures
   save.addEventListener('click', (event) => {
     if (attempted) return;
     attempted = true;
     if (!form.checkValidity()) {
+      found = [];
       refuse(constraintProblem(form));
       return;
     }
@@ -193,7 +214,7 @@ export function mountConfigBar(): void {
 
   if (serverPending) update();
 
-  // Reset state on back/forward cache restore
+  // Reset state after back/forward cache restoration
   addEventListener('pageshow', (event) => {
     if (!(event as PageTransitionEvent).persisted) return;
     submitting = false;

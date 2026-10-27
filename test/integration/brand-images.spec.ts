@@ -132,8 +132,10 @@ describe('resolving what the document says', () => {
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([
-      `\`brand.logo\` names an image this instance does not have stored (${hash})`,
+      expect.objectContaining({ code: 'brand.image-not-stored', path: 'brand.logo' }),
     ]);
+    // The hash is what an operator looks for in the store
+    expect(resolved.problems[0].text).toContain(hash);
   });
 
   /*
@@ -156,7 +158,7 @@ describe('resolving what the document says', () => {
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([
-      '`brand.logo`: the SVG contains a <script> element, which is not allowed',
+      expect.objectContaining({ code: 'brand.image-invalid', path: 'brand.logo' }),
     ]);
   });
 
@@ -178,7 +180,7 @@ describe('resolving what the document says', () => {
 
     expect(resolved.images.size).toBe(0);
     expect(resolved.problems).toEqual([
-      `\`${BRAND_ICON.key}\` names a image/webp image; it must be one of image/svg+xml, image/png`,
+      expect.objectContaining({ code: 'brand.image-invalid', path: BRAND_ICON.key }),
     ]);
   });
 });
@@ -313,8 +315,9 @@ describe('what a reference may say', () => {
   });
 
   it('is refused by the loader when it is neither a reference nor a data URI', () => {
-    expect(() => configWithLogo('https://cdn.example.test/logo.svg')).toThrow(
-      /brand\.logo: must match pattern/,
+    expect(() => configWithLogo('https://cdn.example.test/logo.svg')).toRefuseWith(
+      'schema.pattern',
+      { path: 'brand.logo' },
     );
   });
 });

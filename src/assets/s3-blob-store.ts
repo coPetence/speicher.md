@@ -17,51 +17,47 @@ import { ConfigError, reasonOf } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { AssetsConfig } from '../config/types';
 import { BlobStore, PresignRequest, StoreStatus, blobKey } from './blob-store';
+import { problem } from '../common/config-problems';
 
-/** Resolved options for the s3 driver */
+/** Resolved S3 options */
 export interface S3BlobStoreOptions {
   bucket: string;
   region: string;
   access_key_id: string;
   secret_access_key: string;
 
-  // Overrides the AWS endpoint, for providers like Hetzner or MinIO
+  // Custom endpoint for S3-compatible providers
   endpoint?: string;
 
-  // Derived from the endpoint, never configured; see `usesPathStyle`
+  // Derived from endpoint by usesPathStyle
   path_style: boolean;
 }
 
 export interface S3BlobStoreDeps {
-  /** Overrides client construction so tests can answer without a network */
+  /** Inject a client for network-free tests */
   client?: S3Client;
 }
 
-// S3 accepts at most this many keys in one DeleteObjects call
+// S3 deletion limit per request
 const DELETE_BATCH = 1000;
 
-const PROBE_TIMEOUT_MS = 3_000; // How long probe waits on the bucket
+const PROBE_TIMEOUT_MS = 3_000;
 
 export const BUCKET_OK_LABEL = 'Bucket accessible';
 export const BUCKET_FAIL_LABEL = 'Not connected to the bucket';
 
-/** HTTP status of a failed SDK call, when it carries one */
+/** Extract the SDK error's HTTP status */
 function statusOf(err: unknown): number | undefined {
   return (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
 }
 
-/**
- * Whether a failure means the object is not there
- *
- * HeadObject answers a bare 404 with no body, so the SDK has no error code to
- * name it by and the status is the only signal
- */
+/** Detect missing objects, including HeadObject's code-less 404 */
 function isNotFound(err: unknown): boolean {
   const name = (err as { name?: string })?.name;
   return name === 'NotFound' || name === 'NoSuchKey' || statusOf(err) === 404;
 }
 
-/** BlobStore backed by one S3 bucket */
+/** Blob storage in a single S3 bucket */
 export class S3BlobStore implements BlobStore {
   readonly kind = 's3' as const;
 
@@ -86,7 +82,7 @@ export class S3BlobStore implements BlobStore {
       );
       return true;
     } catch (err) {
-      // Absent is an answer; anything else is a fault the caller should see
+      // Return false only for missing objects
       if (isNotFound(err)) return false;
       throw err;
     }
@@ -100,8 +96,7 @@ export class S3BlobStore implements BlobStore {
     const common = {
       Bucket: this.bucket,
       Key: blobKey(repoId, contentHash),
-      // Whatever the asset is, it is served by this app behind an authz check and
-      // never by the bucket, so the stored type says only "bytes"
+      // The app controls access and the served content type
       ContentType: 'application/octet-stream',
     };
 
@@ -110,8 +105,7 @@ export class S3BlobStore implements BlobStore {
       return;
     }
     if (source.path) {
-      // A stream without a length makes the SDK buffer the whole body to find one,
-      // so the size is read off the file instead
+      // Supply the size to avoid buffering the stream
       const { size } = await stat(source.path);
       await this.client.send(
         new PutObjectCommand({
@@ -143,9 +137,7 @@ export class S3BlobStore implements BlobStore {
     return response.Body as Readable;
   }
 
-  /**
-   * A short-lived URL the browser can fetch straight from the bucket
-   */
+  /** Create a temporary URL for direct browser access */
   async presign(
     repoId: string,
     contentHash: string,
@@ -154,28 +146,40 @@ export class S3BlobStore implements BlobStore {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: blobKey(repoId, contentHash),
-      // Quotes and backslashes would end the header's quoted string early
+      // Strip characters that affect header quoting
       ResponseContentDisposition: `inline; filename="${request.filename.replace(/["\\]/g, '')}"`,
-      // Without this the bucket answers octet-stream, which is how it is stored
+      // Override the stored octet-stream type
       ResponseContentType: request.mime,
     });
     return getSignedUrl(this.client, command, { expiresIn: request.ttlSeconds });
   }
 
-  /** Checks the bucket with a timeout, telling an absent bucket from a refused one */
+  /** Check bucket access with a timeout */
   async probe(): Promise<StoreStatus> {
     const abortSignal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }), { abortSignal });
-      return { level: 'ok', label: BUCKET_OK_LABEL, detail: this.description };
+      return {
+        code: 'store.reachable',
+        level: 'ok',
+        label: BUCKET_OK_LABEL,
+        detail: this.description,
+        facts: { target: this.bucket },
+      };
     } catch (err) {
-      return { level: 'fail', label: BUCKET_FAIL_LABEL, detail: this.failureDetail(err) };
+      const status = statusOf(err);
+      return {
+        code:
+          status === 404 ? 'store.missing' : status === 403 ? 'store.refused' : 'store.unreachable',
+        level: 'fail',
+        label: BUCKET_FAIL_LABEL,
+        detail: this.failureDetail(err),
+        facts: { target: this.bucket },
+      };
     }
   }
 
-  /**
-   * Reasoning why probe failed
-   */
+  /** Describe the bucket access failure */
   private failureDetail(err: unknown): string {
     const status = statusOf(err);
     if (status === 404) {
@@ -187,12 +191,12 @@ export class S3BlobStore implements BlobStore {
     return `${this.description} (${reasonOf(err)})`;
   }
 
-  /** Releases the client's pooled sockets */
+  /** Release pooled client sockets */
   async close(): Promise<void> {
     this.client.destroy();
   }
 
-  /** Deletes every object under the repo prefix */
+  /** Delete all objects under the repository prefix */
   async purgeRepo(repoId: string): Promise<void> {
     const prefix = `${repoId}/`;
     let continuationToken: string | undefined;
@@ -252,32 +256,37 @@ export function createS3BlobStore(assets: AssetsConfig, deps: S3BlobStoreDeps = 
   return new S3BlobStore(client, options.bucket, description);
 }
 
-/**
- * Whether the bucket uses path style instead of host style
- */
+/** Use path-style addressing for non-AWS endpoints */
 export function usesPathStyle(endpoint: string | undefined): boolean {
   if (!endpoint) return false;
   try {
     const host = new URL(endpoint).hostname;
     return host !== 'amazonaws.com' && !host.endsWith('.amazonaws.com');
   } catch {
-    // Unparseable; will be rejected in next step
+    // Invalid endpoints are rejected later
     return true;
   }
 }
 
-/** Validates the s3 config */
+/** Validate and resolve S3 options */
 export function resolveS3Options(assets: AssetsConfig): S3BlobStoreOptions {
-  const problems: string[] = [];
-  if (!assets.bucket) problems.push('assets.bucket is required for the s3 driver');
-  if (!assets.region) problems.push('assets.region is required for the s3 driver');
-  if (!assets.access_key_id) {
-    problems.push('assets.access_key_id is required for the s3 driver');
+  const problems = (['bucket', 'region', 'access_key_id', 'secret_access_key'] as const)
+    .filter((key) => !assets[key])
+    .map((key) =>
+      problem('assets.key-missing', `assets.${key}`, {
+        text: 'is required for the s3 driver',
+        dashboard: 'S3 storage needs this.',
+      }),
+    );
+  if (problems.length) {
+    throw new ConfigError(
+      problem('assets.misconfigured', null, {
+        text: 'the s3 assets driver is misconfigured',
+        dashboard: 'This storage is not fully set up.',
+      }),
+      problems,
+    );
   }
-  if (!assets.secret_access_key) {
-    problems.push('assets.secret_access_key is required for the s3 driver');
-  }
-  if (problems.length) throw new ConfigError('the s3 assets driver is misconfigured', problems);
 
   return {
     bucket: assets.bucket!,
@@ -299,8 +308,7 @@ function clientFor(options: S3BlobStoreOptions): S3Client {
       secretAccessKey: options.secret_access_key,
     },
 
-    // The SDK otherwise sends a CRC32 checksum with `aws-chunked` encoding on
-    // every upload, which Hetzner Object Storage and older MinIO reject outright
+    // Avoid optional checksums and aws-chunked uploads rejected by Hetzner and older MinIO
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });

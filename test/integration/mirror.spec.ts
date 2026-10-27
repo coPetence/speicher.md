@@ -58,7 +58,10 @@ describe('a new mirror', () => {
   it('leaves nothing behind when the clone fails, neither the mirror nor its staging', async () => {
     const mirror = join(forgeDir, '1.git');
 
-    await expect(ensureMirror(mirror, from(join(root, 'missing')))).rejects.toThrow(/clone/);
+    await expect(ensureMirror(mirror, from(join(root, 'missing')))).rejects.toFailWith(
+      'git.failed',
+      { command: 'clone' },
+    );
 
     expect(existsSync(mirror)).toBe(false);
     expect(readdirSync(forgeDir)).toEqual([]);
@@ -85,7 +88,9 @@ describe('an existing mirror', () => {
     mkdirSync(join(mirror, 'refs', 'heads'), { recursive: true });
     writeFileSync(join(mirror, 'refs', 'heads', 'main'), '');
 
-    await expect(ensureMirror(mirror, from(origin))).rejects.toThrow(/fetch/);
+    await expect(ensureMirror(mirror, from(origin))).rejects.toFailWith('git.failed', {
+      command: 'fetch',
+    });
     expect(existsSync(mirror)).toBe(false);
 
     await ensureMirror(mirror, from(origin));
@@ -96,7 +101,10 @@ describe('an existing mirror', () => {
     const mirror = join(forgeDir, '1.git');
     await ensureMirror(mirror, from(origin));
 
-    await expect(ensureMirror(mirror, from(join(root, 'missing')))).rejects.toThrow(/fetch/);
+    await expect(ensureMirror(mirror, from(join(root, 'missing')))).rejects.toFailWith(
+      'git.failed',
+      { command: 'fetch' },
+    );
 
     expect(await resolveHead(mirror, 'main')).toBe(git(['rev-parse', 'HEAD'], origin));
   });

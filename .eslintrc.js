@@ -13,19 +13,9 @@ module.exports = {
     'arrow-body-style': ['error', 'as-needed'],
     'no-restricted-syntax': [
       'error',
-      // No SQL against content tables outside `src/authz/content/`, whose read paths
-      // all take `principals` first. That directory is the first exemption below.
-      //
-      // Two selectors, because queries here are template literals and a `Literal`
-      // selector does not match those. The rule caught nothing until the second form
-      // was added -- a guard that silently matches nothing is worse than none.
-      // `test/unit/lint-rule.spec.ts` keeps that from happening again.
-      //
-      // `documents`/`folders`/`assets` carry `effective_principals` and are what a
-      // reader is filtered against. `document_edges`/`document_terms`/`chunks` hold
-      // no principals -- their authorization is the pair of joins in the repository,
-      // so reading them elsewhere leaks page existence/names, or chunk text verbatim.
-      // `page_views`/`search_misses` are a path someone opened and text someone typed.
+      // Require content SQL to use src/authz/content/ for authorization
+      // Cover strings and templates; test/unit/lint-rule.spec.ts checks both
+      // Graph tables and chunks need authorization joins; analytics tables hold private activity
       {
         selector:
           "CallExpression[callee.property.name='query'] > Literal[value=/\\b(from|join|into|update)\\s+(documents|folders|assets|document_edges|document_terms|chunks|page_views|search_misses)\\b/i]",
@@ -40,56 +30,36 @@ module.exports = {
       },
     ],
   },
-  // Exemptions, each named with its reason. A file list rather than scattered
-  // eslint-disable comments, so claims live where the invariant is stated.
-  // The rule is about *reading content on a caller's behalf*; writing, deleting, and
-  // operational questions that return no content are different acts.
+  // Centralize exemptions for authorization, writes, and non-content operations
   overrides: [
     {
-      // The access path itself. Every repository here takes `principals` as a
-      // required first argument and routes through `authorizedSql` /
-      // `visibleFolderSql`; `ContentReports` is the one class that takes none, and
-      // its doc comment says why it lives here rather than beside its callers.
-      //
-      // The graph tables and `chunks` are in the rule even though they hold no
-      // `effective_principals` of their own — *because* they hold none. An edge is
-      // exactly as visible as the two pages it joins, a chunk exactly as visible as
-      // the page its text came off, and the only thing enforcing either is a join
-      // written in this directory. A query elsewhere reading `document_edges` alone
-      // would be reading which pages exist and what they are called; one reading
-      // `chunks` alone would be reading their text verbatim.
+      // Repositories enforce principals via authorizedSql or visibleFolderSql
+      // ContentReports documents its exception; graph and chunk reads require authorization joins
       files: ['src/authz/content/**'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // Write path: materialises `effective_principals`, never consults them (no caller).
-      // Write phases only — anything in `src/ingest/write/` that reads on a caller's
-      // behalf would be hiding behind this line.
+      // Write-only paths build effective_principals; no reads on a caller's behalf
       files: ['src/ingest/write/**', 'src/cli/rebuild.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // Answers "who can read this" for admins about content they cannot read, so it
-      // deliberately does not filter by caller principals; the route gates it.
+      // Route-gated admin access checks intentionally ignore caller principals
       files: ['src/authz/explain.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // EXISTS probe for whether an unknown address is worth a magic link. Returns a
-      // boolean, never a row.
+      // Magic-link eligibility check returns only an EXISTS boolean
       files: ['src/auth/magic-link.service.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // Read-counts report; admin-only, gated by the route, no caller principals.
-      // Names paths (like /-/graph calls paths) but never page content, and no row
-      // says who read one.
+      // Route-gated admin read counts expose paths, not content or reader identities
       files: ['src/dashboard/analytics/analytics.repository.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // The recorder's writes and retention sweep. Never reads content on a caller's
-      // behalf; retention deletes by age and selects no row.
+      // Record activity and delete old rows; no content reads
       files: [
         'src/dashboard/analytics/analytics.service.ts',
         'src/dashboard/analytics/retention.ts',
@@ -97,24 +67,59 @@ module.exports = {
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // What a member's name still reaches, before a rename. Answers repositories and
-      // counts, never a path or a title; gated by the route like `explain`.
+      // Route-gated pre-rename usage check returns repositories and counts, not paths or titles
       files: ['src/dashboard/configurator/member-usage.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // Embedding write path, its DDL, and re-embed. Same sentence as ingest: never
-      // reads content on a caller's behalf. `vector-index.ts` reads no content but names
-      // the table the rule matches; `reembed.ts` touches embedding columns, never `text`.
-      // The read side (semantic queries) is NOT exempt and must use the repository.
+      // Embedding writes, index DDL, and re-embedding; no caller-facing content reads
+      // Re-embedding touches embeddings, not text; semantic reads must use the repository
       files: ['src/embed/embed.service.ts', 'src/embed/vector-index.ts', 'src/embed/reembed.ts'],
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      // Tests assert against materialised rows -- that is the point. isolation.spec.ts
-      // must see what a principal cannot, or it could not prove they cannot.
+      // Tests need direct row access to verify isolation
+      // This override replaces the SQL rule with error-assertion checks
+      // Use toFailWith(code) or toRefuseWith(code), not error wording
+      // External error text requires a justified inline eslint-disable
+      // Cover strings and templates; test/unit/lint-rule.spec.ts checks both
       files: ['test/**/*.ts'],
-      rules: { 'no-restricted-syntax': 'off' },
+      rules: {
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector:
+              "CallExpression[callee.property.name=/^toThrow(Error)?$/][arguments.0.type='Literal']",
+            message:
+              'Assert an error by its code, not its wording: toFailWith(code), or toRefuseWith(code) for a config refusal.',
+          },
+          {
+            selector:
+              "CallExpression[callee.property.name=/^toThrow(Error)?$/][arguments.0.type='TemplateLiteral']",
+            message:
+              'Assert an error by its code, not its wording: toFailWith(code), or toRefuseWith(code) for a config refusal.',
+          },
+          // A live check is asserted by its code and facts, not its label or detail
+          {
+            selector:
+              'CallExpression[callee.property.name=/^(toBe|toContain|toMatch|toEqual)$/][arguments.0.type=/^(Literal|TemplateLiteral)$/][callee.object.arguments.0.property.name=/^(label|detail)$/]',
+            message:
+              "Assert a check's status by its code and facts, not its label or detail: toMatchObject({ code, facts }).",
+          },
+          {
+            selector:
+              'CallExpression[callee.property.name=/^(toBe|toContain|toMatch|toEqual)$/][arguments.0.type=/^(Literal|TemplateLiteral)$/][callee.object.arguments.0.expression.property.name=/^(label|detail)$/]',
+            message:
+              "Assert a check's status by its code and facts, not its label or detail: toMatchObject({ code, facts }).",
+          },
+          {
+            selector:
+              "CallExpression[callee.property.name=/^(toMatchObject|toEqual|toStrictEqual)$/] ObjectExpression:has(> Property[key.name='level']) > Property[key.name=/^(label|detail)$/][value.type=/^(Literal|TemplateLiteral)$/]",
+            message:
+              "Assert a check's status by its code and facts, not its label or detail: toMatchObject({ code, facts }).",
+          },
+        ],
+      },
     },
   ],
 };

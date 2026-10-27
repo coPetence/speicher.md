@@ -1,13 +1,8 @@
-/**
- * JSON Schema validation with Ajv 2020
- *
- * Three schemas are compiled: instance, speicher, and frontmatter
- * Errors are formatted for human-readable output with deduplication
- * Unknown-key errors are separated from schema violations for partial validation
- */
+/** Validate config schemas and format Ajv errors */
 import Ajv2020, { ErrorObject, ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 
+import { ConfigProblem, problem, wordingFor } from '../common/config-problems';
 import instanceSchema from './schema/instance.schema.json';
 import speicherSchema from './schema/speicher.schema.json';
 import frontmatterSchema from './schema/frontmatter.schema.json';
@@ -24,10 +19,10 @@ export const validateInstanceSchema: ValidateFunction = ajv.compile(instanceSche
 export const validateSpeicherSchema: ValidateFunction = ajv.compile(speicherSchema);
 export const validateFrontmatterSchema: ValidateFunction = ajv.compile(frontmatterSchema);
 
-/** The instance path of one item of a group's list */
+/** Match a group list item's instance path */
 const GROUP_ITEM = /^\/groups\/[^/]+\/\d+$/;
 
-/** We reserve those names for future advanced logical expressions in group configuration */
+/** Names reserved for future group logic */
 const RESERVED_COMBINATORS = new Set([
   'any',
   'all',
@@ -40,29 +35,46 @@ const RESERVED_COMBINATORS = new Set([
   'nand',
 ]);
 
-export function formatAjvErrors(errors: ErrorObject[] | null | undefined): string[] {
+/** Convert errors to deduplicated config problems, pointing missing keys to their fields */
+export function ajvProblems(errors: ErrorObject[] | null | undefined): ConfigProblem[] {
   if (!errors?.length) return [];
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: ConfigProblem[] = [];
   for (const err of errors) {
-    const path = err.instancePath.replace(/^\//, '').replace(/\//g, '.') || '<root>';
-    let message = `${path}: ${err.message}`;
+    const at = err.instancePath.replace(/^\//, '').replace(/\//g, '.');
+    let path: string | null = at || null;
+    let text = err.message ?? 'is not valid';
     if (err.keyword === 'additionalProperties') {
       const key = (err.params as { additionalProperty: string }).additionalProperty;
-      message = `${path}: unknown key "${key}"`;
+      text = `unknown key "${key}"`;
       if (GROUP_ITEM.test(err.instancePath) && RESERVED_COMBINATORS.has(key)) {
-        message += `. The name "${key}" is reserved for future advanced logical expressions in group configuration.`;
+        text += `. The name "${key}" is reserved for future advanced logical expressions in group configuration.`;
       }
     }
     if (err.keyword === 'enum') {
       const allowed = (err.params as { allowedValues: unknown[] }).allowedValues;
-      message = `${path}: must be one of ${allowed.map((v) => JSON.stringify(v)).join(', ')}`;
+      text = `expected one of: ${allowed.map((v) => JSON.stringify(v)).join(', ')}`;
     }
-    if (seen.has(message)) continue;
-    seen.add(message);
-    out.push(message);
+    if (err.keyword === 'required') {
+      const key = (err.params as { missingProperty: string }).missingProperty;
+      path = at ? `${at}.${key}` : key;
+      text = 'is missing';
+    }
+    // Field labels omit the key
+    const dashboard =
+      err.keyword === 'required' ? 'Required' : `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+    const p = problem(`schema.${err.keyword}`, path, { text, dashboard });
+    const line = wordingFor(p, 'yaml');
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(p);
   }
   return out;
+}
+
+/** Format schema errors for repository files */
+export function formatAjvErrors(errors: ErrorObject[] | null | undefined): string[] {
+  return ajvProblems(errors).map((p) => wordingFor(p, 'yaml'));
 }
 
 export function splitUnknownKeyErrors(errors: ErrorObject[] | null | undefined): {

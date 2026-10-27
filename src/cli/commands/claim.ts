@@ -8,12 +8,17 @@ import { Command, UsageError } from '../command-types';
 export function parseClaim(argv: string[]): { code: string | null } {
   if (argv.length === 0) return { code: null };
   if (argv.length > 1) {
-    throw new UsageError(`claim: Expected one argument, but received ${argv.length}.`);
+    throw new UsageError(
+      'usage.argument-count',
+      `claim: Expected at most one code; got ${argv.length} arguments.`,
+    );
   }
   const code = normalizeClaimCode(argv[0]);
   if (!code) {
     throw new UsageError(
-      `claim: ${JSON.stringify(argv[0])} is not a claim code. Check the browser's claim page to get a valid code.`,
+      'usage.invalid-value',
+      `claim: Invalid code ${JSON.stringify(argv[0])}. Copy the code from your browser's claim page.`,
+      argv[0],
     );
   }
   return { code };
@@ -21,7 +26,7 @@ export function parseClaim(argv: string[]): { code: string | null } {
 
 export const claimCommand: Command = {
   summary:
-    'Approves a browser that is waiting to set up this instance. If you run the command without a code, it lists the browsers that are waiting. A code expires after an hour.',
+    'Approve a browser to set up this instance, or omit the code to list waiting browsers. Codes expire after one hour.',
   args: '[<code>]',
   needsCurrentSchema: true,
   check: (argv) => void parseClaim(argv),
@@ -33,17 +38,17 @@ export const claimCommand: Command = {
     if (code === null) {
       const pending = await setup.pending(tenant.id);
       if (pending.length === 0) {
-        process.stdout.write('No browser is waiting to claim this instance.\n');
+        process.stdout.write('No browsers are waiting for approval.\n');
         return 0;
       }
-      process.stdout.write('Waiting to claim this instance:\n\n');
+      process.stdout.write('Browsers awaiting setup:\n\n');
       for (const claim of pending) {
-        const state = claim.approved_at ? ' (approved, not yet collected)' : '';
+        const state = claim.approved_at ? ' (approved; waiting for browser)' : '';
         process.stdout.write(
           `  ${claim.code}  from ${claim.origin}  ${relativeTime(claim.created_at)}${state}\n`,
         );
       }
-      process.stdout.write('\nApprove one with: speicher claim <code>\n');
+      process.stdout.write('\nTo approve: speicher claim <code>\n');
       return 0;
     }
 
@@ -51,26 +56,28 @@ export const claimCommand: Command = {
     if (result.status === 'approved') {
       log.info('setup claim approved', { code, origin: result.claim.origin });
       process.stdout.write(
-        `Approved ${code}, requested by ${result.claim.origin} ` +
-          `${relativeTime(result.claim.created_at)}. That browser is now signed in.\n`,
+        `Approved ${code} from ${result.claim.origin} ` +
+          `(requested ${relativeTime(result.claim.created_at)}). The browser can now sign in.\n`,
       );
       return 0;
     }
     if (result.status === 'already-approved') {
-      process.stdout.write(`${code} was already approved. That browser can sign in.\n`);
+      process.stdout.write(`${code} is already approved. The browser can sign in.\n`);
       return 0;
     }
 
     if (result.status === 'closed') {
-      // Claim window closes permanently once an administrator signs in
+      // First admin sign-in permanently closes claiming
       process.stderr.write(
-        'This instance already has an administrator, so it can no longer be claimed. To find out who the administrators are, run `speicher config export`. To add another administrator, run `speicher admin add --provider <id> --email <address>`.\n',
+        'Cannot claim: this instance already has an administrator.\n' +
+          'List administrators: speicher config export\n' +
+          'Add an administrator: speicher admin add --provider <id> --email <address>\n',
       );
       return 1;
     }
     process.stderr.write(
-      `No browser is waiting with the code ${code}. Codes expire after an hour — ` +
-        'reload the page to take a new one, and run `speicher claim` to list them.\n',
+      `Code ${code} not found. Codes expire after one hour.\n` +
+        'Reload the browser claim page for a new code, or run `speicher claim` to list waiting browsers.\n',
     );
     return 1;
   },

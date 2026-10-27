@@ -7,17 +7,24 @@ import { Command, UsageError } from '../command-types';
 
 export function parseSyncRepoList(argv: string[]): { forgeKey: string | null } {
   if (argv.length > 1)
-    throw new UsageError(`sync-repo-list: Expected one argument, but received ${argv.length}.`);
+    throw new UsageError(
+      'usage.argument-count',
+      `sync-repo-list: Expected at most one forge argument; got ${argv.length}.`,
+    );
   const forgeKey = argv[0];
   if (forgeKey !== undefined && forgeKey.startsWith('-')) {
-    throw new UsageError(`sync-repo-list: ${JSON.stringify(forgeKey)} is an unknown argument.`);
+    throw new UsageError(
+      'usage.unknown-argument',
+      `sync-repo-list: Unknown argument ${JSON.stringify(forgeKey)}.`,
+      forgeKey,
+    );
   }
   return { forgeKey: forgeKey ?? null };
 }
 
 export const syncRepoListCommand: Command = {
   summary:
-    'Fetches the list of repositories from the provided forge or all configured forges if none was provided. It then updates the list of repositories in the database to match the fetched list. New repositories are added, renamed ones are updated, and repositories that are no longer present are removed. This command only queues the job, it does not await its completion.',
+    'Queue a repository list sync for one forge or all configured forges. Adds new repositories, updates renamed ones, and removes missing ones. Does not wait for completion.',
   args: '[<forge>]',
   needsCurrentSchema: true,
   check: (argv) => void parseSyncRepoList(argv),
@@ -29,13 +36,13 @@ export const syncRepoListCommand: Command = {
 
     if (forgeKey !== null && !config.forgeIds.includes(forgeKey)) {
       process.stderr.write(
-        `No forge called ${JSON.stringify(forgeKey)} is configured. To find out which forges are configured, run \`speicher forges list\`.\n`,
+        `Forge ${JSON.stringify(forgeKey)} is not configured. List configured forges: \`speicher forges list\`.\n`,
       );
       return 1;
     }
 
     if (config.forgeIds.length === 0) {
-      process.stderr.write('This instance has no content source configured.\n');
+      process.stderr.write('No forges configured.\n');
       return 1;
     }
     const forges = forgeKey === null ? config.forgeIds : [forgeKey];
@@ -49,9 +56,9 @@ export const syncRepoListCommand: Command = {
         dedupeKey: `sync-repo-list:${key}`,
       });
     }
-    log.info('repository list sync enqueued', { forges });
+    log.info('Repository list sync queued', { forges });
     process.stdout.write(
-      `The repository list sync is queued for ${forges.join(', ')}. To find out which repositories the worker found, run \`speicher repos list\` once it has finished.\n`,
+      `Repository list sync queued for ${forges.join(', ')}. After it finishes, view repositories: \`speicher repos list\`.\n`,
     );
     return 0;
   },

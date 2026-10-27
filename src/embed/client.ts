@@ -1,40 +1,33 @@
-/**
- * Client for an OpenAI-compatible /v1/embeddings endpoint
- *
- * Emits one POST per batch, with up to max_concurrency batches in flight
- * Retryable failures (429, 5xx, transport) retry up to MAX_ATTEMPTS with jittered
- * exponential backoff, honouring Retry-After when the endpoint sends one
- * verifyDimensions probes at startup so a model whose width differs from
- * embedding.dimensions fails the boot instead of part-way through an embed run
- */
+/** OpenAI-compatible embedding client with batching, concurrency limits, and retries */
 import { Logger, rootLogger } from '../common/logger';
 import { backoffMs, retryAfterHeaderToMs } from '../common/time';
+import { CodedError } from '../common/errors';
 
-/** Attempts per batch request: one original plus up to three retries */
+/** Initial request plus three retries */
 const MAX_ATTEMPTS = 4;
 
-/** Base of the exponential backoff schedule */
+/** Initial batch retry delay */
 const BASE_BACKOFF_MS = 500;
 
-/** Cap on one backoff sleep */
+/** Maximum batch backoff delay */
 const MAX_BACKOFF_MS = 30_000;
 
-/** Attempts a width probe makes: fewer than a batch's, since someone is waiting on the answer */
+/** Maximum probe attempts */
 const PROBE_ATTEMPTS = 3;
 
-/** Wait before the first retry of a width probe; each later retry waits this much longer */
+/** Probe retry delay increases by this amount per attempt */
 const PROBE_BACKOFF_MS = 1_000;
 
-/** A Retry-After longer than this fails the probe rather than being waited out on a form */
+/** Fail probes requiring a longer retry delay */
 const PROBE_MAX_WAIT_MS = 5_000;
 
-/** Endpoint error bodies are truncated to this many characters in the message */
+/** Maximum error body characters included in messages */
 const ERROR_BODY_CHARS = 400;
 
-/** Text embedded at startup to read back the model's returned width */
+/** Input used to probe vector dimensions */
 const PROBE_TEXT = 'dimension probe';
 
-/** Embedding block after ConfigService has applied the schema defaults */
+/** Embedding config with schema defaults applied */
 export interface ResolvedEmbeddingConfig {
   base_url: string;
   api_key?: string;
@@ -45,7 +38,7 @@ export interface ResolvedEmbeddingConfig {
   max_concurrency: number;
 }
 
-/** fetch-shaped call the client makes; stubbable so tests never touch the network */
+/** Minimal fetch interface for requests and test stubs */
 export type FetchLike = (
   url: string,
   init: { method: string; headers: Record<string, string>; body: string },
@@ -56,44 +49,52 @@ export type FetchLike = (
   text(): Promise<string>;
 }>;
 
-/** Injectable dependencies: plain fetch and timers, replaced in tests */
+/** Injectable fetch and sleep implementations */
 export interface EmbeddingClientDeps {
   fetch?: FetchLike;
 
   sleep?: (ms: number) => Promise<void>;
 }
 
-/** An embedding request failure: the endpoint status and whether retrying can help */
-export class EmbeddingError extends Error {
+/** Embedding failure codes */
+export type EmbeddingCode =
+  | 'embedding.unreachable'
+  | 'embedding.http-status'
+  | 'embedding.not-json'
+  | 'embedding.bad-response'
+  | 'embedding.failed';
+
+/** Request error with HTTP status and retry eligibility */
+export class EmbeddingError extends CodedError<EmbeddingCode> {
   constructor(
+    code: EmbeddingCode,
     message: string,
     readonly status: number | null,
     readonly retryable: boolean,
   ) {
-    super(message);
-    this.name = 'EmbeddingError';
+    super(code, message);
   }
 }
 
-/** Model returned a different vector width than embedding.dimensions */
-export class EmbeddingDimensionError extends Error {
+/** Returned vector dimensions differ from configuration */
+export class EmbeddingDimensionError extends CodedError<'embedding.dimension-mismatch'> {
   constructor(
     readonly configured: number,
     readonly returned: number,
     readonly model: string,
   ) {
     super(
+      'embedding.dimension-mismatch',
       `embedding model "${model}" returned ${returned}-dimensional vectors, ` +
         `but embedding.dimensions is ${configured}. ` +
         'These must match: the pgvector column and its index are built to the ' +
         'configured width, so the mismatch would be discovered one Postgres error ' +
         'at a time, part-way through an embed run.',
     );
-    this.name = 'EmbeddingDimensionError';
   }
 }
 
-/** Retrying, concurrency-limited HTTP client for one /v1/embeddings endpoint */
+/** Embedding HTTP client with retries and bounded concurrency */
 export class EmbeddingClient {
   private readonly log: Logger;
   private readonly fetch: FetchLike;
@@ -117,14 +118,8 @@ export class EmbeddingClient {
   }
 
   /**
-   * The width this endpoint returns for the model, from a probe request
-   *
-   * Compares nothing. It answers the configuration form asking what to type into
-   * Dimensions, so it retries only what a moment can cure (429, 5xx, a transport
-   * failure), and only a few times: the batch client's schedule is built for a job
-   * nobody is watching, and an operator is. The request is the one a save would store:
-   * the dimensions parameter goes out exactly when `send_dimensions` says so, so a
-   * Matryoshka model answers at the width that will be used.
+   * Probe vector dimensions without validating them against config
+   * Honors send_dimensions and uses short retries for interactive use
    */
   async probeWidth(): Promise<number> {
     const body = this.requestBody([PROBE_TEXT]);
@@ -134,6 +129,7 @@ export class EmbeddingClient {
         const [vector] = outcome.vectors;
         if (!vector) {
           throw new EmbeddingError(
+            'embedding.bad-response',
             'embedding endpoint returned no vector for the probe',
             null,
             false,
@@ -150,7 +146,7 @@ export class EmbeddingClient {
     }
   }
 
-  /** Embed every text and return one vector per text, in input order */
+  /** Embed texts in batches, preserving input order */
   async embed(texts: readonly string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
     const batches = chunkInto(texts, this.config.batch_size);
@@ -160,11 +156,16 @@ export class EmbeddingClient {
     return results.flat();
   }
 
-  /** Embed a single probe text, verifying the returned width matches the config */
+  /** Probe and validate vector dimensions against config */
   async verifyDimensions(): Promise<number> {
     const [vector] = await this.embedBatch([PROBE_TEXT]);
     if (!vector) {
-      throw new EmbeddingError('embedding endpoint returned no vector for the probe', null, false);
+      throw new EmbeddingError(
+        'embedding.bad-response',
+        'embedding endpoint returned no vector for the probe',
+        null,
+        false,
+      );
     }
     if (vector.length !== this.config.dimensions) {
       throw new EmbeddingDimensionError(this.config.dimensions, vector.length, this.config.model);
@@ -172,17 +173,17 @@ export class EmbeddingClient {
     return vector.length;
   }
 
-  /** The JSON body for one request: the model, the inputs, and the width when it is sent */
+  /** Build the embedding request body */
   private requestBody(input: readonly string[]): string {
     return JSON.stringify({
       model: this.config.model,
       input,
-      // Some models error on an unknown `dimensions` parameter; sent only when configured
+      // Omit dimensions unless enabled; some models reject it
       ...(this.config.send_dimensions ? { dimensions: this.config.dimensions } : {}),
     });
   }
 
-  /** POST one batch with up to MAX_ATTEMPTS attempts; returns vectors or the last error */
+  /** Send a batch with retries; throw on failure */
   private async embedBatch(input: readonly string[]): Promise<number[][]> {
     const body = this.requestBody(input);
 
@@ -202,10 +203,12 @@ export class EmbeddingClient {
       });
       await this.sleep(wait);
     }
-    throw lastError ?? new EmbeddingError('embedding request failed', null, false);
+    throw (
+      lastError ?? new EmbeddingError('embedding.failed', 'embedding request failed', null, false)
+    );
   }
 
-  /** One plain POST attempt; never throws */
+  /** Send one request and return vectors or error details */
   private async attempt(
     body: string,
   ): Promise<
@@ -215,7 +218,7 @@ export class EmbeddingClient {
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     if (this.config.api_key) {
       headers.authorization = `Bearer ${this.config.api_key}`;
-      // `api-key` too: Azure reads only this header, other providers read the bearer
+      // Azure requires api-key instead of Bearer auth
       headers['api-key'] = this.config.api_key;
     }
 
@@ -227,10 +230,11 @@ export class EmbeddingClient {
         body,
       });
     } catch (err) {
-      // fetch rejected before any response: status unknown, and a later attempt may land
+      // Transport failures are retryable and have no HTTP status
       return {
         ok: false,
         error: new EmbeddingError(
+          'embedding.unreachable',
           `embedding endpoint unreachable: ${(err as Error).message}`,
           null,
           true,
@@ -244,6 +248,7 @@ export class EmbeddingClient {
       return {
         ok: false,
         error: new EmbeddingError(
+          'embedding.http-status',
           `embedding endpoint returned ${response.status}${detail ? `: ${detail}` : ''}`,
           response.status,
           isRetryable(response.status),
@@ -255,46 +260,55 @@ export class EmbeddingClient {
     try {
       return { ok: true, vectors: parseVectors(await response.text()) };
     } catch (err) {
-      // A 200 that is not the shape asked for: retrying would return the same body
+      // Do not retry unreadable or invalid success responses
       return {
         ok: false,
-        error: new EmbeddingError((err as Error).message, response.status, false),
+        error: new EmbeddingError(
+          err instanceof EmbeddingError ? err.code : 'embedding.bad-response',
+          (err as Error).message,
+          response.status,
+          false,
+        ),
         retryAfterMs: null,
       };
     }
   }
 }
 
-/** base_url with trailing slashes trimmed, joined with /embeddings */
+/** Append /embeddings after removing trailing slashes */
 export function embeddingsUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/embeddings`;
 }
 
-/**
- * How long one width-probe attempt waits on the endpoint before it counts as a failure
- *
- * A local model server can take several seconds to load a model on the first request;
- * the attempt that times out is the one the retry lands on, once the model is loaded.
- * Three attempts bound the wait of a page to about half a minute.
- */
+/** Per-attempt probe timeout, allowing time for model loading */
 export const PROBE_TIMEOUT_MS = 10_000;
 
-/** The platform fetch with a deadline, for a request an operator is waiting on */
+/** Create a fetch wrapper with a request timeout */
 export function fetchWithin(ms: number): FetchLike {
   return (url, init) => globalThis.fetch(url, { ...init, signal: AbortSignal.timeout(ms) });
 }
 
-/** Parse a response body into vectors, each entry placed at its reported index */
+/** Parse vectors into reported index order */
 function parseVectors(raw: string): number[][] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error('embedding endpoint returned a body that is not JSON');
+    throw new EmbeddingError(
+      'embedding.not-json',
+      'embedding endpoint returned a body that is not JSON',
+      null,
+      false,
+    );
   }
   const data = (parsed as { data?: unknown }).data;
   if (!Array.isArray(data)) {
-    throw new Error('embedding response has no `data` array');
+    throw new EmbeddingError(
+      'embedding.bad-response',
+      'embedding response has no `data` array',
+      null,
+      false,
+    );
   }
 
   const out: number[][] = new Array(data.length);
@@ -302,17 +316,27 @@ function parseVectors(raw: string): number[][] {
     const record = entry as { index?: unknown; embedding?: unknown };
     const at = typeof record.index === 'number' ? record.index : position;
     if (!Array.isArray(record.embedding)) {
-      throw new Error(`embedding response entry ${at} has no \`embedding\` array`);
+      throw new EmbeddingError(
+        'embedding.bad-response',
+        `embedding response entry ${at} has no \`embedding\` array`,
+        null,
+        false,
+      );
     }
     out[at] = record.embedding as number[];
   });
   if (out.some((vector) => vector === undefined)) {
-    throw new Error('embedding response is missing an entry');
+    throw new EmbeddingError(
+      'embedding.bad-response',
+      'embedding response is missing an entry',
+      null,
+      false,
+    );
   }
   return out;
 }
 
-/** Best-effort read of an error response body, '' when it cannot be read */
+/** Read and trim the response body; return empty text on failure */
 async function safeText(response: { text(): Promise<string> }): Promise<string> {
   try {
     return (await response.text()).trim();
@@ -321,19 +345,19 @@ async function safeText(response: { text(): Promise<string> }): Promise<string> 
   }
 }
 
-/** True for the statuses (429, 5xx) a retry can plausibly fix */
+/** Retry 429 and statuses of 500 or higher */
 function isRetryable(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-/** Split items into consecutive non-overlapping slices of at most size */
+/** Split items into chunks of at most size */
 function chunkInto<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size) as T[]);
   return out;
 }
 
-/** Run every item through task with at most limit in flight, results in input order */
+/** Run tasks with bounded concurrency, preserving input order */
 async function pooled<T, R>(
   items: readonly T[],
   limit: number,

@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { toFailWith, toRefuseWith } from './helpers/refuse-with';
 import { testDatabaseUrl } from './helpers/test-database';
 
 process.env.SPEICHER_CONFIG ??= resolve(__dirname, 'fixtures/instance.yaml');
@@ -27,3 +28,5 @@ process.env.SPEICHER_PUBLIC_MAX_AGE ??= '0';
 process.env.SPEICHER_CONFIG_POLL ??= '0';
 
 jest.setTimeout(60_000);
+
+expect.extend({ toFailWith, toRefuseWith });

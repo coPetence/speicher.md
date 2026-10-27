@@ -17,41 +17,49 @@ describe('what the remote answers', () => {
   const LISTING = 'ref: refs/heads/main\tHEAD\n0123456789abcdef\tHEAD\n';
 
   it('names the default branch and its commit', () => {
-    expect(listingStatus(LISTING, '')).toEqual({
+    expect(listingStatus(LISTING, '')).toMatchObject({
+      code: 'remote.connected',
       level: 'ok',
-      label: 'Connected',
-      detail: 'The default branch main is at commit 01234567.',
+      facts: { branch: 'main', commit: '01234567' },
     });
   });
 
   it('names the configured branch and its commit, or says it is missing', () => {
-    expect(listingStatus('fedcba9876543210\trefs/heads/docs\n', 'docs').detail).toBe(
-      'Branch docs is at commit fedcba98.',
-    );
-    expect(listingStatus('', 'docs')).toMatchObject({ level: 'fail', label: 'Branch not found' });
+    expect(listingStatus('fedcba9876543210\trefs/heads/docs\n', 'docs')).toMatchObject({
+      code: 'remote.connected',
+      facts: { branch: 'docs', commit: 'fedcba98' },
+    });
+    expect(listingStatus('', 'docs')).toMatchObject({
+      code: 'remote.branch-missing',
+      level: 'fail',
+      facts: { branch: 'docs' },
+    });
   });
 
   it('warns about a repository with nothing in it', () => {
-    expect(listingStatus('', '')).toMatchObject({ level: 'warn', label: 'Empty repository' });
+    expect(listingStatus('', '')).toMatchObject({ code: 'remote.empty', level: 'warn' });
   });
 
   it('says what to do when git cannot reach the repository', () => {
-    const label = (message: string) => failureOf(message).label;
-    expect(label('git ls-remote failed: Host key verification failed.')).toBe(
-      'Host key not trusted',
+    const code = (message: string) => failureOf(message).code;
+    expect(code('git ls-remote failed: Host key verification failed.')).toBe(
+      'remote.host-key-untrusted',
     );
-    expect(label('git@example.test: Permission denied (publickey).')).toBe('Deploy key refused');
-    expect(label("fatal: could not read Username for 'https://example.test'")).toBe(
-      'Access token refused',
+    expect(code('git@example.test: Permission denied (publickey).')).toBe(
+      'remote.deploy-key-refused',
     );
-    expect(label('ssh: Could not resolve hostname example.test: nodename nor servname')).toBe(
-      'Server not found',
+    expect(code("fatal: could not read Username for 'https://example.test'")).toBe(
+      'remote.token-refused',
     );
-    expect(label('git ls-remote failed: timed out after 15 seconds')).toBe('No answer');
-    expect(failureOf('fatal: something else went wrong')).toEqual({
+    expect(code('ssh: Could not resolve hostname example.test: nodename nor servname')).toBe(
+      'remote.host-unknown',
+    );
+    expect(code('git ls-remote failed: timed out after 15 seconds')).toBe('remote.timed-out');
+    // git's own last line, passed on as the reason
+    expect(failureOf('fatal: something else went wrong')).toMatchObject({
+      code: 'remote.failed',
       level: 'fail',
-      label: 'Not connected',
-      detail: 'fatal: something else went wrong',
+      facts: { reason: 'fatal: something else went wrong' },
     });
   });
 });
@@ -74,7 +82,12 @@ describe('the connection check of a plain git remote', () => {
       undefined,
       async (url, credential, branch) => {
         asked.push({ url, credential, branch });
-        return { level: 'ok', label: 'Connected', detail: 'Branch main is at commit 01234567.' };
+        return {
+          code: 'remote.connected',
+          level: 'ok',
+          label: 'Connected',
+          detail: 'Branch main is at commit 01234567.',
+        };
       },
     );
     return { asked, checks };
@@ -113,7 +126,7 @@ describe('the connection check of a plain git remote', () => {
         branch: 'main',
       },
     ]);
-    expect(urlField(payload, PLAYBOOKS).status?.label).toBe('Connected');
+    expect(urlField(payload, PLAYBOOKS).status?.code).toBe('remote.connected');
     expect(urlField(payload, RUNBOOKS).status).toBeUndefined();
   });
 
@@ -133,10 +146,12 @@ describe('the connection check of a plain git remote', () => {
     await checks.stampRepositoryStatus(payload, FULL, RUNBOOKS);
 
     expect(asked).toEqual([]);
-    expect(urlField(payload, RUNBOOKS).status).toEqual({
+    const status = urlField(payload, RUNBOOKS).status;
+    // The variable it is missing, and nothing about the rest of the document
+    expect(status).toMatchObject({
+      code: 'remote.not-configured',
       level: 'fail',
-      label: 'Not configured',
-      detail: '${TEST_GH_PRIVATE_KEY} is not set',
+      facts: { variables: 'TEST_GH_PRIVATE_KEY' },
     });
   });
 });

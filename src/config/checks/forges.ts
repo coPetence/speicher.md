@@ -1,71 +1,75 @@
 import { isReservedSegment, slugify } from '../../common/slug';
 import { ForgeConfig, InstanceConfig, gitRepositoryOwner } from '../types';
+import { ConfigProblem, problem } from '../../common/config-problems';
 
-/**
- * resolvePrimaryForge returns the id of the primary forge. If only one forge is
- * configured, that forge is the primary forge. It returns null if no forge is
- * configured, or if the primary forge cannot be decided.
- *
- * @param forges the configured forges, by id
- * @param problems the list that problems are added to
- */
+/** Return the explicit or sole primary forge ID; report ambiguity or a missing selection. */
 export function resolvePrimaryForge(
   forges: Record<string, ForgeConfig>,
-  problems: string[],
+  problems: ConfigProblem[],
 ): string | null {
   const ids = Object.keys(forges);
   if (ids.length === 0) return null;
   const marked = ids.filter((id) => forges[id].primary === true);
   if (marked.length > 1) {
     problems.push(
-      `exactly one forge may be primary; ${marked.map((i) => `"${i}"`).join(', ')} are all marked as primary`,
+      problem('forges.primary-ambiguous', 'forges', {
+        text: `Multiple primary forges: ${marked.map((i) => `"${i}"`).join(', ')}. Set \`primary: true\` on only one.`,
+        dashboard: `Multiple primary content sources: ${marked.map((i) => `"${i}"`).join(', ')}. Choose only one.`,
+      }),
     );
     return null;
   }
   if (marked.length === 1) return marked[0];
   if (ids.length === 1) return ids[0];
   problems.push(
-    'no forge is marked `primary: true` and more than one is configured — designate one before adding a second forge, since promotion moves every URL',
+    problem('forges.primary-missing', 'forges', {
+      text: 'Multiple forges configured, but none is primary. Set `primary: true` on one. Changing the primary forge later changes every URL.',
+      dashboard:
+        'No primary content source selected. Choose one. Changing it later changes every URL.',
+    }),
   );
   return null;
 }
 
 /**
- * checkFirstSegments checks that no two of the following claim the same first URL
- * segment, and that none of them claims a reserved one: the ids of the non-primary
- * forges, and, when the primary forge is of type `git`, its repository owners and
- * the repositories of its default repository owner. A `github` forge lists no
- * repositories in the config, so its owners are checked when a repository is
- * registered instead (`RoutingService.assertFirstSegmentFree`).
- *
- * @param config the loaded instance config
- * @param primaryForgeId the id of the primary forge, or null if there is no forge
- * @param problems the list that problems are added to
+ * Check reserved root segments and URL conflicts between forges, owners, and repos.
+ * GitHub owners are checked at registration by RoutingService.assertFirstSegmentFree.
  */
 export function checkFirstSegments(
   config: InstanceConfig,
   primaryForgeId: string | null,
-  problems: string[],
+  problems: ConfigProblem[],
 ): void {
   const claimed = new Map<string, string>();
 
-  const claim = (segment: string, claimant: string) => {
+  // Report conflicts at the claimant's config path.
+  const claim = (segment: string, claimant: string, path: string) => {
     if (isReservedSegment(segment)) {
-      problems.push(`${claimant} claims first segment "${segment}", which is reserved`);
+      problems.push(
+        problem('forges.segment-reserved', path, {
+          text: `Reserved URL path /${segment}: ${claimant} cannot use it. Rename it.`,
+          dashboard: `/${segment} is reserved. Rename ${asShown(claimant, false)} to use a different URL.`,
+        }),
+      );
       return;
     }
     const existing = claimed.get(segment);
     if (existing === claimant) return;
     if (existing) {
-      problems.push(`first segment "${segment}" is claimed by both ${existing} and ${claimant}`);
+      problems.push(
+        problem('forges.segment-taken', path, {
+          text: `URL conflict at /${segment}: ${existing} and ${claimant}. Rename one.`,
+          dashboard: `${asShown(claimant)} and ${asShown(existing, false)} share /${segment}. Rename one.`,
+        }),
+      );
       return;
     }
     claimed.set(segment, claimant);
   };
 
-  // The primary forge has no URL segment of its own
+  // Only non-primary forges claim their own URL segment.
   for (const forgeId of Object.keys(config.forges ?? {})) {
-    if (forgeId !== primaryForgeId) claim(forgeId, `forge "${forgeId}"`);
+    if (forgeId !== primaryForgeId) claim(forgeId, `forge "${forgeId}"`, `forges.${forgeId}`);
   }
 
   for (const [forgeId, forge] of Object.entries(config.forges ?? {})) {
@@ -73,7 +77,7 @@ export function checkFirstSegments(
     if (forge.default_repository_owner === undefined) continue;
     const forgeOwner = slugify(forge.default_repository_owner);
     const taken = new Map<string, string>();
-    for (const repo of forge.repos ?? []) {
+    for (const [i, repo] of (forge.repos ?? []).entries()) {
       const owner = gitRepositoryOwner(repo);
       if (owner === null) continue;
       const [segment, claimant] =
@@ -83,7 +87,10 @@ export function checkFirstSegments(
       const existing = taken.get(segment);
       if (existing && existing !== claimant) {
         problems.push(
-          `segment "${segment}" after forge "${forgeId}" is claimed by both ${existing} and ${claimant}`,
+          problem('forges.segment-taken', `forges.${forgeId}.repos[${i}]`, {
+            text: `URL conflict at /${forgeId}/${segment}: ${existing} and ${claimant}. Rename one.`,
+            dashboard: `${asShown(claimant)} and ${asShown(existing, false)} share /${forgeId}/${segment}. Rename one.`,
+          }),
         );
       } else {
         taken.set(segment, claimant);
@@ -99,13 +106,23 @@ export function checkFirstSegments(
     primary.default_repository_owner === undefined
       ? undefined
       : slugify(primary.default_repository_owner);
-  for (const repo of primary.repos ?? []) {
+  for (const [i, repo] of (primary.repos ?? []).entries()) {
     const owner = gitRepositoryOwner(repo);
     if (owner === null) continue;
+    const path = `forges.${primaryForgeId}.repos[${i}]`;
     if (slugify(owner) === defaultOwner) {
-      claim(slugify(repo.slug ?? repo.id), `repo "${repo.id}" on the primary forge`);
+      claim(slugify(repo.slug ?? repo.id), `repo "${repo.id}" on the primary forge`, path);
     } else {
-      claim(slugify(owner), `repository owner "${owner}" on the primary forge`);
+      claim(slugify(owner), `repository owner "${owner}" on the primary forge`, path);
     }
   }
+}
+
+/** Format a claimant using dashboard terminology. */
+function asShown(claimant: string, leading = true): string {
+  const shown = claimant
+    .replace(/^forge /, 'content source ')
+    .replace(/^repo /, 'repository ')
+    .replace(/ on the primary forge$/, '');
+  return leading ? shown.charAt(0).toUpperCase() + shown.slice(1) : shown;
 }

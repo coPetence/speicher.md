@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 
 import { commandUsage, runCli, usage } from '../../src/cli/cli';
 import { UsageError } from '../../src/cli/command-types';
+import { codedErrorOf } from '../helpers/refuse-with';
 import { COMMANDS } from '../../src/cli/commands';
 import { parseAdmin } from '../../src/cli/commands/admin';
 import { parseClaim } from '../../src/cli/commands/claim';
@@ -24,13 +25,17 @@ describe('what the CLI refuses before it connects', () => {
     expect(parseRebuild([])).toEqual({ purgeFirst: false });
     expect(parseRebuild(['--purge'])).toEqual({ purgeFirst: true });
     expect(() => parseRebuild(['--purgue'])).toThrow(UsageError);
-    expect(() => parseRebuild(['--purge', 'everything'])).toThrow(/unknown argument/);
+    expect(() => parseRebuild(['--purge', 'everything'])).toFailWith('usage.unknown-argument', {
+      argument: 'everything',
+    });
   });
 
   it('defaults migrate to up, and refuses an action it cannot perform', () => {
     expect(parseMigrate([])).toBe('up');
     expect(parseMigrate(['status'])).toBe('status');
-    expect(() => parseMigrate(['sideways'])).toThrow(/unknown action/);
+    expect(() => parseMigrate(['sideways'])).toFailWith('usage.unknown-action', {
+      argument: 'sideways',
+    });
     expect(() => parseMigrate(['up', 'down'])).toThrow(UsageError);
   });
 
@@ -47,7 +52,7 @@ describe('what the CLI refuses before it connects', () => {
   });
 
   it('tells a code that could not exist from one that merely does not', () => {
-    expect(() => parseClaim(['sudo'])).toThrow(/not a claim code/);
+    expect(() => parseClaim(['sudo'])).toFailWith('usage.invalid-value', { argument: 'sudo' });
     expect(normalizeClaimCode('QUIET-HERON-44')).toBeNull();
     expect(normalizeClaimCode('QUIET-HERON-4471')).toBe('QUIET-HERON-4471');
   });
@@ -55,9 +60,11 @@ describe('what the CLI refuses before it connects', () => {
   it('makes exporting with credentials a word somebody had to type', () => {
     expect(parseConfig(['export'])).toEqual({ withSecrets: false, path: null });
     expect(parseConfig(['export', '--with-secrets'])).toEqual({ withSecrets: true, path: null });
-    expect(() => parseConfig(['export', '--with-secret'])).toThrow(/unknown argument/);
+    expect(() => parseConfig(['export', '--with-secret'])).toFailWith('usage.unknown-argument', {
+      argument: '--with-secret',
+    });
     expect(() => parseConfig(['export', '-s'])).toThrow(UsageError);
-    expect(() => parseConfig([])).toThrow(/Expected the action `export`/);
+    expect(() => parseConfig([])).toFailWith('usage.unknown-action');
     expect(() => parseConfig(['import'])).toThrow(UsageError);
   });
 
@@ -70,7 +77,7 @@ describe('what the CLI refuses before it connects', () => {
       withSecrets: true,
       path: 'config.yaml',
     });
-    expect(() => parseConfig(['export', 'a.yaml', 'b.yaml'])).toThrow(/one path/);
+    expect(() => parseConfig(['export', 'a.yaml', 'b.yaml'])).toFailWith('usage.argument-count');
   });
 
   it('takes no arguments for reopen-claim-window', () => {
@@ -83,15 +90,21 @@ describe('what the CLI refuses before it connects', () => {
       provider: 'entra',
       email: 'x@y.test',
     });
-    expect(() => parseAdmin(['add', '--subject', 'oid-1'])).toThrow(/requires --note/);
+    expect(() => parseAdmin(['add', '--subject', 'oid-1'])).toFailWith('usage.missing-option', {
+      argument: '--note',
+    });
     expect(() =>
       parseAdmin(['add', '--subject', 'oid-1', '--email', 'x@y.test', '--note', 'n']),
-    ).toThrow(/cannot be combined/);
-    expect(() => parseAdmin(['add'])).toThrow(/Expected --email or --subject/);
-    expect(() => parseAdmin(['remove', '--subject', 'x'])).toThrow(/Expected the action `add`/);
+    ).toFailWith('usage.conflicting-options');
+    expect(() => parseAdmin(['add'])).toFailWith('usage.missing-option');
+    expect(() => parseAdmin(['remove', '--subject', 'x'])).toFailWith('usage.unknown-action');
     expect(parseAdmin(['add', '--subject', 'a/b:c d', '--note', 'n']).subject).toBe('a/b:c d');
-    expect(() => parseAdmin(['add', '--subject'])).toThrow(/Expected a value after --subject/);
-    expect(() => parseAdmin(['add', '--admin', 'x'])).toThrow(/unknown argument/);
+    expect(() => parseAdmin(['add', '--subject'])).toFailWith('usage.missing-value', {
+      argument: '--subject',
+    });
+    expect(() => parseAdmin(['add', '--admin', 'x'])).toFailWith('usage.unknown-argument', {
+      argument: '--admin',
+    });
   });
 });
 
@@ -139,14 +152,17 @@ describe('runCli', () => {
 
   it('refuses a bad argument with 2, which is what proves it never connected', async () => {
     expect(await runCli(['rebuild', '--purgue'])).toBe(2);
-    expect(err).toContain('rebuild: "--purgue" is an unknown argument');
+    // The parser's own refusal is what the command prints
+    expect(err).toContain(codedErrorOf(() => parseRebuild(['--purgue'])).message);
     expect(await runCli(['migrate', 'sideways'])).toBe(2);
     expect(await runCli(['claim', 'sudo rm -rf /'])).toBe(2);
   });
 
   it('follows a bad argument with that command’s usage, not every command’s', async () => {
     expect(await runCli(['claim', 'QUIET-HERON-4471', 'and-this'])).toBe(2);
-    expect(plain(err)).toContain('Expected one argument, but received 2.');
+    expect(plain(err)).toContain(
+      codedErrorOf(() => parseClaim(['QUIET-HERON-4471', 'and-this'])).message,
+    );
     const [usageLine] = commandUsage('claim', COMMANDS.claim).split('\n');
     expect(usageLine).toContain('speicher claim');
     expect(plain(err)).toContain(usageLine);
@@ -171,10 +187,14 @@ describe('runCli', () => {
     });
 
     expect(() => parseJobs(['retry'])).toThrow(UsageError);
-    expect(() => parseJobs(['retry', 'some-id', '--all'])).toThrow(/already specifies the job/);
+    expect(() => parseJobs(['retry', 'some-id', '--all'])).toFailWith('usage.conflicting-options');
     expect(() => parseJobs(['list', '--kind', 'sync-repo-content'])).toThrow(UsageError);
-    expect(() => parseJobs(['retry', '--kind', 'syncc'])).toThrow(/unknown kind/);
-    expect(() => parseJobs(['list', '--limit', '0'])).toThrow(/whole number/);
+    expect(() => parseJobs(['retry', '--kind', 'syncc'])).toFailWith('usage.invalid-value', {
+      argument: 'syncc',
+    });
+    expect(() => parseJobs(['list', '--limit', '0'])).toFailWith('usage.invalid-value', {
+      argument: '0',
+    });
     expect(() => parseJobs(['sideways'])).toThrow(UsageError);
   });
 
@@ -182,7 +202,9 @@ describe('runCli', () => {
     expect(parseSyncRepoList([])).toEqual({ forgeKey: null });
     expect(parseSyncRepoList(['gh'])).toEqual({ forgeKey: 'gh' });
     expect(() => parseSyncRepoList(['gh', 'gl'])).toThrow(UsageError);
-    expect(() => parseSyncRepoList(['--all'])).toThrow(/unknown argument/);
+    expect(() => parseSyncRepoList(['--all'])).toFailWith('usage.unknown-argument', {
+      argument: '--all',
+    });
 
     expect(parseSyncRepoContent(['copetence/handbook'])).toEqual({
       repo: 'copetence/handbook',
@@ -197,11 +219,13 @@ describe('runCli', () => {
     expect(parseSyncRepoContent(['copetence/handbook', '--force'])).toEqual(forced);
     expect(parseSyncRepoContent(['--force', 'copetence/handbook'])).toEqual(forced);
     expect(() => parseSyncRepoContent(['--force'])).toThrow(UsageError);
-    expect(() => parseSyncRepoContent(['copetence/handbook', '--forse'])).toThrow(
-      /unknown argument/,
+    expect(() => parseSyncRepoContent(['copetence/handbook', '--forse'])).toFailWith(
+      'usage.unknown-argument',
+      { argument: '--forse' },
     );
-    expect(() => parseSyncRepoContent(['--forse', 'copetence/handbook'])).toThrow(
-      /unknown argument/,
+    expect(() => parseSyncRepoContent(['--forse', 'copetence/handbook'])).toFailWith(
+      'usage.unknown-argument',
+      { argument: '--forse' },
     );
   });
 

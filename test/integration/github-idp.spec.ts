@@ -263,7 +263,7 @@ describe('a sign-in that should not complete', () => {
   it('refuses a state no flow was stored for', async () => {
     await expect(
       github.completeLogin(harness.tenantId, 'the-code', 'never-issued', REDIRECT_URI),
-    ).rejects.toThrow('unknown or reused login state');
+    ).rejects.toFailWith('signin.unknown-state');
   });
 
   it('refuses the second use of a state', async () => {
@@ -272,7 +272,7 @@ describe('a sign-in that should not complete', () => {
 
     await expect(
       github.completeLogin(harness.tenantId, 'the-code', state, REDIRECT_URI),
-    ).rejects.toThrow('unknown or reused login state');
+    ).rejects.toFailWith('signin.unknown-state');
   });
 
   it('refuses a flow from another tenant', async () => {
@@ -280,7 +280,7 @@ describe('a sign-in that should not complete', () => {
 
     await expect(
       github.completeLogin('00000000-0000-0000-0000-000000000000', 'the-code', state, REDIRECT_URI),
-    ).rejects.toThrow('unknown or reused login state');
+    ).rejects.toFailWith('signin.unknown-state');
   });
 
   it('refuses an expired flow, and spends no code doing it', async () => {
@@ -297,7 +297,7 @@ describe('a sign-in that should not complete', () => {
 
     await expect(
       github.completeLogin(harness.tenantId, 'the-code', state, REDIRECT_URI),
-    ).rejects.toThrow('login flow expired');
+    ).rejects.toFailWith('signin.flow-expired');
     expect(gh.seen).not.toContain('POST /login/oauth/access_token');
   });
 
@@ -306,7 +306,7 @@ describe('a sign-in that should not complete', () => {
 
     await expect(
       github.completeLogin(harness.tenantId, 'the-code', await start(), REDIRECT_URI),
-    ).rejects.toThrow('token exchange refused');
+    ).rejects.toFailWith('signin.token-exchange-refused');
   });
 
   it('refuses a user response carrying no id', async () => {
@@ -314,13 +314,13 @@ describe('a sign-in that should not complete', () => {
 
     await expect(
       github.completeLogin(harness.tenantId, 'the-code', await start(), REDIRECT_URI),
-    ).rejects.toThrow('carried no id');
+    ).rejects.toFailWith('signin.subject-missing');
   });
 
   it('refuses a provider that is not a github one', async () => {
-    await expect(github.authorizationUrl(harness.tenantId, 'nobody', REDIRECT_URI)).rejects.toThrow(
-      'is not a github provider',
-    );
+    await expect(
+      github.authorizationUrl(harness.tenantId, 'nobody', REDIRECT_URI),
+    ).rejects.toFailWith('signin.wrong-provider');
   });
 });
 

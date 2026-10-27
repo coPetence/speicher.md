@@ -1,13 +1,13 @@
 /**
- * FieldBase includes the shared properties of every config field and the builder for the base field
+ * Shared field properties and builder
  */
 
 import type { Field } from '.';
-import type { FieldStatus } from '../model';
+import type { FieldStatus, FormProblem } from '../model';
 
 export type Obj = Record<string, unknown>;
 
-// Reads the value at `path` into Obj, or undefined when a step along the way is missing
+// Returns the value at path, or undefined if unreachable
 export function at(root: unknown, path: (string | number)[]): unknown {
   let node: unknown = root;
   for (const key of path) {
@@ -18,49 +18,46 @@ export function at(root: unknown, path: (string | number)[]): unknown {
 }
 
 export interface FieldBase {
-  // Where the value lives in the instance configuration, dot-separated, e.g. `forges.github.app_id`
+  // Dot-separated path in the instance config
   path: string;
-  // The same path with member keys and list positions as `<key>` and `<index>`,
-  // e.g. `forges.<key>.app_id`
+  // Path with dynamic keys and list positions replaced by <key> and <index>
   schemaPath: string;
   label: string;
-  // Markdown shown in the info popover beside the label
+  // Markdown in the label's info popover
   help: string;
-  // Markdown shown as a note below the control
+  // Markdown note below the control
   fact: string;
-  // Markdown shown below the field, e.g. a link to the identity provider's portal
+  // Markdown link below the field
   link: string;
-  // Places the field at the start of a new grid row
+  // Starts a new grid row
   startsRow: boolean;
-  // Spans two columns of the grid, e.g. for a URL
+  // Spans two grid columns
   wide: boolean;
-  // Shows the field under the collapsed "Advanced settings" instead of on the page
+  // Appears under collapsed "Advanced settings"
   advanced: boolean;
-  // Draws a field of the page after the page's cards instead of before them
+  // Appears after the page's cards
   trailing: boolean;
-  // Marks the label with an asterisk, because the configuration needs a value here
+  // Requires a value and adds an asterisk to the label
   required: boolean;
-  // Renders only a hidden empty input, which clears the stored value on save,
-  // because the field does not apply here
-  // TODO check if this makes sense
+  // Renders a hidden empty input to clear the value on save
+  // TODO: Verify this behavior
   inapplicable: boolean;
-  // Fields rendered inside this one, after its control
+  // Nested fields rendered after this control
   attached: Field[];
-  // Path of a checkbox or select; the field is hidden while that control is
-  // unchecked or empty, and still submits its value
+  // Hides when the referenced control is unchecked or empty; still submits
   shownWith?: string;
-  // A list the field depends on, and how many rows it holds; the field is hidden
-  // while the list holds none, and still submits its value
+  // Hides when the referenced list has no rows; still submits
   shownWithRows?: { collection: string; rows: number };
-  // Result of the field's live check, shown below the control
+  // Live check result shown below the control
   status?: FieldStatus;
-  // URL of the field's live check. While `status` is absent the page links to it and
-  // the browser runs it, so a slow remote never holds up the page
+  // Live check URL; linked and run by the browser when status is absent
   checkHref?: string;
+  // Field-specific save errors that mark the control
+  problems?: FormProblem[];
 }
 
 export interface BaseOptions {
-  // Replaces the label passed to the builder
+  // Overrides the builder's label
   label?: string;
   help?: string;
   fact?: string;

@@ -8,9 +8,9 @@ import { DirectoryConfig, GithubProviderConfig } from '../../config/types';
 import { githubHeaders } from '../../github/api';
 import { githubHosts } from '../../github/hosts';
 import { GithubTokenMinter } from '../../github/tokens';
-import { DirectoryUnavailableError } from '../../ingest/grants';
+import { DirectoryFailure, DirectoryUnavailableError } from '../../ingest/grants';
 import { splitTeam } from './github-config';
-import { DirectoryStatus, FetchLike } from './graph';
+import { DirectoryStatus, FetchLike, unreachableStatus } from './graph';
 
 const MAX_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 500;
@@ -115,7 +115,8 @@ export class GithubDirectory {
       }
 
       const orgs = await this.reachable();
-      if (orgs.length === 0) throw this.unavailable(...noInstallation(this.orgs.join(', ')));
+      if (orgs.length === 0)
+        throw this.unavailable('not-installed', ...noInstallation(this.orgs.join(', ')));
 
       const login = await this.loginOf(orgs[0], subject);
       if (login === null) return false;
@@ -203,6 +204,7 @@ export class GithubDirectory {
 
     if (this.orgs.length === 0) {
       return {
+        code: 'directory.nothing-to-reach',
         level: 'fail',
         label: 'Nothing to reach',
         detail:
@@ -213,9 +215,11 @@ export class GithubDirectory {
     const reachable = await this.reachable();
     if (reachable.length === 0) {
       return {
+        code: 'directory.not-installed',
         level: 'fail',
         label: 'Not connected',
         detail: `${noInstallation(this.orgs.join(', '))[1]}.`,
+        facts: { orgs: this.orgs.join(', ') },
       };
     }
 
@@ -239,11 +243,15 @@ export class GithubDirectory {
               PROBE_TIMEOUT_MS,
             );
 
-      if (found !== null) return { level: 'ok', label: 'Connected', detail: '' };
+      if (found !== null) {
+        return { code: 'directory.connected', level: 'ok', label: 'Connected', detail: '' };
+      }
 
       return {
+        code: slug === null ? 'directory.org-unreadable' : 'directory.team-missing',
         level: 'fail',
         label: 'Not connected',
+        facts: slug === null ? { org: org as string } : { org: org as string, team: slug },
         detail:
           slug === null
             ? `The app cannot read "${org}"`
@@ -252,16 +260,7 @@ export class GithubDirectory {
               'missing the organisation permission Members: Read-only.',
       };
     } catch (err) {
-      return {
-        level: 'fail',
-        label: 'Not connected',
-        detail:
-          err instanceof DirectoryUnavailableError
-            ? [err.reason, err.detail ? `(${err.detail.replace(/\.$/, '')})` : '']
-                .filter(Boolean)
-                .join(' ')
-            : 'The organisation could not be reached.',
-      };
+      return unreachableStatus(err, 'The organisation could not be reached.');
     }
   }
 
@@ -303,13 +302,17 @@ export class GithubDirectory {
     timeoutMs?: number,
   ): Promise<unknown | null> {
     const installationId = await this.installationOn(org);
-    if (installationId === null) throw this.unavailable(...noInstallation(org));
+    if (installationId === null) throw this.unavailable('not-installed', ...noInstallation(org));
 
     let token: string;
     try {
       token = await this.minter.installationToken(installationId);
     } catch (err) {
-      throw this.unavailable('could not mint an installation token', (err as Error).message);
+      throw this.unavailable(
+        'installation-token-failed',
+        'could not mint an installation token',
+        (err as Error).message,
+      );
     }
 
     return this.request(
@@ -338,7 +341,11 @@ export class GithubDirectory {
       try {
         jwt = await this.minter.appJwt();
       } catch (err) {
-        throw this.unavailable('the App private key could not be used', (err as Error).message);
+        throw this.unavailable(
+          'private-key-unusable',
+          'the App private key could not be used',
+          (err as Error).message,
+        );
       }
 
       const out: Installation[] = [];
@@ -382,7 +389,7 @@ export class GithubDirectory {
           await this.sleep(backoffMs(attempt, BASE_BACKOFF_MS, MAX_BACKOFF_MS));
           continue;
         }
-        throw this.unavailable('directory unreachable', (err as Error).message);
+        throw this.unavailable('unreachable', 'directory unreachable', (err as Error).message);
       }
 
       if (response.ok) return (await response.json()) as unknown;
@@ -390,7 +397,11 @@ export class GithubDirectory {
       if (response.status === 404) return null;
 
       if (response.status === 401 || response.status === 403) {
-        throw this.unavailable('the App was refused', `status ${response.status}: ${hint}`);
+        throw this.unavailable(
+          'app-refused',
+          'the App was refused',
+          `status ${response.status}: ${hint}`,
+        );
       }
 
       if ((response.status === 429 || response.status >= 500) && attempt < MAX_ATTEMPTS) {
@@ -401,19 +412,31 @@ export class GithubDirectory {
         continue;
       }
 
-      throw this.unavailable('directory request failed', `status ${response.status}`);
+      throw this.unavailable(
+        'request-failed',
+        'directory request failed',
+        `status ${response.status}`,
+      );
     }
   }
 
   /** Throw if the directory is in its failure cooldown period */
   private assertAvailable(): void {
     if (this.now() < this.unavailableUntil) {
-      throw new DirectoryUnavailableError(this.providerShortId, 'still in the failure cooldown');
+      throw new DirectoryUnavailableError(
+        this.providerShortId,
+        'cooldown',
+        'still in the failure cooldown',
+      );
     }
   }
 
   /** Enter failure cooldown */
-  private unavailable(message: string, detail: string): DirectoryUnavailableError {
+  private unavailable(
+    kind: DirectoryFailure,
+    message: string,
+    detail: string,
+  ): DirectoryUnavailableError {
     const first = this.now() >= this.unavailableUntil;
     this.unavailableUntil = this.now() + UNAVAILABLE_COOLDOWN_MS;
     if (first) {
@@ -422,7 +445,7 @@ export class GithubDirectory {
         detail,
       });
     }
-    return new DirectoryUnavailableError(this.providerShortId, message, detail);
+    return new DirectoryUnavailableError(this.providerShortId, kind, message, detail);
   }
 }
 

@@ -1,6 +1,7 @@
+import { ConfigProblem, problem } from '../common/config-problems';
 import { OidcProviderConfig } from '../config/types';
 
-// Entra authorities: public, US Government and China clouds, and External ID tenants
+// Entra cloud hosts and External ID suffixes
 const ENTRA_HOSTS = [
   'login.microsoftonline.com',
   'login.microsoftonline.us',
@@ -9,7 +10,7 @@ const ENTRA_HOSTS = [
 ];
 const ENTRA_HOST_SUFFIXES = ['.ciamlogin.com'];
 
-/** Whether an OIDC issuer URL belongs to Microsoft Entra ID */
+/** Checks whether the issuer uses an Entra host */
 export function isEntraIssuer(issuer: string): boolean {
   let host: string;
   try {
@@ -23,16 +24,21 @@ export function isEntraIssuer(issuer: string): boolean {
 export function entraProviderProblems(
   providerShortId: string,
   provider: OidcProviderConfig,
-): string[] {
+): ConfigProblem[] {
   if (!isEntraIssuer(provider.issuer)) return [];
 
-  /*
-    without a secret we get error AADSTS7000218 because we redeem the code server side. 
-    The secret is optional in the config because it is not needed for public clients, but Entra requires it.
-  */
+  // Entra requires a secret for server-side code redemption (AADSTS7000218)
   if (!provider.client_secret) {
     return [
-      `auth.providers.${providerShortId}.client_secret is required for an Entra ID provider. Create one under Certificates & secrets in the app registration.`,
+      problem(
+        'providers.client-secret-missing',
+        `auth.providers.${providerShortId}.client_secret`,
+        {
+          text: 'is required for an Entra ID provider. Create one under Certificates & secrets in the app registration.',
+          dashboard:
+            'Entra ID needs a client secret. Create one under Certificates & secrets in the app registration.',
+        },
+      ),
     ];
   }
 

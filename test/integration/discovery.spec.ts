@@ -382,7 +382,7 @@ forges:
 
   it('is refused at save, naming line breaks', () => {
     const oneLine = (process.env.TEST_GH_PRIVATE_KEY as string).replace(/\r?\n/g, '');
-    expect(() => validateForSave(withKey(oneLine))).toThrow(/private key/i);
+    expect(() => validateForSave(withKey(oneLine))).toRefuseWith('github.private-key-unreadable');
     try {
       validateForSave(withKey(oneLine));
     } catch (err) {

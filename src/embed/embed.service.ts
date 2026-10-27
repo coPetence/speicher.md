@@ -1,14 +1,6 @@
 /**
- * Embed text chunks into vectors
- *
- * Pulls chunks from the database that have no embedding, sends them through the
- * embedding client, and writes the resulting vectors back
- *
- * Runs within a time budget defined as two-thirds of the job visibility timeout.
- * When the budget is exhausted it hands back a partial result so the queue can
- * retry the remainder without letting the caller's lock expire
- *
- * Not configured (client is null) -> embedded 0, remaining 0, not exhausted
+ * Embed pending chunks within two-thirds of the queue visibility timeout
+ * Return partial progress when time runs out so the queue can retry
  */
 import { QueryTypes, Sequelize } from 'sequelize';
 
@@ -18,18 +10,18 @@ import { toPgTextArray } from '../db/pg-array';
 import { toVectorLiteral } from '../db/vector';
 import { VISIBILITY_TIMEOUT_MS } from '../jobs/queue';
 import { ensureVectorIndex } from './vector-index';
-import { EmbeddingClient, EmbeddingDimensionError } from './client';
+import { EmbeddingClient, EmbeddingDimensionError, EmbeddingError } from './client';
 
 export const EMBED_BUDGET_MS = Math.floor((VISIBILITY_TIMEOUT_MS * 2) / 3);
 
 export interface EmbedRun {
-  /** Chunks successfully embedded this run */
+  /** Chunks embedded this run */
   embedded: number;
 
-  /** Chunks still awaiting embedding */
+  /** Chunks awaiting embedding */
   remaining: number;
 
-  /** True if the run stopped early due to time budget */
+  /** Stopped with pending chunks after reaching the time limit */
   exhausted: boolean;
 }
 
@@ -96,13 +88,15 @@ export class EmbedService {
     client: EmbeddingClient,
   ): Promise<number> {
     if (vectors.length !== slice.length) {
-      throw new Error(
+      throw new EmbeddingError(
+        'embedding.bad-response',
         `embedding endpoint returned ${vectors.length} vectors for ${slice.length} chunks`,
+        null,
+        false,
       );
     }
     for (const vector of vectors) {
-      // Validate dimension count before write -- the UPDATE below silently ignores
-      // mismatched dimensions via the vector cast
+      // Reject dimension mismatches before writing
       if (vector.length !== client.dimensions) {
         throw new EmbeddingDimensionError(client.dimensions, vector.length, client.model);
       }
@@ -115,8 +109,7 @@ export class EmbedService {
               embedding_dim = :dimensions
          FROM unnest(CAST(:ids AS uuid[]), CAST(:vectors AS text[])) AS v(id, embedding)
         WHERE c.id = v.id
-          -- Only ever fills a blank. A row another runner reached first keeps the
-          -- vector it already has, which is the same vector: the text decides it.
+          -- Preserve embeddings written by other runners
           AND c.embedding IS NULL`,
       {
         type: QueryTypes.UPDATE,

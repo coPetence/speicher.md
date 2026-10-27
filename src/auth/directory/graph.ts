@@ -8,8 +8,9 @@
  */
 import { backoffMs, parseDurationWithFallback, retryAfterHeaderToMs } from '../../common/time';
 import { Logger, rootLogger } from '../../common/logger';
-import { DirectoryUnavailableError } from '../../ingest/grants';
+import { DirectoryFailure, DirectoryUnavailableError } from '../../ingest/grants';
 import { DirectoryConfig } from '../../config/types';
+import { CheckStatus } from '../../common/check-status';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const LOGIN_AUTHORITY = 'https://login.microsoftonline.com';
@@ -30,10 +31,37 @@ const MEMBER_GROUPS_BATCH = 20; // max groups requested per batch in checkMember
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
-export interface DirectoryStatus {
-  level: 'ok' | 'fail';
-  label: string;
-  detail: string;
+/** What the connection check of a directory found */
+export type DirectoryCode =
+  | 'directory.connected'
+  | 'directory.unexpected-answer'
+  | 'directory.unreachable'
+  | 'directory.nothing-to-reach'
+  | 'directory.not-installed'
+  | 'directory.org-unreadable'
+  | 'directory.team-missing';
+
+export type DirectoryStatus = CheckStatus<DirectoryCode> & { level: 'ok' | 'fail' };
+
+/** The status of a directory that could not be reached, with its reason as facts */
+export function unreachableStatus(err: unknown, fallback: string): DirectoryStatus {
+  if (!(err instanceof DirectoryUnavailableError)) {
+    return {
+      code: 'directory.unreachable',
+      level: 'fail',
+      label: 'Not connected',
+      detail: fallback,
+    };
+  }
+  return {
+    code: 'directory.unreachable',
+    level: 'fail',
+    label: 'Not connected',
+    detail: [err.reason, err.detail ? `(${err.detail.replace(/\.$/, '')})` : '']
+      .filter(Boolean)
+      .join(' '),
+    facts: { kind: err.kind },
+  };
 }
 
 export interface GraphDirectoryDeps {
@@ -188,22 +216,14 @@ export class GraphDirectory {
       const found = await this.get('/users?$top=1&$select=id', PROBE_TIMEOUT_MS);
       return found === null
         ? {
+            code: 'directory.unexpected-answer',
             level: 'fail',
             label: 'Not connected',
             detail: 'The directory answered, but not with a user list.',
           }
-        : { level: 'ok', label: 'Connected', detail: '' };
+        : { code: 'directory.connected', level: 'ok', label: 'Connected', detail: '' };
     } catch (err) {
-      return {
-        level: 'fail',
-        label: 'Not connected',
-        detail:
-          err instanceof DirectoryUnavailableError
-            ? [err.reason, err.detail ? `(${err.detail.replace(/\.$/, '')})` : '']
-                .filter(Boolean)
-                .join(' ')
-            : 'The directory could not be reached.',
-      };
+      return unreachableStatus(err, 'The directory could not be reached.');
     }
   }
 
@@ -263,7 +283,7 @@ export class GraphDirectory {
           await this.sleep(backoffMs(attempt, BASE_BACKOFF_MS, MAX_BACKOFF_MS));
           continue;
         }
-        throw this.unavailable('directory unreachable', (err as Error).message);
+        throw this.unavailable('unreachable', 'directory unreachable', (err as Error).message);
       }
 
       if (response.ok) return response;
@@ -275,6 +295,7 @@ export class GraphDirectory {
       if (response.status === 401 || response.status === 403) {
         // Not retried; wrong credentials will not become right
         throw this.unavailable(
+          'credentials-refused',
           'directory refused the credentials',
           `status ${response.status}: the app registration needs the application ` +
             `permissions User.Read.All and GroupMember.Read.All, admin-consented`,
@@ -290,7 +311,11 @@ export class GraphDirectory {
         continue;
       }
 
-      throw this.unavailable('directory request failed', `status ${response.status}`);
+      throw this.unavailable(
+        'request-failed',
+        'directory request failed',
+        `status ${response.status}`,
+      );
     }
   }
 
@@ -318,15 +343,24 @@ export class GraphDirectory {
         },
       );
     } catch (err) {
-      throw this.unavailable('directory token endpoint unreachable', (err as Error).message);
+      throw this.unavailable(
+        'token-unreachable',
+        'directory token endpoint unreachable',
+        (err as Error).message,
+      );
     }
 
     if (!response.ok) {
-      throw this.unavailable('directory token request failed', `status ${response.status}`);
+      throw this.unavailable(
+        'token-refused',
+        'directory token request failed',
+        `status ${response.status}`,
+      );
     }
 
     const json = (await response.json()) as { access_token?: string; expires_in?: number };
-    if (!json.access_token) throw this.unavailable('directory token response carried no token', '');
+    if (!json.access_token)
+      throw this.unavailable('token-missing', 'directory token response carried no token', '');
 
     this.token = {
       value: json.access_token,
@@ -338,12 +372,20 @@ export class GraphDirectory {
   /** Throw if the directory is in its failure cooldown period */
   private assertAvailable(): void {
     if (this.now() < this.unavailableUntil) {
-      throw new DirectoryUnavailableError(this.providerShortId, 'still in the failure cooldown');
+      throw new DirectoryUnavailableError(
+        this.providerShortId,
+        'cooldown',
+        'still in the failure cooldown',
+      );
     }
   }
 
   /** Enter the failure cooldown, log the first error, and return an error object */
-  private unavailable(message: string, detail: string): DirectoryUnavailableError {
+  private unavailable(
+    kind: DirectoryFailure,
+    message: string,
+    detail: string,
+  ): DirectoryUnavailableError {
     const first = this.now() >= this.unavailableUntil;
     this.unavailableUntil = this.now() + UNAVAILABLE_COOLDOWN_MS;
     this.token = null;
@@ -353,7 +395,7 @@ export class GraphDirectory {
         detail,
       });
     }
-    return new DirectoryUnavailableError(this.providerShortId, message, detail);
+    return new DirectoryUnavailableError(this.providerShortId, kind, message, detail);
   }
 }
 

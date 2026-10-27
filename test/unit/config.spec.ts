@@ -1,5 +1,7 @@
 import { discoveryHint, hasGroupsOverage } from '../../src/auth/oidc.service';
+import { problem, wordingFor } from '../../src/common/config-problems';
 import { ConfigError } from '../../src/common/errors';
+import { refusalOf } from '../helpers/refuse-with';
 import { parseStrictYaml } from '../../src/common/yaml';
 import { ConfigService, defaultBrand } from '../../src/config/config.service';
 import { interpolateEnv } from '../../src/config/env-interpolation';
@@ -44,21 +46,25 @@ describe('the webhook secret of a source', () => {
       'type: github\n    app_id: "1"\n    private_key: k\n    webhook_secret: s',
       'type: gitlab\n    token: t',
     );
-    expect(() => load(gitlab)).toThrow(/webhook_secret/);
+    expect(() => load(gitlab)).toRefuseWith('schema.required', {
+      path: 'forges.gh.webhook_secret',
+    });
   });
 });
 
 describe('YAML 1.2 core schema, strictly', () => {
   it('rejects anchors', () => {
-    expect(() => parseStrictYaml('a: &x 1\nb: 2\n')).toThrow(/anchor/);
+    expect(() => parseStrictYaml('a: &x 1\nb: 2\n')).toFailWith('yaml.anchor');
   });
 
   it('rejects aliases', () => {
-    expect(() => parseStrictYaml('a: &x 1\nb: *x\n')).toThrow(/anchor|alias/);
+    expect(() => parseStrictYaml('a: &x 1\nb: *x\n')).toFailWith('yaml.anchor');
   });
 
   it('rejects merge keys', () => {
-    expect(() => parseStrictYaml('base: {a: 1}\nchild:\n  <<: {b: 2}\n')).toThrow(/merge|alias/);
+    expect(() => parseStrictYaml('base: {a: 1}\nchild:\n  <<: {b: 2}\n')).toFailWith(
+      'yaml.merge-key',
+    );
   });
 
   it('rejects duplicate keys rather than letting the last one win', () => {
@@ -105,15 +111,22 @@ describe('${VAR} interpolation', () => {
   });
 
   it('names every missing variable at once', () => {
-    expect(() => interpolateEnv({ a: '${ONE}', b: '${TWO}' }, {} as NodeJS.ProcessEnv)).toThrow(
-      /\$\{ONE\}[\s\S]*\$\{TWO\}/,
+    const err = refusalOf(() =>
+      interpolateEnv({ a: '${ONE}', b: '${TWO}' }, {} as NodeJS.ProcessEnv),
     );
+    expect(err.code).toBe('config.env-missing');
+    expect(
+      err.issues.map((p) => [p.code, p.text.includes('ONE') || p.text.includes('TWO')]),
+    ).toEqual([
+      ['env.unset', true],
+      ['env.unset', true],
+    ]);
   });
 
   it('treats an empty variable as unset, which is what compose passes', () => {
-    expect(() => interpolateEnv({ a: '${TOKEN}' }, { TOKEN: '' } as NodeJS.ProcessEnv)).toThrow(
-      /\$\{TOKEN\} is not set/,
-    );
+    expect(() =>
+      interpolateEnv({ a: '${TOKEN}' }, { TOKEN: '' } as NodeJS.ProcessEnv),
+    ).toRefuseWith('env.unset');
   });
 });
 
@@ -130,7 +143,7 @@ describe('cross-field validation', () => {
 
   it('refuses two forges with none designated primary', () => {
     const yaml = MINIMAL.concat('  gl:\n    type: gitlab\n    token: t\n    webhook_secret: s\n');
-    expect(() => load(yaml)).toThrow(/no forge is marked/);
+    expect(() => load(yaml)).toRefuseWith('forges.primary-missing');
   });
 
   it('refuses two forges both marked primary', () => {
@@ -138,7 +151,7 @@ describe('cross-field validation', () => {
       '  gh:\n    type: github',
       '  gh:\n    primary: true\n    type: github',
     ).concat('  gl:\n    primary: true\n    type: gitlab\n    token: t\n    webhook_secret: s\n');
-    expect(() => load(yaml)).toThrow(/exactly one forge may be primary/);
+    expect(() => load(yaml)).toRefuseWith('forges.primary-ambiguous');
   });
 
   it('rejects a magic-link provider with no mail block', () => {
@@ -146,12 +159,14 @@ describe('cross-field validation', () => {
       '      client_id: abc',
       '      client_id: abc\n    magic:\n      type: magic-link',
     );
-    expect(() => load(yaml)).toThrow(/magic-link.*mail/s);
+    expect(() => load(yaml)).toRefuseWith('providers.magic-link-needs-mail');
   });
 
   it('rejects a group source naming an unconfigured provider', () => {
     const yaml = MINIMAL.replace('provider: entra, id: "grp-eng"', 'provider: nope, id: "grp-eng"');
-    expect(() => load(yaml)).toThrow(/not a configured provider/);
+    expect(() => load(yaml)).toRefuseWith('groups.unknown-provider', {
+      path: 'groups.engineering[0].provider',
+    });
   });
 
   it('rejects a domain group on a non-magic-link provider', () => {
@@ -159,12 +174,12 @@ describe('cross-field validation', () => {
       '{ provider: entra, id: "grp-eng" }',
       '{ provider: entra, domain: "acme.test" }',
     );
-    expect(() => load(yaml)).toThrow(/domain.*magic-link/s);
+    expect(() => load(yaml)).toRefuseWith('groups.domain-needs-magic-link');
   });
 
   it('rejects an admins group that is not in the groups map', () => {
     const yaml = MINIMAL.replace('groups: [engineering]\nforges', 'groups: [nope]\nforges');
-    expect(() => load(yaml)).toThrow(/not defined in the .groups. map/);
+    expect(() => load(yaml)).toRefuseWith('admins.unknown-group', { path: 'admins.groups' });
   });
 
   it('rejects a forge id that lands on a reserved first segment', () => {
@@ -172,7 +187,7 @@ describe('cross-field validation', () => {
       '    type: github\n',
       '    type: github\n    primary: true\n',
     ).concat('  api:\n    type: gitlab\n    token: t\n    webhook_secret: s\n');
-    expect(() => load(yaml)).toThrow(/reserved/);
+    expect(() => load(yaml)).toRefuseWith('forges.segment-reserved', { path: 'forges.api' });
   });
 
   it('names every missing environment variable in one error', () => {
@@ -196,7 +211,7 @@ describe('provider, group and forge keys', () => {
       '  engineering:\n    - { provider: entra, id: "grp-eng" }',
       '  engineering:\n    - { provider: entra, id: "grp-eng" }\n  Engineering:\n    - { provider: entra, id: "grp-eng-2" }',
     );
-    expect(() => load(yaml)).toThrow(/groups: "engineering" and "Engineering" differ only in case/);
+    expect(() => load(yaml)).toRefuseWith('names.case-collision', { path: 'groups.Engineering' });
   });
 });
 
@@ -206,17 +221,17 @@ describe('`public` is reserved', () => {
       '  engineering:\n    - { provider: entra, id: "grp-eng" }',
       '  engineering:\n    - { provider: entra, id: "grp-eng" }\n  public:\n    - { provider: entra, id: "grp-pr" }',
     );
-    expect(() => load(yaml)).toThrow(/groups\.public.*reserved/s);
+    expect(() => load(yaml)).toRefuseWith('names.reserved', { path: 'groups.public' });
   });
 
   it('refuses it in admins.groups', () => {
     const yaml = MINIMAL.replace('  groups: [engineering]', '  groups: [engineering, public]');
-    expect(() => load(yaml)).toThrow(/admins\.groups.*reserved/s);
+    expect(() => load(yaml)).toRefuseWith('names.reserved', { path: 'admins.groups' });
   });
 
   it('reserves `setup` among provider ids, for the same reason', () => {
     const yaml = MINIMAL.replace('    entra:', '    setup:');
-    expect(() => load(yaml)).toThrow(/auth\.providers\.setup.*reserved/s);
+    expect(() => load(yaml)).toRefuseWith('names.reserved', { path: 'auth.providers.setup' });
   });
 
   it('reserves both names in any case', () => {
@@ -224,13 +239,13 @@ describe('`public` is reserved', () => {
       '  engineering:\n    - { provider: entra, id: "grp-eng" }',
       '  engineering:\n    - { provider: entra, id: "grp-eng" }\n  Public:\n    - { provider: entra, id: "grp-pr" }',
     );
-    expect(() => load(group)).toThrow(/groups\.Public.*reserved/s);
+    expect(() => load(group)).toRefuseWith('names.reserved', { path: 'groups.Public' });
 
     const admin = MINIMAL.replace('  groups: [engineering]', '  groups: [engineering, Public]');
-    expect(() => load(admin)).toThrow(/admins\.groups: "Public".*reserved/s);
+    expect(() => load(admin)).toRefuseWith('names.reserved', { path: 'admins.groups' });
 
     const provider = MINIMAL.replace('    entra:', '    Setup:');
-    expect(() => load(provider)).toThrow(/auth\.providers\.Setup.*reserved/s);
+    expect(() => load(provider)).toRefuseWith('names.reserved', { path: 'auth.providers.Setup' });
   });
 
   it('accepts an instance that publishes a repository', () => {
@@ -246,7 +261,7 @@ describe('`public` is reserved', () => {
       'admins:\n  groups: [engineering]',
       'admins:\n  groups: [engineering]\npublic:\n  repos: [docs]',
     );
-    expect(() => load(yaml)).toThrow(/schema validation/);
+    expect(() => load(yaml)).toRefuseWith('config.schema');
   });
 });
 
@@ -275,8 +290,8 @@ describe('a group with no sources', () => {
     expect(() => load(yaml)).not.toThrow();
 
     const lockout = adminLockout(load(yaml).raw);
-    expect(lockout).toMatch(/has no members/);
-    expect(lockout).toMatch(/"engineering"/);
+    expect(lockout?.code).toBe('admins.group-empty');
+    expect(lockout?.text).toContain('engineering');
   });
 
   it('is not a lockout when somebody else still holds the surface', () => {
@@ -289,6 +304,30 @@ describe('a group with no sources', () => {
     );
     expect(() => load(yaml)).not.toThrow();
     expect(adminLockout(load(yaml).raw)).toBeNull();
+  });
+});
+
+describe('a problem, worded for whoever fixes it', () => {
+  const bare = problem('admins.unknown-provider', 'admins.users[0]', {
+    text: 'provider "nope" is not configured',
+  });
+  const both = { ...bare, dashboard: 'The administrator signs in with "nope", which is gone.' };
+
+  it('leads the YAML wording with the key, so the text need not repeat it', () => {
+    expect(wordingFor(bare, 'yaml')).toBe('admins.users[0]: provider "nope" is not configured');
+    expect(wordingFor(both, 'yaml')).toBe(wordingFor(bare, 'yaml'));
+  });
+
+  it('gives the dashboard its own wording, or the YAML one when it has none', () => {
+    expect(wordingFor(both, 'dashboard')).toBe(both.dashboard);
+    expect(wordingFor(bare, 'dashboard')).toBe(wordingFor(bare, 'yaml'));
+  });
+
+  it('keeps a refusal of one problem to that problem, with no headline above it', () => {
+    const err = new ConfigError(both);
+    expect(err.code).toBe('admins.unknown-provider');
+    expect(err.message).toBe(wordingFor(bare, 'yaml'));
+    expect(err.issues).toEqual([]);
   });
 });
 
@@ -309,18 +348,18 @@ describe('an instance nobody has configured yet', () => {
   });
 
   it('is a lockout, so it cannot be saved from a form', () => {
-    expect(adminLockout(load(NOTHING).raw)).toMatch(/No administrator is configured/);
+    expect(adminLockout(load(NOTHING).raw)?.code).toBe('admins.none');
   });
 
   it('cannot carry groups, because every source names a provider', () => {
     const yaml = `${NOTHING}groups:\n  engineering:\n    - { provider: entra, id: "grp-eng" }\n`;
-    expect(() => load(yaml)).toThrow(/"entra" is not a configured provider/);
+    expect(() => load(yaml)).toRefuseWith('groups.unknown-provider');
   });
 
   it('tells an absent block from an empty one', () => {
-    expect(() => load(`${NOTHING}admins: {}\n`)).toThrow(/schema validation/);
-    expect(() => load(`${NOTHING}auth:\n  providers: {}\n`)).toThrow(/schema validation/);
-    expect(() => load(`${NOTHING}auth: {}\n`)).toThrow(/schema validation/);
+    expect(() => load(`${NOTHING}admins: {}\n`)).toRefuseWith('config.schema');
+    expect(() => load(`${NOTHING}auth:\n  providers: {}\n`)).toRefuseWith('config.schema');
+    expect(() => load(`${NOTHING}auth: {}\n`)).toRefuseWith('config.schema');
   });
 
   it('hashes stably, so the first real save is the only thing that moves it', () => {
@@ -387,12 +426,12 @@ forges:
 
   it('rejects an ssh remote with no pinned host key', () => {
     const yaml = GIT.replace('    known_hosts: "git.example.test ssh-ed25519 AAAA"\n', '');
-    expect(() => load(yaml)).toThrow(/known_hosts/);
+    expect(() => load(yaml)).toRefuseWith('forges.ssh-needs-known-hosts');
   });
 
   it('rejects an ssh remote with no deploy key', () => {
     const yaml = GIT.replace('        deploy_key: "-----BEGIN OPENSSH PRIVATE KEY-----"\n', '');
-    expect(() => load(yaml)).toThrow(/deploy_key/);
+    expect(() => load(yaml)).toRefuseWith('forges.ssh-needs-deploy-key');
   });
 
   it('rejects an https remote with no token', () => {
@@ -400,7 +439,7 @@ forges:
       '        deploy_key: "-----BEGIN OPENSSH PRIVATE KEY-----"\n',
       '',
     );
-    expect(() => load(yaml)).toThrow(/needs a `token`/);
+    expect(() => load(yaml)).toRefuseWith('forges.https-needs-token');
   });
 
   it('rejects a transport that authenticates no server', () => {
@@ -410,7 +449,7 @@ forges:
 
   it('rejects a remote URL that names no owner', () => {
     const yaml = GIT.replace('git.example.test/ops/handbook.git', 'git.example.test/handbook.git');
-    expect(() => load(yaml)).toThrow(/does not name the user or organization/);
+    expect(() => load(yaml)).toRefuseWith('forges.repo-url-no-owner');
   });
 
   it('rejects two repos sharing an id, which would share a mirror', () => {
@@ -418,7 +457,7 @@ forges:
         url: ssh://git@git.example.test/ops/other.git
         deploy_key: k
 `;
-    expect(() => load(yaml)).toThrow(/already uses the id/);
+    expect(() => load(yaml)).toRefuseWith('forges.repo-id-taken');
   });
 
   it('takes an id in whatever shape the forge calls the repository', () => {
@@ -429,7 +468,7 @@ forges:
   it('refuses an id that could not be a directory under the mirror root', () => {
     for (const id of ['..', '.github', '-x', 'a/b', 'a b']) {
       const yaml = GIT.replace('      - id: handbook', `      - id: ${JSON.stringify(id)}`);
-      expect(() => load(yaml)).toThrow(/must match pattern/);
+      expect(() => load(yaml)).toRefuseWith('schema.pattern');
     }
   });
 
@@ -438,7 +477,7 @@ forges:
         url: ssh://git@git.example.test/ops/other.git
         deploy_key: k
 `;
-    expect(() => load(yaml)).toThrow(/case insensitive and must be unique/);
+    expect(() => load(yaml)).toRefuseWith('forges.repo-id-taken');
   });
 
   it('rejects two repos whose slugs collide', () => {
@@ -447,7 +486,7 @@ forges:
         url: ssh://git@git.example.test/ops/other.git
         deploy_key: k
 `;
-    expect(() => load(yaml)).toThrow(/collides with repo/);
+    expect(() => load(yaml)).toRefuseWith('forges.repo-slug-taken');
   });
 
   it('rejects a repo slug that collides with a second forge id', () => {
@@ -459,7 +498,7 @@ forges:
     token: t
     webhook_secret: s
 `);
-    expect(() => load(yaml)).toThrow(/claimed by both/);
+    expect(() => load(yaml)).toRefuseWith('forges.segment-taken');
   });
 
   it('rejects a repository owner that collides with a second forge id', () => {
@@ -467,7 +506,7 @@ forges:
       .replace('    default_repository_owner: ops\n', '')
       .replace('git.example.test/ops/handbook.git', 'git.example.test/gl/handbook.git')
       .concat('  gl:\n    type: gitlab\n    token: t\n    webhook_secret: s\n');
-    expect(() => load(yaml)).toThrow(/claimed by both forge "gl" and repository owner "gl"/);
+    expect(() => load(yaml)).toRefuseWith('forges.segment-taken');
   });
 
   it('rejects an owner that collides with a repo of the default owner on a non-primary forge', () => {
@@ -480,9 +519,7 @@ forges:
     token: t
     webhook_secret: s
 `;
-    expect(() => load(yaml)).toThrow(
-      /after forge "internal" is claimed by both repo "handbook" and repository owner "handbook"/,
-    );
+    expect(() => load(yaml)).toRefuseWith('forges.segment-taken');
   });
 
   it('takes the owner from the path of the remote URL', () => {
@@ -493,12 +530,14 @@ forges:
   });
 
   it('rejects a poll interval below the floor', () => {
-    expect(() => load(GIT.replace('poll_interval: 24h', 'poll_interval: 10s'))).toThrow(/floor/);
+    expect(() => load(GIT.replace('poll_interval: 24h', 'poll_interval: 10s'))).toRefuseWith(
+      'forges.poll-interval-too-short',
+    );
   });
 
   it('rejects a webhook secret, which would do nothing here', () => {
     const yaml = GIT.replace('    poll_interval: 24h', '    webhook_secret: s');
-    expect(() => load(yaml)).toThrow(/webhook_secret/);
+    expect(() => load(yaml)).toRefuseWith('forges.webhook-secret-on-git');
   });
 
   it('keeps the repo list out of the resolution hash', () => {
@@ -548,15 +587,15 @@ describe('an individual in a group', () => {
   });
 
   it('refuses a source that names two things at once', () => {
-    expect(() => load(withSource('{ provider: entra, id: "grp-eng", subject: oid-42 }'))).toThrow(
-      /schema validation/,
-    );
+    expect(() =>
+      load(withSource('{ provider: entra, id: "grp-eng", subject: oid-42 }')),
+    ).toRefuseWith('config.schema');
   });
 
   it('refuses an `until` that is not a date', () => {
     expect(() =>
       load(withSource('{ provider: entra, subject: oid-42, note: n, until: soon }')),
-    ).toThrow(/schema validation/);
+    ).toRefuseWith('config.schema');
   });
 });
 
@@ -575,20 +614,20 @@ describe('a Microsoft Graph directory', () => {
   });
 
   it('refuses one that cannot mint a token, naming the key it is missing', () => {
-    expect(() => load(withDirectory('        tenant_id: a-tenant\n'))).toThrow(
-      /directory\.client_id is required/,
+    expect(() => load(withDirectory('        tenant_id: a-tenant\n'))).toRefuseWith(
+      'providers.directory-key-missing',
     );
-    expect(() => load(withDirectory('        client_id: c\n        client_secret: s\n'))).toThrow(
-      /directory\.tenant_id is required/,
-    );
+    expect(() =>
+      load(withDirectory('        client_id: c\n        client_secret: s\n')),
+    ).toRefuseWith('providers.directory-key-missing');
   });
 
   it('refuses a per-application subject claim, which nothing it returns could match', () => {
-    expect(() => load(withDirectory(CREDENTIALS, ''))).toThrow(
-      /subject_claim must be "oid" to use a Microsoft Graph directory/,
+    expect(() => load(withDirectory(CREDENTIALS, ''))).toRefuseWith(
+      'providers.directory-needs-oid',
     );
-    expect(() => load(withDirectory(CREDENTIALS, '      subject_claim: sub\n'))).toThrow(
-      /subject_claim must be "oid" to use a Microsoft Graph directory/,
+    expect(() => load(withDirectory(CREDENTIALS, '      subject_claim: sub\n'))).toRefuseWith(
+      'providers.directory-needs-oid',
     );
   });
 
@@ -609,17 +648,13 @@ describe('an address-shaped source under a multi-tenant issuer', () => {
   const PERSON = '{ provider: entra, email: alice@example.test, note: n }';
 
   it('is refused, because the address claim is set by whoever administers the tenant', () => {
-    expect(() => load(withIssuer(COMMON, PERSON))).toThrow(
-      /accepts accounts from every Microsoft directory/,
-    );
+    expect(() => load(withIssuer(COMMON, PERSON))).toRefuseWith('groups.address-on-multi-tenant');
   });
 
   it('is refused for the other two multi-tenant authorities as well', () => {
     for (const authority of ['organizations', 'consumers']) {
       const issuer = `https://login.microsoftonline.com/${authority}/v2.0`;
-      expect(() => load(withIssuer(issuer, PERSON))).toThrow(
-        /accepts accounts from every Microsoft directory/,
-      );
+      expect(() => load(withIssuer(issuer, PERSON))).toRefuseWith('groups.address-on-multi-tenant');
     }
   });
 
@@ -837,8 +872,11 @@ forges:
     - { provider: entra, id: "grp-eng" }
   tech:
     - { group: enginering }`);
-    expect(() => load(missing)).toThrow(/groups\.tech: references the group "enginering"/);
-    expect(() => load(missing)).toThrow(/Did you mean "engineering"/);
+    expect(() => load(missing)).toRefuseWith('groups.unknown-reference', {
+      path: 'groups.tech[0].group',
+    });
+    const [unknown] = refusalOf(() => load(missing)).issues;
+    expect(unknown.text).toContain('"engineering"');
   });
 
   it('refuses a group that references itself', () => {
@@ -846,7 +884,9 @@ forges:
   engineering:
     - { provider: entra, id: "grp-eng" }
     - { group: engineering }`);
-    expect(() => load(self)).toThrow(/groups\.engineering: This group references itself/);
+    expect(() => load(self)).toRefuseWith('groups.self-reference', {
+      path: 'groups.engineering[1].group',
+    });
   });
 
   it('refuses references that lead around in a circle, and names the circle', () => {
@@ -858,7 +898,9 @@ forges:
     - { group: engineering }
   staff:
     - { group: tech }`);
-    expect(() => load(cycle)).toThrow(/engineering -> staff -> tech -> engineering/);
+    expect(() => load(cycle)).toRefuseWith('groups.reference-cycle');
+    const [circle] = refusalOf(() => load(cycle)).issues;
+    expect(circle.text).toContain('engineering -> staff -> tech -> engineering');
   });
 
   it('refuses a reference that also names a provider or a source key', () => {
@@ -867,13 +909,13 @@ forges:
     - { provider: entra, id: "grp-eng" }
   tech:
     - { provider: entra, group: engineering }`);
-    expect(() => load(both)).toThrow(/schema validation/);
+    expect(() => load(both)).toRefuseWith('config.schema');
     const two = REFS(`
   engineering:
     - { provider: entra, id: "grp-eng" }
   tech:
     - { group: engineering, email: a@example.test }`);
-    expect(() => load(two)).toThrow(/schema validation/);
+    expect(() => load(two)).toRefuseWith('config.schema');
     // A full source with a group key on it would otherwise resolve as the reference
     // and drop the id it names
     for (const key of ['id: grp-x', 'email: a@example.test']) {
@@ -882,7 +924,7 @@ forges:
     - { provider: entra, id: "grp-eng" }
   tech:
     - { provider: entra, ${key}, group: engineering }`);
-      expect(() => load(source)).toThrow(/schema validation/);
+      expect(() => load(source)).toRefuseWith('config.schema');
     }
   });
 
@@ -892,7 +934,7 @@ forges:
     - { provider: entra, id: "grp-eng" }
   tech:
     - { group: engineering, until: soon }`);
-    expect(() => load(bad)).toThrow(/groups\.tech\.0\.until: must match format "date"/);
+    expect(() => load(bad)).toRefuseWith('schema.format', { path: 'groups.tech.0.until' });
   });
 
   it('says a combinator is reserved rather than merely unknown', () => {
@@ -901,7 +943,7 @@ forges:
     - { provider: entra, id: "grp-eng" }
   tech:
     - all: [{ group: engineering }]`);
-    expect(() => load(all)).toThrow(/"all" is reserved/);
+    expect(() => load(all)).toRefuseWith('schema.additionalProperties');
   });
 
   it('keeps an administrator group populated through a reference', () => {
@@ -916,7 +958,8 @@ forges:
   engineering:
     - { group: platform-ops }
   platform-ops: []`);
-    expect(adminLockout(load(hollow).raw)).toMatch(/"engineering" has no members/);
+    expect(adminLockout(load(hollow).raw)).toMatchObject({ code: 'admins.group-empty' });
+    expect(adminLockout(load(hollow).raw)?.text).toContain('engineering');
   });
 
   it('knows which groups reach through it, for a question of where it is used', () => {
@@ -1237,16 +1280,16 @@ admins:
   it('is refused when it names only an organisation', () => {
     // Accepted by the schema, reaches nobody, and would otherwise surface much later
     // as a directory warning during ingest
-    expect(() => load(withId('acme'))).toThrow(/does not name a GitHub team/);
+    expect(() => load(withId('acme'))).toRefuseWith('groups.github-team-invalid');
   });
 
   it('is refused when the organisation or the slug is missing', () => {
-    expect(() => load(withId("'/platform'"))).toThrow(/does not name a GitHub team/);
-    expect(() => load(withId("'acme/'"))).toThrow(/does not name a GitHub team/);
+    expect(() => load(withId("'/platform'"))).toRefuseWith('groups.github-team-invalid');
+    expect(() => load(withId("'acme/'"))).toRefuseWith('groups.github-team-invalid');
   });
 
   it('is refused when it goes a level deeper than a team', () => {
-    expect(() => load(withId('acme/sub/team'))).toThrow(/does not name a GitHub team/);
+    expect(() => load(withId('acme/sub/team'))).toRefuseWith('groups.github-team-invalid');
   });
 
   it("says nothing of the sort about another provider's group ids", () => {
@@ -1277,8 +1320,8 @@ admins:
   it('refuses one with no client secret, which would fail only at the token exchange', () => {
     // Optional in the schema, mandatory in fact: without it GitHub refuses every
     // code and the reader is told the sign-in could not be completed
-    expect(() => load(GITHUB_PROVIDER.replace('      client_secret: s\n', ''))).toThrow(
-      /client_secret is required/,
+    expect(() => load(GITHUB_PROVIDER.replace('      client_secret: s\n', ''))).toRefuseWith(
+      'providers.client-secret-missing',
     );
   });
 });
@@ -1304,8 +1347,8 @@ admins:
   });
 
   it('refuses one with no client secret, which Entra demands at the token exchange', () => {
-    expect(() => load(ENTRA_PROVIDER.replace('      client_secret: s\n', ''))).toThrow(
-      /client_secret is required for an Entra ID provider/,
+    expect(() => load(ENTRA_PROVIDER.replace('      client_secret: s\n', ''))).toRefuseWith(
+      'providers.client-secret-missing',
     );
   });
 
@@ -1318,7 +1361,7 @@ admins:
       '      client_secret: s\n',
       '',
     );
-    expect(() => load(yaml)).toThrow(/client_secret is required/);
+    expect(() => load(yaml)).toRefuseWith('providers.client-secret-missing');
   });
 
   it('leaves the secret optional for other OIDC issuers', () => {
@@ -1363,11 +1406,11 @@ forges:
   it('refuses one with no App of its own to read an organisation through', () => {
     // Borrowing a content source's App would mean granting *that* credential
     // Members: Read-only, so the directory is made to name its own
-    expect(() => load(GITHUB.replace('        app_id: "2"\n', ''))).toThrow(
-      /directory\.app_id is required/,
+    expect(() => load(GITHUB.replace('        app_id: "2"\n', ''))).toRefuseWith(
+      'providers.directory-key-missing',
     );
-    expect(() => load(GITHUB.replace('        private_key: a-pem\n', ''))).toThrow(
-      /directory\.private_key is required/,
+    expect(() => load(GITHUB.replace('        private_key: a-pem\n', ''))).toRefuseWith(
+      'providers.directory-key-missing',
     );
   });
 
@@ -1378,22 +1421,22 @@ forges:
       '',
     );
 
-    expect(() => load(noCredentials)).toThrow(/directory\.app_id is required/);
+    expect(() => load(noCredentials)).toRefuseWith('providers.directory-key-missing');
   });
 
   it('refuses Graph credentials, which do nothing here', () => {
     expect(() =>
       load(GITHUB.replace('        type: github', '        type: github\n        client_id: c')),
-    ).toThrow(/directory\.client_id belongs to a Microsoft Graph directory/);
+    ).toRefuseWith('providers.directory-foreign-key');
     expect(() =>
       load(GITHUB.replace('        type: github', '        type: github\n        tenant_id: t')),
-    ).toThrow(/directory\.tenant_id belongs to a Microsoft Graph directory/);
+    ).toRefuseWith('providers.directory-foreign-key');
   });
 
   it('refuses a Graph directory on a github provider', () => {
-    expect(() => load(GITHUB.replace('        type: github\n', '        type: graph\n'))).toThrow(
-      /directory\.type must be "github" for a github provider/,
-    );
+    expect(() =>
+      load(GITHUB.replace('        type: github\n', '        type: graph\n')),
+    ).toRefuseWith('providers.directory-wrong-type');
   });
 
   it('says nothing about an App on a github provider with no directory', () => {

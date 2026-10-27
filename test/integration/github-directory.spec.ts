@@ -342,8 +342,11 @@ describe('the connection check', () => {
     gh.teams = new Map();
 
     const status = await directoryFor().probe();
-    expect(status.level).toBe('fail');
-    expect(status.detail).toMatch(/the team "platform" cannot be found in "acme"/);
+    expect(status).toMatchObject({
+      code: 'directory.team-missing',
+      level: 'fail',
+      facts: { team: 'platform', org: 'acme' },
+    });
   });
 
   it('fails when no App reaches the organisation', async () => {
@@ -354,7 +357,7 @@ describe('the connection check', () => {
     const config = configFor();
     const directory = new GithubDirectory('hub', directoryConfig(config), config, []);
 
-    expect(await directory.probe()).toMatchObject({ label: 'Nothing to reach' });
+    expect(await directory.probe()).toMatchObject({ code: 'directory.nothing-to-reach' });
   });
 });
 

@@ -11,17 +11,9 @@ import { OidcProviderConfig, providerType } from '../config/types';
 import { LoginFlow, initModels } from '../db/models';
 import { CompletedLogin } from './login-result';
 import { mintPkce, mintToken } from './tokens';
+import { SignInError } from './sign-in-error';
 
-/**
- * OIDC authorization-code login for external identity providers
- *
- * Loads the provider's discovery document, builds the authorization URL with PKCE,
- * exchanges the code for tokens, and extracts identity and group claims from the id_token
- *
- * Uses configurable `subject_claim`, `email_claim`, `groups_claim` names
- *
- * Caches JWK Sets and discovery documents per issuer
- */
+/** OIDC code login with PKCE and cached discovery metadata and signing keys */
 @Injectable()
 export class OidcService {
   private readonly log: Logger = rootLogger.child('auth.oidc');
@@ -32,7 +24,7 @@ export class OidcService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly fetchImpl: typeof fetch = fetch, // Overridable for tests
+    private readonly fetchImpl: typeof fetch = fetch, // Injectable for tests
   ) {
     initModels();
   }
@@ -52,12 +44,7 @@ export class OidcService {
     });
   }
 
-  /**
-   * Build an OIDC authorization URL with PKCE and save the login flow
-   *
-   * Stores state, nonce, code verifier and redirect target in LoginFlow, expiring 10 min
-   * A login hint, the address the person typed, saves them typing it again at the provider
-   */
+  /** Build a PKCE authorization URL and save a 10-minute login flow */
   async authorizationUrl(
     tenantId: string,
     providerId: string,
@@ -97,12 +84,7 @@ export class OidcService {
     return url.toString();
   }
 
-  /**
-   * Exchange code for tokens and return identity, groups and redirect
-   *
-   * Destroys the LoginFlow row (single-use). Validates expiry, nonce, token signature.
-   * Errors on nonce mismatch or expired flow
-   */
+  /** Consume the flow, exchange the code, and validate the ID token */
   async completeLogin(
     tenantId: string,
     code: string,
@@ -110,10 +92,15 @@ export class OidcService {
     redirectUri: string,
   ): Promise<CompletedLogin> {
     const flow = await LoginFlow.findOne({ where: { tenant_id: tenantId, state } });
-    if (!flow) throw new Error('unknown or reused login state');
+    if (!flow)
+      throw new SignInError(
+        'signin.unknown-state',
+        'Sign-in request not found or already used. Start sign-in again.',
+      );
 
     await LoginFlow.destroy({ where: { id: flow.id } });
-    if (flow.expires_at.getTime() < Date.now()) throw new Error('login flow expired');
+    if (flow.expires_at.getTime() < Date.now())
+      throw new SignInError('signin.flow-expired', 'Sign-in request expired. Start sign-in again.');
 
     const providerId = flow.provider;
     const provider = this.oidcProvider(providerId);
@@ -133,15 +120,25 @@ export class OidcService {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
-    if (!response.ok) throw new Error(`token exchange failed: ${response.status}`);
+    if (!response.ok)
+      throw new SignInError(
+        'signin.token-exchange-failed',
+        `Sign-in provider rejected the token exchange (HTTP ${response.status}).`,
+        response.status,
+      );
     const tokens = (await response.json()) as { id_token?: string };
-    if (!tokens.id_token) throw new Error('no id_token in the token response');
+    if (!tokens.id_token)
+      throw new SignInError('signin.token-missing', 'Sign-in provider returned no ID token.');
 
     const { payload } = await jwtVerify(tokens.id_token, this.keySet(meta), {
       issuer: meta.issuer,
       audience: provider.client_id,
     });
-    if (payload.nonce !== flow.nonce) throw new Error('id_token nonce mismatch');
+    if (payload.nonce !== flow.nonce)
+      throw new SignInError(
+        'signin.nonce-mismatch',
+        'ID token does not match this sign-in request. Start sign-in again.',
+      );
 
     const identity = this.identityFrom(providerId, provider, payload);
     const groupsClaim = provider.groups_claim ?? 'groups';
@@ -149,24 +146,22 @@ export class OidcService {
 
     if (rawGroupIds.length === 0 && hasGroupsOverage(payload, groupsClaim)) {
       this.log.error(
-        'the id_token carries a groups overage indicator instead of group ids; this ' +
-          'user is in too many groups for the claim and will resolve to no groups. ' +
-          'Configure a `directory` block for this provider, or scope the groups claim ' +
-          'to the groups assigned to this application.',
+        'Too many groups to include in the ID token; no groups resolved. ' +
+          'Configure a `directory` block or limit the groups claim to groups assigned to this application.',
         { provider: providerId },
       );
     }
 
     if (rawGroupIds.length === 0) {
-      // Not necessarily an overage -- the user may have no groups
-      this.log.warn('login carried no group ids', {
+      // No groups may mean no memberships, not overage
+      this.log.warn('ID token contains no group IDs.', {
         provider: providerId,
         claim: groupsClaim,
         claimsPresent: Object.keys(payload).sort().join(','),
       });
     }
 
-    this.log.info('login completed', { provider: providerId, groups: rawGroupIds.length });
+    this.log.info('Sign-in completed.', { provider: providerId, groups: rawGroupIds.length });
     return {
       identity,
       rawGroupIds,
@@ -175,9 +170,7 @@ export class OidcService {
     };
   }
 
-  /**
-   * Session TTL from the provider config, default 8 hours
-   */
+  /** Provider session TTL, defaulting to 8 hours */
   sessionTtlMs(providerId: string): number {
     const provider = this.config.provider(providerId);
     return parseDurationWithFallback(
@@ -186,9 +179,7 @@ export class OidcService {
     );
   }
 
-  /**
-   * Build a CallerIdentity from the id_token payload, using configured claim names
-   */
+  /** Map configured ID token claims to caller identity */
   private identityFrom(
     providerId: string,
     provider: OidcProviderConfig,
@@ -197,7 +188,10 @@ export class OidcService {
     const subjectClaim = provider.subject_claim ?? 'sub';
     const subject = payload[subjectClaim];
     if (typeof subject !== 'string' || subject.length === 0) {
-      throw new Error(`id_token has no "${subjectClaim}" claim`);
+      throw new SignInError(
+        'signin.subject-missing',
+        `ID token claim "${subjectClaim}" is missing or is not a non-empty string.`,
+      );
     }
     const emailClaim = provider.email_claim ?? 'email';
     const email = payload[emailClaim];
@@ -212,7 +206,10 @@ export class OidcService {
   private oidcProvider(providerId: string): OidcProviderConfig {
     const provider = this.config.provider(providerId);
     if (!provider || providerType(provider) !== 'oidc') {
-      throw new Error(`"${providerId}" is not an oidc provider`);
+      throw new SignInError(
+        'signin.wrong-provider',
+        `Provider "${providerId}" is missing or is not configured for OIDC.`,
+      );
     }
     return provider as OidcProviderConfig;
   }
@@ -226,23 +223,14 @@ export class OidcService {
     return set;
   }
 
-  /**
-   * Origin of the provider's authorization endpoint
-   *
-   * A form whose POST redirects there needs it in the page's CSP form-action
-   */
+  /** Authorization endpoint origin for CSP form-action */
   async authorizationOrigin(providerId: string): Promise<string> {
     const provider = this.oidcProvider(providerId);
     const meta = await this.discover(providerId, provider);
     return new URL(meta.authorization_endpoint).origin;
   }
 
-  /**
-   * Fetch and cache an OIDC discovery document from the issuer's well-known endpoint
-   *
-   * Validates the returned issuer matches the configured one
-   * Not for multi-tenant issuers: the issuer URL must be pinned to a single tenant
-   */
+  /** Fetch and cache discovery metadata, requiring a matching tenant-specific issuer */
   private async discover(
     providerId: string,
     provider: OidcProviderConfig,
@@ -254,12 +242,17 @@ export class OidcService {
     const url = `${issuer}/.well-known/openid-configuration`;
     const response = await this.fetchImpl(url);
     if (!response.ok)
-      throw new Error(`OIDC discovery failed for ${providerId}: ${response.status}`);
+      throw new SignInError(
+        'signin.discovery-failed',
+        `Could not load OIDC configuration for "${providerId}" (HTTP ${response.status}).`,
+        response.status,
+      );
     const meta = (await response.json()) as DiscoveryDocument;
 
     if (meta.issuer !== issuer && meta.issuer !== provider.issuer) {
-      throw new Error(
-        `OIDC discovery for ${providerId} returned issuer "${meta.issuer}", expected ` +
+      throw new SignInError(
+        'signin.discovery-failed',
+        `Issuer mismatch for "${providerId}": received "${meta.issuer}", expected ` +
           `"${provider.issuer}".${discoveryHint(meta.issuer)}`,
       );
     }
@@ -279,36 +272,26 @@ interface DiscoveryDocument {
   jwks_uri: string;
 }
 
-/**
- * Hint when the discovered issuer differs from the configured one
- *
- * Multi-tenant (`common`, `organizations`) or v1.0 (`sts.windows.net`) issuers that
- * cannot be pinned will produce mismatches; use a tenant GUID or the v2.0 endpoint
- */
+/** Suggest fixes for Entra multi-tenant or v1 issuer mismatches */
 export function discoveryHint(discovered: string): string {
-  // Matches the multi-tenant placeholder pattern
+  // Entra multi-tenant issuer
   if (discovered.includes('{tenantid}')) {
     return (
-      ' Use your tenant GUID in the issuer URL rather than `common` or ' +
-      '`organizations`: a multi-tenant issuer cannot be pinned, and pinning ' +
-      'issuer, audience and key source together is what stops a token from ' +
-      "one provider being accepted for another's client_id."
+      ' Use your tenant GUID instead of `common` or `organizations` in the issuer URL. ' +
+      'Multi-tenant issuers are not supported.'
     );
   }
-  // Matches the Entra v1.0 issuer
+  // Entra v1 issuer
   if (/^https:\/\/sts\.windows\.net\//.test(discovered)) {
     return (
-      " That is Entra's v1.0 metadata. Append `/v2.0` to the issuer URL " +
-      '(`https://login.microsoftonline.com/<tenant>/v2.0`); v1.0 issues tokens ' +
-      'under a different issuer and a different set of claim names.'
+      ' Entra v1.0 metadata returned. Use the v2.0 issuer URL: ' +
+      '`https://login.microsoftonline.com/<tenant>/v2.0`.'
     );
   }
   return '';
 }
 
-/**
- * Check whether the id_token has a groups overage indicator via `_claim_names`
- */
+/** Check `_claim_names` for groups omitted due to overage */
 export function hasGroupsOverage(payload: JWTPayload, groupsClaim: string): boolean {
   const names = payload._claim_names;
   if (!names || typeof names !== 'object') return false;
@@ -321,9 +304,7 @@ function claimAsArray(value: unknown): string[] {
   return [];
 }
 
-/**
- * Ensure the redirect target is a relative path, not an absolute or protocol-relative URL
- */
+/** Allow only paths starting with a single slash */
 export function safeRedirect(target: string): string {
   if (!target.startsWith('/') || target.startsWith('//')) return '/';
   return target;

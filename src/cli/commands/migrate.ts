@@ -12,12 +12,17 @@ function isMigrateAction(value: string): value is MigrateAction {
 
 export function parseMigrate(argv: string[]): MigrateAction {
   if (argv.length > 1) {
-    throw new UsageError(`migrate: Expected at most one action, but received ${argv.length}.`);
+    throw new UsageError(
+      'usage.argument-count',
+      `migrate: Too many actions (${argv.length}). Use one: ${MIGRATE_ACTIONS.join(', ')}.`,
+    );
   }
   const action = argv[0] ?? 'up';
   if (!isMigrateAction(action)) {
     throw new UsageError(
-      `migrate: ${JSON.stringify(action)} is an unknown action. The actions are ${MIGRATE_ACTIONS.join(', ')}.`,
+      'usage.unknown-action',
+      `migrate: Unknown action ${JSON.stringify(action)}. Use: ${MIGRATE_ACTIONS.join(', ')}.`,
+      action,
     );
   }
   return action;
@@ -25,9 +30,9 @@ export function parseMigrate(argv: string[]): MigrateAction {
 
 export const migrateCommand: Command = {
   summary:
-    'Applies or reverts database migrations. down reverts the last migration, up applies all pending migrations, status shows pending migrations.',
+    'Manage database migrations: up applies pending migrations (default), down reverts the last, status lists pending migrations.',
   args: '[up|down|status]',
-  // Fresh install may lack a schema
+  // Allow fresh installs without a schema
   needsCurrentSchema: false,
   check: (argv) => void parseMigrate(argv),
   run: async (argv) => {
@@ -35,16 +40,19 @@ export const migrateCommand: Command = {
     const action = parseMigrate(argv);
     if (action === 'up') {
       const applied = await migrateUp();
-      log.info(applied.length ? 'migrations applied' : 'schema already current', { applied });
+      log.info(applied.length ? 'Migrations applied' : 'Database is up to date', { applied });
       return 0;
     }
     if (action === 'down') {
-      log.info('migration reverted', { reverted: await migrateDown() });
+      log.info('Last migration reverted', { reverted: await migrateDown() });
       return 0;
     }
     const pending = await pendingMigrations();
-    log.info('migration status', { pending, current: pending.length === 0 });
-    // Exit code 1 reports pending to scripts
+    log.info(pending.length ? 'Pending migrations' : 'Database is up to date', {
+      pending,
+      current: pending.length === 0,
+    });
+    // Signal pending migrations with exit code 1
     return pending.length > 0 ? 1 : 0;
   },
 };

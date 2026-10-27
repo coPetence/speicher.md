@@ -138,7 +138,10 @@ describe('ensureVectorIndex', () => {
     await seedEmbedded(3, DIM);
     await seedEmbedded(2, DIM + 4, 3);
 
-    await expect(ensureVectorIndex(DIM)).rejects.toThrow(/12 wide, but embedding.dimensions is 8/);
+    await expect(ensureVectorIndex(DIM)).rejects.toFailWith('embedding.stored-width-mismatch', {
+      stored: [12],
+      configured: 8,
+    });
     expect(await indexNames()).not.toContain(VECTOR_INDEX_NAME);
   });
 

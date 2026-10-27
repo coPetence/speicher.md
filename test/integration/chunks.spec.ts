@@ -65,6 +65,7 @@ describe('Chunk.embedding', () => {
   });
 
   it('refuses a value that is not a vector', async () => {
+    // eslint-disable-next-line no-restricted-syntax -- pgvector's own error, which has no code
     await expect(Chunk.create(row(0, 'hash-bad', { embedding: ['nope'] }))).rejects.toThrow(
       /not a valid vector/,
     );

@@ -20,12 +20,19 @@ import { AssetsConfig } from '../config/types';
 import { createAzureBlobStore } from './azure-blob-store';
 import { createS3BlobStore } from './s3-blob-store';
 import { reasonOf } from '../common/errors';
+import { CheckStatus } from '../common/check-status';
 
-export interface StoreStatus {
-  level: 'ok' | 'fail';
-  label: string;
-  detail: string;
-}
+/** What the check of an asset store found: the directory, container or bucket */
+export type StoreCode =
+  | 'store.reachable'
+  | 'store.missing'
+  | 'store.read-only'
+  | 'store.refused'
+  | 'store.unreachable'
+  | 'store.not-configured'
+  | 'store.presign-unavailable';
+
+export type StoreStatus = CheckStatus<StoreCode> & { level: 'ok' | 'fail' };
 
 export const DIRECTORY_OK_LABEL = 'Directory writable';
 export const DIRECTORY_FAIL_LABEL = 'Directory inaccessible';
@@ -116,12 +123,25 @@ export class FilesystemBlobStore implements BlobStore {
     const root = resolve(this.root);
     try {
       await fs.access(root, constants.W_OK);
-      return { level: 'ok', label: DIRECTORY_OK_LABEL, detail: root };
+      return {
+        code: 'store.reachable',
+        level: 'ok',
+        label: DIRECTORY_OK_LABEL,
+        detail: root,
+        facts: { target: root },
+      };
     } catch (err) {
       const code = (err as NodeJS.ErrnoException)?.code;
       return {
+        code:
+          code === 'ENOENT'
+            ? 'store.missing'
+            : code === 'EACCES'
+              ? 'store.read-only'
+              : 'store.unreachable',
         level: 'fail',
         label: DIRECTORY_FAIL_LABEL,
+        facts: { target: root },
         detail:
           code === 'ENOENT'
             ? `${root} does not exist.`

@@ -28,6 +28,7 @@ function statusAt(value: unknown, path: string): CheckStatus | undefined {
 }
 
 interface CheckStatus {
+  code?: string;
   level: string;
   label: string;
   detail: string;
@@ -62,6 +63,8 @@ export function mountChecks(): void {
         if (!status) throw new Error('no status in the answer');
 
         level(status.level);
+        // The same hook the server-drawn note carries
+        if (status.code) note.dataset.sprStatus = status.code;
 
         text.textContent = status.detail ? `${status.label}: ${status.detail}` : status.label;
       } catch {

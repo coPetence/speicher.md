@@ -8,7 +8,7 @@
   <summary><span><%= summary %></span></summary>
   <ul>
     <% it.groups.forEach(function (group) { %>
-    <li><span class="spr-version-label"><%= group.label %></span><span><% group.problems.forEach(function (problem, index) { %><%~ index > 0 ? '<br>' : '' %><%= problem %><% }) %></span></li>
+    <li><span class="spr-version-label"><%= group.label %></span><span><% group.problems.forEach(function (problem, index) { %><%~ index > 0 ? '<br>' : '' %><span data-spr-problem="<%= group.codes[index] %>"><%= problem %></span><% }) %></span></li>
     <% }) %>
   </ul>
 </details>

@@ -52,7 +52,7 @@ describe('a namespace the forge spells with capitals', () => {
   it('claims the first segment against a repository spelled the other way', async () => {
     await expect(
       routing.assertFirstSegmentFree(harness.tenantId, 'gh', 'copetence', 'casing'),
-    ).rejects.toThrow(/already registered/);
+    ).rejects.toFailWith('routing.slug-registered');
   });
 
   it('is published by a public.repos entry in either spelling', () => {
@@ -75,19 +75,19 @@ describe('a repository owner on the primary forge', () => {
   it('may not claim a reserved first segment', async () => {
     await expect(
       routing.assertFirstSegmentFree(harness.tenantId, 'gh', 'api', 'docs'),
-    ).rejects.toThrow(/reserved/);
+    ).rejects.toFailWith('routing.segment-reserved');
   });
 
   it('may not claim the segment of a repository of the default owner', async () => {
     await expect(
       routing.assertFirstSegmentFree(harness.tenantId, 'gh', 'Handbook', 'docs'),
-    ).rejects.toThrow(/collides with repo "handbook"/);
+    ).rejects.toFailWith('routing.segment-is-repo', { holder: 'handbook' });
   });
 
   it('keeps its segment from a repository of the default owner registered later', async () => {
     await expect(
       routing.assertFirstSegmentFree(harness.tenantId, 'gh', 'copetence', 'ferdi'),
-    ).rejects.toThrow(/collides with repository owner "Ferdi"/);
+    ).rejects.toFailWith('routing.segment-is-owner', { holder: 'Ferdi' });
   });
 
   it('can register a second repository under the segment it already holds', async () => {

@@ -33,10 +33,13 @@ describe('a generated block', () => {
   });
 
   it('names the file and line when its end marker is missing or its kind is unknown', () => {
-    expect(() => regenerate('\n\n<!-- generated: a -->\n', echo, 'x.md')).toThrow(/^x\.md:3: /);
+    expect(() => regenerate('\n\n<!-- generated: a -->\n', echo, 'x.md')).toFailWith(
+      'docs.unclosed-block',
+      { file: 'x.md', line: 3 },
+    );
     expect(() =>
       regenerate('<!-- generated: nope -->\n<!-- /generated -->', generate, 'y.md'),
-    ).toThrow('y.md:1: unknown generated block kind: nope');
+    ).toFailWith('docs.unknown-kind', { file: 'y.md', line: 1 });
   });
 });
 
@@ -49,7 +52,9 @@ describe('the env table', () => {
   });
 
   it('refuses a variable the registry does not know', () => {
-    expect(() => renderEnvTable(['SPEICHER_NOPE'])).toThrow('unknown env var: SPEICHER_NOPE');
+    expect(() => renderEnvTable(['SPEICHER_NOPE'])).toFailWith('env.unknown', {
+      unknown: [{ name: 'SPEICHER_NOPE', suggestion: null }],
+    });
   });
 });
 
@@ -74,12 +79,12 @@ describe('leaving out what is not released', () => {
   });
 
   it('refuses a name that matches nothing, which would leave the thing in', () => {
-    expect(() => generate({ kind: 'cli', args: ['without:reembedd'] })).toThrow(
-      'without: names nothing called reembedd',
+    expect(() => generate({ kind: 'cli', args: ['without:reembedd'] })).toFailWith(
+      'docs.without-unknown',
     );
     expect(() =>
       generate({ kind: 'schema', args: ['instance#/properties/mail', 'without:mail'] }),
-    ).toThrow('without: applies to a whole schema only');
+    ).toFailWith('docs.without-not-schema');
   });
 });
 

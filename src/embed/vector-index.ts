@@ -1,26 +1,30 @@
-/**
- * vector index lifecycle for chunks.embedding
- *
- * Creates or validates the HNSW index on chunks.embedding using cosine distance
- * The column is resized to match the configured width before the index is built
- * Stored embeddings at a different width cause an error: the index can only be
- *   pinned to one dimension
- * Without a configured embedding dimension, nothing happens
- */
+/** Manage the chunks.embedding index, enforcing configured dimensions */
 
 import { QueryTypes, Sequelize } from 'sequelize';
 
 import { rootLogger } from '../common/logger';
 import { VECTOR_INDEX_METHOD, VECTOR_INDEX_NAME, VECTOR_OPS } from './distance';
 import { getSequelize } from '../db/sequelize';
+import { CodedError } from '../common/errors';
 
-/** Whether the index was created, already existed, or was skipped */
+/** Stored embedding dimensions differ from the configuration */
+export class StoredWidthError extends CodedError<'embedding.stored-width-mismatch'> {
+  constructor(
+    readonly stored: number[],
+    readonly configured: number,
+    message: string,
+  ) {
+    super('embedding.stored-width-mismatch', message);
+  }
+}
+
+/** Index creation outcome */
 export type VectorIndexResult =
   | { status: 'created'; dimensions: number }
   | { status: 'present'; dimensions: number }
   | { status: 'unconfigured' };
 
-/** Distinct embedding dimensions present in chunks with non-null embeddings */
+/** List distinct dimensions of stored embeddings */
 export async function storedDimensions(sequelize: Sequelize = getSequelize()): Promise<number[]> {
   const rows = await sequelize.query<{ embedding_dim: number }>(
     `SELECT DISTINCT embedding_dim FROM chunks
@@ -31,7 +35,7 @@ export async function storedDimensions(sequelize: Sequelize = getSequelize()): P
   return rows.map((row) => row.embedding_dim);
 }
 
-/** Create the vector index if it does not already exist, resizing the column first */
+/** Check stored dimensions, then resize and index if needed */
 export async function ensureVectorIndex(
   configuredDimensions: number | null,
   sequelize: Sequelize = getSequelize(),
@@ -44,7 +48,9 @@ export async function ensureVectorIndex(
 
   const wrong = (await storedDimensions(sequelize)).filter((d) => d !== configuredDimensions);
   if (wrong.length > 0) {
-    throw new Error(
+    throw new StoredWidthError(
+      wrong,
+      configuredDimensions,
       `chunks hold embeddings ${wrong.join(' and ')} wide, but embedding.dimensions ` +
         `is ${configuredDimensions}. The index can only be pinned to one width: clear ` +
         'the embeddings that do not match the configured model and let them be ' +
@@ -74,7 +80,7 @@ export async function ensureVectorIndex(
   return { status: 'created', dimensions: configuredDimensions };
 }
 
-/** Whether the vector index is present in pg_class */
+/** Check for the vector index in pg_class */
 async function indexExists(sequelize: Sequelize): Promise<boolean> {
   const rows = await sequelize.query<{ exists: boolean }>(
     `SELECT true AS exists FROM pg_class WHERE relname = :name AND relkind = 'i'`,
@@ -83,7 +89,7 @@ async function indexExists(sequelize: Sequelize): Promise<boolean> {
   return rows.length > 0;
 }
 
-/** The vector dimension on the embedding column, or null if unconstrained */
+/** Read embedding column dimensions, or null if unconstrained */
 async function columnDimensions(sequelize: Sequelize): Promise<number | null> {
   const rows = await sequelize.query<{ typmod: number }>(
     `SELECT a.atttypmod AS typmod
