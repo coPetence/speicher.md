@@ -9,11 +9,17 @@ Your Speicher administrator must have set up the instance for AI assistants firs
 In Claude, open **Settings → Connectors** and choose **Add custom connector**.
 
 - **Name:** what the connector is called in Claude, for example `Company Docs`.
-- **URL:** your Speicher address followed by `/mcp`:
+- **URL:** your Speicher address followed by `/mcp` or `/mcp-public`. For example:
 
 ```
 https://<hostname>/mcp
 ```
+
+```
+https://<hostname>/mcp/public
+```
+
+Use `/mcp` if you want Claude to see pages that require authentication, or `/mcp/public` if you want it to see only public pages.
 
 Click **Continue**.
 

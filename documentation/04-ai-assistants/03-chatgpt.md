@@ -18,6 +18,8 @@ https://<hostname>/mcp
 https://<hostname>/mcp-public
 ```
 
+Use `/mcp` if you want ChatGPT to see pages that require authentication, or `/mcp/public` if you want it to see only public pages.
+
 - **Authentication:** leave it on **OAuth**. You do not need the **Advanced OAuth settings**.
 
 Tick **I understand and want to continue** and click **Create as a plugin**.
