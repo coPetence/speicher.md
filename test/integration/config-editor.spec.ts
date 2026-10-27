@@ -1969,14 +1969,16 @@ describe('the groups section', () => {
       ...formBody(gone.text),
       intent: 'apply',
     }).expect(400);
-    expect(refused.text).toContain('has no members');
+    // The refusal, and the switch that makes this group an administrator one
+    expect(refused.text).toContain('data-spr-problem="admins.group-empty"');
+    expect(refused.text).toMatch(/spr-field-invalid"\s+data-spr-problem="admins\.group-empty"/);
     expect(await versionCount()).toBe(1);
 
     const checked = await post('groups/platform-ops', {
       ...formBody(gone.text),
       intent: 'check',
     }).expect(400);
-    expect(checked.text).toContain('has no members');
+    expect(checked.text).toContain('data-spr-problem="admins.group-empty"');
     expect(await versionCount()).toBe(1);
   });
 
@@ -3899,7 +3901,7 @@ describe('the transport and the notices', () => {
       .set('accept', 'application/json')
       .expect(200);
     const field = allFields([body.section as FormSection]).find((each) => each.path === path);
-    expect(field?.status).toMatchObject({ level: 'fail', label: 'Cannot connect' });
+    expect(field?.status).toMatchObject({ code: 'remote.connection-refused', level: 'fail' });
   });
 
   it('hides the security card of a plain remote until a repository uses SSH', async () => {
@@ -4101,6 +4103,27 @@ describe('the administrators section', () => {
     expect(yaml).toMatch(/groups: \[\s*platform-ops\s*\]/);
   });
 
+  it('marks the provider an administrator cannot sign in with, where it is chosen', async () => {
+    const draft = await open('admins/0');
+    const refused = await post('admins/0', {
+      ...draft.body,
+      'admins.users.0.subject': 'ops-oid',
+      'admins.users.0.note': 'the founding administrator',
+      'admins.users.0.provider': 'nope',
+      intent: 'apply',
+    }).expect(400);
+
+    // Said once, on the select, under a headline that points there
+    expect(refused.text).toContain('data-spr-refused="config.inconsistent"');
+    expect(refused.text).not.toContain('<li data-spr-problem="admins.unknown-provider">');
+    expect(refused.text).toMatch(
+      /spr-field-invalid"\s+data-spr-problem="admins\.unknown-provider"/,
+    );
+    expect(refused.text).toContain('aria-describedby="f-admins.users.0.provider-problem"');
+    expect(refused.text).toContain('id="f-admins.users.0.provider-problem"');
+    expect(await versionCount()).toBe(1);
+  });
+
   async function addAdmin(subject: string, note: string, until?: string): Promise<void> {
     const at = String(formBody((await open('admins')).html)['__shape:admins.users']);
     const draft = await open(`admins/${at}`);
@@ -4187,8 +4210,8 @@ describe('refusing a configuration that would not boot', () => {
       intent: 'apply',
     }).expect(400);
 
-    expect(refused.text).toContain('not internally consistent');
-    expect(refused.text).toContain('is not defined in the <code>groups</code> map');
+    expect(refused.text).toContain('data-spr-refused="config.inconsistent"');
+    expect(refused.text).toContain('<li data-spr-problem="admins.unknown-group">');
     expect(await versionCount()).toBe(1);
   });
 
@@ -4216,7 +4239,9 @@ describe('refusing a configuration that would not boot', () => {
       intent: 'apply',
     }).expect(400);
 
-    expect(refused.text).toContain('schema validation');
+    // The refusal, and the field left blank, marked
+    expect(refused.text).toContain('data-spr-refused="config.schema"');
+    expect(refused.text).toMatch(/spr-field-invalid"\s+data-spr-problem="schema\.\w+"/);
     expect(formBody(refused.text)['auth.providers.entra.issuer']).toBe('');
     expect(await versionCount()).toBe(1);
   });
@@ -4321,8 +4346,26 @@ describe('the save bar', () => {
       .set('accept', 'application/json')
       .expect(400);
 
-    expect(json.body.error).toContain('schema validation');
+    expect(json.body.error_code).toBe('config.schema');
+    // Where the save bar marks it, which a check answering in JSON cannot do itself
+    expect(json.body.problem_paths).toContain('auth.providers.entra.issuer');
     expect(await versionCount()).toBe(1);
+  });
+
+  it('names the field a required value is missing from, so the bar can mark it', async () => {
+    const { body } = await open('mail');
+    const json = await post('mail', {
+      ...body,
+      'mail.host': 'smtp.example.test',
+      'mail.from': '',
+      intent: 'check',
+    })
+      .set('accept', 'application/json')
+      .expect(400);
+
+    const at = (json.body.problem_paths as (string | null)[]).indexOf('mail.from');
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(json.body.problem_codes[at]).toBe('schema.required');
   });
 });
 
@@ -4391,7 +4434,7 @@ describe('when the running version is not the newest', () => {
       expect(page.text).toContain('Version 2 does not load</h2>');
       expect(page.text).toContain('The current instance config version is 1.');
       expect(page.text).toContain('<span class="spr-version-label">Version 2</span>');
-      expect(page.text).toContain('must have required property');
+      expect(page.text).toContain('data-spr-problem="schema.required"');
       expect(page.text).not.toContain('saved but not yet in force');
     } finally {
       await fallen.close();

@@ -316,8 +316,9 @@ describe('versions that do not load', () => {
       expect(page.text).toContain('role="alertdialog"');
       expect(page.text).toContain('Versions 2–4 do not load</h2>');
       expect(page.text).toContain('<span>Problems in versions 2–4</span>');
-      expect(page.text).toContain(
-        '<span class="spr-version-label">Versions 2–4</span><span>theme: unknown key &quot;sparkles&quot;</span>',
+      // One entry for the three versions, refused for the same unknown key
+      expect(page.text).toMatch(
+        /<span class="spr-version-label">Versions 2–4<\/span><span><span data-spr-problem="schema\.additionalProperties">/,
       );
       expect(page.text).not.toContain('<span class="spr-version-label">Version 3</span>');
       expect(page.text).toContain('<span>Changes made by Repair</span>');

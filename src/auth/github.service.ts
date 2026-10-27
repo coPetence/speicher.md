@@ -11,19 +11,16 @@ import { githubHosts } from '../github/hosts';
 import { CompletedLogin } from './login-result';
 import { safeRedirect } from './oidc.service';
 import { mintPkce, mintToken } from './tokens';
+import { SignInError } from './sign-in-error';
 
-/**
- * GitHub authorization-code login
- *
- * Groups are GitHub org team memberships like this`org/team-slug`
- */
+/** GitHub OAuth login with team groups as `org/team-slug` */
 @Injectable()
 export class GithubAuthService {
   private readonly log: Logger = rootLogger.child('auth.github');
 
   constructor(
     private readonly config: ConfigService,
-    private readonly fetchImpl: typeof fetch = fetch, // Overridable for tests
+    private readonly fetchImpl: typeof fetch = fetch, // Injectable for tests
   ) {
     initModels();
   }
@@ -34,11 +31,7 @@ export class GithubAuthService {
     return new URL(githubHosts((provider as GithubProviderConfig).base_url).web).origin;
   }
 
-  /**
-   * Build a GitHub authorization URL and save the login flow
-   *
-   * Stores state and the redirect target in LoginFlow, expiring in 10 minutes
-   */
+  /** Save a 10-minute login flow and build the authorization URL */
   async authorizationUrl(
     tenantId: string,
     providerId: string,
@@ -54,11 +47,7 @@ export class GithubAuthService {
       tenant_id: tenantId,
       provider: providerId,
       state,
-      /*
-        GitHub issues no id_token, so a nonce has no effect here; 
-        our login flow require a nonce for other idp types, 
-        therefore we mint a nonce here but do not send it.
-      */
+      // Required by LoginFlow but unused by GitHub
       nonce: mintToken(24),
       code_verifier: verifier,
       redirect_to: safeRedirect(redirectTo),
@@ -77,9 +66,7 @@ export class GithubAuthService {
     return url.toString();
   }
 
-  /**
-   * Exchange the code for a token and read identity and teams with it
-   */
+  /** Exchange the code and fetch identity and teams */
   async completeLogin(
     tenantId: string,
     code: string,
@@ -87,10 +74,15 @@ export class GithubAuthService {
     redirectUri: string,
   ): Promise<CompletedLogin> {
     const flow = await LoginFlow.findOne({ where: { tenant_id: tenantId, state } });
-    if (!flow) throw new Error('unknown or reused login state');
+    if (!flow)
+      throw new SignInError(
+        'signin.unknown-state',
+        'Sign-in request not found or already used. Start sign-in again.',
+      );
 
     await LoginFlow.destroy({ where: { id: flow.id } });
-    if (flow.expires_at.getTime() < Date.now()) throw new Error('login flow expired');
+    if (flow.expires_at.getTime() < Date.now())
+      throw new SignInError('signin.flow-expired', 'Sign-in expired. Start sign-in again.');
 
     const providerId = flow.provider;
     const provider = this.githubProvider(providerId);
@@ -99,7 +91,8 @@ export class GithubAuthService {
     const token = await this.exchange(web, provider, code, redirectUri, flow.code_verifier);
     const user = await this.api<GithubUser>(api, token, '/user');
     const subject = typeof user.id === 'number' ? String(user.id) : '';
-    if (subject === '') throw new Error('the GitHub user response carried no id');
+    if (subject === '')
+      throw new SignInError('signin.subject-missing', 'GitHub returned no user ID.');
 
     const identity: CallerIdentity = {
       provider: providerId,
@@ -111,12 +104,12 @@ export class GithubAuthService {
     const rawGroupIds = await this.teams(api, token, providerId);
     if (rawGroupIds.length === 0) {
       this.log.error(
-        'no team memberships were included in the sign-in response. This can happen if the app has no access to team memberships. If you configured a GitHub App check if the organisation permissions `Members: Read-only` is set. If you use an OAuth App make sure access is permitted in the organizations setings under Settings -> Third-party Access, `read:org`' +
-          { provider: providerId },
+        'No GitHub teams returned. Check team memberships and app access: GitHub App needs "Members: Read-only"; OAuth App needs read:org and organization approval under Settings > Third-party Access.',
+        { provider: providerId },
       );
     }
 
-    this.log.info('login completed', { provider: providerId, groups: rawGroupIds.length });
+    this.log.info('Sign-in completed', { provider: providerId, groups: rawGroupIds.length });
     return {
       identity,
       rawGroupIds,
@@ -125,9 +118,7 @@ export class GithubAuthService {
     };
   }
 
-  /**
-   * Session TTL from the provider config, default 8 hours
-   */
+  /** Configured session TTL, defaulting to 8 hours */
   sessionTtlMs(providerId: string): number {
     const provider = this.config.provider(providerId);
     return parseDurationWithFallback(
@@ -136,9 +127,7 @@ export class GithubAuthService {
     );
   }
 
-  /**
-   * POST the code to GitHub and return the access token
-   */
+  /** Exchange the authorization code for an access token */
   private async exchange(
     web: string,
     provider: GithubProviderConfig,
@@ -159,20 +148,27 @@ export class GithubAuthService {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
       body,
     });
-    if (!response.ok) throw new Error(`token exchange failed: ${response.status}`);
+    if (!response.ok)
+      throw new SignInError(
+        'signin.token-exchange-failed',
+        `GitHub token request failed (HTTP ${response.status}).`,
+        response.status,
+      );
 
-    // A refused code comes back 200 with an `error`
+    // GitHub can return HTTP 200 with an error
     const tokens = (await response.json()) as TokenResponse;
     if (tokens.error) {
-      throw new Error(`token exchange refused: ${tokens.error_description ?? tokens.error}`);
+      throw new SignInError(
+        'signin.token-exchange-refused',
+        `GitHub rejected the token request: ${tokens.error_description ?? tokens.error}`,
+      );
     }
-    if (!tokens.access_token) throw new Error('no access_token in the token response');
+    if (!tokens.access_token)
+      throw new SignInError('signin.token-missing', 'GitHub returned no access token.');
     return tokens.access_token;
   }
 
-  /**
-   * Primary verified email address (or null)
-   */
+  /** Return the primary verified email or null */
   private async verifiedEmail(
     api: string,
     token: string,
@@ -182,9 +178,9 @@ export class GithubAuthService {
     try {
       addresses = await this.api<GithubEmail[]>(api, token, '/user/emails');
     } catch (err) {
-      // Reached when `user:email` was refused at consent or revoked since
+      // Email access may be denied or revoked
       this.log.warn(
-        'could not read the email address list. Make sure the user:email scope is permitted. If its a GitHub App make sure to permit the Account Permission: Email = Read Only',
+        'Cannot read GitHub email addresses. Allow user:email for OAuth Apps or "Email: Read-only" account permission for GitHub Apps.',
         { provider: providerId, error: (err as Error).message },
       );
       return null;
@@ -194,9 +190,7 @@ export class GithubAuthService {
     return primary ? primary.email.toLowerCase() : null;
   }
 
-  /**
-   * Team memberships as `org/team-slug`
-   */
+  /** Fetch team memberships as `org/team-slug` */
   private async teams(api: string, token: string, providerId: string): Promise<string[]> {
     const out: string[] = [];
 
@@ -213,26 +207,27 @@ export class GithubAuthService {
       if (batch.length < PAGE_SIZE) return out;
 
       if (page === MAX_TEAM_PAGES) {
-        this.log.warn(
-          'stopped reading teams because user is in to many teams. some teams were dropped',
-          {
-            provider: providerId,
-            pages: MAX_TEAM_PAGES,
-          },
-        );
+        this.log.warn('GitHub team page limit reached. Additional teams may be missing.', {
+          provider: providerId,
+          pages: MAX_TEAM_PAGES,
+        });
       }
     }
 
     return out;
   }
 
-  /** Authenticated REST call against the user's own token */
+  /** Call the GitHub API with the user's token */
   private async api<T>(apiBase: string, token: string, path: string): Promise<T> {
     const response = await this.fetchImpl(`${apiBase}${path}`, {
       headers: githubHeaders(token),
     });
     if (!response.ok) {
-      throw new Error(`GitHub ${path} -> ${response.status} ${response.statusText}`);
+      throw new SignInError(
+        'signin.api-failed',
+        `GitHub request failed: ${path} (HTTP ${response.status} ${response.statusText}).`,
+        response.status,
+      );
     }
     return (await response.json()) as T;
   }
@@ -240,15 +235,16 @@ export class GithubAuthService {
   private githubProvider(providerId: string): GithubProviderConfig {
     const provider = this.config.provider(providerId);
     if (!provider || providerType(provider) !== 'github') {
-      throw new Error(`"${providerId}" is not a github provider`);
+      throw new SignInError(
+        'signin.wrong-provider',
+        `GitHub provider "${providerId}" is missing or has the wrong type.`,
+      );
     }
     return provider as GithubProviderConfig;
   }
 }
 
-/**
- * `read:org` carries team membership, `user:email` the verified address
- */
+/** Scopes for team memberships and verified email */
 const SCOPES = 'read:org user:email';
 
 export const FLOW_TTL_MS = 10 * 60_000;

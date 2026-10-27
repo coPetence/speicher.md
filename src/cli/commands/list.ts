@@ -8,20 +8,22 @@ import { formatTable } from '../table';
 export function parseList(name: string, argv: string[]): void {
   const [action, ...commandArguments] = argv;
   if (action !== 'list') {
-    const received = action === undefined ? 'nothing' : JSON.stringify(action);
+    const received = action === undefined ? 'no action' : JSON.stringify(action);
     throw new UsageError(
-      `${name}: Expected the action \`list\`, but received ${received}. To see the registered ${name}, run \`speicher ${name} list\`.`,
+      'usage.unknown-action',
+      `${name}: Expected \`list\`, got ${received}. Run \`speicher ${name} list\`.`,
     );
   }
   if (commandArguments.length > 0) {
     throw new UsageError(
-      `${name} list: Expected no arguments after \`list\`, but received ${commandArguments.length}.`,
+      'usage.argument-count',
+      `${name} list: No arguments allowed; got ${commandArguments.length}.`,
     );
   }
 }
 
 export const reposCommand: Command = {
-  summary: 'List every repository registered on this instance.',
+  summary: 'List registered repositories.',
   args: 'list',
   needsCurrentSchema: true,
   check: (argv) => parseList('repos', argv),
@@ -31,7 +33,7 @@ export const reposCommand: Command = {
     const rows = await listRepos(tenant.id);
     if (rows.length === 0) {
       process.stdout.write(
-        'This instance has no repositories registered yet. To register the repositories your forges hold, run `speicher sync-repo-list`.\n',
+        'No repositories registered. Run `speicher sync-repo-list` to import them from your forges.\n',
       );
       return 0;
     }
@@ -65,7 +67,7 @@ export const reposCommand: Command = {
 };
 
 export const forgesCommand: Command = {
-  summary: 'List every content source configured on this instance.',
+  summary: 'List configured forges.',
   args: 'list',
   needsCurrentSchema: true,
   check: (argv) => parseList('forges', argv),
@@ -74,7 +76,7 @@ export const forgesCommand: Command = {
     const tenant = await tenancy.defaultTenant();
     const rows = await listForges(tenant.id);
     if (rows.length === 0) {
-      process.stdout.write('This instance has no forges registered yet.\n');
+      process.stdout.write('No forges registered.\n');
       return 0;
     }
     process.stdout.write(

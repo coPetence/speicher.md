@@ -11,6 +11,7 @@
       <% if (f.pattern) { %>pattern="<%= f.pattern %>" title="<%= f.patternHint %>"<% } %>
       <% if (it.required) { %>required<% } %>
       <% if (it.dimensionsPath) { %>data-spr-width-into="<%= it.dimensionsPath %>"<% } %>
+      <% if (f.problems && f.problems.length) { %>aria-invalid="true" aria-describedby="f-<%= f.path %>-problem"<% } %>
       spellcheck="false"
       autocomplete="off"
       <%= editable ? '' : 'disabled' %>

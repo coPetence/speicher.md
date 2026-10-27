@@ -1,13 +1,4 @@
-/**
- * Resolve access grants into resolved principals
- *
- * A PrincipalSet names groups and individual user grants (by subject or email)
- * Each grant is validated: schema, expiry, directory membership, public policy
- * A grant that fails validation is recorded in the findings and dropped
- *
- * The result is a deduplicated sorted list of resolved principals, the nearest
- * expiry among all grants, and a list of grants that were dropped
- */
+/** Validate access grants and return sorted, unique principals, next expiry, and dropped grants */
 
 import {
   PUBLIC_GROUP_NAME,
@@ -22,80 +13,78 @@ import { parseUntil } from '../common/until';
 import { ConfigService } from '../config/config.service';
 import { PrincipalSet, UserGrant, providerType } from '../config/types';
 import { Finding, FindingList } from './findings';
+import { CodedError } from '../common/errors';
 
-/** External identity directory for a provider */
+/** Provider identity directory */
 export interface DirectoryLookup {
-  /** Whether a directory is configured for this provider */
+  /** Whether the provider has a directory */
   covers(provider: string): boolean;
 
-  /**
-   * Resolve an email to a subject identifier
-   *
-   * `null` -> definitively absent -> drops the grant
-   * `undefined` -> directory cannot answer (e.g. GitHub Directory doesnt support this)
-   */
+  /** Resolve email to subject: null if absent, undefined if unsupported */
   resolveEmail(provider: string, email: string): Promise<string | null | undefined>;
 
-  /** Whether a subject still exists in the directory */
+  /** Check whether a subject exists */
   subjectExists(provider: string, subject: string): Promise<boolean>;
 
-  /** Number of members in a directory group, or null if unknown */
+  /** Group member count, or null if unknown */
   groupSize(provider: string, groupId: string): Promise<number | null>;
 }
 
-/** Thrown when the directory cannot be reached */
-export class DirectoryUnavailableError extends Error {
-  constructor(
-    readonly provider: string, // The provider whose directory failed
-    readonly reason: string, // Machine-readable failure kind
+/** Why a directory could not be reached */
+export type DirectoryFailure =
+  | 'unreachable'
+  | 'request-failed'
+  | 'credentials-refused'
+  | 'token-unreachable'
+  | 'token-refused'
+  | 'token-missing'
+  | 'not-installed'
+  | 'installation-token-failed'
+  | 'private-key-unusable'
+  | 'app-refused'
+  | 'cooldown';
 
-    readonly detail = '', // Human-readable detail for the operator
+/** Directory connection failure */
+export class DirectoryUnavailableError extends CodedError<'directory.unavailable'> {
+  constructor(
+    readonly provider: string,
+    readonly kind: DirectoryFailure, // Which failure, for callers and tests
+    readonly reason: string, // What failed, in words
+    readonly detail = '', // Operator-facing details
   ) {
-    super(`directory for "${provider}" is unavailable: ${reason}`);
-    this.name = 'DirectoryUnavailableError';
+    super('directory.unavailable', `directory for "${provider}" is unavailable: ${reason}`);
   }
 }
 
-/** Result of resolving a PrincipalSet: deduplicated principals, next expiry, dropped grants */
+/** Resolved access grants */
 export interface ResolvedGrants {
-  principals: Principal[]; // Deduplicated and sorted list
+  principals: Principal[]; // Sorted and deduplicated
 
-  nextExpiry: Date | null; // Earliest expiry among all grants, null if none
-  dropped: { principal: string; reason: string }[]; // Grants that were dropped
+  nextExpiry: Date | null; // Earliest resolved grant expiry, or null
+  dropped: { principal: string; reason: string }[];
 }
 
-/** Context for resolving access grants: config, directory, source, now, policy flags */
+/** Grant resolution settings */
 export interface GrantContext {
-  config: ConfigService; // Instance configuration
-  directory?: DirectoryLookup; // External identity directory, if configured
+  config: ConfigService;
+  directory?: DirectoryLookup;
 
-  source: string; // Source file name for error reporting
-  lineOf?: (keyPath: string) => number | null; // Maps config key to source line number
-  now: Date; // Current time for expiry checks
+  source: string; // Source file for diagnostics
+  lineOf?: (keyPath: string) => number | null; // Config key to source line
+  now: Date; // Reference time for expiry checks
 
-  /** Not required for maintainers to allow permanent grants */
+  /** Require expiry dates for individual grants */
   requireUntil: boolean;
 
-  expiryWarningMs: number; // Warn when a grant expires within this window
+  expiryWarningMs: number; // Expiry warning window
 
-  publicGrant: PublicGrant; // Policy for the public group
+  publicGrant: PublicGrant;
 }
 
-/**
- * Policy for the `public` group
- *
- * 'enabled' allows it, 'disabled' blocks it for this repo, 'refused' rejects
- * public as a maintainer specifically
- */
+/** Public access: allowed, disabled for this repo, or forbidden for maintainers */
 export type PublicGrant = 'enabled' | 'disabled' | 'refused';
 
-/**
- * Resolve a PrincipalSet into resolved principals
- *
- * Groups are resolved by name with special handling for the public group;
- * individual grants are resolved by subject or email with directory checks
- * and expiry validation. Results are deduplicated and sorted
- */
+/** Resolve groups and users, recording validation findings */
 export async function resolveAccessBlock(
   set: PrincipalSet,
   ctx: GrantContext,
@@ -110,7 +99,7 @@ export async function resolveAccessBlock(
       ctx.lineOf?.(`access.groups.${index}`) ?? ctx.lineOf?.('access.groups') ?? undefined;
 
     if (name === PUBLIC_GROUP_NAME) {
-      /** Public is gated by instance policy rather than group membership */
+      // Public access uses policy, not group membership
       if (ctx.publicGrant !== 'enabled') {
         findings.reject({
           code: ctx.publicGrant === 'refused' ? 'public-not-a-maintainer' : 'public-not-enabled',
@@ -156,13 +145,7 @@ export async function resolveAccessBlock(
   return { principals: [...new Set(principals)].sort(), nextExpiry, dropped };
 }
 
-/**
- * Resolve a single UserGrant into a principal
- *
- * Validates the provider, schema constraints (note required with subject,
- * until may be required), expiry, and directory membership. Returns null
- * and records a finding when the grant is invalid, expired, or unresolvable
- */
+/** Validate and resolve a user grant, or record a finding and return null */
 async function resolveUserGrant(
   grant: UserGrant,
   ctx: GrantContext,
@@ -196,7 +179,7 @@ async function resolveUserGrant(
     return null;
   }
 
-  /** Note provides a human-readable label for an opaque subject identifier */
+  // Opaque subjects need a readable label
   if (grant.subject && !grant.note) {
     findings.reject({
       code: 'grant-missing-note',
@@ -230,7 +213,7 @@ async function resolveUserGrant(
       return null;
     }
     if (until.getTime() <= ctx.now.getTime()) {
-      /** Grant has already expired — drop silently with an info finding */
+      // Drop expired grants with an info finding
       findings.info({
         code: 'grant-expired',
         source: ctx.source,
@@ -256,10 +239,10 @@ async function resolveUserGrant(
   const kind = providerType(provider);
 
   if (grant.subject) {
-    /** Magic-link subjects are emails — case-insensitive */
+    // Magic-link subjects are case-insensitive emails
     const subject = kind === 'magic-link' ? grant.subject.toLowerCase() : grant.subject;
     if (ctx.directory?.covers(providerId)) {
-      /** Assume the grant is still valid if the directory is unreachable */
+      // Keep the grant if the directory is unavailable
       const stillThere = await askDirectory(
         () => ctx.directory!.subjectExists(providerId, subject),
         true,
@@ -285,11 +268,11 @@ async function resolveUserGrant(
   if (grant.email) {
     const email = grant.email.toLowerCase();
     if (kind === 'magic-link') {
-      /** Magic-link uses email as the subject — no directory */
+      // Use email as subject without a directory lookup
       return { principal: subjectPrincipal(providerId, email), until };
     }
     if (ctx.directory?.covers(providerId)) {
-      /** undefined means the directory was unreachable — keep as email principal */
+      // Keep the email principal if lookup is unsupported or unavailable
       const subject = await askDirectory(
         () => ctx.directory!.resolveEmail(providerId, email),
         undefined,
@@ -322,12 +305,7 @@ async function resolveUserGrant(
   return null;
 }
 
-/**
- * Call the directory and return fallback on DirectoryUnavailableError
- *
- * When the directory is unreachable the grant is resolved as if no directory
- * was configured and an info finding is recorded for the operator
- */
+/** On directory unavailability, record an info finding and return the fallback */
 async function askDirectory<T>(
   ask: () => Promise<T>,
   fallback: T,
@@ -336,7 +314,7 @@ async function askDirectory<T>(
   try {
     return await ask();
   } catch (err) {
-    /** Re-throw unexpected errors; only directory unavailability is degraded */
+    // Propagate unexpected errors
     if (!(err instanceof DirectoryUnavailableError)) throw err;
     at.findings.info({
       code: 'directory-unavailable',
@@ -351,14 +329,14 @@ async function askDirectory<T>(
   }
 }
 
-/** Describe a UserGrant as a principal string for the dropped list */
+/** Format a grant for the dropped list */
 function describeGrant(grant: UserGrant, providerId: string): string {
   if (grant.subject) return subjectPrincipal(providerId, grant.subject);
   if (grant.email) return emailPrincipal(providerId, grant.email);
   return `user:${providerId}:<unspecified>`;
 }
 
-/** Count expired and unresolved grants from a findings list */
+/** Count expired and unresolved grant findings */
 export function findingsToDroppedGrants(findings: Finding[]): number {
   return findings.filter((f) => f.code === 'grant-expired' || f.code === 'grant-unresolved').length;
 }

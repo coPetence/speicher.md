@@ -169,9 +169,9 @@ In Docker, requests reach Speicher from a private Docker network address, even w
 <!-- prettier-ignore-start -->
 | Variable | Default | Read by | Description |
 | -------- | ------- | ------- | ----------- |
-| `SPEICHER_PUBLIC_URL` | — | web + worker | The public URL of this instance, used in webhook deliveries, magic links, and the sitemap. When unset, the request host is used instead. |
-| `SPEICHER_TRUST_PROXY` | `loopback` | web | Which proxies to believe about the client address and protocol: `loopback`, `linklocal`, `uniquelocal`, IP addresses or subnets, comma-separated. In Docker, set `uniquelocal`; `true` and hop counts are not accepted. |
-| `SPEICHER_INSECURE_COOKIES` | `false` | web | Omit the Secure flag on cookies, allowing them over HTTP. Never enable in production; without this flag, modern browsers refuse cookies over plain HTTP. |
-| `PORT` | `3000` | web | TCP port the HTTP server listens on. |
+| `SPEICHER_PUBLIC_URL` | — | web + worker | Public instance URL for webhooks, magic links, and the sitemap. Uses the request host if unset. |
+| `SPEICHER_TRUST_PROXY` | `loopback` | web | Trusted proxies for client IP and protocol: comma-separated `loopback`, `linklocal`, `uniquelocal`, IPs, or subnets. Use `uniquelocal` in Docker. No `true` or hop counts. |
+| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag to allow cookies over HTTP. Development only; never enable in production. |
+| `PORT` | `3000` | web | HTTP server TCP port. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

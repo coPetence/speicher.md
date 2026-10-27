@@ -10,114 +10,138 @@ import {
   isGroupReference,
   providerType,
 } from '../types';
+import { ConfigProblem, problem } from '../../common/config-problems';
 
-/** Matches the issuers of Microsoft's multi-tenant authorities */
+/** Matches Microsoft multi-tenant issuer URLs. */
 const MULTI_TENANT_ISSUER = /\/(common|organizations|consumers)\/v2\.0\/?$/;
 
-/**
- * checks every item of every group. makes sure every source leads to a provider
- *
- * @param config the loaded instance config
- * @param problems the list that problems are added to
- */
-export function checkGroups(config: InstanceConfig, problems: string[]): void {
+/** Validates group sources, references, and reference cycles. */
+export function checkGroups(config: InstanceConfig, problems: ConfigProblem[]): void {
   const providers = config.auth?.providers ?? {};
   for (const [name, items] of Object.entries(config.groups ?? {})) {
-    for (const item of items) {
+    for (const [i, item] of items.entries()) {
+      const at = `groups.${name}[${i}]`;
       if (isGroupReference(item)) {
-        checkReference(name, item, config, problems);
+        checkReference(name, at, item, config, problems);
         continue;
       }
       const source = item;
       const provider = providers[source.provider];
       if (!provider) {
-        problems.push(`groups.${name}: provider "${source.provider}" is not a configured provider`);
+        problems.push(
+          problem('groups.unknown-provider', `${at}.provider`, {
+            text: `Unknown provider "${source.provider}". Use a configured provider.`,
+            dashboard: `Group "${name}" uses unknown provider "${source.provider}". Use a configured provider.`,
+          }),
+        );
         continue;
       }
       const type = providerType(provider);
       if (source.domain !== undefined && type !== 'magic-link') {
         problems.push(
-          `groups.${name}: \`domain\` only works with a magic-link provider, and "${source.provider}" is a provider of type ${type}. To add members from "${source.provider}", use \`id\` with the id of a group from that provider, or name a person with \`subject\` or \`email\`.`,
+          problem('groups.domain-needs-magic-link', `${at}.domain`, {
+            text: `\`domain\` requires a magic-link provider. "${source.provider}" uses ${type}. Use \`id\`, \`subject\`, or \`email\` instead.`,
+            dashboard: `Provider "${source.provider}" does not support email domains. Use a provider group ID, subject, or email address instead.`,
+          }),
         );
       }
       if (source.id !== undefined && type === 'github') {
-        const problem = githubGroupIdProblem(source.id);
-        if (problem) problems.push(`groups.${name}: ${problem}`);
+        const invalid = githubGroupIdProblem(source.id);
+        if (invalid) {
+          problems.push(
+            problem('groups.github-team-invalid', `${at}.id`, {
+              text: invalid,
+              dashboard: invalid,
+            }),
+          );
+        }
       }
       if (source.id !== undefined && type === 'magic-link') {
         problems.push(
-          `groups.${name}: \`id\` does not work with "${source.provider}", because a magic-link provider signs people in by email instead of by group. To add members from "${source.provider}", use \`domain\` with an email domain such as example.com, or name a person with \`email\`.`,
+          problem('groups.id-with-magic-link', `${at}.id`, {
+            text: `Magic-link provider "${source.provider}" does not support group IDs. Use \`domain\` or \`email\` instead.`,
+            dashboard: `Magic-link provider "${source.provider}" does not support group IDs. Use an email domain or email address instead.`,
+          }),
         );
       }
       if (source.until !== undefined && parseUntil(source.until) === null) {
-        problems.push(
-          `groups.${name}: The \`until\` value ${JSON.stringify(source.until)} is not a valid date. Write the last day of the membership as YYYY-MM-DD, for example 2026-12-31.`,
-        );
+        problems.push(untilProblem(`${at}.until`, source.until));
       }
-      checkPinnedForAddress(name, source, provider, problems);
+      checkPinnedForAddress(at, source, provider, problems);
     }
   }
 
   const cycle = referenceCycle(config.groups);
   if (cycle) {
     problems.push(
-      `groups.${cycle[0]}: The group references include a cycle (${cycle.join(' -> ')}). Remove one of the references.`,
+      problem('groups.reference-cycle', `groups.${cycle[0]}`, {
+        text: `Group reference cycle: ${cycle.join(' -> ')}. Remove a reference to break the cycle.`,
+        dashboard: `Group reference cycle: ${cycle.join(' -> ')}. Remove a reference to break the cycle.`,
+      }),
     );
   }
 }
 
-/**
- * checkReference checks one `group` item: the group it names has to be defined,
- * and it must not be the group it sits in, and `until` must be a date.
- *
- * @param name the group's name
- * @param reference the item
- * @param config the loaded instance config
- * @param problems the list that problems are added to
- */
+/** Reports an invalid membership end date. */
+function untilProblem(path: string, until: unknown) {
+  return problem('groups.until-invalid', path, {
+    text: `Invalid \`until\` date: ${JSON.stringify(until)}. Use the last day of membership in YYYY-MM-DD format, e.g. 2026-12-31.`,
+    dashboard: `Invalid membership end date: ${JSON.stringify(until)}. Use YYYY-MM-DD, e.g. 2026-12-31.`,
+  });
+}
+
+/** Checks for self-references, unknown groups, and invalid end dates. */
 function checkReference(
   name: string,
+  at: string,
   reference: GroupReference,
   config: InstanceConfig,
-  problems: string[],
+  problems: ConfigProblem[],
 ): void {
   const groups = config.groups ?? {};
   if (reference.group === name) {
-    problems.push(`groups.${name}: This group references itself. Remove the reference.`);
+    problems.push(
+      problem('groups.self-reference', `${at}.group`, {
+        text: `Group "${name}" references itself. Remove this reference.`,
+        dashboard: `Group "${name}" references itself. Remove this reference.`,
+      }),
+    );
   } else if (!Object.prototype.hasOwnProperty.call(groups, reference.group)) {
     const near = nearestName(reference.group, Object.keys(groups), { ignoreCase: true });
     problems.push(
-      `groups.${name}: references the group "${reference.group}", which is not defined.${near ? ` Did you mean "${near}"?` : ''}`,
+      problem('groups.unknown-reference', `${at}.group`, {
+        text: `Unknown group "${reference.group}".${near ? ` Did you mean "${near}"?` : ' Use a defined group.'}`,
+        dashboard: `Unknown group "${reference.group}".${near ? ` Did you mean "${near}"?` : ' Use a defined group.'}`,
+      }),
     );
   }
   if (reference.until !== undefined && parseUntil(reference.until) === null) {
-    problems.push(
-      `groups.${name}: The \`until\` value ${JSON.stringify(reference.until)} is not a valid date. Use this format: YYYY-MM-DD, for example 2026-12-31.`,
-    );
+    problems.push(untilProblem(`${at}.until`, reference.until));
   }
 }
 
 /**
- * checkPinnedForAddress refuses a source that matches on `email` or `domain` when its
- * provider accepts accounts from every Microsoft directory. The administrator of any
- * directory can give an account any email address, so an address proves nothing there.
- *
- * @param name the group's name
- * @param source the source to check
- * @param provider the provider the source names
- * @param problems the list that problems are added to
+ * Rejects email/domain matching for Microsoft multi-tenant providers:
+ * other directories can assign arbitrary email addresses.
  */
 function checkPinnedForAddress(
-  name: string,
+  at: string,
   source: GroupSource,
   provider: ProviderConfig,
-  problems: string[],
+  problems: ConfigProblem[],
 ): void {
   if (source.email === undefined && source.domain === undefined) return;
   if (providerType(provider) !== 'oidc') return;
   const issuer = (provider as { issuer?: string }).issuer ?? '';
   if (!MULTI_TENANT_ISSUER.test(issuer)) return;
   problems.push(
-    `groups.${name}: \`email\` and \`domain\` cannot be used with "${source.provider}", because its issuer accepts accounts from every Microsoft directory, and the administrator of any directory can give an account any email address. Name the person with \`subject\` instead, or use a provider whose issuer names your own directory.`,
+    problem(
+      'groups.address-on-multi-tenant',
+      `${at}.${source.email !== undefined ? 'email' : 'domain'}`,
+      {
+        text: `\`email\` and \`domain\` are unsafe with multi-tenant provider "${source.provider}": other Microsoft directories can assign any email address. Use \`subject\` or restrict the provider's issuer to your directory.`,
+        dashboard: `Email matching is unsafe with multi-tenant provider "${source.provider}": other Microsoft directories can assign any email address. Use a directory subject or restrict the provider to your directory.`,
+      },
+    ),
   );
 }

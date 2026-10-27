@@ -94,6 +94,7 @@ describe('the instance_configs table', () => {
   });
 
   it('rejects an origin it has never heard of', async () => {
+    // eslint-disable-next-line no-restricted-syntax -- Postgres names the CHECK it failed; there is no other handle
     await expect(
       getSequelize().query(
         `INSERT INTO instance_configs (tenant_id, version, yaml, resolution_hash, origin)
@@ -114,7 +115,7 @@ describe('choosing a source', () => {
 
   it('refuses a value it does not recognise rather than falling back', () => {
     process.env[CONFIG_SOURCE_ENV] = 'postgres';
-    expect(() => resolveConfigSource()).toThrow(/must be "file" or "database"/);
+    expect(() => resolveConfigSource()).toRefuseWith('config.source-invalid');
   });
 });
 
@@ -211,9 +212,9 @@ describe('database mode', () => {
     );
     expect(broken).not.toBe(FIXTURE_YAML);
 
-    await expect(saveInstanceConfig(harness.tenantId, broken, ANONYMOUS_ADMIN)).rejects.toThrow(
-      /not internally consistent[\s\S]*nobody-defined-this/,
-    );
+    await expect(
+      saveInstanceConfig(harness.tenantId, broken, ANONYMOUS_ADMIN),
+    ).rejects.toRefuseWith('admins.unknown-group', { path: 'admins.groups' });
     expect(await rowCount()).toBe(1);
   });
 
@@ -222,7 +223,7 @@ describe('database mode', () => {
 
     await expect(
       saveInstanceConfig(harness.tenantId, 'version: 1\n', ANONYMOUS_ADMIN),
-    ).rejects.toThrow(/nobody able to administer[\s\S]*No administrator is configured/);
+    ).rejects.toRefuseWith('admins.none');
     expect(await rowCount()).toBe(1);
   });
 
@@ -235,9 +236,9 @@ describe('database mode', () => {
     );
     expect(emptied).not.toBe(FIXTURE_YAML);
 
-    await expect(saveInstanceConfig(harness.tenantId, emptied, ANONYMOUS_ADMIN)).rejects.toThrow(
-      /"platform-ops" has no members/,
-    );
+    await expect(
+      saveInstanceConfig(harness.tenantId, emptied, ANONYMOUS_ADMIN),
+    ).rejects.toRefuseWith('admins.group-empty');
     expect(await rowCount()).toBe(1);
   });
 
@@ -260,10 +261,7 @@ describe('database mode', () => {
     await loadActiveInstanceConfig();
     await expect(
       saveInstanceConfig(harness.tenantId, 'a: &x 1\nb: *x\n', ANONYMOUS_ADMIN),
-    ).rejects.toThrow(ConfigError);
-    await expect(
-      saveInstanceConfig(harness.tenantId, 'a: &x 1\nb: *x\n', ANONYMOUS_ADMIN),
-    ).rejects.toThrow(/anchor|alias/);
+    ).rejects.toRefuseWith('config.yaml-invalid');
     expect(await rowCount()).toBe(1);
   });
 
@@ -344,7 +342,8 @@ describe('database mode', () => {
 
     const line = written
       .map((l) => JSON.parse(l))
-      .find((l) => l.msg?.includes('older instance config'));
+      // The fallback line, by what it reports rather than by its wording
+      .find((l) => l.running !== undefined && l.skipped !== undefined);
     expect(line?.level).toBe('error');
     expect(line?.running).toBe(1);
     expect(String(line?.skipped)).toContain('v2');
@@ -357,9 +356,10 @@ describe('database mode', () => {
       origin: 'admin',
       appliedBy: null,
     });
-    await expect(loadActiveInstanceConfig()).rejects.toThrow(
-      /no stored instance config version loads \(tried 1: v1\)/,
-    );
+    const refused = loadActiveInstanceConfig();
+    await expect(refused).rejects.toRefuseWith('config.no-version-loads');
+    // Each version it tried, with what that version was refused for
+    await expect(refused).rejects.toRefuseWith('schema.required');
   });
 
   it('does not treat a defect in the loader as a version that will not load', async () => {
@@ -406,9 +406,7 @@ describe('database mode', () => {
       appliedBy: null,
     });
     process.env[INSTANCE_CONFIG_PATH_ENV] = join(__dirname, 'no-such-config.yaml');
-    await expect(loadActiveInstanceConfig()).rejects.toThrow(
-      /no stored instance config version loads/,
-    );
+    await expect(loadActiveInstanceConfig()).rejects.toRefuseWith('config.no-version-loads');
   });
 
   it('refuses to start on a broken file rather than replacing it with a blank instance', async () => {
@@ -416,7 +414,7 @@ describe('database mode', () => {
     writeFileSync(broken, 'version: 1\nauth: {}\n', 'utf8');
     process.env[INSTANCE_CONFIG_PATH_ENV] = broken;
 
-    await expect(loadActiveInstanceConfig()).rejects.toThrow(/failed schema validation/);
+    await expect(loadActiveInstanceConfig()).rejects.toRefuseWith('config.schema');
     expect(await rowCount()).toBe(0);
   });
 });

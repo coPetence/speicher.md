@@ -4,6 +4,7 @@
       id="f-<%= f.path %>"
       name="<%= f.path %>"
       rows="<%= f.rows %>"
+      <% if (f.problems && f.problems.length) { %>aria-invalid="true" aria-describedby="f-<%= f.path %>-problem"<% } %>
       spellcheck="false"
       <% if (f.placeholder) { %>placeholder="<%= f.placeholder %>"<% } %>
       <%= it.editable ? '' : 'disabled' %>

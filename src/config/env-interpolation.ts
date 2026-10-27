@@ -1,18 +1,12 @@
 /**
- * Environment variable interpolation in config values
- *
- * Strings in config may contain `${VAR_NAME}` references, this module replaces
- * them from process.env at load time, before validation
- *
- * Not implemented as a JSON reviver because we need to collect all missing
- * variables before throwing, not fail on the first one
+ * Resolves ${VAR_NAME} in config values before validation.
+ * Reports all missing or empty variables together.
  */
 
+import { problem } from '../common/config-problems';
 import { ConfigError } from '../common/errors';
 
-// Matches ${VAR_NAME} where VAR_NAME starts with a letter or underscore and
-// contains only alphanumeric or underscore characters
-// Group 1: the variable name (without braces)
+// Matches ${VAR_NAME}; captures the variable name.
 const VAR_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 
 export function interpolateEnv<T>(value: T, env: NodeJS.ProcessEnv = process.env): T {
@@ -20,21 +14,28 @@ export function interpolateEnv<T>(value: T, env: NodeJS.ProcessEnv = process.env
   const out = walk(value, env, missing);
   if (missing.size > 0) {
     throw new ConfigError(
-      'instance config references environment variables that are not set',
-      [...missing].sort().map((n) => `\${${n}} is not set`),
+      problem('config.env-missing', null, {
+        text: 'Config uses unset or empty environment variables.',
+        dashboard:
+          'Config uses unset or empty environment variables. Set them where Speicher runs, or replace the references with values here.',
+      }),
+      [...missing].sort().map((n) =>
+        problem('env.unset', null, {
+          text: `\${${n}} is unset or empty.`,
+          facts: { variable: n },
+        }),
+      ),
     );
   }
   return out as T;
 }
 
-// Recursively walks a config tree, replacing ${VAR} in strings
-// Missing or empty variables are collected but not immediately rejected
+// Resolves references recursively and collects missing variables.
 function walk(value: unknown, env: NodeJS.ProcessEnv, missing: Set<string>): unknown {
   if (typeof value === 'string') {
     return value.replace(VAR_PATTERN, (_match, name: string) => {
       const replacement = env[name];
-      // Empty string is treated as missing because the caller likely meant to
-      // set the var and forgot; an explicit empty var would use "" in the value
+      // Empty environment values count as missing.
       if (replacement === undefined || replacement === '') {
         missing.add(name);
         return '';

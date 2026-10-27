@@ -47,6 +47,7 @@ function storeThat(signs: boolean): BlobStore {
   return {
     kind: 'azure',
     probe: async (): Promise<StoreStatus> => ({
+      code: 'store.reachable',
       level: 'ok',
       label: 'Container accessible',
       detail: 'a container',
@@ -82,8 +83,10 @@ describe('the pre-signing setting on the storage page', () => {
     const field = presignField(await storagePage(1_000_000, false));
 
     expect(field?.status?.level).toBe('warn');
-    expect(field?.status?.label).toBe('Pre-signing is not available');
-    expect(field?.status?.detail).toContain('served through this instance');
+    expect(field?.status).toMatchObject({
+      code: 'store.presign-unavailable',
+      facts: { store: 'azure' },
+    });
   });
 
   it('is left alone when the store does sign', async () => {
@@ -100,6 +103,6 @@ describe('the pre-signing setting on the storage page', () => {
     const payload = await storagePage(1_000_000, false);
 
     expect(payload.section?.status?.level).toBe('ok');
-    expect(payload.section?.status?.label).toBe('Container accessible');
+    expect(payload.section?.status?.code).toBe('store.reachable');
   });
 });

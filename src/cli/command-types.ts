@@ -1,23 +1,39 @@
-export class UsageError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UsageError';
+import { CodedError } from '../common/errors';
+
+/** Command-line error codes */
+export type UsageCode =
+  | 'usage.unknown-action'
+  | 'usage.unknown-argument'
+  | 'usage.argument-count'
+  | 'usage.missing-value'
+  | 'usage.invalid-value'
+  | 'usage.missing-option'
+  | 'usage.conflicting-options';
+
+/** Invalid command line with an optional offending argument */
+export class UsageError extends CodedError<UsageCode> {
+  constructor(
+    code: UsageCode,
+    message: string,
+    readonly argument: string | null = null,
+  ) {
+    super(code, message);
   }
 }
 
 export interface Command {
-  /** One-line description for the usage banner */
+  /** One-line usage description */
   readonly summary: string;
 
-  /** Placeholder string for the usage banner */
+  /** Argument placeholder for usage */
   readonly args: string;
 
-  /** Whether the command needs the database schema to be up to date before it runs */
+  /** Requires an up-to-date database schema */
   readonly needsCurrentSchema: boolean;
 
-  /** Validate arguments; throws UsageError on bad input */
+  /** Validate arguments; throw UsageError on invalid input */
   check(argv: string[]): void;
 
-  /** Execute the command; returns the process exit code */
+  /** Run command and return exit code */
   run(argv: string[]): Promise<number>;
 }

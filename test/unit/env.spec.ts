@@ -10,7 +10,6 @@ import {
   readByLabel,
   renderEnvTable,
 } from '../../src/common/env';
-import { ConfigError } from '../../src/common/errors';
 
 const ROOT = resolve(__dirname, '../..');
 const SRC = join(ROOT, 'src');
@@ -61,8 +60,9 @@ describe('assertKnownEnv', () => {
   });
 
   it('refuses a SPEICHER_ variable nobody reads, and names the nearest match', () => {
-    expect(() => assertKnownEnv({ SPEICHER_DATABSE_URL: 'postgres://x' })).toThrow(
-      /SPEICHER_DATABSE_URL — did you mean SPEICHER_DATABASE_URL\?/,
+    expect(() => assertKnownEnv({ SPEICHER_DATABSE_URL: 'postgres://x' })).toFailWith(
+      'env.unknown',
+      { unknown: [{ name: 'SPEICHER_DATABSE_URL', suggestion: 'SPEICHER_DATABASE_URL' }] },
     );
   });
 
@@ -78,7 +78,10 @@ describe('assertKnownEnv', () => {
   });
 
   it('says the prefix is reserved, because a ${VAR} secret is the innocent case', () => {
-    expect(() => assertKnownEnv({ SPEICHER_GITHUB_KEY: 'x' })).toThrow(/prefix is reserved/);
+    // Refused though nothing is near it: the name is under the reserved prefix
+    expect(() => assertKnownEnv({ SPEICHER_GITHUB_KEY: 'x' })).toFailWith('env.unknown', {
+      unknown: [{ name: 'SPEICHER_GITHUB_KEY', suggestion: null }],
+    });
   });
 
   it('leaves the running environment alone', () => {
@@ -111,14 +114,14 @@ describe('env', () => {
 
   it('refuses a value that is not a positive integer', () => {
     process.env[NAME] = 'ten';
-    expect(() => env(NAME)).toThrow(/SPEICHER_DB_POOL must be a positive integer/);
+    expect(() => env(NAME)).toFailWith('env.invalid-value', { variable: NAME });
   });
 
   it('refuses a config source it does not recognise, as a ConfigError', () => {
     const before = process.env.SPEICHER_CONFIG_SOURCE;
     process.env.SPEICHER_CONFIG_SOURCE = 'postgres';
     try {
-      expect(() => env('SPEICHER_CONFIG_SOURCE')).toThrow(ConfigError);
+      expect(() => env('SPEICHER_CONFIG_SOURCE')).toRefuseWith('config.source-invalid');
     } finally {
       if (before === undefined) delete process.env.SPEICHER_CONFIG_SOURCE;
       else process.env.SPEICHER_CONFIG_SOURCE = before;

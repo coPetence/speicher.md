@@ -5,6 +5,7 @@ import { Document } from 'yaml';
 import { BlobStore, createBlobStore } from '../../../assets/blob-store';
 import { GraphDirectoryDeps } from '../../../auth/directory/graph';
 import { hasDirectory, probeDirectory } from '../../../auth/directory/lookup';
+import { wordingFor } from '../../../common/config-problems';
 import { ConfigError } from '../../../common/errors';
 import { rootLogger } from '../../../common/logger';
 import { ConfigService } from '../../../config/config.service';
@@ -36,8 +37,9 @@ import { memberOf } from '../config-form/members';
 import { allFields, cardItems, FieldStatus } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { ConfigSectionPayload } from './payloads';
+import { refusalText, stampProblems } from './problem-stamp';
 
-// Stable key for comparing store configs, excluding runtime-only fields
+// Compare store configs without runtime-only settings
 function storeIdentity(assets: AssetsConfig): string {
   const { max_asset_bytes, presign_over_bytes, presign_ttl, ...store } = assets;
   void max_asset_bytes;
@@ -51,35 +53,21 @@ export const NOT_IN_USE_YET = 'Not in use yet';
 const APP_LINKS_TTL_MS = 10 * 60 * 1000;
 const FAILED_APP_LOOKUP_TTL_MS = 60 * 1000;
 
-/**
- * The live checks a settings page offers: whether the store, the mail relay or a
- * provider's directory answers.
- *
- * Apart from the page service because these are the only parts of a settings page
- * that make a request to somebody else's endpoint, and the only ones holding the
- * dependencies a spec swaps for a fake one.
- */
-/** What the width probe answers: a status and the JSON the island reads. */
+/** Embedding width probe response */
 export interface WidthAnswer {
   status: number;
   body: { dimensions: number; model: string } | { error: string };
 }
 
-/** Response of fetching host keys. */
+/** Host key fetch result */
 export interface HostKeysAnswer {
   path: string;
   status: FieldStatus;
-  // True when the fetched keys changed the field's value
+  // Whether fetched keys changed the field
   changed: boolean;
 }
 
-/**
- * Puts a note on every known hosts field of the page that lists a key the stored
- * document does not trust yet.
- *
- * @param payload the page that is sent back
- * @param storedYaml the stored document the keys are compared against
- */
+/** Warn about host keys missing from the saved config */
 export function stampUnsavedHostKeys(payload: ConfigSectionPayload, storedYaml: string): void {
   if (!payload.section) return;
   const stored = loadDocument(storedYaml);
@@ -92,6 +80,7 @@ export function stampUnsavedHostKeys(payload: ConfigSectionPayload, storedYaml: 
     );
     if (!unsaved) continue;
     field.fetchNote = {
+      code: 'host-keys.unsaved',
       level: 'warn',
       label: 'Keys not saved',
       detail:
@@ -115,17 +104,10 @@ export class SectionChecks {
     private readonly githubFetch: typeof fetch = fetch,
   ) {}
 
-  // The links of each GitHub App, by its API address, id and private key
+  // Cache App links by API URL and credentials
   private readonly appLinks = new Map<string, { links: GithubAppLinks | null; expires: number }>();
 
-  /**
-   * stampGithubAppLinks fills in the links of the GitHub Apps on the page whose id and private key are stored.
-   * It asks GitHub for the slug and the owner of each App, and keeps the answer for a while.
-   * If GitHub cannot be asked, the links stay empty and are not drawn.
-   *
-   * @param payload the page that is sent back
-   * @param yaml the configuration the App's credentials are read from
-   */
+  /** Add cached GitHub App links using saved credentials; omit failed lookups */
   async stampGithubAppLinks(payload: ConfigSectionPayload, yaml: string): Promise<void> {
     if (!payload.section) return;
     const items = cardItems([payload.section]).filter(
@@ -145,7 +127,7 @@ export class SectionChecks {
             privateKey: scalarString(stored?.private_key),
           });
         } catch {
-          // A `${VAR}` that is not set: there is no App to ask about
+          // Skip credentials with unset environment variables
           return;
         }
         if (credentials.appId === '' || credentials.privateKey.trim() === '') return;
@@ -160,7 +142,7 @@ export class SectionChecks {
     );
   }
 
-  // Asks GitHub for the links of an App, or answers from the cache
+  // Fetch App links unless cached
   private async githubAppLinksOf(
     baseUrl: string,
     appId: string,
@@ -188,12 +170,7 @@ export class SectionChecks {
     return links;
   }
 
-  /**
-   * stampRepositoryStatus offers a connection check under the remote URL of each repository of a plain git remote.
-   * @param payload the page that is sent back
-   * @param yaml the configuration the check reads
-   * @param check the `check` parameter of the request, or undefined if the user did not ask
-   */
+  /** Offer Git remote checks; run all for check=1 or one for a matching field path */
   async stampRepositoryStatus(
     payload: ConfigSectionPayload,
     yaml: string,
@@ -214,7 +191,7 @@ export class SectionChecks {
     await Promise.all(
       fields.map(async (field) => {
         const repo = repos[Number(field.path.split('.')[3])];
-        // A repository without a URL has nothing to check yet
+        // Skip repositories without a URL
         if (!repo || scalarString(repo.url).trim() === '') return;
         if (check === undefined) {
           field.checkHref = `/-/config/${sectionId}?check=${encodeURIComponent(field.path)}`;
@@ -226,7 +203,7 @@ export class SectionChecks {
     );
   }
 
-  // Probes one repository with its values as a sync reads them, `${VAR}` resolved
+  // Probe with environment variables resolved, as during sync
   private async repositoryStatus(repo: Obj, knownHosts: string): Promise<FieldStatus> {
     let values;
     try {
@@ -239,8 +216,17 @@ export class SectionChecks {
         knownHosts,
       });
     } catch (err) {
-      const problems = err instanceof ConfigError ? err.problems : [(err as Error).message];
-      return { level: 'fail', label: 'Not configured', detail: problems.join(' ') };
+      if (!(err instanceof ConfigError)) throw err;
+      // Show missing variables beside the URL
+      const named = err.issues.length > 0 ? err.issues : [err.summary];
+      const variables = named.flatMap((p) => (p.facts?.variable ? [p.facts.variable] : []));
+      return {
+        code: 'remote.not-configured',
+        level: 'fail',
+        label: 'Not configured',
+        detail: named.map((p) => wordingFor(p, 'dashboard')).join(' '),
+        ...(variables.length ? { facts: { variables: variables.join(', ') } } : {}),
+      };
     }
     return this.remoteProber(
       values.url,
@@ -255,15 +241,8 @@ export class SectionChecks {
   }
 
   /**
-   * fetchHostKeys fetches the host keys of the SSH servers of a content source.
-   * It writes the keys into the known hosts field of `doc`. It does not save them.
-   * If `op` is not Fetch host keys, fetchHostKeys returns null.
-   * The returned note says which keys are not saved yet.
-   *
-   * @param doc the submitted form
-   * @param sectionId the content source page
-   * @param op the button the user pressed
-   * @param storedYaml the saved configuration
+   * Fetch SSH host keys into doc without saving and report unsaved keys
+   * Return null if op does not match a host key fetch field
    */
   async fetchHostKeys(
     doc: Document,
@@ -278,16 +257,19 @@ export class SectionChecks {
     );
     if (!field) return null;
 
-    const note = (level: FieldStatus['level'], label: string, detail: string) => ({
-      level,
-      label,
-      detail,
-    });
+    const note = (
+      code: string,
+      level: FieldStatus['level'],
+      label: string,
+      detail: string,
+      facts?: FieldStatus['facts'],
+    ): FieldStatus => ({ code, level, label, detail, ...(facts ? { facts } : {}) });
     if (field.servers.length === 0) {
       return {
         path: field.path,
         changed: false,
         status: note(
+          'host-keys.no-servers',
           'info',
           'Nothing fetched',
           'No repository with an `ssh://` URL is configured, so there are no servers to fetch keys from.',
@@ -307,7 +289,7 @@ export class SectionChecks {
     const answered = answers.filter((answer) => answer.error === '');
     const failed = answers.filter((answer) => answer.error !== '');
 
-    // Whether `text` holds exactly the keys the server of `answer` answered with
+    // Check whether text contains exactly the fetched keys for this host
     const holds = (text: string, answer: { name: string; lines: string }) =>
       keysOfHost(text, answer.name).join('\n') === keysOfHost(answer.lines, answer.name).join('\n');
 
@@ -316,14 +298,20 @@ export class SectionChecks {
       answered.map((answer) => answer.name),
       answered.map((answer) => answer.lines).join('\n'),
     );
-    // Rewriting lines that already hold the answered keys would only reorder them
+    // Avoid reordering unchanged keys
     const changed =
       answered.some((answer) => !holds(field.value, answer)) &&
       writeAt(doc, dottedPath(field.path), value);
 
     const errors = failed.map((answer) => answer.error).join(' ');
     if (answered.length === 0) {
-      return { path: field.path, changed, status: note('fail', 'No keys fetched', errors) };
+      return {
+        path: field.path,
+        changed,
+        status: note('host-keys.none-fetched', 'fail', 'No keys fetched', errors, {
+          failed: failed.map((answer) => answer.name).join(', '),
+        }),
+      };
     }
     const saved =
       storedYaml === undefined
@@ -338,7 +326,16 @@ export class SectionChecks {
       return {
         path: field.path,
         changed,
-        status: note('fail', 'Some keys fetched', `${fetched} ${errors}`),
+        status: note(
+          'host-keys.some-fetched',
+          'fail',
+          'Some keys fetched',
+          `${fetched} ${errors}`,
+          {
+            hosts: answered.map((answer) => answer.name).join(', '),
+            failed: failed.map((answer) => answer.name).join(', '),
+          },
+        ),
       };
     }
     return {
@@ -346,8 +343,12 @@ export class SectionChecks {
       changed,
       status:
         unsaved.length > 0
-          ? note('warn', 'Keys fetched', fetched)
-          : note('ok', 'Keys unchanged', fetched),
+          ? note('host-keys.fetched', 'warn', 'Keys fetched', fetched, {
+              hosts: unsaved.map((answer) => answer.name).join(', '),
+            })
+          : note('host-keys.unchanged', 'ok', 'Keys unchanged', fetched, {
+              hosts: answered.map((answer) => answer.name).join(', '),
+            }),
     };
   }
 
@@ -355,7 +356,7 @@ export class SectionChecks {
     const member = memberOf(payload.section?.id ?? '');
     if (!payload.section || member?.section !== 'identity') return;
 
-    // Only identity sections without an entry get directory probes
+    // Find this provider's directory type field
     const field = allFields([payload.section]).find(
       (each) => each.path === `auth.providers.${member.id}.directory.type`,
     );
@@ -371,17 +372,13 @@ export class SectionChecks {
     const status = await probeDirectory(this.config, member.id, this.directoryDeps ?? undefined);
     if (!status) return;
 
-    field.status = {
-      level: status.level,
-      label: status.label,
-      detail: status.detail,
-    };
+    field.status = { ...status };
   }
 
   async stampSectionCheck(
     payload: ConfigSectionPayload,
     yaml: string,
-    // True when the user explicitly triggered the check, false for passive label only
+    // Run the check only when explicitly requested
     asked: boolean,
   ): Promise<void> {
     if (!payload.section) return;
@@ -397,21 +394,22 @@ export class SectionChecks {
     if (payload.section.id === 'mail') return this.checkMail(payload, shown, asked);
   }
 
-  // Builds the callback that stamps status on the section, adjusting severity when
-  // the checked config is not the one currently in force
+  // Create a status callback that warns when checked settings are not active
   private offer(
     payload: ConfigSectionPayload,
     inForce: boolean,
     kept: string,
-  ): (level: FieldStatus['level'], label: string, detail: string) => void {
+  ): (status: FieldStatus) => void {
     payload.section!.checkHref = `/-/config/${payload.section!.id}?check=1`;
-    return (level, label, detail) => {
+    return (status) => {
+      const { level, detail } = status;
       payload.section!.status = {
+        ...status,
         level: inForce ? level : level === 'ok' ? 'warn' : level,
-        label,
         detail: inForce
           ? detail
           : `${detail ? `${detail}. ` : ''}${NOT_IN_USE_YET}: this instance keeps the ${kept} it started with until it restarts`,
+        facts: { ...status.facts, inForce },
       };
     };
   }
@@ -429,19 +427,24 @@ export class SectionChecks {
 
     let store;
     try {
-      // Reuse existing blob store handle if config matches, else instantiate a
-      // throwaway one for the probe
+      // Reuse the active store or create a temporary probe store
       store = inForce ? this.blobs : createBlobStore(shown.assets);
     } catch (err) {
-      // ConfigError carries multiple problems from validation
-      const problems = err instanceof ConfigError ? err.problems : [];
-      note('fail', 'Not configured', [(err as Error).message, ...problems].join(' — '));
+      const notConfigured = (detail: string) =>
+        note({ code: 'store.not-configured', level: 'fail', label: 'Not configured', detail });
+      if (!(err instanceof ConfigError)) {
+        notConfigured((err as Error).message);
+        return;
+      }
+      // Mark field errors and summarize remaining issues
+      const shown = stampProblems(payload, err.issues);
+      notConfigured(refusalText(err, payload.editable ? 'dashboard' : 'yaml', shown));
       return;
     }
 
     try {
       const status = await store.probe();
-      note(status.level, status.label, status.detail);
+      note(status);
       await this.stampPresigning(payload, shown, store);
     } finally {
       if (!inForce) await store.close?.();
@@ -467,6 +470,8 @@ export class SectionChecks {
     if (signed !== null) return;
 
     field.status = {
+      code: 'store.presign-unavailable',
+      facts: { store: store.kind },
       level: 'warn',
       label: 'Pre-signing is not available',
       detail: `A ${store.kind} store cannot presign urls, so every asset is served through this instance instead.`,
@@ -486,26 +491,13 @@ export class SectionChecks {
     if (!asked) return;
 
     const status = await probeMail(mail);
-    note(status.level, status.label, status.detail);
+    note(status);
   }
 
   /**
-   * The width the model named in the form returns, for the island to write into
-   * Dimensions.
-   *
-   * It reads the form the way a save reads it — `applyForm` on the stored document,
-   * so a blank secret keeps what is stored and a switch means what it means on the
-   * page — rather than the running configuration, which the operator has not saved.
-   * It does not validate the document. An operator is mid-edit, and a check that
-   * refused every half-finished form would answer nothing while they typed.
-   *
-   * The parameter goes out only when a save would send it: `send_dimensions` on and a
-   * width typed. With no width typed the model answers at its own width, which is the
-   * number that goes in the box. A Matryoshka model with the parameter on answers at
-   * the typed width, so the box is never filled with one the boot probe would refuse.
-   *
-   * JSON only. A page without a script never sends this intent, so there is no page
-   * for it to answer with.
+   * Return the model's embedding width as JSON
+   * Apply unsaved form values with save semantics, without full validation
+   * Send dimensions only when enabled and a valid width is entered
    */
   async probeWidth(doc: Document, body: Record<string, unknown>): Promise<WidthAnswer> {
     applyForm(doc, body, 'embedding');
@@ -513,15 +505,15 @@ export class SectionChecks {
 
     let endpoint: { base_url: string; api_key: string; model: string };
     try {
-      // `${VAR}` is resolved here as it is at load, so the probe sends what a boot would
+      // Resolve environment variables as at startup
       endpoint = interpolateEnv({
         base_url: scalarString(block.base_url).trim(),
         api_key: scalarString(block.api_key).trim(),
         model: scalarString(block.model).trim(),
       });
     } catch (err) {
-      const problems = err instanceof ConfigError ? err.problems : [];
-      return { status: 400, body: { error: [(err as Error).message, ...problems].join(' — ') } };
+      if (!(err instanceof ConfigError)) throw err;
+      return { status: 400, body: { error: refusalText(err, 'dashboard') } };
     }
 
     if (endpoint.base_url === '' || endpoint.model === '') {
@@ -533,7 +525,7 @@ export class SectionChecks {
 
     const typed = Number(scalarString(block.dimensions).trim());
     const width = Number.isInteger(typed) && typed > 0 ? typed : null;
-    // `send_dimensions` defaults on, as `ConfigService.embedding` defaults it
+    // Default send_dimensions to true, matching ConfigService
     const sends = block.send_dimensions !== false && width !== null;
 
     const client = new EmbeddingClient(

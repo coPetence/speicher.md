@@ -194,11 +194,12 @@ describe('job queue', () => {
 
   it('releases the lock even when the body throws', async () => {
     const repoId = harness.repos.specs;
+    const boom = new Error('boom');
     await expect(
       queue.withRepoLock(repoId, async () => {
-        throw new Error('boom');
+        throw boom;
       }),
-    ).rejects.toThrow('boom');
+    ).rejects.toBe(boom);
     await expect(queue.withRepoLock(repoId, async () => 'ok')).resolves.toBe('ok');
   });
 

@@ -6,14 +6,15 @@ import { Command, UsageError } from '../command-types';
 export function parseReopenClaimWindow(argv: string[]): void {
   if (argv.length > 0) {
     throw new UsageError(
-      `reopen-claim-window: Expected no arguments, but received ${argv.length}.`,
+      'usage.argument-count',
+      `reopen-claim-window takes no arguments; received ${argv.length}.`,
     );
   }
 }
 
 export const reopenClaimWindowCommand: Command = {
   summary:
-    'Reopens the claim window. This could be needed if the claim window was closed and no administrator is configured, for example after a configuration rollback. If an administrator is still configured but cannot sign in, run `speicher admin add` instead.',
+    'Reopen the claim window when no administrator is configured. If an existing administrator cannot sign in, use `speicher admin add` instead.',
   args: '',
   needsCurrentSchema: true,
   check: (argv) => parseReopenClaimWindow(argv),
@@ -23,13 +24,13 @@ export const reopenClaimWindowCommand: Command = {
     const tenant = await tenancy.defaultTenant();
     const { reopened, count } = await setup.reopen(tenant.id);
     if (!reopened) {
-      process.stdout.write('The claim window is already open.\n');
+      process.stdout.write('Claim window is already open.\n');
       return 0;
     }
-    // Reopening after it was closed is abnormal; log at error level
-    log.error('the setup claim window was reopened', { reopens: count });
+    // Log unexpected reopening as an error
+    log.error('Setup claim window reopened', { reopens: count });
     process.stdout.write(
-      'The claim window is open again. To approve a browser session, open this instance in it and run `speicher claim <code>`.\n',
+      'Claim window reopened. Open this instance in a browser, then run `speicher claim <code>` to approve that browser session.\n',
     );
     return 0;
   },

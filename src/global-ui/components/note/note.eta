@@ -11,8 +11,9 @@
     if (it.check.at) data['spr-check-at'] = it.check.at;
   }
 
-  // The attributes after the class, by name; true draws a bare attribute
+  // Attributes after class; true renders without a value
   const attributes = {};
+  if (it.id) attributes.id = it.id;
   if (it.role) attributes.role = it.role;
   for (const name in data) attributes['data-' + name] = data[name];
   if (it.hidden) attributes.hidden = true;

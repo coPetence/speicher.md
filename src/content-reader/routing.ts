@@ -1,23 +1,35 @@
 /**
- * URL routing for repository pages
- *
- * Segments after the tenant prefix are matched against repos in one of four
- * schemes: explicit forge with namespace, explicit forge in its default namespace,
- * primary forge with namespace, or primary forge in its default namespace.  The
- * first match wins.  If no match, tries a rename lookup and returns a redirect to
- * the current slug
- *
- * A repo whose forge+namespace combination claims the first path segment
- * cannot be created with a slug that is reserved, equals a non-primary forge
- * id, matches another namespace's slug, or duplicates an existing repo
+ * Resolve repository URLs by forge, namespace and slug; redirect old slugs
+ * Prefer explicit forge and namespace segments over defaults
  */
 import { Injectable } from '@nestjs/common';
 import { QueryTypes, Sequelize } from 'sequelize';
 
 import { TwoAudienceError } from '../common/errors';
+
 import { isReservedSegment, slugify } from '../common/slug';
 import { ConfigService } from '../config/config.service';
 import { getSequelize } from '../db/sequelize';
+
+/** URL segment conflict codes */
+export type RoutingCode =
+  | 'routing.segment-reserved'
+  | 'routing.segment-is-forge'
+  | 'routing.segment-is-repo'
+  | 'routing.segment-is-owner'
+  | 'routing.slug-registered';
+
+/** Reserved or claimed segment; holder identifies the claimant */
+export class SegmentClaimedError extends TwoAudienceError<RoutingCode> {
+  constructor(
+    code: RoutingCode,
+    readonly holder: string | null,
+    publicMessage: string,
+    adminMessage: string,
+  ) {
+    super(code, publicMessage, adminMessage);
+  }
+}
 
 export interface ResolvedRoute {
   repoId: string;
@@ -27,7 +39,7 @@ export interface ResolvedRoute {
 
   slugPath: string;
 
-  redirectTo?: string; // Set when the repo is matched via slug history
+  redirectTo?: string; // Redirect target for an old slug
 }
 
 export interface RepoRow {
@@ -78,7 +90,7 @@ export class RoutingService {
       }
     }
 
-    // Fallback: renamed repo via slug history, with a redirect
+    // Fall back to slug history and redirect
     for (const candidate of candidates) {
       const renamed = await this.findRenamedRepo(tenantId, candidate.namespace, candidate.slug);
       if (renamed) {
@@ -96,10 +108,7 @@ export class RoutingService {
     return null;
   }
 
-  /**
-   * Enumerate possible interpretations of path segments by descending
-   * specificity
-   */
+  /** Build route candidates, most specific first */
   private candidateSplits(
     segments: string[],
   ): { forgeKey: string; namespace: string | null; slug: string; rest: string[] }[] {
@@ -118,7 +127,7 @@ export class RoutingService {
         });
       }
 
-      // A non-primary forge leaves its default repository owner out as well, after its id
+      // Try forge/slug with the default owner
       const forgeOwner = this.config.defaultRepositoryOwnerFor(segments[0]);
       if (forgeOwner !== undefined && segments.length >= 2) {
         out.push({
@@ -152,7 +161,7 @@ export class RoutingService {
     return out;
   }
 
-  /** `namespace` is a URL segment, so it is compared against the slug of the stored one */
+  /** Match the namespace URL segment against the stored namespace's slug */
   private async findRepo(
     tenantId: string,
     forgeKey: string,
@@ -170,7 +179,7 @@ export class RoutingService {
     return rows.find((row) => slugify(row.namespace) === namespace) ?? null;
   }
 
-  /** Look up the most recent active rename for a (namespace, oldSlug) pair */
+  /** Find the latest active rename for a namespace and old slug */
   private async findRenamedRepo(
     tenantId: string,
     namespace: string | null,
@@ -191,7 +200,7 @@ export class RoutingService {
     return rows.find((row) => slugify(row.old_namespace) === namespace) ?? null;
   }
 
-  /** Public URL prefix for a repo, accounting for forge and default repository owner */
+  /** Build the repo URL prefix, omitting the primary forge and default owner */
   publicBaseFor(repo: { namespace: string; slug: string; forge_key: string }): string {
     const parts: string[] = [];
     if (repo.forge_key !== this.config.primaryForgeId) parts.push(repo.forge_key);
@@ -203,7 +212,7 @@ export class RoutingService {
     return `/${parts.join('/')}`;
   }
 
-  /** Public URL for a repo with a slugPath (may be empty, representing the root) */
+  /** Build the repo URL; an empty slugPath selects the root */
   publicPathFor(
     repo: { namespace: string; slug: string; forge_key: string },
     slugPath: string,
@@ -213,18 +222,9 @@ export class RoutingService {
   }
 
   /**
-   * assertFirstSegmentFree checks that a repository does not claim a URL segment that
-   * is already used. On the primary forge this is the first segment, which also must
-   * not be reserved or a forge id. On any other forge it is the segment after the
-   * forge id. A repository of the default repository owner claims its own slug; any
-   * other repository claims the slug of its owner. It throws a `TwoAudienceError` if
-   * the segment is taken.
-   *
-   * @param tenantId the tenant the repository belongs to
-   * @param forgeKey the forge the repository is on
-   * @param namespace the user or organization that owns the repository
-   * @param slug the repository's URL slug
-   * @param excludeRepoId the repository itself, when it is already registered
+   * Reject segment conflicts: default-owner repos claim their slug, others their owner
+   * Check after the forge prefix; reserved names and forge IDs apply only to the primary forge
+   * excludeRepoId skips the current repo in duplicate checks
    */
   async assertFirstSegmentFree(
     tenantId: string,
@@ -243,14 +243,18 @@ export class RoutingService {
       : `repository owner "${namespace}"`;
 
     if (primary && isReservedSegment(segment)) {
-      throw new TwoAudienceError(
+      throw new SegmentClaimedError(
+        'routing.segment-reserved',
+        null,
         `"${segment}" is a reserved name. Choose another, or ask an administrator which segment is free.`,
         `${claimant} (forge ${forgeKey}) lands on the reserved first segment "${segment}"`,
       );
     }
 
     if (primary && this.config.forge(segment) && segment !== this.config.primaryForgeId) {
-      throw new TwoAudienceError(
+      throw new SegmentClaimedError(
+        'routing.segment-is-forge',
+        segment,
         `"${segment}" is already claimed. Choose another name, or ask an administrator which segment is free.`,
         `${claimant} collides with forge id "${segment}"`,
       );
@@ -265,7 +269,9 @@ export class RoutingService {
       );
       const repo = taken.find((row) => slugify(row.namespace) === defaultOwnerSlug);
       if (repo) {
-        throw new TwoAudienceError(
+        throw new SegmentClaimedError(
+          'routing.segment-is-repo',
+          segment,
           `"${segment}" is already claimed. Ask an administrator which segment is free.`,
           `${claimant} collides with repo "${segment}" of the default repository owner (repo id ${repo.id})`,
         );
@@ -282,7 +288,9 @@ export class RoutingService {
       (row) => slugify(row.namespace) !== defaultOwnerSlug && slugify(row.namespace) === slug,
     );
     if (owner) {
-      throw new TwoAudienceError(
+      throw new SegmentClaimedError(
+        'routing.segment-is-owner',
+        owner.namespace,
         `"${slug}" is already claimed. Choose another name, or ask an administrator which segment is free.`,
         `${claimant} collides with repository owner "${owner.namespace}" on forge ${forgeKey}`,
       );
@@ -300,7 +308,9 @@ export class RoutingService {
       )
     ).filter((row) => slugify(row.namespace) === slugify(namespace));
     if (rows.length > 0) {
-      throw new TwoAudienceError(
+      throw new SegmentClaimedError(
+        'routing.slug-registered',
+        namespace,
         `"${slug}" is already claimed. Choose another name, or ask an administrator which segment is free.`,
         `repo slug "${slug}" is already registered in namespace ${namespace} (forge ${forgeKey}, repo id ${rows[0].id})`,
       );

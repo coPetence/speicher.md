@@ -323,10 +323,14 @@ describe('the Graph client', () => {
     graph.fail = 500;
     const directory = client();
 
-    await expect(directory.resolveEmail('alice@example.test')).rejects.toThrow(/unavailable/);
-    await expect(directory.subjectExists('oid-alice')).rejects.toThrow(/unavailable/);
+    await expect(directory.resolveEmail('alice@example.test')).rejects.toFailWith(
+      'directory.unavailable',
+    );
+    await expect(directory.subjectExists('oid-alice')).rejects.toFailWith('directory.unavailable');
     const asked = graph.hits.token;
-    await expect(directory.resolveEmail('bob@example.test')).rejects.toThrow(/unavailable/);
+    await expect(directory.resolveEmail('bob@example.test')).rejects.toFailWith(
+      'directory.unavailable',
+    );
     expect(graph.hits.token).toBe(asked);
   });
 
@@ -382,7 +386,7 @@ describe('the connection check', () => {
     graph.users.set('somebody', { id: 'oid-1' });
     const status = await client().probe();
 
-    expect(status).toEqual({ level: 'ok', label: 'Connected', detail: '' });
+    expect(status).toMatchObject({ code: 'directory.connected', level: 'ok' });
     expect(graph.hits.filter).toBe(1);
   });
 
@@ -390,16 +394,21 @@ describe('the connection check', () => {
     graph.failReads = 403;
     const status = await client().probe();
 
-    expect(status.level).toBe('fail');
-    expect(status.label).toBe('Not connected');
-    expect(status.detail).toMatch(/User\.Read\.All/);
+    expect(status).toMatchObject({
+      code: 'directory.unreachable',
+      level: 'fail',
+      facts: { kind: 'credentials-refused' },
+    });
   });
 
   it('says the credentials failed when it is the token that will not mint', async () => {
     graph.fail = 401;
     const status = await client().probe();
-    expect(status.level).toBe('fail');
-    expect(status.detail).toMatch(/token request failed/);
+    expect(status).toMatchObject({
+      code: 'directory.unreachable',
+      level: 'fail',
+      facts: { kind: 'token-refused' },
+    });
   });
 
   it('asks again after a failure, rather than repeating a stale verdict', async () => {
@@ -663,7 +672,7 @@ admins:
       .expect(200);
 
     const field = fieldAt(body.section, 'auth.providers.entra.directory.type');
-    expect(field?.status).toMatchObject({ level: 'ok', label: 'Connected' });
+    expect(field?.status).toMatchObject({ code: 'directory.connected', level: 'ok' });
     expect(field?.checkHref).toBeUndefined();
   });
 

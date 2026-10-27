@@ -121,7 +121,8 @@ describe('a store this process is not running', () => {
     const { text } = await checked();
 
     expect(text).toContain('Azure Blob Storage');
-    expect(text).toContain('account_key is required');
+    // Marked at the field the store is missing
+    expect(text).toMatch(/spr-field-invalid"\s+data-spr-problem="assets\.key-missing"/);
     expect(text).toContain('spr-note-fail');
     expect(text).toContain(NOT_IN_USE_YET);
     expect(text).toContain('until it restarts');
@@ -142,8 +143,8 @@ describe('a store this process is not running', () => {
     const { text } = await checked();
 
     expect(text).toContain('S3-compatible');
-    expect(text).toContain('access_key_id is required');
-    expect(text).toContain('secret_access_key is required');
+    // Both missing keys at once, each at its field
+    expect(text.match(/data-spr-problem="assets\.key-missing"/g)).toHaveLength(2);
     expect(text).toContain('spr-note-fail');
     expect(text).toContain(NOT_IN_USE_YET);
   });

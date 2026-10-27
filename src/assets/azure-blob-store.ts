@@ -20,10 +20,11 @@ import { ConfigError } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { AssetsConfig } from '../config/types';
 import { BlobStore, PresignRequest, StoreStatus, blobKey } from './blob-store';
+import { ConfigProblem, problem } from '../common/config-problems';
 
 export type AzureAuthKind = 'connection_string' | 'key' | AzureCredentialConfig['kind'];
 
-/** Resolved options for the azure driver */
+/** Resolved Azure storage options */
 export interface AzureBlobStoreOptions {
   account: string;
   container: string;
@@ -33,23 +34,23 @@ export interface AzureBlobStoreOptions {
   client_id?: string;
   tenant_id?: string;
 
-  // Overrides the storage URL, for emulators like Azurite; the public host when unset
+  // Custom storage URL; defaults to Azure's public host
   endpoint?: string;
 }
 
 export interface AzureBlobStoreDeps {
-  /** Overrides credential construction so tests can answer without Azure */
+  /** Credential factory override for tests */
   credentialFor?: (config: AzureCredentialConfig) => TokenCredential;
 }
 
-const PURGE_CONCURRENCY = 16; // In-flight deletes allowed during one purge
+const PURGE_CONCURRENCY = 16; // Maximum concurrent deletes
 
-const PROBE_TIMEOUT_MS = 3_000; // How long probe waits on the container
+const PROBE_TIMEOUT_MS = 3_000; // Container check timeout
 
 export const CONTAINER_OK_LABEL = 'Container accessible';
-export const CONTAINER_FAIL_LABEL = 'Not connected to the container';
+export const CONTAINER_FAIL_LABEL = 'Container unavailable';
 
-/** BlobStore backed by one Azure blob container */
+/** Blob storage in a single Azure container */
 export class AzureBlobStore implements BlobStore {
   readonly kind = 'azure' as const;
 
@@ -60,7 +61,7 @@ export class AzureBlobStore implements BlobStore {
 
     private readonly description: string,
 
-    /** Whether this container's client holds an account key, so it can sign a SAS */
+    /** Client has an account key for SAS signing */
     private readonly canSign: boolean,
   ) {}
 
@@ -85,7 +86,7 @@ export class AzureBlobStore implements BlobStore {
     const options = { blobHTTPHeaders: { blobContentType: 'application/octet-stream' } };
     if (source.bytes) await blob.uploadData(source.bytes, options);
     else if (source.path) await blob.uploadFile(source.path, options);
-    else throw new Error('put() needs either bytes or a path');
+    else throw new Error('Cannot upload blob: provide bytes or a file path.');
   }
 
   async get(repoId: string, contentHash: string): Promise<Buffer> {
@@ -96,7 +97,8 @@ export class AzureBlobStore implements BlobStore {
     const response = await this.blob(repoId, contentHash).download();
     const body = response.readableStreamBody;
 
-    if (!body) throw new Error(`azure blob ${blobKey(repoId, contentHash)} returned no stream`);
+    if (!body)
+      throw new Error(`No download stream for Azure blob "${blobKey(repoId, contentHash)}".`);
     return body as Readable;
   }
 
@@ -110,35 +112,45 @@ export class AzureBlobStore implements BlobStore {
     return this.blob(repoId, contentHash).generateSasUrl({
       permissions: BlobSASPermissions.parse('r'),
       expiresOn: new Date(Date.now() + request.ttlSeconds * 1000),
-      // Quotes and backslashes would end the header's quoted string early
+      // Strip characters that break the quoted filename
       contentDisposition: `inline; filename="${request.filename.replace(/["\\]/g, '')}"`,
-      // Without this the container answers octet-stream, which is how it is stored
+      // Override the stored octet-stream content type
       contentType: request.mime,
     });
   }
 
-  /** Checks the container with a timeout */
+  /** Check container access with a timeout */
   async probe(): Promise<StoreStatus> {
     const abortSignal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
     try {
       const there = await this.container.exists({ abortSignal });
       return there
-        ? { level: 'ok', label: CONTAINER_OK_LABEL, detail: this.description }
+        ? {
+            code: 'store.reachable',
+            level: 'ok',
+            label: CONTAINER_OK_LABEL,
+            detail: this.description,
+            facts: { target: this.container.containerName },
+          }
         : {
+            code: 'store.missing',
+            facts: { target: this.container.containerName },
             level: 'fail',
             label: CONTAINER_FAIL_LABEL,
-            detail: `${this.description} is not there. This instance never creates it.`,
+            detail: `Container not found: ${this.description}. Create it manually.`,
           };
     } catch (err) {
       return {
+        code: 'store.unreachable',
+        facts: { target: this.container.containerName, reason: reasonOf(err) },
         level: 'fail',
         label: CONTAINER_FAIL_LABEL,
-        detail: `${this.description} (${reasonOf(err)})`,
+        detail: `Container check failed: ${reasonOf(err)}. Target: ${this.description}.`,
       };
     }
   }
 
-  /** Deletes every blob under the repo prefix, capped at PURGE_CONCURRENCY in flight */
+  /** Delete repository blobs with bounded concurrency */
   async purgeRepo(repoId: string): Promise<void> {
     const pending: Promise<unknown>[] = [];
     let deleted = 0;
@@ -153,7 +165,7 @@ export class AzureBlobStore implements BlobStore {
           }),
       );
 
-      // Bound in-flight deletes so a large repo does not open hundreds of connections
+      // Wait when the delete limit is reached
       if (pending.length >= PURGE_CONCURRENCY) {
         await Promise.all(pending.splice(0));
       }
@@ -164,7 +176,7 @@ export class AzureBlobStore implements BlobStore {
   }
 }
 
-/** Resolves the assets config, connects, and logs the store's boot line */
+/** Create the store and log its configuration */
 export function createAzureBlobStore(
   assets: AssetsConfig,
   deps: AzureBlobStoreDeps = {},
@@ -193,31 +205,51 @@ function credentialConfigOf(options: AzureBlobStoreOptions): AzureCredentialConf
   };
 }
 
-/** Human name of the auth kind, for the boot log and status detail */
+/** Auth label for logs and status */
 function describeAuth(options: AzureBlobStoreOptions): string {
   const credential = credentialConfigOf(options);
   if (credential) return describeAzureCredential(credential);
   return options.auth === 'key' ? 'account key' : 'connection string';
 }
 
-/** Validates the azure config, listing every problem in one ConfigError */
+/** Validate config and report all problems in one ConfigError */
 export function resolveAzureOptions(assets: AssetsConfig): AzureBlobStoreOptions {
-  const problems: string[] = [];
-  if (!assets.account) problems.push('assets.account is required for the azure driver');
-  if (!assets.container) problems.push('assets.container is required for the azure driver');
+  const problems: ConfigProblem[] = [];
+  const missing = (key: string, text: string) =>
+    problems.push(
+      problem('assets.key-missing', `assets.${key}`, {
+        text,
+        dashboard: `Set assets.${key}: ${text}.`,
+      }),
+    );
+  if (!assets.account) missing('account', 'required for Azure Blob Storage');
+  if (!assets.container) missing('container', 'required for Azure Blob Storage');
 
   const auth = assets.auth ?? 'key';
   if (auth !== 'connection_string' && auth !== 'key' && !isAzureCredentialKind(auth)) {
-    problems.push(`assets.auth is missing: ${JSON.stringify(auth)}`);
+    problems.push(
+      problem('assets.auth-unknown', 'assets.auth', {
+        text: `unsupported Azure authentication method: ${JSON.stringify(auth)}`,
+        dashboard: `Unsupported authentication method ${JSON.stringify(auth)}. Choose a supported one.`,
+      }),
+    );
   }
   if (auth === 'connection_string' && !assets.connection_string) {
-    problems.push('assets.connection_string is required when assets.auth is "connection_string"');
+    missing('connection_string', 'required when assets.auth is "connection_string"');
   }
   if (auth === 'key' && !assets.account_key) {
-    problems.push('assets.account_key is required when assets.auth is "key"');
+    missing('account_key', 'required when assets.auth is "key"');
   }
 
-  if (problems.length) throw new ConfigError('the azure assets driver is misconfigured', problems);
+  if (problems.length) {
+    throw new ConfigError(
+      problem('assets.misconfigured', null, {
+        text: 'invalid Azure Blob Storage configuration',
+        dashboard: 'Azure Blob Storage configuration needs fixing.',
+      }),
+      problems,
+    );
+  }
 
   return {
     account: assets.account!,
@@ -231,7 +263,7 @@ export function resolveAzureOptions(assets: AssetsConfig): AzureBlobStoreOptions
   };
 }
 
-/** Storage URL: the endpoint minus trailing slashes, else the public host */
+/** Custom endpoint without trailing slashes, or Azure's public URL */
 export function azureServiceUrl(options: AzureBlobStoreOptions): string {
   return (
     options.endpoint?.replace(/\/+$/, '') ?? `https://${options.account}.blob.core.windows.net`
@@ -246,7 +278,7 @@ function containerClientFor(
   return service.getContainerClient(options.container);
 }
 
-/** BlobServiceClient for the connection_string, key, or identity auth */
+/** Create a service client using the configured auth */
 export function serviceClientFor(
   options: AzureBlobStoreOptions,
   deps: AzureBlobStoreDeps = {},

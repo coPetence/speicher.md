@@ -1325,6 +1325,14 @@
     background: var(--spr-surface);
   }
 
+  /* A row a refused save is about, on the index and as a card */
+  .spr-row-card.spr-row-invalid {
+    border-color: var(--spr-status-fail);
+  }
+  .spr-entries tr.spr-row-invalid > th {
+    box-shadow: inset 3px 0 0 var(--spr-status-fail);
+  }
+
   .spr-row-card:has(.spr-select-col input:checked) {
     border-color: var(--spr-accent);
     background: color-mix(in oklab, var(--spr-accent) var(--spr-callout-tint), var(--spr-bg));

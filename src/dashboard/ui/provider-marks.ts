@@ -1,5 +1,17 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { CodedError } from '../../common/errors';
+
+/** Invalid SVG mark; `mark` is the filename without `.svg` */
+export class MarkError extends CodedError<'marks.no-svg' | 'marks.no-viewbox'> {
+  constructor(
+    code: 'marks.no-svg' | 'marks.no-viewbox',
+    readonly mark: string,
+    message: string,
+  ) {
+    super(code, message);
+  }
+}
 
 interface Mark {
   viewBox: string;
@@ -12,11 +24,11 @@ const FILE_ONLY_ATTRS = new Set(['xmlns', 'width', 'height', 'viewBox']);
 
 export function parseMark(source: string, name: string): Mark {
   const svg = /<svg\b([^>]*)>([\s\S]*)<\/svg>/.exec(source.replace(/<!--[\s\S]*?-->/g, ''));
-  if (!svg) throw new Error(`marks/${name}.svg has no <svg> element`);
+  if (!svg) throw new MarkError('marks.no-svg', name, `marks/${name}.svg has no <svg> element`);
 
   const rootAttrs = [...svg[1].matchAll(/([\w:-]+)="([^"]*)"/g)];
   const viewBox = rootAttrs.find(([, key]) => key === 'viewBox')?.[2];
-  if (!viewBox) throw new Error(`marks/${name}.svg has no viewBox`);
+  if (!viewBox) throw new MarkError('marks.no-viewbox', name, `marks/${name}.svg has no viewBox`);
   const attrs = rootAttrs
     .filter(([, key]) => !FILE_ONLY_ATTRS.has(key))
     .map(([whole]) => whole)
@@ -36,7 +48,7 @@ export function parseMark(source: string, name: string): Mark {
 
 const MARKS_DIR = join(__dirname, 'marks');
 
-/** Every mark under `marks/`, keyed by file name, read once at startup */
+/** Marks keyed by filename without `.svg`, loaded once at startup */
 export const PROVIDER_MARKS: Record<string, Mark> = Object.fromEntries(
   readdirSync(MARKS_DIR)
     .filter((file) => file.endsWith('.svg'))
@@ -68,7 +80,7 @@ export function markSprite(names: Iterable<string>): string {
   );
 }
 
-/** Whether a mark exists, which is what a caller asks before naming one. */
+/** Check whether a mark exists */
 export function markExists(name: string): boolean {
   return name in PROVIDER_MARKS;
 }

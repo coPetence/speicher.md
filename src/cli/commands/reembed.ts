@@ -7,13 +7,16 @@ import { Command, UsageError } from '../command-types';
 
 export function parseReembed(argv: string[]): void {
   if (argv.length > 0) {
-    throw new UsageError(`reembed: Expected no arguments, but received ${argv.length}.`);
+    throw new UsageError(
+      'usage.argument-count',
+      `reembed takes no arguments; received ${argv.length}.`,
+    );
   }
 }
 
 export const reembedCommand: Command = {
   summary:
-    'Recomputes the embeddings of every chunk that was embedded with a different model or number of dimensions than the configured one. Does nothing if no embedding is configured.',
+    'Re-embeds chunks whose model or dimensions differ from the current configuration. Skips if embeddings are not configured.',
   args: '',
   needsCurrentSchema: true,
   check: parseReembed,
@@ -22,12 +25,12 @@ export const reembedCommand: Command = {
     parseReembed(argv);
     const tenant = await tenancy.defaultTenant();
     const result = await reembed(tenant.id, new ConfigService(await loadActiveInstanceConfig()));
-    // No embedding configured is valid; warn and succeed
+    // Warn and succeed if embeddings are not configured
     if (!result) {
-      log.warn('no embedding configured; nothing to re-embed');
+      log.warn('Embeddings are not configured. Skipping re-embedding.');
       return 0;
     }
-    log.info('done', { cleared: result.cleared, pending: result.pending });
+    log.info('Re-embedding check complete.', { cleared: result.cleared, pending: result.pending });
     return 0;
   },
 };

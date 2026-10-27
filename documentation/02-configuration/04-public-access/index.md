@@ -59,9 +59,9 @@ Requests from visitors who are not signed in are rate-limited per IP address whe
 <!-- prettier-ignore-start -->
 | Variable | Default | Read by | Description |
 | -------- | ------- | ------- | ----------- |
-| `SPEICHER_PUBLIC_MAX_AGE` | `60` | web | Cache-Control `max-age` in seconds for anonymous responses. Set to `0` to disable public caching. |
-| `SPEICHER_ANON_RATE_LIMIT` | `60` | web | Maximum requests per minute from an anonymous caller per client IP. Signed-in callers are exempt; set to `0` to disable rate limiting. |
-| `SPEICHER_PUBLIC_URL` | — | web + worker | The public URL of this instance, used in webhook deliveries, magic links, and the sitemap. When unset, the request host is used instead. |
+| `SPEICHER_PUBLIC_MAX_AGE` | `60` | web | Cache-Control `max-age` for anonymous responses, in seconds. Use `0` to disable public caching. |
+| `SPEICHER_ANON_RATE_LIMIT` | `60` | web | Anonymous requests allowed per minute per client IP. Signed-in users are exempt. Use `0` for no limit. |
+| `SPEICHER_PUBLIC_URL` | — | web + worker | Public instance URL for webhooks, magic links, and the sitemap. Uses the request host if unset. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->
 

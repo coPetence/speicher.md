@@ -1,46 +1,53 @@
-/**
- * Error classes shared across the application
- *
- * TwoAudienceError: distinct messages for users and administrators
- * ConfigError: validation failure with collected problems
- * NotVisibleError: hides existence information behind a single neutral message
- * ConfigReadOnlyError: thrown when config source is a file and someone tries to write
- */
+/** Shared application errors */
 
-/**
- * Error with distinct messages for users and administrators
- */
-export class TwoAudienceError extends Error {
-  readonly publicMessage: string; // Message safe to show the end user
+import { ConfigProblem, ProblemCode, wordingFor } from './config-problems';
 
-  readonly adminMessage: string; // Full detail for logs or admin UI
+/** Stable error code with failure details in subclass fields */
+export class CodedError<C extends string = string> extends Error {
+  constructor(
+    readonly code: C,
+    message: string,
+  ) {
+    super(message);
+    this.name = new.target.name;
+  }
+}
 
-  constructor(publicMessage: string, adminMessage: string) {
-    super(adminMessage);
-    this.name = 'TwoAudienceError';
+/** Separate user-safe and admin messages */
+export class TwoAudienceError<C extends string = string> extends CodedError<C> {
+  readonly publicMessage: string; // User-safe message
+
+  readonly adminMessage: string; // Log and admin details
+
+  constructor(code: C, publicMessage: string, adminMessage: string) {
+    super(code, adminMessage);
     this.publicMessage = publicMessage;
     this.adminMessage = adminMessage;
   }
 }
 
-/**
- * Configuration validation failure, with one or more problems listed
- */
-export class ConfigError extends Error {
-  readonly problems: string[];
+/** Config validation error formatted for YAML */
+export class ConfigError extends CodedError<ProblemCode> {
+  /** Main problem */
+  readonly summary: ConfigProblem;
+  /** Additional problems */
+  readonly issues: ConfigProblem[];
 
-  constructor(message: string, problems: string[] = []) {
-    super(problems.length ? `${message}\n  - ${problems.join('\n  - ')}` : message);
-    this.name = 'ConfigError';
-    this.problems = problems;
+  constructor(summary: ConfigProblem, issues: ConfigProblem[] = []) {
+    const lines = issues.map((p) => wordingFor(p, 'yaml'));
+    const headline = wordingFor(summary, 'yaml');
+    super(summary.code, lines.length ? `${headline}\n  - ${lines.join('\n  - ')}` : headline);
+    this.summary = summary;
+    this.issues = issues;
+  }
+
+  /** Issues formatted for YAML */
+  get problems(): string[] {
+    return this.issues.map((p) => wordingFor(p, 'yaml'));
   }
 }
 
-/**
- * Resource is not visible to the caller
- *
- * Defaults to "not found" to avoid leaking whether the resource exists
- */
+/** Hides resource existence with a default "not found" message */
 export class NotVisibleError extends Error {
   constructor(message = 'not found') {
     super(message);
@@ -48,11 +55,7 @@ export class NotVisibleError extends Error {
   }
 }
 
-/**
- * Config is stored in a file and cannot be written through the API
- *
- * Tells the user which file to edit, or how to switch to database-authoritative mode
- */
+/** Blocks API writes to file-backed config */
 export class ConfigReadOnlyError extends Error {
   constructor(readonly path: string | null) {
     super(
@@ -64,14 +67,7 @@ export class ConfigReadOnlyError extends Error {
   }
 }
 
-/**
- * An error's own sentence, ready to go in brackets after what was being reached for.
- *
- * Every probe on `/-/config` answers in the same shape — what was being reached
- * for, then why it did not answer — and the second half is somebody else's
- * sentence: an SDK's, a socket's. It arrives with a full stop it does not need
- * inside brackets at the end of a line that is not a sentence.
- */
+/** Trims whitespace and a trailing period for bracketed output */
 export function reasonOf(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   return message.trim().replace(/\.$/, '');

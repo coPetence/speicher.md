@@ -9,7 +9,8 @@ export function parseAdmin(argv: string[]): AdminGrant {
   if (action !== 'add') {
     const received = action === undefined ? 'nothing' : JSON.stringify(action);
     throw new UsageError(
-      `admin: Expected the action \`add\`, but received ${received}. To add an administrator, run \`speicher admin add --provider <id> --email <address>\`.`,
+      'usage.unknown-action',
+      `admin: Expected \`add\`; got ${received}. Usage: \`speicher admin add --email <address> [--provider <id>]\`.`,
     );
   }
 
@@ -19,7 +20,7 @@ export function parseAdmin(argv: string[]): AdminGrant {
     const flag = commandArguments[i];
     const value = commandArguments[i + 1];
     if (value === undefined) {
-      throw new UsageError(`admin add: Expected a value after ${flag}, but received nothing.`);
+      throw new UsageError('usage.missing-value', `admin add: Missing value for ${flag}.`, flag);
     }
     if (flag === '--provider') grant.provider = value;
     else if (flag === '--subject') grant.subject = value;
@@ -27,27 +28,33 @@ export function parseAdmin(argv: string[]): AdminGrant {
     else if (flag === '--note') grant.note = value;
     else {
       throw new UsageError(
-        `admin add: ${JSON.stringify(flag)} is an unknown argument. The options are --provider, --subject, --email and --note.`,
+        'usage.unknown-argument',
+        `admin add: Unknown argument ${JSON.stringify(flag)}. Valid options: --provider, --subject, --email, --note.`,
+        flag,
       );
     }
   }
 
   if (!grant.subject && !grant.email) {
     throw new UsageError(
-      'admin add: Expected --email or --subject, but received neither. Use --email to identify the person by their email address, or --subject with --note to identify them by the subject claim of their identity provider.',
+      'usage.missing-option',
+      'admin add: Specify --email <address> or --subject <id> --note <text>.',
     );
   }
 
   if (grant.subject && grant.email) {
     throw new UsageError(
-      'admin add: --subject and --email cannot be combined, because each one identifies the person on its own.',
+      'usage.conflicting-options',
+      'admin add: Use either --subject or --email, not both.',
     );
   }
 
-  // Subject must identify the person for the audit log
+  // Require a note to identify the subject in the audit log
   if (grant.subject && !grant.note) {
     throw new UsageError(
-      'admin add: --subject requires --note to map the subject to a person in the audit log.',
+      'usage.missing-option',
+      'admin add: --subject requires --note to identify the person in the audit log.',
+      '--note',
     );
   }
 
@@ -56,7 +63,7 @@ export function parseAdmin(argv: string[]): AdminGrant {
 
 export const adminCommand: Command = {
   summary:
-    'Adds an administrator to the stored configuration, identified by an email address or by the subject claim of their identity provider. This requires a stored configuration. If no configuration is stored yet, open the instance in a browser and claim it there instead.',
+    'Add an administrator by email or identity-provider subject ID. Requires a stored configuration; otherwise, open the instance in a browser to claim it.',
   args: 'add (--email <address> | --subject <id> --note <text>) [--provider <id>]',
   needsCurrentSchema: true,
   check: (argv) => void parseAdmin(argv),
@@ -67,9 +74,9 @@ export const adminCommand: Command = {
 
     const latestConfigVersion = await getNewestConfigVersion(tenant.id);
     if (!latestConfigVersion) {
-      // No stored config yet means the owner must claim via browser
+      // Unconfigured instances must be claimed in the browser
       process.stderr.write(
-        'This instance has no stored configuration yet. To set it up, open it in a browser and claim it.\n',
+        'No stored configuration. Open this instance in a browser to claim it first.\n',
       );
       return 1;
     }
@@ -78,12 +85,12 @@ export const adminCommand: Command = {
       origin: 'admin',
       appliedBy: 'cli:admin add',
     });
-    log.info('administrator added', {
+    log.info('Administrator added', {
       version: saved.version,
       provider: grant.provider ?? null,
     });
     process.stdout.write(
-      `The administrator was added, and the configuration was updated. The change applies to the next request without a restart.\n`,
+      `Administrator added. Configuration updated; effective on the next request. No restart needed.\n`,
     );
     return 0;
   },

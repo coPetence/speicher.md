@@ -15,7 +15,6 @@ import {
   describeAzureCredential,
   isAzureCredentialKind,
 } from '../../src/common/azure-credential';
-import { ConfigError } from '../../src/common/errors';
 import { AssetsConfig } from '../../src/config/types';
 
 describe('createAzureCredential', () => {
@@ -53,8 +52,11 @@ describe('createAzureCredential', () => {
 
     const configured = { kind: 'workload_identity' as const, client_id: 'aaaa', tenant_id: 'bbbb' };
 
-    expect(() => createAzureCredential(configured)).toThrow(ConfigError);
+    expect(() => createAzureCredential(configured)).toRefuseWith('azure.credential-unavailable');
+    // The SDK's own reason is passed on as text; it names what the pod is missing
+    // eslint-disable-next-line no-restricted-syntax -- the Azure SDK's message has no code
     expect(() => createAzureCredential(configured)).toThrow(/workload identity/);
+    // eslint-disable-next-line no-restricted-syntax -- the Azure SDK's message has no code
     expect(() => createAzureCredential(configured)).toThrow(/AZURE_FEDERATED_TOKEN_FILE/);
   });
 
@@ -62,7 +64,7 @@ describe('createAzureCredential', () => {
     expect(createAzureCredential({ kind: 'default' })).toBeInstanceOf(DefaultAzureCredential);
     expect(() =>
       createAzureCredential({ kind: 'imds' } as unknown as AzureCredentialConfig),
-    ).toThrow(ConfigError);
+    ).toRefuseWith('azure.credential-unknown-kind');
   });
 
   it('names the kinds the schema closes over, and nothing else', () => {
@@ -106,7 +108,7 @@ describe('the blob driver, asked how to authenticate', () => {
 
   it('holds the account key by default, and asks for no token at all', () => {
     expect(askedFor({ auth: 'key', account_key: 'c2VjcmV0' })).toBeNull();
-    expect(() => askedFor({})).toThrow(/account_key is required/);
+    expect(() => askedFor({})).toRefuseWith('assets.key-missing', { path: 'assets.account_key' });
   });
 
   it('asks for no token at all when it holds a secret', () => {
@@ -121,10 +123,12 @@ describe('the blob driver, asked how to authenticate', () => {
   });
 
   it('refuses a mode whose secret is missing, naming the key', () => {
-    expect(() => resolveAzureOptions({ ...base, auth: 'key' })).toThrow(ConfigError);
-    expect(() => resolveAzureOptions({ ...base, auth: 'key' })).toThrow(/account_key/);
-    expect(() => resolveAzureOptions({ driver: 'azure', container: 'assets' })).toThrow(
-      /assets\.account/,
+    expect(() => resolveAzureOptions({ ...base, auth: 'key' })).toRefuseWith('assets.key-missing', {
+      path: 'assets.account_key',
+    });
+    expect(() => resolveAzureOptions({ driver: 'azure', container: 'assets' })).toRefuseWith(
+      'assets.key-missing',
+      { path: 'assets.account' },
     );
   });
 });

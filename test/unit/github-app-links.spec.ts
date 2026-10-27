@@ -98,9 +98,9 @@ describe('looking a GitHub App up', () => {
   it('fails when GitHub refuses the App', async () => {
     const { fetchImpl } = fakeGithub({ message: 'Bad credentials' }, 401);
 
-    await expect(lookupGithubApp('https://api.github.com', '42', PEM, fetchImpl)).rejects.toThrow(
-      /401/,
-    );
+    await expect(
+      lookupGithubApp('https://api.github.com', '42', PEM, fetchImpl),
+    ).rejects.toFailWith('github.app-lookup-failed', { status: 401 });
   });
 });
 

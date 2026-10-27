@@ -8,12 +8,15 @@ export function parseSyncRepoContent(argv: string[]): { repo: string; force: boo
   const unknown = argv.find((arg) => arg.startsWith('-') && arg !== '--force');
   if (unknown !== undefined)
     throw new UsageError(
-      `sync-repo-content: ${JSON.stringify(unknown)} is an unknown argument. The only option is --force.`,
+      'usage.unknown-argument',
+      `sync-repo-content: Unknown option ${JSON.stringify(unknown)}. Only --force is supported.`,
+      unknown,
     );
   const rest = argv.filter((arg) => arg !== '--force');
   if (rest.length !== 1) {
     throw new UsageError(
-      `sync-repo-content: Expected one repository, written as \`<namespace>/<slug>\` or \`<slug>\`, but received ${rest.length} arguments.`,
+      'usage.argument-count',
+      `sync-repo-content: Expected 1 repository (<namespace>/<slug> or <slug>), got ${rest.length}.`,
     );
   }
   return { repo: rest[0], force: argv.includes('--force') };
@@ -21,7 +24,7 @@ export function parseSyncRepoContent(argv: string[]): { repo: string; force: boo
 
 export const syncRepoContentCommand: Command = {
   summary:
-    'Fetches the newest commit of one repository and rebuilds its pages, assets and search data from it. If the commit has not changed since the last successful sync, nothing is rebuilt. With `--force`, the command rebuilds the repository even if the commit has not changed. You name the repository as `<namespace>/<slug>`, or as `<slug>` alone if no other namespace uses it. The command only queues the work, and the worker carries it out.',
+    'Queue a sync of a repository’s latest commit to rebuild pages, assets and search data. Unchanged commits are skipped unless --force is set. Use <namespace>/<slug>, or <slug> if unique. A worker runs the sync.',
   args: '<namespace>/<slug> [--force]',
   needsCurrentSchema: true,
   check: (argv) => void parseSyncRepoContent(argv),
@@ -33,13 +36,13 @@ export const syncRepoContentCommand: Command = {
 
     if (matches.length === 0) {
       process.stderr.write(
-        `No repository called ${JSON.stringify(repo)} is registered. To find out which repositories are registered, run \`speicher repos list\`.\n`,
+        `Repository ${JSON.stringify(repo)} not found. List repositories with \`speicher repos list\`.\n`,
       );
       return 1;
     }
     if (matches.length > 1) {
       process.stderr.write(
-        `The name ${JSON.stringify(repo)} is used by ${matches.length} repository owners: ${matches.map((m) => `${m.namespace}/${m.slug}`).join(', ')}. Name the repository together with its owner, for example ${matches[0].namespace}/${matches[0].slug}.\n`,
+        `Repository name ${JSON.stringify(repo)} is ambiguous. Use a full name: ${matches.map((m) => `${m.namespace}/${m.slug}`).join(', ')}.\n`,
       );
       return 1;
     }
@@ -51,11 +54,11 @@ export const syncRepoContentCommand: Command = {
       payload: { repoId: only.id, trigger: force ? 'rebuild' : 'manual' },
       dedupeKey: `sync-repo-content:${only.id}`,
     });
-    log.info('sync enqueued', { repo_id: only.id, forced: force });
+    log.info('Sync queued', { repo_id: only.id, forced: force });
     process.stdout.write(
       force
-        ? `A forced content sync is queued for ${only.namespace}/${only.slug}. The worker rebuilds the repository even if its commit has not changed.\n`
-        : `The content sync is queued for ${only.namespace}/${only.slug}.\n`,
+        ? `Forced sync queued for ${only.namespace}/${only.slug}; unchanged commits will be rebuilt.\n`
+        : `Sync queued for ${only.namespace}/${only.slug}.\n`,
     );
     return 0;
   },

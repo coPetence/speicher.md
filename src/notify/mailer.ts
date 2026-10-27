@@ -16,12 +16,12 @@ import { Logger, rootLogger } from '../common/logger';
 import { ConfigService } from '../config/config.service';
 import { stableStringify } from '../config/resolution-hash';
 import { MailConfig } from '../config/types';
+import { CheckStatus } from '../common/check-status';
 
-export interface MailStatus {
+/** What the connection check of the mail transport found */
+export type MailStatus = CheckStatus<'mail.connected' | 'mail.unreachable'> & {
   level: 'ok' | 'fail';
-  label: string;
-  detail: string;
-}
+};
 
 const PROBE_TIMEOUT_MS = 3_000;
 
@@ -42,14 +42,26 @@ export async function probeMail(mail: MailConfig): Promise<MailStatus> {
   try {
     await transporter.verify();
     return {
+      code: 'mail.connected',
       level: 'ok',
       label: mail.username ? 'Connected and signed in' : 'Connected',
       detail: mail.username ? `${where} as ${mail.username}` : where,
+      facts: {
+        server: where,
+        signedIn: Boolean(mail.username),
+        ...(mail.username ? { user: mail.username } : {}),
+      },
     };
   } catch (err) {
     // Reason removed; write one: not 'fail' to avoid false negative when
     // credentials are valid but the SMTP server is unreachable temporarily
-    return { level: 'fail', label: 'Not connected', detail: `${where} (${reasonOf(err)})` };
+    return {
+      code: 'mail.unreachable',
+      level: 'fail',
+      label: 'Not connected',
+      detail: `${where} (${reasonOf(err)})`,
+      facts: { server: where, reason: reasonOf(err) },
+    };
   } finally {
     // Close the ephemeral transporter so connections do not leak on probe
     transporter.close();

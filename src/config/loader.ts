@@ -1,16 +1,10 @@
-/**
- * Reading, writing, and versioning instance configuration
- *
- * Config can be served from a file (read-only) or from the database (versioned)
- * In database mode, the newest valid version is used at boot, with fallback to
- * older versions on validation failure
- * The setup wizard receives the unclaimed placeholder when no config exists yet
- */
+/** Load config from file or database, falling back to valid versions */
 
 import { readFileSync } from 'node:fs';
 
 import { QueryTypes } from 'sequelize';
 
+import { ConfigProblem, problem, wordingFor } from '../common/config-problems';
 import { EnvName, env } from '../common/env';
 import { ConfigError, ConfigReadOnlyError, reasonOf } from '../common/errors';
 import { rootLogger } from '../common/logger';
@@ -25,25 +19,23 @@ import { adminLockout } from './checks/admins';
 import { LoadedInstanceConfig, loadInstanceConfig, loadInstanceConfigFromFile } from './parser';
 import { ConfigSource, InstanceConfig, SkippedConfigVersion } from './types';
 
-/** Environment variable holding the path to the instance config file */
+/** Environment variable for the config file path */
 export const INSTANCE_CONFIG_PATH_ENV = 'SPEICHER_CONFIG' satisfies EnvName;
-/** Environment variable controlling whether config comes from a file or the database */
+/** Environment variable selecting file or database config */
 export const CONFIG_SOURCE_ENV = 'SPEICHER_CONFIG_SOURCE' satisfies EnvName;
 
-/** Read the instance config file path from the environment */
 export function resolveConfigPath(): string {
   return env(INSTANCE_CONFIG_PATH_ENV);
 }
 
-/** Read the config source mode from the environment */
 export function resolveConfigSource(): ConfigSource {
   return env(CONFIG_SOURCE_ENV);
 }
 
-/** Who initiated a config save */
+/** Who initiated the save */
 export type SaveActor = { origin: 'admin'; appliedBy: string | null } | { origin: 'setup' };
 
-/** A row in the instance_configs table */
+/** Stored config version */
 export interface ConfigVersion {
   version: number;
   yaml: string;
@@ -54,17 +46,14 @@ export interface ConfigVersion {
 }
 
 export interface StoredConfigText {
-  /** The document as stored, byte for byte */
+  /** Original YAML */
   yaml: string;
-  /** The version it was read from; null in `file` mode and on a fresh instance */
+  /** Null for file config or no saved version */
   version: number | null;
   source: ConfigSource;
 }
 
-/**
- * getConfigTextForTenant returns the instance configuration of the tenant with the given
- * tenantId. It is either read from the file or the newest database version. It neither interpolates `${VAR}` references nor validates the document.
- */
+/** Read tenant config without interpolation or validation */
 export async function getConfigTextForTenant(tenantId: string): Promise<StoredConfigText> {
   const source = resolveConfigSource();
   if (source === 'file') {
@@ -78,12 +67,7 @@ export async function getConfigTextForTenant(tenantId: string): Promise<StoredCo
   };
 }
 
-/**
- * Resolve and load the active instance configuration
- *
- * File mode returns the disk file; database mode walks back through valid versions,
- * seeding from file or returning the unclaimed placeholder when empty
- */
+/** Load file or latest valid DB config; seed or show setup if empty */
 export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> {
   if (resolveConfigSource() === 'file') {
     const loaded = loadInstanceConfigFromFile(resolveConfigPath());
@@ -94,12 +78,10 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
     return announceBrandProblems({ ...loaded, ...(await loadBrandImages(loaded)) });
   }
 
-  // tenant = instance; in most self hosted deployments the tenant is 'default'
   const tenant = await tenancy.defaultTenant();
   const newest = (await getNewestConfigVersion(tenant.id)) ?? (await seedFromFile(tenant.id));
   if (!newest) {
-    // No stored or file config; serve the setup claim page
-    rootLogger.child('config').warn('no instance configuration; serving the claim page', {
+    rootLogger.child('config').warn('No configuration found. Showing the setup claim page.', {
       source: 'database',
     });
     return unclaimedInstanceConfig();
@@ -110,7 +92,6 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
 
   while (candidate) {
     try {
-      // Try to load this version; if it fails skip to the next below
       const parsed = loadInstanceConfig(candidate.yaml);
       const loaded = {
         ...parsed,
@@ -123,20 +104,28 @@ export async function loadActiveInstanceConfig(): Promise<LoadedInstanceConfig> 
       announceBrandProblems(loaded);
       return loaded;
     } catch (err) {
-      // Only ConfigError means a bad version; rethrow unexpected errors
+      // Only config errors trigger fallback
       if (!(err instanceof ConfigError)) throw err;
+      const issues = err.issues.length > 0 ? err.issues : [err.summary];
       skipped.push({
         version: candidate.version,
-        problems: err.problems.length > 0 ? err.problems : [err.message],
+        problems: issues.map((p) => wordingFor(p, 'yaml')),
+        issues,
       });
       candidate = await configVersionBelow(tenant.id, candidate.version);
     }
   }
 
   throw new ConfigError(
-    `no stored instance config version loads (tried ${skipped.length}: ` +
-      `${skipped.map((s) => `v${s.version}`).join(', ')})`,
-    skipped.flatMap((s) => s.problems.map((p) => `v${s.version}: ${p}`)),
+    problem('config.no-version-loads', null, {
+      text:
+        `No saved configuration could be loaded. Tried ${skipped.length} versions: ` +
+        `${skipped.map((s) => `v${s.version}`).join(', ')}.`,
+    }),
+    // Add version labels without changing problem codes
+    skipped.flatMap((s) =>
+      s.issues.map((p) => ({ ...p, path: null, text: `v${s.version}: ${wordingFor(p, 'yaml')}` })),
+    ),
   );
 }
 
@@ -152,48 +141,52 @@ async function loadBrandImages(
       brandImages: parsed.brandImages,
       brandProblems: [
         ...parsed.brandProblems,
-        `the stored brand images could not be read: ${reasonOf(err)}`,
+        problem('brand.image-not-stored', null, {
+          text: `Cannot read stored brand images: ${reasonOf(err)}`,
+        }),
       ],
     };
   }
 }
 
-/** Log every brand image the active configuration names and does not have */
+/** Warn about unavailable brand images */
 function announceBrandProblems(loaded: LoadedInstanceConfig): LoadedInstanceConfig {
   if (loaded.brandProblems.length > 0) {
-    rootLogger.child('config').warn('a brand image this configuration names is not available', {
-      problems: loaded.brandProblems,
+    rootLogger.child('config').warn('Configured brand images are unavailable.', {
+      problems: loaded.brandProblems.map((p) => wordingFor(p, 'yaml')),
+      codes: loaded.brandProblems.map((p) => p.code),
     });
   }
   return loaded;
 }
 
-// The fallback last logged, so the watcher's poll does not repeat it every interval
+// Avoid duplicate fallback logs during polling
 let announcedFallback = '';
 
-/** Log that an older config version was used because newer versions failed to load */
+/** Log fallback to an older version */
 function announceFallback(version: number, skipped: SkippedConfigVersion[]): void {
   const lines = skipped.map((s) => `v${s.version}: ${s.problems.join('; ')}`);
   const key = JSON.stringify([version, lines]);
   if (key === announcedFallback) return;
   announcedFallback = key;
-  rootLogger.child('config').error('booted on an older instance config version', {
+  rootLogger.child('config').error('Using an older configuration. Newer versions failed to load.', {
     running: version,
     skipped: lines,
   });
 }
 
-/** Log that the active config has no admin group or user */
+/** Report admin lockout */
 function announceUnadministrable(loaded: LoadedInstanceConfig): void {
   const lockout = adminLockout(loaded.raw);
   if (!lockout) return;
-  rootLogger.child('config').error('this instance has no administrator', {
-    reason: lockout,
+  rootLogger.child('config').error('No administrator configured.', {
+    code: lockout.code,
+    reason: wordingFor(lockout, 'yaml'),
     config: loaded.sourcePath,
   });
 }
 
-/** Fetch the next-lower config version from the database */
+/** Fetch the tenant's next older config */
 async function configVersionBelow(
   tenantId: string,
   version: number,
@@ -209,7 +202,7 @@ async function configVersionBelow(
   return rows[0] ?? null;
 }
 
-/** Fetch the highest-numbered config version for the tenant */
+/** Fetch the tenant's newest config */
 export async function getNewestConfigVersion(tenantId: string): Promise<ConfigVersion | null> {
   const rows = await getSequelize().query<ConfigVersion>(
     `SELECT version, yaml, resolution_hash, origin, applied_by, applied_at
@@ -222,7 +215,7 @@ export async function getNewestConfigVersion(tenantId: string): Promise<ConfigVe
   return rows[0] ?? null;
 }
 
-/** Fetch config versions, newest first, capped by limit */
+/** List tenant configs newest first, up to the limit */
 export async function listConfigVersions(tenantId: string, limit = 100): Promise<ConfigVersion[]> {
   return getSequelize().query<ConfigVersion>(
     `SELECT version, yaml, resolution_hash, origin, applied_by, applied_at
@@ -234,7 +227,7 @@ export async function listConfigVersions(tenantId: string, limit = 100): Promise
   );
 }
 
-/** Fetch a specific config version by version number */
+/** Fetch a specific tenant config version */
 export async function configVersionAt(
   tenantId: string,
   version: number,
@@ -248,12 +241,7 @@ export async function configVersionAt(
   return rows[0] ?? null;
 }
 
-/**
- * Validate and persist a new config version
- *
- * Refuses to save in file mode
- * Atomically increments the version; returns null on collision so the caller retries
- */
+/** Validate and save; reject file mode and version conflicts */
 export async function saveInstanceConfig(
   tenantId: string,
   yaml: string,
@@ -272,85 +260,99 @@ export async function saveInstanceConfig(
     appliedBy: by.origin === 'setup' ? null : by.appliedBy,
   });
   if (!saved) {
-    // Another writer inserted a row at the same version number; caller must retry
+    // Concurrent save won; require reload and retry
     throw new ConfigError(
-      'a newer configuration version was saved while this one was being edited; ' +
-        'reload the current version and re-apply the change',
+      problem('config.version-conflict', null, {
+        text: 'A newer configuration was saved. Reload it and reapply your changes.',
+        dashboard: 'A newer configuration was saved. Reload the page and reapply your changes.',
+      }),
     );
   }
   return saved;
 }
 
-/**
- * Parse and validate a YAML config before persisting
- *
- * Checks schema, admin presence, and private key readability
- * Setup origin may skip the admin check since no admin exists before claiming
- */
+/** Check schema, admins, keys, and SSH trust; allow skipping admins */
 export function validateForSave(
   yaml: string,
   options: { requireAdministrator?: boolean } = {},
 ): LoadedInstanceConfig {
   const loaded = loadInstanceConfig(yaml);
   const lockout = options.requireAdministrator === false ? null : adminLockout(loaded.raw);
-  if (lockout) {
-    throw new ConfigError(
-      'this configuration would leave nobody able to administer this instance',
-      [lockout],
-    );
-  }
+  if (lockout) throw new ConfigError(lockout);
   const keys = unreadablePrivateKeys(loaded.raw);
   if (keys.length > 0) {
-    throw new ConfigError('a GitHub App private key in this configuration cannot be read', keys);
+    throw new ConfigError(
+      problem('config.private-key-unreadable', null, {
+        text: 'Cannot read a GitHub App private key.',
+        dashboard: 'Cannot read a GitHub App private key.',
+      }),
+      keys,
+    );
   }
 
-  // check that every `ssh://` repository has a known host key, so the instance can fetch it
   const hosts = serversWithoutTrustedKey(loaded.raw);
   if (hosts.length > 0) {
-    throw new ConfigError('an SSH server in this configuration has no trusted host key', hosts);
+    throw new ConfigError(
+      problem('config.host-key-missing', null, {
+        text: 'An SSH server is missing a trusted host key.',
+        dashboard: 'An SSH server is missing a trusted host key.',
+      }),
+      hosts,
+    );
   }
   return loaded;
 }
 
-/** Find the servers of `ssh://` repositories that `known_hosts` holds no key for */
-function serversWithoutTrustedKey(config: InstanceConfig): string[] {
-  const problems: string[] = [];
+/** Find SSH repository servers missing trusted host keys */
+function serversWithoutTrustedKey(config: InstanceConfig): ConfigProblem[] {
+  const problems: ConfigProblem[] = [];
   for (const [key, forge] of Object.entries(config.forges ?? {})) {
     if (forge.type !== 'git') continue;
     for (const name of serversWithoutHostKey(forge)) {
       problems.push(
-        `forge "${key}": Speicher has no host key for ${name}, so it cannot fetch the repositories on that server. To add the key, open the content source, press Fetch host keys, compare the fingerprints with the published ones, and save.`,
+        problem('forges.host-key-missing', `forges.${key}.known_hosts`, {
+          text: `Cannot fetch from ${name}: no trusted host key. Verify its key and add it to \`known_hosts\`.`,
+          dashboard: `Cannot fetch from ${name}: no trusted host key. Click Fetch host keys, verify the fingerprints against the server's published fingerprints, then save.`,
+        }),
       );
     }
   }
   return problems;
 }
 
-/** Find GitHub private keys that cannot be parsed */
-function unreadablePrivateKeys(config: InstanceConfig): string[] {
-  const problems: string[] = [];
+/** Find unreadable GitHub private keys */
+function unreadablePrivateKeys(config: InstanceConfig): ConfigProblem[] {
+  const problems: ConfigProblem[] = [];
   for (const [key, forge] of Object.entries(config.forges ?? {})) {
     if (forge.type !== 'github' || forge.private_key === undefined) continue;
-    const problem = privateKeyProblem(forge.private_key);
-    if (problem) problems.push(`\`forges.${key}.private_key\`: ${problem}`);
+    const unreadable = privateKeyProblem(forge.private_key);
+    if (unreadable) {
+      problems.push(
+        problem('github.private-key-unreadable', `forges.${key}.private_key`, {
+          text: unreadable,
+          dashboard: 'Cannot read this private key. Upload the .pem file again.',
+        }),
+      );
+    }
   }
   for (const [key, provider] of Object.entries(config.auth?.providers ?? {})) {
     const directory = 'directory' in provider ? provider.directory : undefined;
     if (directory?.type !== 'github' || directory.private_key === undefined) continue;
 
-    const problem = privateKeyProblem(directory.private_key);
-    if (problem) {
-      problems.push(`\`auth.providers.${key}.directory.private_key\`: ${problem}`);
+    const unreadable = privateKeyProblem(directory.private_key);
+    if (unreadable) {
+      problems.push(
+        problem('github.private-key-unreadable', `auth.providers.${key}.directory.private_key`, {
+          text: unreadable,
+          dashboard: 'Cannot read this private key. Upload the .pem file again.',
+        }),
+      );
     }
   }
   return problems;
 }
 
-/**
- * Insert a new config version at the next sequential number
- *
- * Uses ON CONFLICT DO NOTHING so concurrent inserts on the same version return null
- */
+/** Insert the next version; return null on version conflict */
 export async function appendConfigVersion(
   tenantId: string,
   input: {
@@ -380,18 +382,13 @@ export async function appendConfigVersion(
   return rows[0] ?? null;
 }
 
-/**
- * Import the file config as version 1 when no database version exists
- *
- * Silently returns null when the file is unreadable so the caller serves the claim page
- */
+/** Seed from file; return null if unreadable */
 async function seedFromFile(tenantId: string): Promise<ConfigVersion | null> {
   const path = resolveConfigPath();
   let yaml: string;
   try {
     yaml = readFileSync(path, 'utf8');
   } catch {
-    // File missing or unreadable; caller will serve the claim page
     return null;
   }
 
@@ -400,13 +397,12 @@ async function seedFromFile(tenantId: string): Promise<ConfigVersion | null> {
   const seeded = await appendConfigVersion(tenantId, {
     yaml,
     resolutionHash: loaded.resolutionHash,
-    // origin 'file' records that this came from the initial import
     origin: 'file',
     appliedBy: null,
   });
-  // Another writer seeded first; use their version
+  // Use the existing version if another writer seeded first
   if (!seeded) return getNewestConfigVersion(tenantId);
 
-  rootLogger.child('config').info('adopted the config file as instance config version 1', { path });
+  rootLogger.child('config').info('Imported the configuration file as version 1.', { path });
   return seeded;
 }

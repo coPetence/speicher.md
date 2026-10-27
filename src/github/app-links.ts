@@ -1,10 +1,22 @@
-/**
- * The links to a GitHub App's pages
- */
+/** GitHub App settings and installation links */
 
 import { githubHeaders } from './api';
 import { GITHUB_WEB } from './hosts';
 import { GithubTokenMinter } from './tokens';
+import { CodedError } from '../common/errors';
+
+/** App lookup error with GitHub's HTTP status, if available */
+export class GithubAppLookupError extends CodedError<
+  'github.app-lookup-failed' | 'github.app-incomplete'
+> {
+  constructor(
+    code: 'github.app-lookup-failed' | 'github.app-incomplete',
+    message: string,
+    readonly status: number | null = null,
+  ) {
+    super(code, message);
+  }
+}
 
 const LOOKUP_TIMEOUT_MS = 5000;
 
@@ -20,32 +32,18 @@ export interface GithubAppLinks {
   installUrl: string;
 }
 
-/**
- * githubAppLinks returns the links to the settings page and the installation page of a GitHub App.
- *
- * @param web the web address of the GitHub instance, e.g. `https://github.com`
- * @param slug the name of the App in its URLs, e.g. `speicher-md`
- * @param owner the account the App belongs to
- */
+/** Build an App's settings and installation URLs */
 export function githubAppLinks(web: string, slug: string, owner: GithubAppOwner): GithubAppLinks {
   const app = encodeURIComponent(slug);
   const settings = owner.isOrganization
     ? `/organizations/${encodeURIComponent(owner.accountName)}/settings/apps/${app}`
     : `/settings/apps/${app}`;
-  // A GitHub Enterprise Server serves an App's public page under `/github-apps`
+  // Enterprise Server uses /github-apps instead of /apps
   const page = web === GITHUB_WEB ? `/apps/${app}` : `/github-apps/${app}`;
   return { settingsUrl: `${web}${settings}`, installUrl: `${web}${page}/installations/new` };
 }
 
-/**
- * lookupGithubApp returns the slug and the owner of the GitHub App that the id and the private key belong to.
- * It asks GitHub's `GET /app`, signed as the App.
- *
- * @param api the API address of the GitHub instance
- * @param appId the App's id
- * @param privateKey the App's private key
- * @param fetchImpl the fetch to call GitHub with
- */
+/** Fetch the App's slug and owner via GET /app using an App JWT */
 export async function lookupGithubApp(
   api: string,
   appId: string,
@@ -58,7 +56,11 @@ export async function lookupGithubApp(
     signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`GitHub did not answer for the App: ${response.status} ${response.statusText}`);
+    throw new GithubAppLookupError(
+      'github.app-lookup-failed',
+      `GitHub App lookup failed: ${response.status} ${response.statusText}`,
+      response.status,
+    );
   }
 
   const app = (await response.json()) as {
@@ -66,7 +68,10 @@ export async function lookupGithubApp(
     owner?: { login?: unknown; type?: unknown } | null;
   };
   if (typeof app.slug !== 'string' || typeof app.owner?.login !== 'string') {
-    throw new Error('GitHub sent the App without its slug or owner');
+    throw new GithubAppLookupError(
+      'github.app-incomplete',
+      'GitHub App response is missing a valid slug or owner login.',
+    );
   }
   return {
     slug: app.slug,

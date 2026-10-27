@@ -1,43 +1,34 @@
-/**
- * Turns the stored configuration into a file that another instance can be started
- * from. Every literal secret is replaced by an environment variable reference, so the
- * file holds no secret values. With `withSecrets` the
- * secrets are written in as they are stored.
- */
+/** Export config with secret references unless withSecrets is enabled */
 
 import { ConfigError } from '../../../common/errors';
 import { loadDocument, Path, serialise } from './document';
 import { buildSections } from './fields';
 import { allFields } from './model';
+import { problem } from '../../../common/config-problems';
 
-/** The first line of every exported file, which a later export recognises and replaces */
+/** Header used to identify and replace previous export headers */
 export const EXPORT_HEADER = '# Speicher instance configuration export';
 
 export interface ConfigExport {
   yaml: string;
-  /** The environment variables the document references in place of secrets */
+  /** Environment variables used in place of secrets */
   variables: string[];
 }
 
 export interface ExportOptions {
-  /** Write secrets into the file rather than referencing them */
+  /** Include secret values instead of variable references */
   withSecrets?: boolean;
-  /** The host of the instance, written into the header comment of the exported file */
+  /** Instance host shown in the export header */
   host?: string;
   version?: number | null;
 }
 
-/**
- * variableNameFor returns the name of the environment variable that an exported
- * document references in place of the secret at the given path. The name is
- * the whole path in upper case, for example `AUTH_PROVIDERS_ENTRA_CLIENT_SECRET` for
- * `auth.providers.entra.client_secret`.
- */
+/** Convert a field path to an uppercase, underscore-separated variable name */
 export function convertPathToVariableName(path: string): string {
   return path.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase();
 }
 
-/** Drop a header this function wrote earlier, so exports do not stack. */
+/** Remove an existing export header */
 function withoutHeader(yaml: string): string {
   if (!yaml.startsWith(EXPORT_HEADER)) return yaml;
   const lineEnd = yaml.indexOf('\n');
@@ -51,11 +42,16 @@ export function exportConfig(yaml: string, options: ExportOptions = {}): ConfigE
   try {
     doc = loadDocument(cleanedYamlData);
   } catch (err) {
-    // When the document is unparseable, we cannot replace the secrets with their variable names. Therefore it is only possible to export the document with secrets in this case.
+    // Unparseable YAML can only be exported with secrets unchanged
     if (options.withSecrets === true) return { yaml: cleanedYamlData, variables: [] };
     throw new ConfigError(
-      'The configuration could not be parsed, so its secrets cannot be replaced. To export it with secrets, use the --with-secrets option.',
-      [(err as Error).message.split('\n')[0].replace(/:$/, '')],
+      problem('config.export-unparseable', null, {
+        text: 'The configuration could not be parsed, so its secrets cannot be replaced. To export it with secrets, use the --with-secrets option.',
+      }),
+      // Preserve the parse error and its code when available
+      err instanceof ConfigError
+        ? [{ ...err.summary, path: null, text: err.message.split('\n')[0].replace(/:$/, '') }]
+        : [problem('config.yaml-invalid', null, { text: (err as Error).message.split('\n')[0] })],
     );
   }
 

@@ -18,7 +18,7 @@
       Speicher only connects to the servers listed here. After you fetch their keys, compare each fingerprint with the one the server publishes, and save only if they match. Public Git hosts such as GitHub usually publish their fingerprints in their documentation. To find the fingerprint of your own server, run <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on it, or ask its administrator.
     </p>
     <% if (f.fetchNote) { %>
-    <%~ include('@note', { level: f.fetchNote.level, text: f.fetchNote.label, detail: f.fetchNote.detail, role: 'status' }) %>
+    <%~ include('@note', { level: f.fetchNote.level, text: f.fetchNote.label, detail: f.fetchNote.detail, role: 'status', data: { 'spr-status': f.fetchNote.code } }) %>
     <% } %>
     <% const notes = it.hostKeyNotes[f.path] %>
     <%~ include('@note', { ...notes.missing, role: 'status', data: { 'spr-missing-hosts': true }, hidden: f.missing.length === 0 }) %>

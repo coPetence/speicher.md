@@ -224,6 +224,8 @@ describe('a mark file', () => {
   });
 
   it('refuses a file with no viewBox, at startup rather than as an empty box', () => {
-    expect(() => parseMark('<svg><path/></svg>', 'boxless')).toThrow(/boxless\.svg has no viewBox/);
+    expect(() => parseMark('<svg><path/></svg>', 'boxless')).toFailWith('marks.no-viewbox', {
+      mark: 'boxless',
+    });
   });
 });

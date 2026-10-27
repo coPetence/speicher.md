@@ -148,7 +148,13 @@ describe('EmbeddingClient', () => {
     const endpoint = stubEndpoint(async () => ({ status: 503, body: 'upstream unavailable' }));
     const client = new EmbeddingClient(CONFIG, { fetch: endpoint.fetch, sleep: noSleep });
 
-    await expect(client.embed(['a'])).rejects.toThrow(/503.*upstream unavailable/);
+    const failure = client.embed(['a']);
+    await expect(failure).rejects.toFailWith('embedding.http-status', { status: 503 });
+    // The endpoint's own body, passed on for the operator
+    await expect(failure).rejects.toHaveProperty(
+      'message',
+      expect.stringContaining('upstream unavailable'),
+    );
     expect(endpoint.calls).toHaveLength(4);
   });
 
@@ -226,7 +232,7 @@ describe('EmbeddingClient', () => {
     const endpoint = stubEndpoint(async () => ({ status: 200, body: '<html>login</html>' }));
     const client = new EmbeddingClient(CONFIG, { fetch: endpoint.fetch, sleep: noSleep });
 
-    await expect(client.embed(['a'])).rejects.toThrow(/not JSON/);
+    await expect(client.embed(['a'])).rejects.toFailWith('embedding.not-json');
     expect(endpoint.calls).toHaveLength(1);
   });
 
@@ -240,8 +246,9 @@ describe('EmbeddingClient', () => {
       },
     });
 
-    await expect(client.embed(['a'])).rejects.toThrow(/unreachable/);
+    await expect(client.embed(['a'])).rejects.toFailWith('embedding.unreachable');
     expect(n).toBe(4);
+    // eslint-disable-next-line no-restricted-syntax -- the key must appear in no message, whatever its wording
     await expect(client.embed(['a'])).rejects.not.toThrow(/sk-test/);
   });
 });
@@ -273,8 +280,9 @@ describe('the startup probe', () => {
     await expect(checkEmbeddingDimensions(undefined, client)).rejects.toThrow(
       EmbeddingDimensionError,
     );
-    await expect(checkEmbeddingDimensions(undefined, client)).rejects.toThrow(
-      /768.*1536|1536.*768/s,
+    await expect(checkEmbeddingDimensions(undefined, client)).rejects.toFailWith(
+      'embedding.dimension-mismatch',
+      { returned: 768, configured: 1536 },
     );
   });
 

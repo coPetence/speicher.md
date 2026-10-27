@@ -12,7 +12,6 @@ import {
 
 import { blobKey } from '../../src/assets/blob-store';
 import {
-  BUCKET_FAIL_LABEL,
   BUCKET_OK_LABEL,
   S3BlobStore,
   createS3BlobStore,
@@ -248,10 +247,7 @@ describe('the s3 blob driver', () => {
     const name = `spr-absent-${randomUUID()}`;
     const status = await openStore(assetsConfig(name)).probe();
 
-    expect(status.level).toBe('fail');
-    expect(status.label).toBe(BUCKET_FAIL_LABEL);
-    expect(status.detail).toContain(name);
-    expect(status.detail).toContain('does not exist');
+    expect(status).toMatchObject({ code: 'store.missing', level: 'fail', facts: { target: name } });
   });
 
   it('fails rather than creating a bucket that is not there', async () => {

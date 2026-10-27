@@ -291,6 +291,7 @@ describe.skip('the operational report', () => {
     const pricing = body.narrowing.find(
       (e: { target_slug_path: string }) => e.target_slug_path === 'commercial/pricing',
     );
+    // eslint-disable-next-line no-restricted-syntax -- this detail is a list of principals, not wording
     expect(pricing.detail).toContain('group:engineering');
   });
 

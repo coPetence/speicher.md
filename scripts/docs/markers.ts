@@ -1,17 +1,21 @@
 /**
- * Generated blocks in the docs
- *
- * A block is fenced by two comments, and everything between them belongs to the
- * generator:
- *
- *   <!-- generated: schema instance#/properties/mail -->
- *   …
- *   <!-- /generated -->
- *
- * The text after `generated:` is the kind, then its arguments, split on whitespace.
- * The content is wrapped in prettier-ignore so a repo-wide format cannot reflow a
- * table the generator will only rewrite again.
+ * Blocks run from <!-- generated: kind arg ... --> to <!-- /generated -->
+ * Contents are regenerated and wrapped in prettier-ignore markers
  */
+
+import { CodedError } from '../../src/common/errors';
+
+/** Generation error with a code and optional file location */
+export class DocsError extends CodedError {
+  constructor(
+    code: string,
+    message: string,
+    readonly file: string | null = null,
+    readonly line: number | null = null,
+  ) {
+    super(code, message);
+  }
+}
 
 const START = /<!-- generated: (.+?) -->/g;
 const END = '<!-- /generated -->';
@@ -23,24 +27,37 @@ export interface BlockSpec {
 
 export type Generator = (spec: BlockSpec) => string;
 
-/** Rewrites every generated block in `markdown`; `where` names the file in errors */
+/** Regenerate blocks, using `where` as the filename in errors */
 export function regenerate(markdown: string, generate: Generator, where: string): string {
   let out = '';
   let cursor = 0;
   for (const match of markdown.matchAll(START)) {
     const startIndex = match.index;
-    if (startIndex < cursor) continue; // A start comment inside a block being replaced
+    if (startIndex < cursor) continue; // Skip markers inside replaced blocks
     const end = markdown.indexOf(END, startIndex);
     if (end === -1) {
-      throw new Error(`${where}:${lineOf(markdown, startIndex)}: \`${match[0]}\` has no ${END}`);
+      const line = lineOf(markdown, startIndex);
+      throw new DocsError(
+        'docs.unclosed-block',
+        `${where}:${line}: Missing closing marker ${END} for \`${match[0]}\`.`,
+        where,
+        line,
+      );
     }
     const [kind, ...args] = match[1].trim().split(/\s+/);
     let content: string;
     try {
       content = generate({ kind, args });
     } catch (error) {
+      // Keep the error code and add the block location
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`${where}:${lineOf(markdown, startIndex)}: ${message}`);
+      const line = lineOf(markdown, startIndex);
+      throw new DocsError(
+        error instanceof CodedError ? error.code : 'docs.generator-failed',
+        `${where}:${line}: ${message}`,
+        where,
+        line,
+      );
     }
     out +=
       markdown.slice(cursor, startIndex) +

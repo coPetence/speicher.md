@@ -5,6 +5,8 @@
         id: 'f-' + f.path,
         name: f.path,
         'data-spr-reshapes': Boolean(f.reshapes),
+        'aria-invalid': f.problems && f.problems.length ? 'true' : null,
+        'aria-describedby': f.problems && f.problems.length ? 'f-' + f.path + '-problem' : null,
         disabled: !it.editable,
       },
       options: f.options.map(function (option) {

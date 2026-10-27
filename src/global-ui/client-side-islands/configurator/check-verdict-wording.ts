@@ -1,4 +1,4 @@
-/** What the save bar says: a check's answer, or the browser's constraints, as one sentence. */
+/** Save bar messages for check results and form validation */
 
 export const UNSAVED = 'Unsaved changes.';
 
@@ -10,15 +10,47 @@ export function constraintProblem(form: HTMLFormElement): string {
     : `${UNSAVED} Something here is not in a shape its control accepts.`;
 }
 
-// Strips markdown-style links and backticks from a server-provided message
-export function plain(message: string | undefined): string | undefined {
-  return message?.replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1').replace(/`/g, '');
+const LINK = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+
+/**
+ * Convert Markdown links to DOM nodes and strip backticks
+ * Allow only same-site paths and HTTPS URLs; never parse HTML
+ */
+export function linked(message: string): Node[] {
+  const text = message.replace(/`/g, '');
+  const nodes: Node[] = [];
+  let last = 0;
+  for (const match of text.matchAll(LINK)) {
+    const [whole, words, href] = match;
+    nodes.push(document.createTextNode(text.slice(last, match.index)));
+    nodes.push(linkTo(words, href));
+    last = match.index + whole.length;
+  }
+  nodes.push(document.createTextNode(text.slice(last)));
+  return nodes;
+}
+
+function linkTo(words: string, href: string): Node {
+  const local = href.startsWith('/') && !href.startsWith('//');
+  if (!local && !href.startsWith('https://')) return document.createTextNode(words);
+  const a = document.createElement('a');
+  a.href = href;
+  a.textContent = words;
+  if (!local) {
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer nofollow';
+  }
+  return a;
 }
 
 export interface CheckAnswer {
   error: string | null;
+  error_code?: string;
+  error_path?: string | null;
 
   problems?: string[];
+  problem_codes?: string[];
+  problem_paths?: (string | null)[];
   verdict: {
     changed: { key: string; requiresRestart: boolean }[];
     rebuild: boolean;

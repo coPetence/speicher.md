@@ -1,14 +1,5 @@
-/**
- * Renders a JSON schema as key tables for the docs
- *
- * Every key becomes a row named by its full dotted path from the document root, so a
- * table on a guide page reads the same as the matching rows of the reference page.
- * A map's key is shown as `<id>` or `<name>`, a list item as `[]`. A `oneOf` whose
- * branches carry properties (the auth providers) gets one table per branch, since
- * the branches share key names that mean different things; a `oneOf` that only picks
- * required keys becomes a note on its row. `if`/`then` pairs that make a key required
- * show up in the Required column as the condition.
- */
+/** Render JSON schemas as dotted-key tables with branch tables and requirement notes */
+import { DocsError } from './markers';
 
 type Schema = { [keyword: string]: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -20,7 +11,7 @@ export interface Row {
   description: string;
 }
 
-/** The rows of one object, and a table per `oneOf` branch found below it */
+/** Object rows and nested branch tables */
 export interface Table {
   rows: Row[];
   branches: { title: string; table: Table }[];
@@ -29,7 +20,7 @@ export interface Table {
 export class SchemaDoc {
   constructor(private readonly root: Schema) {}
 
-  /** The schema node at a JSON pointer such as `#/properties/mail` */
+  /** Look up a schema node by JSON pointer */
   at(pointer: string): Schema {
     const path = pointer.replace(/^#\/?/, '');
     if (path === '') return this.root;
@@ -37,12 +28,13 @@ export class SchemaDoc {
     for (const token of path.split('/')) {
       const key = token.replace(/~1/g, '/').replace(/~0/g, '~');
       node = (node as Schema | undefined)?.[key];
-      if (node === undefined) throw new Error(`no schema node at ${pointer}`);
+      if (node === undefined)
+        throw new DocsError('docs.schema-node-missing', `Schema node not found: ${pointer}`);
     }
     return node as Schema;
   }
 
-  /** The key path a pointer stands for, e.g. `#/properties/auth/properties/providers` is `auth.providers` */
+  /** Convert a schema pointer to a dotted key path */
   static keyOf(pointer: string): string {
     const tokens = pointer.replace(/^#\/?/, '').split('/').filter(Boolean);
     const parts: string[] = [];
@@ -54,7 +46,7 @@ export class SchemaDoc {
     return parts.join('.');
   }
 
-  /** The node at `pointer` and everything below it, the node's own row first */
+  /** Build a table for a node and its descendants, node first */
   table(pointer: string, key = SchemaDoc.keyOf(pointer)): Table {
     const node = this.resolve(this.at(pointer));
     const table: Table = { rows: [this.row(node, key, '')], branches: [] };
@@ -62,7 +54,7 @@ export class SchemaDoc {
     return table;
   }
 
-  /** One section per top-level key, the shape of a reference page */
+  /** Build a reference section for each top-level key */
   sections(): { key: string; self: Row; table: Table }[] {
     return Object.keys(this.root.properties ?? {}).map((key) => {
       const { rows, branches } = this.table(`#/properties/${key}`, key);
@@ -74,10 +66,15 @@ export class SchemaDoc {
   private resolve(node: Schema): Schema {
     let current = node;
     for (let hops = 0; typeof current.$ref === 'string'; hops++) {
-      if (hops > 20) throw new Error(`$ref cycle at ${current.$ref}`);
+      if (hops > 20)
+        throw new DocsError(
+          'docs.ref-cycle',
+          `Schema reference chain too deep (possible cycle): ${current.$ref}`,
+        );
       const { $ref, ...siblings } = current;
-      if (!$ref.startsWith('#/')) throw new Error(`only local $refs are supported: ${$ref}`);
-      // A sibling of the $ref describes this use of the shared definition, so it wins
+      if (!$ref.startsWith('#/'))
+        throw new DocsError('docs.ref-not-local', `Schema reference must start with #/: ${$ref}`);
+      // Sibling keywords override the referenced definition
       current = { ...this.at($ref), ...siblings };
     }
     return current;
@@ -124,13 +121,13 @@ export class SchemaDoc {
     if (isSchema(node.items)) {
       const item = this.resolve(node.items);
       const itemRow = this.row(item, `${key}[]`, '');
-      // The item only earns a row when it says something its list's row does not
+      // Add an item row only for a described object
       if (item.properties && itemRow.description) table.rows.push(itemRow);
       this.children(item, `${key}[]`, table);
     }
 
     for (const branch of this.branches(node)) {
-      // A branch with nothing to tell it apart, like `access` as a list or an object, adds to this table
+      // Merge branches without a distinct label into this table
       if (branch.label === 'object') {
         this.children(branch.schema, key, table);
         continue;
@@ -141,7 +138,7 @@ export class SchemaDoc {
     }
   }
 
-  /** The `oneOf`/`anyOf` branches that declare properties of their own */
+  /** Get `oneOf`/`anyOf` branches that define properties */
   private branches(node: Schema): { label: string; schema: Schema }[] {
     const options: Schema[] = node.oneOf ?? node.anyOf ?? [];
     return options
@@ -178,7 +175,7 @@ export class SchemaDoc {
   }
 }
 
-/** A table, followed by one table per branch under a heading of `level`, for a guide page */
+/** Render a Markdown table with branch headings starting at `level` */
 export function renderTable(table: Table, level = 3): string {
   const parts: string[] = [];
   if (table.rows.length > 0) {
@@ -198,10 +195,7 @@ export function renderTable(table: Table, level = 3): string {
   return parts.join('\n\n');
 }
 
-/**
- * The same keys as a heading each, for a reference page: every key gets an anchor to
- * link to, and a long description reads as prose rather than wrapping in a cell
- */
+/** Render keys as reference headings with facts and prose descriptions */
 export function renderEntries(table: Table, level = 3): string {
   const parts: string[] = [];
   const heading = '#'.repeat(level);
@@ -215,7 +209,7 @@ export function renderEntries(table: Table, level = 3): string {
   return parts.join('\n\n');
 }
 
-/** Type, default and whether it is required, as one line under a key's heading */
+/** Render type, default and requirement on one line */
 export function renderFacts(row: Row): string {
   const facts = [`**Type:** ${row.type}`];
   if (row.default) facts.push(`**Default:** ${row.default}`);
@@ -224,7 +218,7 @@ export function renderFacts(row: Row): string {
   return facts.join(' · ');
 }
 
-/** `type: oidc` for a branch whose `type` is a const, else its title or JSON type */
+/** Label a branch by its first const property, title or `object` */
 function discriminator(schema: Schema): string {
   for (const [name, property] of Object.entries<Schema>(schema.properties ?? {})) {
     if (property.const !== undefined) return code(`${name}: ${property.const}`);
@@ -232,7 +226,7 @@ function discriminator(schema: Schema): string {
   return schema.title ?? 'object';
 }
 
-/** Keys an `allOf` of `if`/`then` pairs makes required, with the conditions under which they are */
+/** Map required keys to their `allOf`/`if`/`then` conditions */
 function conditionalRequired(node: Schema, outer: string[] = []): Map<string, string[]> {
   const found = new Map<string, string[]>();
   for (const part of (node.allOf ?? []) as Schema[]) {
@@ -258,7 +252,7 @@ function describeIf(test: Schema | undefined): string | undefined {
   return undefined;
 }
 
-/** A `oneOf` that only chooses which keys are required, e.g. `subject` + `note` or `email` */
+/** Describe `oneOf` choices that only specify required keys */
 function requiredChoice(node: Schema): string | undefined {
   const options: Schema[] | undefined = node.oneOf;
   if (!options || !options.every((o) => o.required && !o.properties && !o.type && !o.$ref)) {
@@ -268,7 +262,7 @@ function requiredChoice(node: Schema): string | undefined {
   return `Set exactly one of: ${sets.join(', ')}.`;
 }
 
-/** `Between 1 and 50.` for a number with bounds, so a table states the limits the validator enforces */
+/** Describe numeric bounds */
 function rangeOf(node: Schema): string | undefined {
   const { minimum: min, maximum: max } = node;
   if (min !== undefined && max !== undefined) return `Between ${min} and ${max}.`;
@@ -289,10 +283,7 @@ function code(value: unknown): string {
   return '`' + (typeof value === 'string' ? value : JSON.stringify(value)) + '`';
 }
 
-/**
- * A description as one line of Markdown. A table cell cannot hold a line break, and
- * a bare `<provider>` outside a code span would be read as an HTML tag and dropped.
- */
+/** Flatten descriptions and escape `<` outside code spans */
 export function text(description: string): string {
   return description
     .replace(/\s*\n\s*/g, ' ')

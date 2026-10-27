@@ -1,12 +1,4 @@
-/**
- * Git operations for mirroring and inspecting repositories
- *
- * Mirrors are kept under MIRROR_ROOT and managed with `--mirror` clones
- * A mirror exists if git accepts it as a repository, and is updated with `fetch --prune`
- * Env vars disable prompts and system config to keep automation reliable
- *
- * Credentials in error messages are redacted before propagation
- */
+/** Mirror repositories and inspect Git refs, commits, and files */
 
 import { execFile } from 'node:child_process';
 import { promises as fs } from 'node:fs';
@@ -14,12 +6,13 @@ import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { env } from '../common/env';
+import { CodedError } from '../common/errors';
 import { makeTempDir, sweepAbandonedTempDirs } from '../common/temp-dir';
 
 const run = promisify(execFile);
 
 export interface GitOptions {
-  /** URL that includes authentication (used both for clone and fetch) */
+  /** Authenticated URL for clone and fetch */
   authenticatedUrl: string;
 
   env?: Record<string, string>;
@@ -33,7 +26,7 @@ const DEFAULT_TIMEOUT = 120_000;
 
 const BASE_ENV = {
   ...process.env,
-  // Disable interactive credential prompts and system-level config that could hang or vary
+  // Disable credential prompts and system config
   GIT_TERMINAL_PROMPT: '0',
   GIT_ASKPASS: 'true',
   GIT_CONFIG_NOSYSTEM: '1',
@@ -56,19 +49,19 @@ async function git(
     return stdout.trim();
   } catch (err) {
     if ((err as { killed?: boolean }).killed) {
-      throw new Error(`git ${args[0]} failed: timed out after ${timeoutMs / 1000} seconds`);
+      throw new GitError(
+        'git.timed-out',
+        `Git ${args[0]} timed out after ${timeoutMs / 1000}s.`,
+        args[0],
+      );
     }
-    // Strip credentials from the error before exposing it
+    // Redact credentials before exposing errors
     const message = redactUrls((err as Error).message ?? String(err));
-    throw new Error(`git ${args[0]} failed: ${message}`);
+    throw new GitError('git.failed', `Git ${args[0]} failed: ${message}`, args[0]);
   }
 }
 
-/**
- * lsRemote lists refs of a remote and their commits. It fetches nothing.
- * @param options the remote with its credentials
- * @param refs the refs to list, e.g. `HEAD`
- */
+/** List remote refs and commits without fetching */
 export async function lsRemote(options: GitOptions, refs: string[]): Promise<string> {
   return git(
     ['ls-remote', '--symref', options.authenticatedUrl, ...refs],
@@ -78,24 +71,39 @@ export async function lsRemote(options: GitOptions, refs: string[]): Promise<str
   );
 }
 
-/** Replace embedded credentials in HTTPS URLs with `***` */
+/** Replace HTTPS URL credentials with `***` */
 export function redactUrls(text: string): string {
   return text.replace(/https:\/\/[^@\s]+@/g, 'https://***@');
 }
 
-/** The repository has no commits yet, so there is nothing to sync */
-export class EmptyRepositoryError extends Error {
+/** Git failure codes */
+export type GitCode =
+  | 'git.failed'
+  | 'git.timed-out'
+  | 'git.transport-unsupported'
+  | 'git.empty-repository';
+
+/** Git failure with an optional subcommand name */
+export class GitError extends CodedError<GitCode> {
+  constructor(
+    code: GitCode,
+    message: string,
+    readonly command: string | null = null,
+  ) {
+    super(code, message);
+  }
+}
+
+/** No commits to sync */
+export class EmptyRepositoryError extends GitError {
   constructor() {
-    super('the repository has no commits yet');
-    this.name = 'EmptyRepositoryError';
+    super('git.empty-repository', 'Repository has no commits to sync.');
   }
 }
 
 /**
- * Clone or update a bare mirror at mirrorDir
- *
- * Clones when git does not accept mirrorDir as a repository, otherwise runs `fetch --prune`
- * A fetch that fails on a mirror `git fsck` finds damaged removes the mirror, so the next attempt clones it afresh
+ * Clone missing mirrors or update with fetch --prune
+ * Remove corrupt mirrors after fetch failures so retries reclone
  */
 export async function ensureMirror(mirrorDir: string, options: GitOptions): Promise<void> {
   if (!(await isRepository(mirrorDir))) {
@@ -116,9 +124,7 @@ export async function ensureMirror(mirrorDir: string, options: GitOptions): Prom
   }
 }
 
-/**
- * Clone into a directory beside the mirror and rename it into place once complete, so a mirror that exists is always a finished clone. A process killed mid-clone leaves only the temporary directory, which the next worker to start removes
- */
+/** Clone into a staging directory, then rename to avoid exposing partial clones */
 async function cloneMirror(mirrorDir: string, options: GitOptions): Promise<void> {
   await fs.rm(mirrorDir, { recursive: true, force: true });
   await fs.mkdir(dirname(mirrorDir), { recursive: true });
@@ -139,7 +145,7 @@ async function cloneMirror(mirrorDir: string, options: GitOptions): Promise<void
   }
 }
 
-// --git-dir stops git from searching parent directories for a repository instead
+// --git-dir prevents searching parent directories
 async function isRepository(mirrorDir: string): Promise<boolean> {
   return git(['--git-dir', mirrorDir, 'rev-parse', '--git-dir']).then(
     () => true,
@@ -154,7 +160,7 @@ async function isIntact(mirrorDir: string): Promise<boolean> {
   );
 }
 
-/** Remove the clones that a killed process left unfinished beside the mirrors */
+/** Remove abandoned clone staging directories */
 export async function sweepAbandonedClones(root = MIRROR_ROOT): Promise<string[]> {
   const removed: string[] = [];
   const forges = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
@@ -165,10 +171,7 @@ export async function sweepAbandonedClones(root = MIRROR_ROOT): Promise<string[]
   return removed;
 }
 
-/**
- * Resolve a branch name to its commit SHA in the mirror
- * Throws EmptyRepositoryError when the mirror has no refs at all
- */
+/** Resolve a branch to its commit SHA; throw EmptyRepositoryError if no refs exist */
 export async function resolveHead(mirrorDir: string, branch: string): Promise<string> {
   try {
     return await git(['rev-parse', `refs/heads/${branch}`], mirrorDir);
@@ -179,12 +182,7 @@ export async function resolveHead(mirrorDir: string, branch: string): Promise<st
   }
 }
 
-/**
- * Extract a commit's tree into targetDir via `git archive | tar -x`
- *
- * Not `git checkout` because the mirror is bare and the target is ephemeral
- * Removes targetDir first so the result is a clean snapshot
- */
+/** Replace targetDir with a commit snapshot using git archive and tar */
 export async function checkoutTree(
   mirrorDir: string,
   sha: string,
@@ -198,18 +196,18 @@ export async function checkoutTree(
       ['archive', '--format=tar', sha],
       { cwd: mirrorDir, env: BASE_ENV, maxBuffer: 512 * 1024 * 1024, encoding: 'buffer' },
       (err) => {
-        if (err) reject(new Error(`git archive failed: ${redactUrls(err.message)}`));
+        if (err) reject(new Error(`Could not export commit: ${redactUrls(err.message)}`));
       },
     );
     const tar = execFile('tar', ['-x', '-C', targetDir], { env: BASE_ENV }, (err) => {
-      if (err) reject(new Error(`tar failed: ${err.message}`));
+      if (err) reject(new Error(`Could not extract files: ${err.message}`));
       else resolvePromise();
     });
     archive.stdout?.pipe(tar.stdin!);
   });
 }
 
-/** Names of files changed between two commits, empty list when fromSha is null */
+/** List changed paths between commits; return [] if fromSha is null */
 export async function changedPaths(
   mirrorDir: string,
   fromSha: string | null,
@@ -220,13 +218,13 @@ export async function changedPaths(
   return out.split('\n').filter(Boolean);
 }
 
-/** Author email of a commit, or null if the commit does not exist */
+/** Get the commit author's email, or null if unavailable */
 export async function commitAuthorEmail(mirrorDir: string, sha: string): Promise<string | null> {
   const out = await git(['show', '-s', '--format=%ae', sha], mirrorDir).catch(() => '');
   return out || null;
 }
 
-/** Name of the branch that HEAD points to in the mirror, or null */
+/** Get the branch HEAD points to, or null if unavailable */
 export async function defaultBranchOf(mirrorDir: string): Promise<string | null> {
   const out = await git(['symbolic-ref', '--short', 'HEAD'], mirrorDir).catch(() => '');
   return out || null;

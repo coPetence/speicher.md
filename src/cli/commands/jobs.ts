@@ -17,9 +17,9 @@ export interface JobsArgs {
 }
 
 const OPTION_VALUES: Record<string, string> = {
-  '--kind': `The kinds are ${JOB_KINDS.join(', ')}.`,
-  '--status': `The statuses are ${JOB_STATUSES.join(', ')}.`,
-  '--limit': 'The limit is a whole number between 1 and 500.',
+  '--kind': `Valid kinds: ${JOB_KINDS.join(', ')}.`,
+  '--status': `Valid statuses: ${JOB_STATUSES.join(', ')}.`,
+  '--limit': 'Use a whole number from 1 to 500.',
 };
 
 const ACTION_OPTIONS: Record<JobsArgs['action'], string> = {
@@ -32,7 +32,8 @@ export function parseJobs(argv: string[]): JobsArgs {
   if (action !== 'list' && action !== 'retry') {
     const received = action === undefined ? 'nothing' : JSON.stringify(action);
     throw new UsageError(
-      `jobs: Expected the action \`list\` or \`retry\`, but received ${received}. To see the queued jobs, run \`speicher jobs list\`, or to put a dead job back on the queue, run \`speicher jobs retry <id>\`.`,
+      'usage.unknown-action',
+      `jobs: Invalid action: ${received}. Use \`speicher jobs list\` or \`speicher jobs retry <id>\`.`,
     );
   }
 
@@ -58,21 +59,27 @@ export function parseJobs(argv: string[]): JobsArgs {
       const value = commandArguments[i + 1];
       if (value === undefined) {
         throw new UsageError(
-          `jobs ${parsed.action}: Expected a value after ${arg}, but received nothing. ${OPTION_VALUES[arg]}`,
+          'usage.missing-value',
+          `jobs ${parsed.action}: Missing value for ${arg}. ${OPTION_VALUES[arg]}`,
+          arg,
         );
       }
       i += 1;
       if (arg === '--kind') {
         if (!isJobKind(value)) {
           throw new UsageError(
-            `jobs ${parsed.action}: ${JSON.stringify(value)} is an unknown kind. ${OPTION_VALUES['--kind']}`,
+            'usage.invalid-value',
+            `jobs ${parsed.action}: Unknown kind: ${JSON.stringify(value)}. ${OPTION_VALUES['--kind']}`,
+            value,
           );
         }
         parsed.kind = value;
       } else if (arg === '--status') {
         if (!isJobStatus(value)) {
           throw new UsageError(
-            `jobs ${parsed.action}: ${JSON.stringify(value)} is an unknown status. ${OPTION_VALUES['--status']}`,
+            'usage.invalid-value',
+            `jobs ${parsed.action}: Unknown status: ${JSON.stringify(value)}. ${OPTION_VALUES['--status']}`,
+            value,
           );
         }
         parsed.status = value;
@@ -80,7 +87,9 @@ export function parseJobs(argv: string[]): JobsArgs {
         const limit = Number(value);
         if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
           throw new UsageError(
-            `jobs ${parsed.action}: ${JSON.stringify(value)} is not a valid limit. ${OPTION_VALUES['--limit']}`,
+            'usage.invalid-value',
+            `jobs ${parsed.action}: Invalid limit: ${JSON.stringify(value)}. ${OPTION_VALUES['--limit']}`,
+            value,
           );
         }
         parsed.limit = limit;
@@ -89,12 +98,15 @@ export function parseJobs(argv: string[]): JobsArgs {
     }
     if (arg.startsWith('--')) {
       throw new UsageError(
-        `jobs ${action}: ${JSON.stringify(arg)} is an unknown option. The options of \`jobs ${action}\` are ${ACTION_OPTIONS[action]}.`,
+        'usage.unknown-argument',
+        `jobs ${action}: Unknown option: ${JSON.stringify(arg)}. Valid options: ${ACTION_OPTIONS[action]}.`,
+        arg,
       );
     }
     if (parsed.id !== null) {
       throw new UsageError(
-        `jobs ${action}: Expected one job id, but received more than one. To retry every dead job, run \`speicher jobs retry --all\`, or to retry every dead job of one kind, run \`speicher jobs retry --kind <kind>\`.`,
+        'usage.argument-count',
+        `jobs ${action}: Too many job IDs. Pass one ID, or use \`speicher jobs retry --all\` or \`speicher jobs retry --kind <kind>\`.`,
       );
     }
 
@@ -104,33 +116,37 @@ export function parseJobs(argv: string[]): JobsArgs {
   if (parsed.action === 'list') {
     if (parsed.id || parsed.all || parsed.kind) {
       throw new UsageError(
-        `jobs list: The options of \`jobs list\` are ${ACTION_OPTIONS.list}. To put a dead job back on the queue, run \`speicher jobs retry <id>\`.`,
+        'usage.conflicting-options',
+        `jobs list: Job IDs, --all and --kind are not supported. Valid options: ${ACTION_OPTIONS.list}. Use \`speicher jobs retry\` to retry jobs.`,
       );
     }
     return parsed;
   }
-  // retry needs at least id, --all or --kind
+  // Retry requires a job ID, --all or --kind
   if (!parsed.id && !parsed.all && !parsed.kind) {
     throw new UsageError(
-      'jobs retry: Expected a job id, --all or --kind, but received none of them. To find out which jobs are dead, run `speicher jobs list --status dead`.',
+      'usage.missing-option',
+      'jobs retry: Missing job selection. Pass a job ID, --all or --kind <kind>.',
     );
   }
   if (parsed.id && (parsed.all || parsed.kind)) {
     throw new UsageError(
-      'jobs retry: A job id cannot be combined with --all or --kind. The id already specifies the job that should be retried.',
+      'usage.conflicting-options',
+      'jobs retry: Cannot combine a job ID with --all or --kind. Use the ID alone.',
     );
   }
   if (parsed.status) {
     throw new UsageError(
-      'jobs retry: The option --status cannot be used with `jobs retry`. Only dead jobs can be retried.',
+      'usage.conflicting-options',
+      'jobs retry: --status is not supported. Only dead jobs can be retried.',
+      '--status',
     );
   }
   return parsed;
 }
 
 export const jobsCommand: Command = {
-  summary:
-    'Lists the jobs in the queue or puts dead jobs back on it. To see the queued jobs, run `speicher jobs list`. To put a dead job back on the queue, run `speicher jobs retry <id>`.',
+  summary: 'List queued jobs or retry dead jobs.',
   args: 'list [--status <status>] [--limit <number>] | retry (<id> | --all | --kind <kind>)',
   needsCurrentSchema: true,
   check: (argv) => void parseJobs(argv),
@@ -147,7 +163,7 @@ export const jobsCommand: Command = {
         limit: parsed.limit,
       });
       if (rows.length === 0) {
-        process.stdout.write('The queue holds no jobs.\n');
+        process.stdout.write('No matching jobs.\n');
         return 0;
       }
       process.stdout.write(
@@ -175,12 +191,12 @@ export const jobsCommand: Command = {
     });
     if (retried === 0) {
       process.stderr.write(
-        'No dead job matched. To find out which jobs are dead, run `speicher jobs list --status dead`.\n',
+        'No matching dead jobs. List dead jobs with `speicher jobs list --status dead`.\n',
       );
       return 1;
     }
     log.info('dead jobs retried', { count: retried, kind: parsed.kind ?? null });
-    process.stdout.write(`Put ${retried} job(s) back on the queue.\n`);
+    process.stdout.write(`Requeued ${retried} job(s).\n`);
     return 0;
   },
 };

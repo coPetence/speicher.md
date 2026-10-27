@@ -107,17 +107,16 @@ describe('embedPending', () => {
     await seedChunks(8);
 
     const dying = stubEmbeddingClient();
+    const killed = new Error('worker killed');
     let batches = 0;
     const realClient = dying.client;
     const embed = realClient.embed.bind(realClient);
     jest.spyOn(realClient, 'embed').mockImplementation(async (texts) => {
       batches += 1;
-      if (batches > 1) throw new Error('worker killed');
+      if (batches > 1) throw killed;
       return embed(texts);
     });
-    await expect(new EmbedService(realClient).embedPending(tenantId)).rejects.toThrow(
-      'worker killed',
-    );
+    await expect(new EmbedService(realClient).embedPending(tenantId)).rejects.toBe(killed);
 
     const partial = (await rows()).filter((r) => r.embedding !== null);
     expect(partial.length).toBeGreaterThan(0);
@@ -156,7 +155,10 @@ describe('embedPending', () => {
     const endpoint = stubEmbeddingClient();
     endpoint.breakWith(500);
 
-    await expect(new EmbedService(endpoint.client).embedPending(tenantId)).rejects.toThrow(/500/);
+    await expect(new EmbedService(endpoint.client).embedPending(tenantId)).rejects.toFailWith(
+      'embedding.http-status',
+      { status: 500 },
+    );
     expect((await rows()).every((r) => r.embedding === null)).toBe(true);
   });
 
@@ -164,8 +166,9 @@ describe('embedPending', () => {
     await seedChunks(2);
     const endpoint = stubEmbeddingClient({ dimensions: STUB_DIMENSIONS + 1 });
 
-    await expect(new EmbedService(endpoint.client).embedPending(tenantId)).rejects.toThrow(
-      /returned 3-dimensional vectors, but embedding.dimensions is 4/,
+    await expect(new EmbedService(endpoint.client).embedPending(tenantId)).rejects.toFailWith(
+      'embedding.dimension-mismatch',
+      { returned: 3, configured: 4 },
     );
     expect((await rows()).every((r) => r.embedding === null)).toBe(true);
   });

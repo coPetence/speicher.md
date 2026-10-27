@@ -1,6 +1,4 @@
-/**
- * The notes a configuration page shows about the stored configuration
- */
+/** Stored configuration notices */
 import { renderInlineIcon } from '../../content-reader/icons';
 import { escapeHtml, renderComponent } from '../../content-reader/views';
 import { renderHelp } from '../../global-ui/help-markup';
@@ -9,7 +7,7 @@ import type { Note } from '../../global-ui/note';
 import type { ConfigCommon } from '../configurator/config-page/payloads';
 import type { RepairPreview } from '../configurator/repair-preview';
 
-/** Says that the stored configuration cannot be read or does not parse */
+/** Report configuration read and parse errors */
 export function loadNotes(config: ConfigCommon): Note[] {
   const notes: Note[] = [];
   const file = `<code>${escapeHtml(config.config_path ?? '')}</code>`;
@@ -34,12 +32,12 @@ export function loadNotes(config: ConfigCommon): Note[] {
 }
 
 /**
- * Says that the newest saved versions do not load, folds their problems, and offers the two fixes
+ * Show grouped version failures and repair or restore options
  *
- * @param skipped the versions that do not load, newest first
- * @param editing the newest saved version
- * @param running the version this instance runs
- * @param repair what repairing the newest version changes, null when it cannot be saved
+ * @param skipped Failed versions, newest first
+ * @param editing Latest saved version
+ * @param running Currently running version
+ * @param repair Repair preview, or null if saving is blocked
  */
 export function skippedVersionsNote(
   skipped: SkippedConfigVersion[],
@@ -57,11 +55,7 @@ export function skippedVersionsNote(
   };
 }
 
-/**
- * The dialog that covers a configuration page while the newest saved version does not load, and only offers the fixes
- *
- * @param config the stored configuration the page shows
- */
+/** Block the page with repair or restore options when the latest version fails */
 export function brokenVersionsDialog(config: ConfigCommon): string | null {
   const { editing_version: editing, running_version: running } = config;
   if (!config.repair || editing === null || running === null || config.skipped.length === 0) {
@@ -73,7 +67,7 @@ export function brokenVersionsDialog(config: ConfigCommon): string | null {
   );
 }
 
-// What the `@broken-versions` components draw
+// Shared data for @broken-versions components
 function brokenVersions(
   skipped: SkippedConfigVersion[],
   editing: number,
@@ -99,9 +93,11 @@ function brokenVersions(
   };
 }
 
-/** Versions in a row that fail for the same reasons, as one entry */
-function groupSkipped(skipped: SkippedConfigVersion[]): { label: string; problems: string[] }[] {
-  const groups: { newest: number; oldest: number; problems: string[] }[] = [];
+/** Group consecutive versions with identical problems */
+function groupSkipped(
+  skipped: SkippedConfigVersion[],
+): { label: string; problems: string[]; codes: string[] }[] {
+  const groups: { newest: number; oldest: number; problems: string[]; codes: string[] }[] = [];
   for (const skip of skipped) {
     const last = groups[groups.length - 1];
     if (
@@ -111,7 +107,12 @@ function groupSkipped(skipped: SkippedConfigVersion[]): { label: string; problem
     ) {
       last.oldest = skip.version;
     } else {
-      groups.push({ newest: skip.version, oldest: skip.version, problems: skip.problems });
+      groups.push({
+        newest: skip.version,
+        oldest: skip.version,
+        problems: skip.problems,
+        codes: skip.issues.map((p) => p.code),
+      });
     }
   }
   return groups.map((group) => ({
@@ -120,16 +121,17 @@ function groupSkipped(skipped: SkippedConfigVersion[]): { label: string; problem
         ? `Version ${group.newest}`
         : `Versions ${group.oldest}–${group.newest}`,
     problems: group.problems,
+    codes: group.codes,
   }));
 }
 
-/** Says why the newest saved version is not the one this instance is running */
+/** Explain why the latest saved version is not running */
 export function versionNotes(config: ConfigCommon): Note[] {
   const { editing_version: editing, running_version: running } = config;
   if (running === null || editing === null || running === editing) return [];
 
   if (config.skipped.length > 0) {
-    // A page that can be saved is covered by `blockedWhileBroken` instead
+    // blockedWhileBroken handles pages that allow saving
     return config.repair ? [] : [skippedVersionsNote(config.skipped, editing, running, null)];
   }
 

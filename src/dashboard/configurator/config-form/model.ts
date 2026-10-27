@@ -1,19 +1,18 @@
-/**
- * model.ts defines the types of a config page
- */
+/** Config page types */
 
+import type { CheckStatus } from '../../../common/check-status';
 import type { CardItem, Field } from './config-fields';
 
 export interface Option {
   value: string;
   label: string;
-  // URL to a live preview (used for if FieldKind = template to render theme preview)
+  // Live preview URL for template fields
   previewHref?: string;
-  // Suggested value for new-member creation (e.g. when creating Entra ID idp it can suggest a short id like entra-1)
+  // Suggested identifier for a new member
   suggest?: string;
-  // Brand mark identifier shown alongside the option (e.g. Entra ID Icon)
+  // Brand mark identifier
   mark?: string;
-  // Why the option is unavailable, as help markup
+  // Unavailability reason as help markup
   unavailable?: string;
 }
 
@@ -21,81 +20,83 @@ export function unavailableOption(option: Option, reason: string): Option {
   return { ...option, unavailable: reason };
 }
 
-export interface FieldStatus {
-  // Decides the note's colour and icon, see note.css
-  level: 'info' | 'ok' | 'warn' | 'fail';
-  label: string;
-  detail: string;
+/** Field or row save error with a stable code and dashboard text */
+export interface FormProblem {
+  code: string;
+  text: string;
 }
+
+/** A field's live check; see `CheckStatus` */
+export type FieldStatus = CheckStatus;
 
 export interface AddOp {
   op: string;
   label: string;
-  // Label for the name input; null when the item has no name
+  // Name input label; null if unnamed
   nameLabel: string | null;
-  // Help markup beside the name label; absent when the name needs no explaining
+  // Help markup for the name input
   nameHelp?: string;
-  // Regex pattern for the name; null when there is no name input
+  // Name regex; null if no name input
   namePattern: string | null;
-  // namePattern in words; null when there is no name input
+  // Name pattern description; null if no name input
   nameHint: string | null;
   nameOptions?: Option[];
-  // Label for the type selector; null when there is no type choice
+  // Type selector label; null if no type choice
   typeLabel: string | null;
   typeOptions: Option[];
-  // Whether this navigates to a new page rather than inserting inline
+  // Opens a page instead of adding inline
   opensPage?: boolean;
-  // Direct URL instead of computing one from the op
+  // Explicit URL overriding the op-derived URL
   href?: string;
-  // Index of the section's card the button is drawn before, so that it can follow
-  // the entries it adds to rather than the last card
+  // Card index to insert the button before
   beforeCard?: number;
 }
 
 export interface EntryLine {
   label: string;
   value: string;
-  // Provider mark identifier shown alongside the line (see `provider-marks.ts`)
+  // Provider mark identifier; see provider-marks.ts
   mark: string;
-  // Where the value can be looked up outside, e.g. a directory group in its portal
+  // External lookup URL for the value
   href?: string;
-  // Drawn in the failure colour, e.g. an expiry that has passed
+  // Display in the failure colour
   failed?: boolean;
 }
 
 export interface SectionEntry {
-  // URL to the entry's detail page; empty when there is no separate page
+  // Detail page URL; empty if none
   href: string;
   title: string;
   subtitle: string;
-  // True where the subtitle is prose to render as help markup.
+  // Render subtitle as help markup
   subtitleIsProse?: boolean;
-  // Brand mark identifier shown alongside the entry (see `provider-marks.ts`)
+  // Brand mark identifier; see provider-marks.ts
   mark: string;
-  // Lucide icon name for the entry tile
+  // Lucide icon name
   icon: string;
   badges: { label: string; icon: string }[];
   lines: EntryLine[];
-  // Cell values for table-format columns (e.g. "Added by")
+  // Table column values
   cells: string[];
-  // Lowercased searchable text
+  // Lowercase search text
   search: string;
-  // Fields a row submits without showing (rendered as hidden inputs)
+  // Fields submitted as hidden inputs
   carried: Field[];
-  // Fields for inline editing
+  // Inline editing fields
   fields: Field[];
-  // Operation string to remove this entry; null when removal is not allowed
+  // Removal operation; null if removal is forbidden
   removeOp: string | null;
-  // Position in a list-based collection
+  // Position in a list collection
   position: number;
-  // The shape of this row where a table mixes them, e.g. `person`; see
-  // `sourceKindAt`
+  // Row type in mixed tables; see sourceKindAt
   kind?: string;
+  // Last save errors for this row or its fields
+  problems?: FormProblem[];
 }
 
 export interface TableColumn {
   label: string;
-  // Help markup behind the column's info marker
+  // Help markup for the info marker
   help: string;
 }
 
@@ -108,24 +109,24 @@ export interface TableAddKind {
   label: string;
   // Lucide icon name
   icon: string;
-  // Help markup under the label
+  // Help markup below the label
   help?: string;
-  // Label of the control
+  // Input label
   nameLabel: string;
   options: Option[];
-  // True when multi select
+  // Allow multiple selections
   multiple?: boolean;
   matches?: { label: string; placeholder: string; help: string };
 }
 
-/** A table's Add control: a modal picking a kind of row and its name, submitted as one op */
+/** Add-row modal selecting a row type and name in one operation */
 export interface TableAdd {
   op: string;
-  // The button, and the modal's own button
+  // Label for both add buttons
   label: string;
-  // The modal's title, which may name what the rows are added to
+  // Modal title
   title: string;
-  // What the list of kinds is called, for assistive technology; it is not drawn
+  // Screen-reader label for the row types
   question: string;
   kinds: TableAddKind[];
 }
@@ -135,30 +136,28 @@ export interface ValueTable {
   columns: TableColumn[];
   bulkRemoveOp: string;
   entries: SectionEntry[];
-  // Text shown when the table is empty
+  // Empty-table message
   emptyNote: string;
-  // The control that adds a row; absent where nothing can be added
+  // Add-row control; absent if adding is forbidden
   add?: TableAdd;
 }
 
 export interface Card {
   title: string;
-  // True when the title is a key from the document, e.g. a repository id; it is
-  // then drawn in a monospace font
+  // Render document-key titles in monospace
   titleIsKey?: boolean;
-  // Marks the title with an asterisk
+  // Mark the title with an asterisk
   required?: boolean;
   subtitle: string;
   removeOp: string | null;
-  // The card's fields, copy values and choices, drawn in order
+  // Fields, copy values and choices in display order
   items: CardItem[];
   cards: Card[];
   addOps: AddOp[];
   notes: string[];
-  // Path of a switch on the page; the card is hidden while it is off, and the
-  // controls inside still submit their values
+  // Switch path controlling visibility; hidden controls still submit
   shownWith?: string;
-  // The option of a choice's radio group the card is shown with, e.g. `manual`
+  // Radio option value that shows this card
   shownWhen?: string;
   enabledWith?: string;
   toggle?: string;
@@ -166,75 +165,70 @@ export interface Card {
 }
 
 export interface FormSection {
-  // Status indicator at the section header
+  // Header status indicator
   status?: FieldStatus;
-  // URL to a status check endpoint
+  // Status check endpoint URL
   checkHref?: string;
   id: string;
   title: string;
-  // Help markup shown at the top of the section
+  // Help markup at the section top
   blurb: string;
   fields: Field[];
   cards: Card[];
   addOps: AddOp[];
-  // Id of the parent section; null for top-level sections
+  // Parent section ID; null for top-level sections
   parent: string | null;
-  // Brand mark identifier shown alongside the section
+  // Brand mark identifier
   mark?: string;
-  // Operation string to remove the section or member
+  // Section or member removal operation
   removeOp?: string | null;
-  // Operation string to rename the section or member
+  // Section or member rename operation
   renameOp?: string | null;
-  // Operation string that removes the stored values of this page's fields from the
-  // document; null when none is stored, so no reset button is drawn
+  // Clear stored field values; null hides reset when none are stored
   resetOp?: string | null;
-  // Regex pattern the new name must match
+  // Regex for the new name
   renamePattern?: string;
-  // renamePattern in words
+  // Rename pattern description
   renameHint?: string;
   entries: SectionEntry[];
-  // Layout style for entries
+  // Entry layout
   layout?: 'tiles' | 'table';
-  // Lays the fields out in two equal columns across the full width
+  // Arrange fields in two equal full-width columns
   twoColumns?: boolean;
-  // Lays the cards out side by side in a grid instead of one below the other
+  // Arrange cards in a grid
   cardGrid?: boolean;
-  // Tables of entries within a section
+  // Entry tables
   tables?: ValueTable[];
-  // Whether each entry tile navigates to its own page
+  // Entry tiles link to detail pages
   entriesArePages?: boolean;
-  // Column labels for table-layout sections
+  // Table column labels
   columns?: string[];
-  // True where a table-layout section draws no column for its entries' lines;
-  // the lines still feed the filter, so a row is found by what it is made of
+  // Hide the lines column but keep its content searchable
   hideLines?: boolean;
-  // The operation that removes every entry whose box is ticked, where an index
-  // offers one; each entry's own `removeOp` is what the boxes carry
+  // Remove checked entries; checkboxes carry each entry's removeOp
   bulkRemoveOp?: string;
   searchable?: boolean;
   searchPlaceholder?: string;
-  // Name for a member in this section
+  // Term for a section member
   noun?: string;
-  // Name for an entry within a member
+  // Term for an entry within a member
   entryNoun?: string;
 }
 
 export interface SectionIndexEntry {
   id: string;
   title: string;
-  // Icon identifier for navigation
+  // Navigation icon identifier
   icon: string;
-  // Id of the parent section for subsections
+  // Parent section ID
   parent?: string;
   disabled?: boolean;
 }
 
-/**
- * Collect every field across all sections, cards, entries and carried fields
- */
+/** Collect all fields, including nested, carried and attached fields */
 export function allFields(sections: FormSection[]): Field[] {
   const out: Field[] = [];
-  // Attached fields pushed alongside their parent
+  // Include attached fields after their parent
   const push = (field: Field) => {
     out.push(field);
     field.attached.forEach(push);
@@ -242,7 +236,7 @@ export function allFields(sections: FormSection[]): Field[] {
   for (const section of sections) {
     section.fields.forEach(push);
     fieldsOf(section.cards.flatMap(itemsOfCard)).forEach(push);
-    // Both top-level entries and table entries
+    // Include section and table entries
     for (const entry of allEntries(section)) {
       entry.fields.forEach(push);
       entry.carried.forEach(push);
@@ -251,10 +245,7 @@ export function allFields(sections: FormSection[]): Field[] {
   return out;
 }
 
-/**
- * Every item on the sections' cards and their nested cards, including the items
- * inside a choice's options
- */
+/** Collect card items, including nested cards and choice contents */
 export function cardItems(sections: FormSection[]): CardItem[] {
   const out: CardItem[] = [];
   const push = (item: CardItem) => {
@@ -267,7 +258,7 @@ export function cardItems(sections: FormSection[]): CardItem[] {
   return out;
 }
 
-/** The fields among `items`, including those inside a choice's options */
+/** Extract fields, including choice follow-ups and option fields */
 export function fieldsOf(items: CardItem[]): Field[] {
   return items.flatMap((item): Field[] => {
     if (
@@ -285,18 +276,16 @@ export function fieldsOf(items: CardItem[]): Field[] {
   });
 }
 
-// A card's items, then those of the cards inside it
+// Collect card items before nested card items
 function itemsOfCard(card: Card): CardItem[] {
   return [...card.items, ...card.cards.flatMap(itemsOfCard)];
 }
 
-function allEntries(section: FormSection): SectionEntry[] {
+export function allEntries(section: FormSection): SectionEntry[] {
   return [...section.entries, ...(section.tables ?? []).flatMap((table) => table.entries)];
 }
 
-/**
- * Collect every operation string across all sections
- */
+/** Collect all section, card and entry operations */
 export function allOps(sections: FormSection[]): string[] {
   const out: string[] = [];
   const walk = (card: Card) => {

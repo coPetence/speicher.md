@@ -11,11 +11,11 @@ describe('the database the suite may destroy', () => {
   });
 
   it('refuses the development database', () => {
-    expect(() => assertTestDatabase('speicher')).toThrow(/refusing to truncate/);
+    expect(() => assertTestDatabase('speicher')).toFailWith('test-database.refused');
   });
 
   it('refuses a name that merely contains _test', () => {
-    expect(() => assertTestDatabase('speicher_test_fixtures')).toThrow(/refusing to truncate/);
+    expect(() => assertTestDatabase('speicher_test_fixtures')).toFailWith('test-database.refused');
   });
 
   it('names a URL that would work in the refusal', () => {

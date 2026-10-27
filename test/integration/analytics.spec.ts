@@ -412,9 +412,9 @@ describe.skip('the report', () => {
 
 describe('the configuration', () => {
   it('refuses a time zone the runtime does not know, naming the key', () => {
-    expect(() => loadInstanceConfig('version: 1\nanalytics:\n  timezone: Europe/Berln\n')).toThrow(
-      /analytics\.timezone/,
-    );
+    expect(() =>
+      loadInstanceConfig('version: 1\nanalytics:\n  timezone: Europe/Berln\n'),
+    ).toRefuseWith('analytics.timezone-unknown', { path: 'analytics.timezone' });
   });
 
   it('accepts an instance that never mentions it', () => {

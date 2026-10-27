@@ -1,20 +1,13 @@
 /**
- * What each kind of generated block renders
+ * Generated block syntax:
+ * - cli [without:a,b]: CLI commands
+ * - env-vars [NAME,NAME…]: all or selected environment variables
+ * - schema <name>[#pointer] [key]: full reference or a table at a pointer
+ * - schema <name> [without:a,b]: reference excluding top-level keys
+ * - mcp-tools: MCP tools and parameters
  *
- *   <!-- generated: cli [without:a,b] -->              every command of the `speicher` CLI
- *   <!-- generated: env-vars [NAME,NAME…] -->          the env table, or only the named rows
- *   <!-- generated: schema <name>[#pointer] [key] -->  a key table from src/config/schema/<name>.schema.json
- *   <!-- generated: schema <name> [without:a,b] -->    the reference page, leaving out the named top-level keys
- *   <!-- generated: mcp-tools -->                      every tool of the MCP server, with its parameters
- *
- * A schema block without a pointer is a reference page: one section per top-level
- * key, and a heading for every key below it. With a pointer it is the table a guide
- * page ends with, its keys spelled from the pointer, or from `key` where the pointer
- * cannot say (a `$defs` entry has no place in the document until something refers
- * to it).
- *
- * `without:` leaves out commands or top-level keys that exist in code but are not
- * released yet, so the docs do not describe what readers cannot use.
+ * Schema tables use the pointer as the key path; use `key` to override it
+ * `without:` excludes unreleased commands or top-level schema keys
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -22,7 +15,7 @@ import { resolve } from 'node:path';
 import { COMMANDS } from '../../src/cli/commands';
 import { renderEnvTable } from '../../src/common/env';
 import { TOOL_DEFINITIONS } from '../../src/mcp/tools';
-import { BlockSpec } from './markers';
+import { BlockSpec, DocsError } from './markers';
 import { SchemaDoc, renderEntries, renderFacts, renderTable } from './schema-table';
 
 const SCHEMA_DIR = resolve(__dirname, '../../src/config/schema');
@@ -41,14 +34,18 @@ export function generate(spec: BlockSpec): string {
       expectArgs(kind, args, 1);
       return renderEnvTable(args[0]?.split(','));
     case 'schema':
-      if (args.length < 1) throw new Error('schema needs a schema name, e.g. `schema instance`');
+      if (args.length < 1)
+        throw new DocsError(
+          'docs.schema-name-missing',
+          'Missing schema name. Example: `schema instance`.',
+        );
       expectArgs(kind, args, 2);
       return renderSchema(args[0], args[1], without);
     case 'mcp-tools':
       expectArgs(kind, args, 0);
       return renderMcpTools();
     default:
-      throw new Error(`unknown generated block kind: ${kind}`);
+      throw new DocsError('docs.unknown-kind', `Unknown generated block type: ${kind}`);
   }
 }
 
@@ -72,7 +69,7 @@ export function renderCli(without: ReadonlySet<string> = new Set()): string {
 
 export function renderMcpTools(): string {
   return TOOL_DEFINITIONS.map((tool) => {
-    // The tool's input schema is a document of its own, its parameters the top-level keys
+    // Skip the schema root row to show only parameters
     const [, ...parameters] = new SchemaDoc(tool.inputSchema).table('#', '').rows;
     const table = parameters.length > 0 ? renderTable({ rows: parameters, branches: [] }) : '';
     return [
@@ -96,10 +93,11 @@ function renderSchema(
     JSON.parse(readFileSync(resolve(SCHEMA_DIR, `${name}.schema.json`), 'utf8')),
   );
   if (without.size > 0 && pointer !== undefined) {
-    throw new Error('without: applies to a whole schema only');
+    throw new DocsError('docs.without-not-schema', 'Cannot use `without:` with a schema pointer.');
   }
   if (pointer !== undefined) return renderTable(doc.table(`#${pointer}`, key));
-  if (key !== undefined) throw new Error('a key needs a pointer to apply to');
+  if (key !== undefined)
+    throw new DocsError('docs.key-without-pointer', 'A key argument requires a schema pointer.');
   const sections = doc.sections();
   unknownNames(
     without,
@@ -115,13 +113,20 @@ function renderSchema(
     .join('\n\n');
 }
 
-/** A misspelt name in `without:` would quietly leave the thing in, so it is refused */
+/** Reject unknown exclusions to catch typos */
 function unknownNames(without: ReadonlySet<string>, known: string[]): void {
   const unknown = [...without].filter((name) => !known.includes(name));
-  if (unknown.length > 0) throw new Error(`without: names nothing called ${unknown.join(', ')}`);
+  if (unknown.length > 0)
+    throw new DocsError(
+      'docs.without-unknown',
+      `Unknown names in \`without:\`: ${unknown.join(', ')}`,
+    );
 }
 
 function expectArgs(kind: string, args: string[], max: number): void {
   if (args.length > max)
-    throw new Error(`${kind} takes at most ${max} argument(s), got: ${args.join(' ')}`);
+    throw new DocsError(
+      'docs.too-many-arguments',
+      `${kind}: expected at most ${max} ${max === 1 ? 'argument' : 'arguments'}, got ${args.length}: ${args.join(' ')}`,
+    );
 }

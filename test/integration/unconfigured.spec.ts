@@ -136,9 +136,9 @@ describe('a `file`-mode boot with no administrator', () => {
     const loaded = await loadActiveInstanceConfig();
     expect(loaded.raw.admins).toBeUndefined();
 
-    const line = lines().find((l) => l.msg === 'this instance has no administrator');
+    const line = lines().find((l) => l.code === 'admins.none');
     expect(line?.level).toBe('error');
-    expect(line?.reason).toMatch(/No administrator is configured/);
+    expect(line?.code).toBe('admins.none');
     expect(line?.config).toBe(MINIMAL_PATH);
   });
 

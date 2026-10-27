@@ -7,7 +7,6 @@ import { BlobServiceClient, StorageSharedKeyCredential } from '@azure/storage-bl
 
 import {
   AzureBlobStore,
-  CONTAINER_FAIL_LABEL,
   CONTAINER_OK_LABEL,
   createAzureBlobStore,
 } from '../../src/assets/azure-blob-store';
@@ -270,10 +269,7 @@ describe('the azure blob driver', () => {
     const name = `spr-absent-${randomUUID()}`;
     const status = await createAzureBlobStore(assetsConfig(name)).probe();
 
-    expect(status.level).toBe('fail');
-    expect(status.label).toBe(CONTAINER_FAIL_LABEL);
-    expect(status.detail).toContain(name);
-    expect(status.detail).toContain('never creates it');
+    expect(status).toMatchObject({ code: 'store.missing', level: 'fail', facts: { target: name } });
   });
 
   it('fails rather than creating a container that is not there', async () => {

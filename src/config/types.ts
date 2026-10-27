@@ -1,12 +1,15 @@
 import { Granularity } from '../dashboard/analytics/buckets';
 import type { PaletteKey } from './palette';
+import type { ConfigProblem } from '../common/config-problems';
 
 export type ConfigSource = 'file' | 'database';
 
 export interface SkippedConfigVersion {
   version: number;
-  // Versions whose schema upgrade was skipped, recorded so the admin sees them
+  // Schema upgrade problems shown to admins
   problems: string[];
+  // Problems with codes
+  issues: ConfigProblem[];
 }
 
 export interface MailConfig {
@@ -20,11 +23,11 @@ export interface MailConfig {
 
 export interface DirectoryConfig {
   type: 'graph' | 'github';
-  // graph
+  // Microsoft Graph
   tenant_id?: string;
   client_id?: string;
   client_secret?: string;
-  // github
+  // GitHub
   app_id?: string;
   private_key?: string;
   webhook_secret?: string;
@@ -70,7 +73,7 @@ export interface GithubProviderConfig {
 
 export interface GithubProviderApp {
   client_id: string;
-  // The name of the App in its URLs, e.g. `speicher-md`
+  // App URL slug, e.g. `speicher-md`
   slug: string;
   owner_account: string;
   owner_is_organization: boolean;
@@ -92,7 +95,7 @@ export interface GroupSource {
   until?: string;
 }
 
-/** Group references another group */
+/** Reference to another group */
 export interface GroupReference {
   group: string;
   note?: string;
@@ -106,7 +109,7 @@ export function isGroupReference(item: GroupItem): item is GroupReference {
 }
 
 export interface GitRepoConfig {
-  // A named repo inside a forge, referenced by id in a SpeicherConfig
+  // Forge repo ID referenced by SpeicherConfig
   id: string;
   url: string;
   slug?: string;
@@ -117,14 +120,7 @@ export interface GitRepoConfig {
   poll_interval?: string;
 }
 
-/**
- * gitRepositoryOwner returns the user or organization a plain git repository belongs
- * to: the path of its remote URL without the repository name, for example `acme` for
- * `https://host/acme/docs.git` and `acme/team` for `https://host/acme/team/docs.git`.
- * It returns null if the path holds no owner.
- *
- * @param repo the repository
- */
+/** Returns the URL path without the repo name, or null if invalid or ownerless */
 export function gitRepositoryOwner(repo: GitRepoConfig): string | null {
   try {
     const segments = new URL(repo.url).pathname
@@ -147,7 +143,7 @@ export interface ForgeConfig {
   app_id?: string;
   private_key?: string;
   token?: string;
-  // Overrides the forge-level poll_interval for repos that do not set their own
+  // Default poll interval for repos without an override
   poll_interval?: string;
   known_hosts?: string;
   repos?: GitRepoConfig[];
@@ -190,7 +186,7 @@ export interface AssetsConfig {
   container?: string;
   connection_string?: string;
   account_key?: string;
-  // Azure Blob auth method; defaults to 'connection_string' when connection_string is set
+  // Azure auth; defaults to 'connection_string' when set
   auth?: 'connection_string' | 'key' | 'managed_identity' | 'workload_identity' | 'default';
   client_id?: string;
   tenant_id?: string;
@@ -241,7 +237,7 @@ export interface GraphConfig {
 
 export interface AnalyticsConfig {
   enabled?: boolean;
-  // Timezone for daily/weekly/monthly bucket alignment, defaults to UTC
+  // Daily, weekly and monthly bucket timezone; defaults to UTC
   timezone?: string;
   granularity?: Granularity;
   unique_readers?: boolean;
@@ -252,21 +248,21 @@ export interface AnalyticsConfig {
 
 export interface BrandConfig {
   name?: string;
-  // Logo for light mode
+  // Light-mode logo
   logo?: string;
-  // Logo for dark mode
+  // Dark-mode logo
   logo_dark?: string;
-  // Favicon: square, PNG or SVG
+  // Square PNG or SVG favicon
   icon?: string;
-  // Wallpaper behind the pages
+  // Page background wallpaper
   wallpaper?: string;
-  // Wallpaper for dark mode
+  // Dark-mode wallpaper
   wallpaper_dark?: string;
-  // Whether the uploaded wallpaper is shown in every theme, not only in Glass
+  // Show wallpaper in all themes, not just Glass
   wallpaper_all_themes?: boolean;
-  // Whether to show the brand name next to the logo in the header
+  // Show brand name beside the header logo
   show_name?: boolean;
-  // How the brand name lines up with the logo beside it
+  // Brand name alignment beside the logo
   name_align?: BrandNameAlign;
 }
 
@@ -281,27 +277,27 @@ export interface InstanceConfig {
   mail?: MailConfig;
   assets?: AssetsConfig;
   theme?: ThemeConfig;
-  // Whether to show "Powered by Speicher" in the footer; defaults to true
+  // Show "Powered by Speicher" in the footer; defaults to true
   attribution?: boolean;
-  // Brand config for the top-level site (not per-repo)
+  // Site-wide branding, not per-repo
   brand?: BrandConfig;
   graph?: GraphConfig;
-  // Analytics tracking, including Plausible-style public beacon
+  // Analytics tracking and Plausible-style public beacon
   analytics?: AnalyticsConfig;
   notify?: NotifyConfig;
   embedding?: EmbeddingConfig;
-  // Auth providers: keyed by provider name, one is the default
+  // Named auth providers with a default
   auth?: {
     default_provider?: string;
     providers: Record<string, ProviderConfig>;
   };
-  // Global admins and maintainers, applies to all repos
+  // Admins across all repos
   admins?: PrincipalSet;
-  // A list is any-of; see GroupItem
+  // Named groups; any matching item grants membership
   groups?: Record<string, GroupItem[]>;
-  // Repos visible without authentication
+  // Repos accessible without authentication
   public?: PublicConfig;
-  // Forge connections, keyed by forge name
+  // Forge connections by name
   forges?: Record<string, ForgeConfig>;
   defaults?: {
     sync?: SyncConfig;
@@ -323,14 +319,14 @@ export interface SpeicherConfig {
 export interface Frontmatter {
   title?: string;
   description?: string;
-  // Lucide icon name, kebab-case used as the document icon in navigation
+  // Kebab-case Lucide icon name for navigation
   icon?: string;
   redirect_from?: string[];
   draft?: boolean;
   indexable?: boolean;
-  // Tags used for filtering and search faceting
+  // Filter and search facet tags
   tags?: string[];
-  // Sidebar sort position (lower = higher); overrides sidebar.order
+  // Sidebar order: lower first; overrides sidebar.order
   sidebar_position?: number;
   sidebar?: { order?: number; [key: string]: unknown };
 }

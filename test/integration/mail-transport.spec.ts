@@ -33,9 +33,11 @@ describe('the transport check itself', () => {
   it('signs in, and says so with the account it signed in as', async () => {
     const status = await probeMail(mail({ username: 'docs', password: 'secret' }));
 
-    expect(status.level).toBe('ok');
-    expect(status.label).toBe('Connected and signed in');
-    expect(status.detail).toContain('as docs');
+    expect(status).toMatchObject({
+      code: 'mail.connected',
+      level: 'ok',
+      facts: { signedIn: true, user: 'docs' },
+    });
     expect(smtp.verbs).toContain('AUTH');
     expect(smtp.verbs).not.toContain('MAIL');
     expect(smtp.verbs).not.toContain('DATA');
@@ -46,16 +48,15 @@ describe('the transport check itself', () => {
     const status = await probeMail(mail({ username: 'docs', password: 'wrong' }));
     smtp.rejectLogin = false;
 
-    expect(status.level).toBe('fail');
-    expect(status.label).toBe('Not connected');
-    expect(status.detail).toContain('535');
+    expect(status).toMatchObject({ code: 'mail.unreachable', level: 'fail' });
+    // The server's own reply, which is data, not our wording
+    expect(status.facts?.reason).toContain('535');
   });
 
   it('connects without credentials, where none are configured', async () => {
     const status = await probeMail(mail());
-    expect(status.level).toBe('ok');
-    expect(status.label).toBe('Connected');
-    expect(status.detail).not.toContain(' as ');
+    expect(status).toMatchObject({ code: 'mail.connected', facts: { signedIn: false } });
+    expect(status.facts?.user).toBeUndefined();
   });
 
   it('gives up on a port nothing is listening on, rather than holding the page', async () => {
