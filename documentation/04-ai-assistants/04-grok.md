@@ -15,11 +15,17 @@ On Grok Business and Enterprise, a team admin adds the connector for the whole t
 In Grok, open **Plugins** in the sidebar and stay on the **Connectors** tab, or go straight to [grok.com/connectors](https://grok.com/connectors). Click **New Connector** and choose **Custom** (_Add your own custom connector_) at the top of the list.
 
 - **Name:** what the connector is called in Grok, for example `Company Docs`.
-- **Server URL:** your Speicher address followed by `/mcp`:
+- **Server URL:** your Speicher address followed by `/mcp` or `/mcp-public`. For example:
 
 ```
 https://<hostname>/mcp
 ```
+
+```
+https://<hostname>/mcp/public
+```
+
+Use `/mcp` if you want Claude to see pages that require authentication, or `/mcp/public` if you want it to see only public pages.
 
 Click **Add Connector**.
 
