@@ -44,9 +44,9 @@ The password for `username`. Can be a reference to an environment variable, such
 
 ### `mail.from`
 
-**Type:** string · **Required**
+**Type:** string
 
-The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from. Example: `Docs <docs@example.com>`.
+The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from. Defaults to the brand name with `username` when that is an address, or with `noreply@` the host of `SPEICHER_PUBLIC_URL` otherwise. Example: `Docs <docs@example.com>`.
 
 ### `mail.reply_to`
 

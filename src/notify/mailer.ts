@@ -1,16 +1,14 @@
 /**
  * Outgoing email via SMTP
  *
- * Health probe for the admin UI
- * Caches the nodemailer transporter keyed by serialised config so config changes
- * rebuild the connection without a restart
- *
- * No queue: if sending fails the error is logged and the message dropped
+ * Admin health probe and transport cache refreshed on config changes
+ * Failed messages are logged and dropped without retry
  */
 
 import { Injectable } from '@nestjs/common';
 import nodemailer, { Transporter } from 'nodemailer';
 
+import { instanceUrl } from '../common/env';
 import { reasonOf } from '../common/errors';
 import { Logger, rootLogger } from '../common/logger';
 import { ConfigService } from '../config/config.service';
@@ -18,15 +16,28 @@ import { stableStringify } from '../config/resolution-hash';
 import { MailConfig } from '../config/types';
 import { CheckStatus } from '../common/check-status';
 
-/** What the connection check of the mail transport found */
+/** SMTP connection status */
 export type MailStatus = CheckStatus<'mail.connected' | 'mail.unreachable'> & {
   level: 'ok' | 'fail';
 };
 
 const PROBE_TIMEOUT_MS = 3_000;
 
+/**
+ * Default sender: SMTP username if an email address, otherwise noreply on the public host
+ */
+export function defaultMailFrom(
+  brand: string,
+  username: string | undefined,
+): { name: string; address: string } {
+  const address = username?.includes('@')
+    ? username
+    : `noreply@${instanceUrl()?.hostname || 'localhost'}`;
+  return { name: brand, address };
+}
+
 export async function probeMail(mail: MailConfig): Promise<MailStatus> {
-  // Creates a fresh transporter so config is tested as-is, not from a cached one
+  // Bypass the cache to test the supplied config
   const port = mail.port ?? 587;
   const transporter = nodemailer.createTransport({
     host: mail.host,
@@ -114,7 +125,7 @@ export class Mailer {
     }
     try {
       await this.transport(mail).sendMail({
-        from: mail.from,
+        from: mail.from || defaultMailFrom(this.config.brand, mail.username),
         replyTo: mail.reply_to,
         to,
         subject,
@@ -124,7 +135,7 @@ export class Mailer {
       this.lastError = null;
     } catch (err) {
       this.lastError = (err as Error).message;
-      // Logged so the admin sees why delivery failed without a thrown exception
+      // Log delivery failures without rethrowing
       this.log.error('could not send mail', { subject, error: this.lastError });
     }
   }

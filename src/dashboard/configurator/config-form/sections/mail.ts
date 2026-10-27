@@ -1,26 +1,29 @@
 /**
- * The mail transport
- *
- * One page over the `mail` block, and nothing else: it is the relay, not who is
- * told what over it — that is `notifications.ts`, whose own block this page must
- * not be able to reach. Transport lives apart from its consumers because magic
- * links are the first of them rather than the owner
+ * Mail transport settings only; notification settings belong in notifications.ts
  */
 
+import { defaultBrand } from '../../../../config/config.service';
+import { defaultMailFrom } from '../../../../notify/mailer';
 import type { Obj } from '../config-fields';
-import { SECRET_HELP, numberField, secretField, textField } from '../config-fields';
+import { SECRET_HELP, at, numberField, secretField, textField } from '../config-fields';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
 
 export function mailSection(root: Obj): SectionSource {
+  // Show the default sender as the placeholder
+  const brand = at(root, ['brand', 'name']);
+  const username = at(root, ['mail', 'username']);
+  const sender = defaultMailFrom(
+    (typeof brand === 'string' && brand.trim()) || defaultBrand(),
+    typeof username === 'string' ? username : undefined,
+  );
   return {
     ...sectionHead('mail'),
     blurb:
-      'The relay this instance sends through: magic links, and every notice it sends. ' +
-      'Find out more in our ' +
-      '[documentation](https://docs.speicher.md/configuration/mail-transport)',
+      'Enter your SMTP settings to send sign-in links and notifications. ' +
+      'See the [setup guide](https://docs.speicher.md/configuration/mail-transport).',
     fields: [
-      textField(root, ['mail', 'host'], 'mail.host', 'SMTP host'),
+      textField(root, ['mail', 'host'], 'mail.host', 'SMTP host', { required: true }),
       numberField(root, ['mail', 'port'], 'mail.port', 'Port', {
         fallback: 587,
       }),
@@ -29,7 +32,8 @@ export function mailSection(root: Obj): SectionSource {
         help: SECRET_HELP,
       }),
       textField(root, ['mail', 'from'], 'mail.from', 'From', {
-        placeholder: 'Docs <docs@example.com>',
+        placeholder: `${sender.name} <${sender.address}>`,
+        help: 'Enter a sender name and email address, or leave empty to use the default shown above.',
       }),
       textField(root, ['mail', 'reply_to'], 'mail.reply_to', 'Reply-to'),
     ],

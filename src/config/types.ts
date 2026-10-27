@@ -8,7 +8,7 @@ export interface SkippedConfigVersion {
   version: number;
   // Schema upgrade problems shown to admins
   problems: string[];
-  // Problems with codes
+  // Coded config issues
   issues: ConfigProblem[];
 }
 
@@ -17,7 +17,7 @@ export interface MailConfig {
   port?: number;
   username?: string;
   password?: string;
-  from: string;
+  from?: string;
   reply_to?: string;
 }
 

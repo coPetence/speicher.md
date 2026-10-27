@@ -2328,19 +2328,53 @@ describe('a disabled section', () => {
   });
 });
 
-describe("a GitHub provider's addresses", () => {
-  const withPublicUrl = <T>(value: string | undefined, run: () => T): T => {
-    const before = process.env.SPEICHER_PUBLIC_URL;
-    if (value === undefined) delete process.env.SPEICHER_PUBLIC_URL;
-    else process.env.SPEICHER_PUBLIC_URL = value;
-    try {
-      return run();
-    } finally {
-      if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
-      else process.env.SPEICHER_PUBLIC_URL = before;
-    }
-  };
+const withPublicUrl = <T>(value: string | undefined, run: () => T): T => {
+  const before = process.env.SPEICHER_PUBLIC_URL;
+  if (value === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+  else process.env.SPEICHER_PUBLIC_URL = value;
+  try {
+    return run();
+  } finally {
+    if (before === undefined) delete process.env.SPEICHER_PUBLIC_URL;
+    else process.env.SPEICHER_PUBLIC_URL = before;
+  }
+};
 
+describe('the mail transport page', () => {
+  const mailFields = (yaml: string) =>
+    allFields([buildSections(loadDocument(yaml)).find((s) => s.id === 'mail')!]);
+  const field = (yaml: string, schemaPath: string) =>
+    mailFields(yaml).find((f) => f.schemaPath === schemaPath)!;
+
+  const UNSENT = `${FULL}\n`.replace('  from: Docs <docs@example.test>\n', '');
+
+  it('marks only the host as required, which is all the schema requires', () => {
+    expect(
+      mailFields(FULL)
+        .filter((f) => f.required)
+        .map((f) => f.schemaPath),
+    ).toEqual(['mail.host']);
+  });
+
+  it('offers a no-reply sender on the public host when the username is no address', () => {
+    const from = withPublicUrl('https://docs.acme.example/', () => field(UNSENT, 'mail.from'));
+
+    expect(from).toMatchObject({
+      value: '',
+      placeholder: 'Acme Engineering Docs <noreply@docs.acme.example>',
+    });
+  });
+
+  it('offers the username as the sender when it is an address', () => {
+    const yaml = UNSENT.replace('  username: docs\n', '  username: docs@acme.example\n');
+
+    expect(field(yaml, 'mail.from')).toMatchObject({
+      placeholder: 'Acme Engineering Docs <docs@acme.example>',
+    });
+  });
+});
+
+describe("a GitHub provider's addresses", () => {
   // A GitHub provider without an App shows the addresses for entering its App manually
   const NEW_PROVIDER = `${FULL}\n`.replace(
     '  providers:\n',
