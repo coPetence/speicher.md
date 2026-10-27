@@ -12,34 +12,34 @@
     },
     "mail": {
       "type": "object",
-      "description": "The SMTP server Speicher sends sign-in links for magic-link providers through. Required before a magic-link provider can be added.",
-      "required": ["host", "from"],
+      "description": "Configure SMTP to send sign-in links. Required for magic-link providers.",
+      "required": ["host"],
       "additionalProperties": false,
       "properties": {
         "host": {
-          "description": "The SMTP server's host name, for example `smtp.example.com`.",
+          "description": "Enter your SMTP hostname, such as `smtp.example.com`.",
           "type": "string"
         },
         "port": {
-          "description": "The SMTP port. On `465` Speicher connects with TLS from the start; on any other port it switches to TLS with STARTTLS when the server offers it.",
+          "description": "Enter your SMTP port. Port `465` uses TLS immediately; other ports use STARTTLS if available.",
           "type": "integer",
           "default": 587
         },
         "username": {
-          "description": "The username to sign in to the SMTP server with. Leave it out if the server accepts mail without signing in.",
+          "description": "Enter your SMTP username. Omit if your server needs no authentication.",
           "type": "string"
         },
         "password": {
-          "description": "The password for `username`. Can be a reference to an environment variable, such as `${SMTP_PASSWORD}`.",
+          "description": "Enter your SMTP password or an environment variable reference, such as `${SMTP_PASSWORD}`.",
           "type": "string"
         },
         "from": {
-          "description": "The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from.",
+          "description": "Enter an allowed sender address, optionally as `Name <address>`. Defaults to the brand name and the `username` email address, or `noreply@<public-host>` from `SPEICHER_PUBLIC_URL`.",
           "type": "string",
           "examples": ["Docs <docs@example.com>"]
         },
         "reply_to": {
-          "description": "Where replies go, if not to the sender. Optional.",
+          "description": "Enter a reply address if replies should go somewhere other than the sender.",
           "type": "string"
         }
       }

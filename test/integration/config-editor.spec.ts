@@ -4356,14 +4356,14 @@ describe('the save bar', () => {
     const { body } = await open('mail');
     const json = await post('mail', {
       ...body,
-      'mail.host': 'smtp.example.test',
-      'mail.from': '',
+      'mail.host': '',
+      'mail.from': 'Docs <docs@example.test>',
       intent: 'check',
     })
       .set('accept', 'application/json')
       .expect(400);
 
-    const at = (json.body.problem_paths as (string | null)[]).indexOf('mail.from');
+    const at = (json.body.problem_paths as (string | null)[]).indexOf('mail.host');
     expect(at).toBeGreaterThanOrEqual(0);
     expect(json.body.problem_codes[at]).toBe('schema.required');
   });

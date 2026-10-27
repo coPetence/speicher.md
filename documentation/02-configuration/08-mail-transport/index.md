@@ -29,7 +29,7 @@ In the dashboard, go to **Configuration → Mail transport** and fill in:
 
 - **SMTP host** and **Port**
 - **Username** and **Password**
-- **From**: the sender, as an address or as `Name <address>`, for example `Docs <docs@example.com>`
+- **From**: optional, the sender, as an address or as `Name <address>`, for example `Docs <docs@example.com>`
 - **Reply-to**: optional, where replies go if not to the sender
 
 Then select **Check the connection**. Speicher connects to the server and signs in, and shows **Connected and signed in** (or **Connected** without a username) if that worked, or the error if it did not. No email is sent.
@@ -75,7 +75,7 @@ docker compose logs web worker | grep "could not send mail"
 | `mail.port` | integer | `587` |  | The SMTP port. On `465` Speicher connects with TLS from the start; on any other port it switches to TLS with STARTTLS when the server offers it. |
 | `mail.username` | string |  |  | The username to sign in to the SMTP server with. Leave it out if the server accepts mail without signing in. |
 | `mail.password` | string |  |  | The password for `username`. Can be a reference to an environment variable, such as `${SMTP_PASSWORD}`. |
-| `mail.from` | string |  | yes | The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from. Example: `Docs <docs@example.com>`. |
+| `mail.from` | string |  |  | The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from. Defaults to the brand name with `username` when that is an address, or with `noreply@` the host of `SPEICHER_PUBLIC_URL` otherwise. Example: `Docs <docs@example.com>`. |
 | `mail.reply_to` | string |  |  | Where replies go, if not to the sender. Optional. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->
