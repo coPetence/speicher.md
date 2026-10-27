@@ -194,17 +194,17 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
       }),
       durationField(root, [...base, 'session_ttl'], p('session_ttl'), 'Session lifetime', {
         fallback: '8h',
-        help: 'How long a sign-in stays valid before the person has to sign in again. If you remove someone from a team it needs a new session to take effect. If you need fast team removal times, keep this low.',
+        help: 'Set how long readers stay signed in. Choose a shorter lifetime to apply team removals sooner; they take effect at the next sign-in.',
         advanced: true,
       }),
     );
   }
 
   fields.push(
-    // Boolean field using the provider id as trueValue
+    // Store the provider id when enabled
     booleanField(root, ['auth', 'default_provider'], 'auth.default_provider', 'Default provider', {
       trueValue: id,
-      help: "The default provider is used for grants that name a person without naming a provider, for example `{ email: example@copetence.de }` under `access.users` in a repository's `.speicher.yaml`. If only one provider is configured, this provider will be automatically set as the default.",
+      help: 'Enable to use this provider for `access.users` entries that omit a provider in `.speicher.yaml`. The first provider added is the default.',
       trailing: kind === 'github',
     }),
   );

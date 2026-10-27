@@ -7,7 +7,10 @@ import { readStylesheet } from '../helpers/stylesheet';
 import { GITHUB_CALLBACK_PATH } from '../../src/auth/callback-url';
 import { ELIDED, REDACTED, displayYaml } from '../../src/dashboard/configurator/config-form/redact';
 import { applyForm } from '../../src/dashboard/configurator/config-form/apply';
-import { renameMember } from '../../src/dashboard/configurator/config-form/member-edits';
+import {
+  renameMember,
+  seedMemberInto,
+} from '../../src/dashboard/configurator/config-form/member-edits';
 import { sectionOf } from '../../src/dashboard/configurator/config-form/sections';
 import { repoCard } from '../../src/dashboard/configurator/config-form/sections/content-sources/git-repository-card';
 import { SCP_FORM, repositoryName, sshRemoteUrl } from '../../src/forge/remote-url';
@@ -1842,6 +1845,51 @@ describe('a group’s rows', () => {
     expect(out).toContain('{ group: eng, note: every engineer }');
     expect(out).not.toMatch(/group: engineering\b/);
     expect(() => loadInstanceConfig(out)).not.toThrow();
+  });
+});
+
+describe('adding the first provider or source', () => {
+  it('makes the first one the default, in writing', () => {
+    const doc = loadDocument('version: 1\n');
+    seedMemberInto(doc, { section: 'identity', id: 'entra' }, 'entra');
+
+    expect(doc.getIn(['auth', 'default_provider'])).toBe('entra');
+  });
+
+  it('leaves the default alone once there is a provider already', () => {
+    const doc = loadDocument('version: 1\nauth:\n  providers:\n    entra:\n      type: oidc\n');
+    seedMemberInto(doc, { section: 'identity', id: 'letter' }, 'magic-link');
+
+    expect(doc.getIn(['auth', 'default_provider'])).toBeUndefined();
+  });
+
+  it('keeps a default that is already written, even with no provider left', () => {
+    const doc = loadDocument('version: 1\nauth:\n  default_provider: entra\n  providers: {}\n');
+    seedMemberInto(doc, { section: 'identity', id: 'letter' }, 'magic-link');
+
+    expect(doc.getIn(['auth', 'default_provider'])).toBe('entra');
+  });
+
+  it('makes the first content source the primary, so its URLs never move', () => {
+    const doc = loadDocument('version: 1\n');
+    seedMemberInto(doc, { section: 'sources', id: 'gh' }, 'github');
+
+    expect(doc.getIn(['forges', 'gh', 'primary'])).toBe(true);
+  });
+
+  it('leaves the primary to the existing source when a second one joins', () => {
+    const doc = loadDocument('version: 1\nforges:\n  gh:\n    type: github\n');
+    seedMemberInto(doc, { section: 'sources', id: 'onprem' }, 'git');
+
+    expect(doc.getIn(['forges', 'onprem', 'primary'])).toBeUndefined();
+    expect(doc.getIn(['forges', 'gh', 'primary'])).toBeUndefined();
+  });
+
+  it('names no default for anything other than a provider', () => {
+    const doc = loadDocument('version: 1\n');
+    seedMemberInto(doc, { section: 'groups', id: 'engineering' }, '');
+
+    expect(doc.getIn(['auth', 'default_provider'])).toBeUndefined();
   });
 });
 

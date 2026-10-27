@@ -1,6 +1,6 @@
 import { Document, isMap, isSeq } from 'yaml';
 
-import { renameMapKey, setNodeAt, writeAt } from './document';
+import { Path, renameMapKey, setNodeAt, writeAt } from './document';
 import { MemberRef, memberPath, seedMember } from './members';
 
 export function memberExists(doc: Document, ref: MemberRef): boolean {
@@ -8,7 +8,24 @@ export function memberExists(doc: Document, ref: MemberRef): boolean {
 }
 
 export function seedMemberInto(doc: Document, ref: MemberRef, kind: string): void {
+  // Persist the first provider's default role and first source's primary role
+  // so adding members preserves these roles and source URLs
+  const first = ref.section in FIRST_MEMBER_ROLE && !hasMembers(doc, memberPath(ref).slice(0, -1));
   setNodeAt(doc, memberPath(ref), seedMember(ref, kind));
+  if (!first) return;
+
+  if (ref.section === 'identity' && doc.getIn(['auth', 'default_provider']) === undefined) {
+    writeAt(doc, ['auth', 'default_provider'], ref.id);
+  }
+  if (ref.section === 'sources') writeAt(doc, [...memberPath(ref), 'primary'], true);
+}
+
+// Sections with a special role for the first member
+const FIRST_MEMBER_ROLE: Record<string, true> = { identity: true, sources: true };
+
+function hasMembers(doc: Document, path: Path): boolean {
+  const members = doc.getIn(path, true);
+  return isMap(members) && members.items.length > 0;
 }
 
 export function renameMember(doc: Document, section: string, from: string, to: string): boolean {
