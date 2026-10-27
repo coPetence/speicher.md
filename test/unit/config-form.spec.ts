@@ -2233,7 +2233,7 @@ describe('secrets', () => {
       'secret',
     );
     expect(field?.secretHidden).toBe(true);
-    expect(field?.value).toBe('');
+    expect(field?.value).toBe('••••••••');
 
     const shown = displayYaml(literal);
     expect(shown).not.toContain('a-real-secret-value');

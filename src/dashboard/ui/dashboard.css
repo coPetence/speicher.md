@@ -300,10 +300,6 @@
     max-width: var(--spr-measure);
   }
 
-  .spr-help-warn {
-    color: var(--spr-warn-fg);
-  }
-
   .spr-external {
     display: inline-block;
     inline-size: 0.85em;

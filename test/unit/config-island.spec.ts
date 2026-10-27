@@ -1286,7 +1286,8 @@ describe('the colour swatch', () => {
 
 describe('a block that is shown with an answer', () => {
   function renderProvider(secret = '${A_SECRET}', picked = ''): HTMLFormElement {
-    const stored = secret === '';
+    // A stored literal reaches the page as its mask, never as itself
+    const stored = secret === '••••••••';
     document.body.innerHTML = `
       <main>
         <form class="spr-config" method="post" action="/-/config/identity/entra"
@@ -1375,7 +1376,7 @@ describe('a block that is shown with an answer', () => {
   });
 
   it('hands a stored secret to the save instead, and says which one happened', () => {
-    const form = renderProvider('', 'graph');
+    const form = renderProvider('••••••••', 'graph');
     run();
     copy('client_secret').click();
 
@@ -1387,7 +1388,7 @@ describe('a block that is shown with an answer', () => {
   });
 
   it('leaves a typed box alone when there is nothing on the page to take', () => {
-    renderProvider('', 'graph');
+    renderProvider('••••••••', 'graph');
     run();
     box('auth.providers.entra.directory.client_secret').value = 'typed-by-hand';
     copy('client_secret').click();
@@ -2512,5 +2513,80 @@ describe('a pick list', () => {
     expect(document.querySelector('ul')?.hasAttribute('hidden')).toBe(true);
     expect(document.querySelector('.spr-pick-list-empty')?.hasAttribute('hidden')).toBe(false);
     expect(pending()).toBe(true);
+  });
+});
+
+describe('a stored secret shown as its mask', () => {
+  const MASK = '••••••••';
+
+  function renderSecrets(): HTMLFormElement {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" method="post" action="/-/config/mail" data-spr-config="mail">
+          <input name="mail.password" type="password" value="${MASK}">
+          <input name="mail.host" type="text" value="smtp.example.test">
+          <div class="spr-config-actions">
+            <button type="submit" name="intent" value="apply" class="spr-primary spr-config-save">Save</button>
+          </div>
+        </form>
+      </main>`;
+    return form();
+  }
+
+  // Fires what a browser fires before an edit, then lands it unless it was cancelled;
+  // says which input events reached the form, which is what the save bar listens to
+  function edit(control: HTMLInputElement, inputType: string, data: string | null): string[] {
+    const heard: string[] = [];
+    const listen = (event: Event) => heard.push((event as InputEvent).inputType ?? '');
+    control.form!.addEventListener('input', listen);
+    const before = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType,
+      data,
+    });
+    if (control.dispatchEvent(before)) {
+      if (inputType.startsWith('delete')) control.value = control.value.slice(0, -1);
+      else control.value += data ?? '';
+      control.dispatchEvent(new InputEvent('input', { bubbles: true, inputType, data }));
+    }
+    control.form!.removeEventListener('input', listen);
+    return heard;
+  }
+
+  const password = (): HTMLInputElement =>
+    document.querySelector('[name="mail.password"]') as HTMLInputElement;
+
+  it('is replaced by what is typed, not added to', () => {
+    renderSecrets();
+    run();
+
+    expect(edit(password(), 'insertText', 'n')).toHaveLength(1);
+    expect(password().value).toBe('n');
+    edit(password(), 'insertText', 'e');
+    expect(password().value).toBe('ne');
+  });
+
+  it('is emptied in one go by any deletion, and the save bar hears of it', () => {
+    for (const inputType of [
+      'deleteContentBackward',
+      'deleteWordBackward',
+      'deleteSoftLineBackward',
+    ]) {
+      renderSecrets();
+      run();
+
+      expect(edit(password(), inputType, null)).toHaveLength(1);
+      expect(password().value).toBe('');
+    }
+  });
+
+  it('stays in place while nobody edits it, so a save keeps the secret', () => {
+    renderSecrets();
+    run();
+
+    const host = document.querySelector('[name="mail.host"]') as HTMLInputElement;
+    edit(host, 'insertText', 'x');
+    expect(password().value).toBe(MASK);
   });
 });

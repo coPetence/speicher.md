@@ -1111,11 +1111,11 @@ describe('the identity section', () => {
     expect(drawn.sort()).toEqual(explained.sort());
   });
 
-  it('keeps the hidden-secret warning on screen, which is where it can happen', async () => {
+  it('fills a hidden secret with the mask instead of a note, and still explains it', async () => {
     await storeLiteralSecret();
-    const { html } = await open('identity/entra');
-    expect(html).toContain('spr-help-warn');
-    expect(html).toContain('Configured. Type to replace it; blank keeps it.');
+    const { html, body } = await open('identity/entra');
+    expect(body['auth.providers.entra.client_secret']).toBe('••••••••');
+    expect(html).not.toContain('spr-help-warn');
     expect(html).toMatch(/aria-describedby="help-auth-providers-entra-client-secret"/);
   });
 
@@ -3082,9 +3082,8 @@ describe('the GitHub App private key', () => {
     ).expect(303);
 
     const second = await open('sources/gh');
-    expect(second.body[KEY_FIELD]).toBe('');
+    expect(second.body[KEY_FIELD]).toBe('••••••••');
     expect(second.html).not.toContain('BEGIN RSA PRIVATE KEY');
-    expect(second.html).toContain('Configured. Type to replace it; blank keeps it.');
 
     const overview = await request(app.getHttpServer())
       .get('/-/config')
@@ -3798,11 +3797,10 @@ describe('the transport and the notices', () => {
       intent: 'check',
     }).expect(200);
     expect(added.text).toContain(`name="unsaved:${token}" value="typed-token"`);
-    expect(added.text).toContain('Not saved yet');
     expect(added.text).not.toMatch(new RegExp(`name="${token}"[^>]*value="typed-token"`));
 
     const next = formBody(added.text);
-    expect(next[token]).toBe('');
+    expect(next[token]).toBe('••••••••');
     await post('sources/onprem', { ...next, intent: 'apply' }).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain('token: typed-token');
   });
@@ -4443,19 +4441,28 @@ describe('when the running version is not the newest', () => {
 });
 
 describe('a secret stored as a literal', () => {
-  it('is not rendered, and is kept when the control is left blank', async () => {
+  it('is not rendered, and is kept when the control is left as the mask', async () => {
     await storeLiteralSecret();
     const { html, body } = await open('identity/entra');
 
     expect(html).not.toContain('a-real-secret-value');
-    expect(body['auth.providers.entra.client_secret']).toBe('');
-    expect(html).toContain('Configured. Type to replace it; blank keeps it.');
+    expect(body['auth.providers.entra.client_secret']).toBe('••••••••');
     expect(html).toMatch(
       /<input\s+id="f-auth\.providers\.entra\.client_secret"[^>]*type="password"/,
     );
     expect((await overview().expect(200)).text).not.toContain('a-real-secret-value');
 
     await post('identity/entra', { ...body, intent: 'apply' }).expect(303);
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
+      'client_secret: a-real-secret-value',
+    );
+
+    // An emptied box keeps it too: the mask was cleared, not the secret
+    await post('identity/entra', {
+      ...body,
+      'auth.providers.entra.client_secret': '',
+      intent: 'apply',
+    }).expect(303);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
       'client_secret: a-real-secret-value',
     );
@@ -4475,10 +4482,7 @@ describe('a secret stored as a literal', () => {
     expect(literal.html).toMatch(
       /<input\s+id="f-auth\.providers\.entra\.client_secret"[^>]*type="password"/,
     );
-    expect(literal.html).toMatch(
-      /<input\s+id="f-auth\.providers\.entra\.client_secret"[^>]*placeholder="•+"/,
-    );
-    expect(literal.body['auth.providers.entra.client_secret']).toBe('');
+    expect(literal.body['auth.providers.entra.client_secret']).toBe('••••••••');
     expect(literal.html).not.toContain('data-spr-reveal');
   });
 
@@ -4487,10 +4491,8 @@ describe('a secret stored as a literal', () => {
     const { html, body } = await open('mail');
 
     expect(html).toMatch(/<input\s+id="f-mail\.password"[^>]*type="password"/);
-    expect(html).toMatch(/<input\s+id="f-mail\.password"[^>]*placeholder="•+"/);
-    expect(html).toContain('Configured. Type to replace it; blank keeps it.');
     expect(html).not.toContain('a-real-mail-password');
-    expect(body['mail.password']).toBe('');
+    expect(body['mail.password']).toBe('••••••••');
   });
 
   it('keeps a mail password nobody retyped, exactly as it keeps any other', async () => {

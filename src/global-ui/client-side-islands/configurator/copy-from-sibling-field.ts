@@ -1,18 +1,11 @@
 /**
- * Copy values from one config field into another on click
- *
- * Fields with `data-spr-copy-from` identify a source field elsewhere in the
- * form
- * Buttons with `data-spr-copy` copy the source value on click
- *
- * When the source has no value on the page, the value is stored server-side and
- * the handler checks the stored-value checkbox to let the server copy it on
- * save
+ * Copy from `data-spr-copy-from` on `data-spr-copy` clicks
+ * Empty or masked sources are copied server-side on save
  */
+import { SECRET_MASK } from '../../secret-mask';
 import { configForm, reportScriptedEdit } from './config-form-handle';
 
 export function mountCopies(): void {
-  /** Mount copy buttons on the config form */
   const form = configForm();
   if (!form) return;
 
@@ -20,7 +13,7 @@ export function mountCopies(): void {
     const field = button.closest<HTMLElement>('[data-spr-copy-from]');
     if (!field) continue;
 
-    // Hidden without JS
+    // Show copy buttons when JS is available
     button.hidden = false;
 
     button.addEventListener('click', () => {
@@ -30,11 +23,13 @@ export function mountCopies(): void {
       );
       if (!target) return;
 
-      const value = source?.value.trim() ?? '';
+      // Treat masked values as empty
+      const shown = source?.value.trim() ?? '';
+      const value = shown === SECRET_MASK ? '' : shown;
       if (value !== '') {
         target.value = value;
       } else {
-        // Source empty means the value is stored server-side; mark for server copy on save
+        // Request a server-side copy on save
         const stored = field.querySelector<HTMLInputElement>('[data-spr-copy-stored]');
         if (!stored) return;
         stored.checked = true;
