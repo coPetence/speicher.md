@@ -2463,6 +2463,41 @@
     margin: 0;
   }
 
+  /* Becoming the administrator: label, control and button, one per row */
+  .spr-form.spr-prove {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spr-space-2);
+    max-inline-size: 32rem;
+    margin-block: var(--spr-space-5);
+  }
+
+  .spr-prove .spr-select {
+    min-inline-size: 0;
+  }
+
+  .spr-prove button {
+    justify-self: start;
+    margin-block-start: var(--spr-space-1);
+  }
+
+  .spr-prove-or {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-3);
+    max-inline-size: 32rem;
+    margin-block: var(--spr-space-5);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-prove-or::before,
+  .spr-prove-or::after {
+    content: '';
+    flex: 1;
+    border-block-start: var(--spr-border) solid var(--spr-line);
+  }
+
   .spr-chart {
     display: block;
     width: 100%;

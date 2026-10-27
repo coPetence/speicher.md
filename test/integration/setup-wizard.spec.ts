@@ -17,6 +17,7 @@ import { loadInstanceConfig } from '../../src/config/parser';
 import { setup } from '../../src/dashboard/setup/setup.service';
 import { STEP_PROSE, SetupStepId } from '../../src/dashboard/setup/steps';
 import { unclaimedInstanceConfig } from '../../src/dashboard/setup/unclaimed';
+import { loadDocument } from '../../src/dashboard/configurator/config-form/document';
 import { LoginFlow } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { Mailer } from '../../src/notify/mailer';
@@ -353,6 +354,11 @@ describe('the first run', () => {
       })
       .expect(303);
     expect(first.headers.location).toBe('/-/config/sources');
+    // The first provider is the default, on screen while it is made and in what is stored
+    expect(draft.text).toMatch(/name="auth\.default_provider"[^>]*checked/);
+    expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
+      'default_provider: wizard',
+    );
 
     const again = await agent.get('/-/config/identity/wizard').expect(200);
     const edited = await agent
@@ -367,6 +373,9 @@ describe('the first run', () => {
 
     const source = await addSource(agent);
     expect(source.headers.location).toBe('/-/setup/administrator');
+    // The first source is the primary, written down, so a second one cannot move its URLs
+    const stored = loadDocument((await getNewestConfigVersion(harness.tenantId))?.yaml ?? '');
+    expect(stored.getIn(['forges', 'docs', 'primary'])).toBe(true);
 
     // Nobody is signed in to name yet, and it did not come from the file either
     const sources = await agent.get('/-/config/sources').expect(200);

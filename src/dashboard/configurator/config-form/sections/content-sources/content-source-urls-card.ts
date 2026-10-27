@@ -26,12 +26,12 @@ export function urlCard(root: Obj, id: string): Card {
         'Default repository owner',
         {
           placeholder: 'acme',
-          help: 'The user or organization whose name should be left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Leave it empty to put the owner in every URL.',
+          help: 'Enter a user or organization to omit its name from repository URLs: `/<repo>` instead of `/<owner>/<repo>`. Leave blank to keep all owner names.',
         },
       ),
       booleanField(root, [...base, 'primary'], p('primary'), 'Primary', {
         fallback: false,
-        help: 'The primary source leaves its short id out of the URL, so its repositories are served at `/<owner>/<repo>` instead of `/<source>/<owner>/<repo>`. Only one source can be primary.',
+        help: 'Enable to omit this source’s ID from its repository URLs. Only one source can be primary; the first source is primary by default. Switching the primary source changes existing URLs.',
       }),
     ],
   };

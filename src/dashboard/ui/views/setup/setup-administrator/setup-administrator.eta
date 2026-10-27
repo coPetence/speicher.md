@@ -26,7 +26,7 @@
 <% } %>
 
 <% if (redirects.length) { %>
-<form method="post" action="/-/setup/prove" class="spr-form">
+<form method="post" action="/-/setup/prove" class="spr-form spr-prove">
   <% if (redirects.length > 1) { %>
   <label for="spr-prove-provider">Identity provider</label>
   <%~ include('@select', {
@@ -48,11 +48,15 @@
 </form>
 <% } %>
 
+<% if (redirects.length && links.length) { %>
+<p class="spr-prove-or" aria-hidden="true">or</p>
+<% } %>
+
 <% links.forEach(function (option) { %>
-<form method="post" action="/-/setup/prove" class="spr-form">
+<form method="post" action="/-/setup/prove" class="spr-form spr-prove">
   <input type="hidden" name="provider" value="<%= option.id %>" />
-  <label for="spr-prove-email-<%= option.id %>">Email address for <%= option.name %></label>
-  <input id="spr-prove-email-<%= option.id %>" type="email" name="email" required autocomplete="email" />
+  <label for="spr-prove-email-<%= option.id %>">Email address</label>
+  <input id="spr-prove-email-<%= option.id %>" type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
   <button type="submit">Send sign-in link</button>
 </form>
 <% }) %>
