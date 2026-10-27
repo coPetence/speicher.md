@@ -16,16 +16,38 @@ import { stableStringify } from '../config/resolution-hash';
 import { MailConfig } from '../config/types';
 import { CheckStatus } from '../common/check-status';
 
-/** SMTP connection status */
-export type MailStatus = CheckStatus<'mail.connected' | 'mail.unreachable'> & {
+/** SMTP probe result */
+export type MailStatus = CheckStatus<
+  'mail.connected' | 'mail.unreachable' | 'mail.starttls-stalled'
+> & {
   level: 'ok' | 'fail';
 };
 
 const PROBE_TIMEOUT_MS = 3_000;
 
-/**
- * Default sender: SMTP username if an email address, otherwise noreply on the public host
- */
+/** Track STARTTLS progress without retaining log messages */
+function upgradeWatch() {
+  const seen = { asked: false, upgraded: false };
+  const note = (_meta: unknown, message: unknown): void => {
+    if (message === 'STARTTLS') seen.asked = true;
+    else if (message === 'Connection upgraded with STARTTLS') seen.upgraded = true;
+  };
+  const ignore = (): void => undefined;
+  return {
+    seen,
+    logger: {
+      level: ignore,
+      trace: ignore,
+      debug: note,
+      info: note,
+      warn: ignore,
+      error: ignore,
+      fatal: ignore,
+    },
+  };
+}
+
+/** Use the username if it's an email, otherwise noreply on the public host */
 export function defaultMailFrom(
   brand: string,
   username: string | undefined,
@@ -37,13 +59,17 @@ export function defaultMailFrom(
 }
 
 export async function probeMail(mail: MailConfig): Promise<MailStatus> {
-  // Bypass the cache to test the supplied config
+  // Test the supplied config without using the cache
   const port = mail.port ?? 587;
+  const upgrade = upgradeWatch();
   const transporter = nodemailer.createTransport({
     host: mail.host,
     port,
     secure: port === 465,
     auth: mail.username ? { user: mail.username, pass: mail.password ?? '' } : undefined,
+    // Enable command logs for STARTTLS tracking; discard messages
+    logger: upgrade.logger,
+    debug: true,
     connectionTimeout: PROBE_TIMEOUT_MS,
     greetingTimeout: PROBE_TIMEOUT_MS,
     socketTimeout: PROBE_TIMEOUT_MS,
@@ -64,8 +90,19 @@ export async function probeMail(mail: MailConfig): Promise<MailStatus> {
       },
     };
   } catch (err) {
-    // Reason removed; write one: not 'fail' to avoid false negative when
-    // credentials are valid but the SMTP server is unreachable temporarily
+    // A proxy or firewall may block STARTTLS; port 465 may work
+    if (upgrade.seen.asked && !upgrade.seen.upgraded && isTimeout(err)) {
+      return {
+        code: 'mail.starttls-stalled',
+        level: 'fail',
+        label: 'Not connected',
+        detail:
+          `${where} (the switch to TLS after STARTTLS timed out. A proxy or firewall ` +
+          `between here and the server may be blocking it; port 465 often works instead)`,
+        facts: { server: where, reason: reasonOf(err), suggestedPort: 465 },
+      };
+    }
+    // Report the connection failure without assuming bad credentials
     return {
       code: 'mail.unreachable',
       level: 'fail',
@@ -74,15 +111,19 @@ export async function probeMail(mail: MailConfig): Promise<MailStatus> {
       facts: { server: where, reason: reasonOf(err) },
     };
   } finally {
-    // Close the ephemeral transporter so connections do not leak on probe
+    // Release probe connections
     transporter.close();
   }
+}
+
+function isTimeout(err: unknown): boolean {
+  return (err as { code?: unknown } | null)?.code === 'ETIMEDOUT';
 }
 
 @Injectable()
 export class Mailer {
   private transporter: Transporter | null = null;
-  // Key to invalidate on config change
+  // Detect transport config changes
   private transportKey: string | null = null;
   private readonly log: Logger = rootLogger.child('mail');
   private lastError: string | null = null;

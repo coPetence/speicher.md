@@ -59,6 +59,21 @@ describe('the transport check itself', () => {
     expect(status.facts?.user).toBeUndefined();
   });
 
+  it('says when the switch to TLS stalls, and that port 465 may get through', async () => {
+    smtp.stallStartTls = true;
+    const status = await probeMail(mail({ username: 'docs', password: 'secret' }));
+    smtp.stallStartTls = false;
+
+    expect(status).toMatchObject({
+      code: 'mail.starttls-stalled',
+      level: 'fail',
+      facts: { suggestedPort: 465 },
+    });
+    expect(smtp.verbs).toContain('STARTTLS');
+    // Nothing is sent once the handshake is due, credentials least of all
+    expect(smtp.verbs.slice(smtp.verbs.indexOf('STARTTLS') + 1)).toEqual([]);
+  }, 10_000);
+
   it('gives up on a port nothing is listening on, rather than holding the page', async () => {
     const started = Date.now();
     const status = await probeMail(mail({ port: 1 }));

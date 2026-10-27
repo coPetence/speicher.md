@@ -5,11 +5,18 @@ export interface SmtpSink {
   messages: string[];
   verbs: string[];
   rejectLogin: boolean;
+  // Offers STARTTLS, agrees to it, then never answers, as an inspecting proxy does
+  stallStartTls: boolean;
   close(): Promise<void>;
 }
 
 export async function startSmtpSink(): Promise<SmtpSink> {
-  const state = { rejectLogin: false, verbs: [] as string[], messages: [] as string[] };
+  const state = {
+    rejectLogin: false,
+    stallStartTls: false,
+    verbs: [] as string[],
+    messages: [] as string[],
+  };
   const sockets = new Set<Socket>();
 
   const server: Server = createServer((socket) => {
@@ -19,9 +26,11 @@ export async function startSmtpSink(): Promise<SmtpSink> {
 
     let buffer = '';
     let body: string[] | null = null;
+    let stalled = false;
     socket.write('220 sink ESMTP\r\n');
 
     socket.on('data', (chunk) => {
+      if (stalled) return;
       buffer += chunk.toString('utf8');
       let cut = buffer.indexOf('\r\n');
       while (cut !== -1) {
@@ -44,7 +53,12 @@ export async function startSmtpSink(): Promise<SmtpSink> {
         state.verbs.push(verb);
 
         if (verb === 'EHLO' || verb === 'HELO') {
-          socket.write('250-sink\r\n250-SIZE 10485760\r\n250 AUTH PLAIN LOGIN\r\n');
+          const tls = state.stallStartTls ? '250-STARTTLS\r\n' : '';
+          socket.write(`250-sink\r\n${tls}250-SIZE 10485760\r\n250 AUTH PLAIN LOGIN\r\n`);
+        } else if (verb === 'STARTTLS' && state.stallStartTls) {
+          socket.write('220 Ready to start TLS\r\n');
+          stalled = true;
+          return;
         } else if (verb === 'AUTH') {
           socket.write(
             state.rejectLogin ? '535 5.7.8 authentication failed\r\n' : '235 2.7.0 accepted\r\n',
@@ -77,6 +91,12 @@ export async function startSmtpSink(): Promise<SmtpSink> {
     },
     set rejectLogin(value: boolean) {
       state.rejectLogin = value;
+    },
+    get stallStartTls() {
+      return state.stallStartTls;
+    },
+    set stallStartTls(value: boolean) {
+      state.stallStartTls = value;
     },
     close: () =>
       new Promise<void>((resolve) => {
