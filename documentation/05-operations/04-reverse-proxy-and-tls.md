@@ -59,10 +59,12 @@ Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-For
 3. Create a `Caddyfile` next to `docker-compose.yaml`, with your domain in the first line:
 
    ```
-   docs.example.com {
+   <YOUR DOMAIN> {
    	reverse_proxy web:3000
    }
    ```
+
+   Replace `<YOUR DOMAIN>` with your domain, for example `docs.example.com`. Caddy will request a certificate from Let's Encrypt on the first start.
 
 4. Start the containers:
 
@@ -70,9 +72,9 @@ Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-For
    docker compose up -d
    ```
 
-:::info
-Caddy will request a certificate from Let's Encrypt on the first start. This only succeeds once the DNS record of your domain points at the server and ports 80 and 443 are open.
-:::
+**[Continue with setting up the instance →](../01-quick-start/02-setup-instance.md)**
+
+---
 
 ### nginx on the host
 
