@@ -23,6 +23,7 @@ import { mountSuggestions } from './configurator/suggested-name-fill';
 import { mountReveals } from './configurator/dependent-field-visibility';
 import { mountChoices } from './configurator/choice-switch';
 import { mountCopies } from './configurator/copy-from-sibling-field';
+import { mountSecretMasks } from './configurator/secret-mask-replace';
 import { mountOriginPaths } from './configurator/origin-before-path';
 import { mountSwatches } from './configurator/colour-swatch-picker';
 import { mountBulkRowRemoval } from './configurator/bulk-row-removal';
@@ -54,6 +55,7 @@ function mount(): void {
   mountReveals();
   mountChoices();
   mountCopies();
+  mountSecretMasks();
   mountOriginPaths();
   mountCopy();
   mountWidths();

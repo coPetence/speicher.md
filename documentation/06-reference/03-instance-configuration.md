@@ -16,43 +16,43 @@ Every key of the instance configuration, the `speicher.instance.yaml` file or th
 
 **Type:** object
 
-The SMTP server Speicher sends sign-in links for magic-link providers through. Required before a magic-link provider can be added.
+Configure SMTP to send sign-in links. Required for magic-link providers.
 
 ### `mail.host`
 
 **Type:** string · **Required**
 
-The SMTP server's host name, for example `smtp.example.com`.
+Enter your SMTP hostname, such as `smtp.example.com`.
 
 ### `mail.port`
 
 **Type:** integer · **Default:** `587`
 
-The SMTP port. On `465` Speicher connects with TLS from the start; on any other port it switches to TLS with STARTTLS when the server offers it.
+Enter your SMTP port. Port `465` uses TLS immediately; other ports use STARTTLS if available.
 
 ### `mail.username`
 
 **Type:** string
 
-The username to sign in to the SMTP server with. Leave it out if the server accepts mail without signing in.
+Enter your SMTP username. Omit if your server needs no authentication.
 
 ### `mail.password`
 
 **Type:** string
 
-The password for `username`. Can be a reference to an environment variable, such as `${SMTP_PASSWORD}`.
+Enter your SMTP password or an environment variable reference, such as `${SMTP_PASSWORD}`.
 
 ### `mail.from`
 
 **Type:** string
 
-The sender of every email, as an address or as `Name <address>`. Use an address your SMTP provider allows you to send from. Defaults to the brand name with `username` when that is an address, or with `noreply@` the host of `SPEICHER_PUBLIC_URL` otherwise. Example: `Docs <docs@example.com>`.
+Enter an allowed sender address, optionally as `Name <address>`. Defaults to the brand name and the `username` email address, or `noreply@<public-host>` from `SPEICHER_PUBLIC_URL`. Example: `Docs <docs@example.com>`.
 
 ### `mail.reply_to`
 
 **Type:** string
 
-Where replies go, if not to the sender. Optional.
+Enter a reply address if replies should go somewhere other than the sender.
 
 ## assets
 
