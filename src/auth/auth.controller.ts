@@ -17,9 +17,9 @@ import { sendMagicLinkSentScreen } from './views/magic-link-sent/magic-link-sent
 import { sendProviderChoice, sendSignIn } from './views/sign-in/sign-in';
 import { sendSignInMessage } from './views/sign-in-message/sign-in-message';
 import { BROWSER_BINDING_COOKIE, bindBrowser } from './browser-binding';
-import { callbackUrl, originOf } from './callback-url';
+import { GITHUB_CALLBACK_PATH, callbackUrl, originOf } from './callback-url';
 import { callerOf } from './caller.middleware';
-import { GithubAuthService } from './github.service';
+import { GITHUB_INSTALL_COOKIE, GithubAuthService } from './github.service';
 import { CompletedLogin } from './login-result';
 import { MagicLinkService } from './magic-link.service';
 import { OidcService, safeRedirect } from './oidc.service';
@@ -220,11 +220,61 @@ export class AuthController {
     @Res() res: Response,
     @Query('code') code?: string,
     @Query('state') state?: string,
+    @Query('setup_action') setupAction?: string,
+    @Query('installation_id') installationId?: string,
   ): Promise<void> {
     const redirectUri = callbackUrl(req, 'github');
+    // An App that asks for sign-in on install sends the installation back here, with no state
+    if (!state && typeof setupAction === 'string') {
+      return this.installationCallback(req, res, code, setupAction, installationId, redirectUri);
+    }
     await this.completeCallback(req, res, code, state, redirectUri, (tenantId, verified, issued) =>
       this.github.completeLogin(tenantId, verified, issued, redirectUri),
     );
+  }
+
+  /**
+   * The return of an installation of a provider's App: back to where it started, and during the first setup, with
+   * the person who installed it signed in as the first administrator. Only the browser that started it carries the
+   * cookie that ties the return to its start; any other is sent to the identity providers.
+   */
+  private async installationCallback(
+    req: Request,
+    res: Response,
+    code: string | undefined,
+    setupAction: string,
+    installationId: string | undefined,
+    redirectUri: string,
+  ): Promise<void> {
+    const tenant = await this.tenancy.resolveTenant(req);
+    const state: unknown = req.cookies?.[GITHUB_INSTALL_COOKIE];
+    res.clearCookie(GITHUB_INSTALL_COOKIE, { path: GITHUB_CALLBACK_PATH });
+    if (typeof state !== 'string') return res.redirect(302, '/-/config/identity');
+
+    const id =
+      typeof installationId === 'string' && /^\d+$/.test(installationId)
+        ? installationId
+        : undefined;
+    try {
+      const done = await this.github.completeInstall(
+        tenant.id,
+        code,
+        state,
+        { id, action: setupAction },
+        redirectUri,
+      );
+      if (done.kind === 'forward') return res.redirect(302, done.redirectTo);
+      await this.finishLogin(tenant.id, done.login, res);
+    } catch (err) {
+      this.log.warn('installation callback failed', { error: (err as Error).message });
+      sendSignInMessage(
+        req,
+        res,
+        this.config,
+        400,
+        'The App was installed, but the sign-in could not be completed. Sign in to finish the setup.',
+      );
+    }
   }
 
   private async completeCallback(

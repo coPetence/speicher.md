@@ -307,6 +307,7 @@ const OMITTED_FROM_FORM: Record<string, string> = {
   'auth.providers.<key>.app.slug': GITHUB_APP_STORED,
   'auth.providers.<key>.app.owner_account': GITHUB_APP_STORED,
   'auth.providers.<key>.app.owner_is_organization': GITHUB_APP_STORED,
+  'auth.providers.<key>.app.public': GITHUB_APP_STORED,
   'defaults.retrieval.indexable':
     'switching it off here cannot be undone by any repository, folder or page, so ' +
     'it turns off MCP search for the whole instance — the rare instance that wants ' +

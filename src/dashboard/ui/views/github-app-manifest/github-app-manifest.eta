@@ -11,5 +11,7 @@
     <noscript><button type="submit">Continue on GitHub</button></noscript>
   </form>
   <script nonce="<%= it.nonce %>">document.forms[0].submit();</script>
+  <% /* Back from GitHub can restore this page as it was left; asked again, it leads back rather than to GitHub */ %>
+  <script nonce="<%= it.nonce %>">addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });</script>
 </body>
 </html>

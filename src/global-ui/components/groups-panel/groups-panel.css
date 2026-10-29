@@ -1,0 +1,71 @@
+@layer speicher.base {
+  /* Opens over the list on load: no button opens it, so its summary is only the backdrop */
+  .spr-groups-modal > summary {
+    padding: 0;
+  }
+
+  .spr-modal-panel.spr-groups-panel {
+    width: min(38rem, calc(100vw - var(--spr-space-8) * 2));
+  }
+
+  .spr-groups-form {
+    display: grid;
+    justify-self: stretch;
+    gap: var(--spr-space-4);
+    margin: 0;
+  }
+
+  .spr-groups-list {
+    display: grid;
+    gap: var(--spr-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .spr-groups-row {
+    display: grid;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+  }
+
+  .spr-modal-panel .spr-groups-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-groups-name input {
+    margin: 0;
+    accent-color: var(--spr-accent);
+  }
+
+  .spr-groups-used,
+  .spr-groups-typo {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-groups-typo {
+    color: var(--spr-status-warn);
+  }
+
+  .spr-modal-panel .spr-groups-me {
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .spr-groups-form button.spr-ready-action.spr-ready-next {
+    font: inherit;
+    font-weight: var(--spr-weight-strong);
+  }
+}

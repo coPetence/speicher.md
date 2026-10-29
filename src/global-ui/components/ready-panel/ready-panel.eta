@@ -1,0 +1,53 @@
+<%
+  /*
+    What a quick setup did and what to do next, as a modal over the list the new
+    member joined: a large check, what happened in small points, then the steps
+    that are left as buttons, each with a line saying why, and the main button:
+    Done, or during the first setup, on to its next step.
+  */
+  const ready = it.ready;
+  const done = ready.steps.filter(function (step) { return step.state === 'done'; });
+  const left = ready.steps.filter(function (step) { return step.state !== 'done'; });
+  const titleId = 'ready-' + ready.id + '-title';
+%>
+<details class="spr-modal spr-ready-modal" open>
+  <summary aria-label="Close"></summary>
+  <div class="spr-modal-panel spr-ready-panel" role="dialog" aria-labelledby="<%= titleId %>" data-spr-ready="<%= ready.section_id %>">
+    <span class="spr-ready-check"><%~ it.checkIcon %></span>
+    <h2 class="spr-modal-title" id="<%= titleId %>"><%= ready.title %></h2>
+    <% if (done.length > 0) { %>
+    <ul class="spr-ready-done">
+      <% done.forEach(function (step) { %>
+      <% const outside = Boolean(step.href) && /^https?:/.test(step.href); %>
+      <% const parts = md(step.text).split('{link}'); %>
+      <li data-spr-step-state="done"><%~ parts[0] %><% if (step.inline) { %><% const inlineOutside = /^https?:/.test(step.inline.href); %><a class="spr-ready-link spr-ready-inline" href="<%= step.inline.href %>"<% if (inlineOutside) { %> target="_blank" rel="noopener"<% } %>><%= step.inline.text %><% if (inlineOutside) { %><%~ it.externalIcon || '' %><% } %></a><%~ parts.slice(1).join('') %><% } %><% if (step.href && step.label) { %> <a class="spr-ready-link" href="<%= step.href %>"<% if (outside) { %> target="_blank" rel="noopener"<% } %>><%= step.label %><% if (outside) { %><%~ it.externalIcon || '' %><% } %></a><% } %></li>
+      <% }) %>
+    </ul>
+    <% } %>
+    <% if (left.length > 0) { %>
+    <ul class="spr-ready-actions">
+      <% left.forEach(function (step) { %>
+      <% const outside = Boolean(step.href) && /^https?:/.test(step.href); %>
+      <li data-spr-step-state="<%= step.state %>">
+        <% if (step.href && step.label) { %>
+        <a class="spr-ready-action" href="<%= step.href %>"<% if (outside) { %> target="_blank" rel="noopener"<% } %>><%= step.label %><% if (outside || step.external) { %><%~ it.externalIcon || '' %><% } %></a>
+        <% } else if (step.action && step.label) { %>
+        <form method="post" action="<%= step.action.url %>">
+          <% Object.keys(step.action.fields).forEach(function (name) { %>
+          <input type="hidden" name="<%= name %>" value="<%= step.action.fields[name] %>">
+          <% }) %>
+          <button type="submit" class="spr-ready-action"><%= step.label %></button>
+        </form>
+        <% } %>
+        <span class="spr-ready-why"><% if (step.state === 'optional') { %>Optional. <% } %><%~ md(step.text) %></span>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+    <div class="spr-ready-foot">
+      <a href="/-/config/<%= ready.section_id %>">Open settings</a>
+      <% /* Done leaves the ready address, so a reload does not open this again; during the first setup it leads on */ %>
+      <a class="spr-ready-action spr-ready-next" href="<%= ready.primary.href %>" data-spr-ready-primary><%= ready.primary.label %><% if (ready.primary.onward) { %><%~ it.arrowIcon || '' %><% } %></a>
+    </div>
+  </div>
+</details>

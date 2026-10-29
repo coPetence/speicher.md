@@ -968,6 +968,12 @@ The GitHub account the App belongs to.
 
 **Type:** boolean · **Required**
 
+#### `auth.providers.<id>.app.public`
+
+**Type:** boolean
+
+Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by Speicher.md.
+
 ## admins
 
 **Type:** object

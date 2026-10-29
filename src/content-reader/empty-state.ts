@@ -120,6 +120,15 @@ const DRAWINGS = {
     `<path d="M57 83h40M57 93h26" ${absent()}/>`,
   ],
 
+  /** A letter out of its envelope, and the link on it nobody has followed yet */
+  mail: [
+    `<path d="M56 52V30a6 6 0 0 1 6-6h36a6 6 0 0 1 6 6v22" ${TINT}/>`,
+    '<path d="M64 35h16"/>',
+    `<path d="M64 44h32" ${absent()}/>`,
+    `<path d="M48 52h64a6 6 0 0 1 6 6v34a6 6 0 0 1-6 6H48a6 6 0 0 1-6-6V58a6 6 0 0 1 6-6z" ${TINT}/>`,
+    '<path d="M46 95l29-19.5a9 9 0 0 1 10 0L114 95"/>',
+  ],
+
   /** A search box with something typed in it, and the results that did not come */
   unmatched: [
     `<rect x="36" y="28" width="88" height="20" rx="10" ${TINT}/>`,

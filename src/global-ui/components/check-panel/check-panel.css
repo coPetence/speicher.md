@@ -1,0 +1,99 @@
+@layer speicher.base {
+  /* Opens over the list on load: no button opens it, so its summary is only the backdrop */
+  .spr-check-modal > summary {
+    padding: 0;
+  }
+
+  .spr-modal-panel.spr-check-panel {
+    width: min(38rem, calc(100vw - var(--spr-space-8) * 2));
+  }
+
+  .spr-check-summary {
+    margin: 0;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-check-list {
+    display: grid;
+    justify-self: stretch;
+    gap: var(--spr-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .spr-check-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+  }
+
+  .spr-check-mark {
+    display: inline-flex;
+  }
+
+  .spr-check-mark .spr-icon {
+    width: 1.25em;
+    height: 1.25em;
+  }
+
+  .spr-check-ready .spr-check-mark {
+    color: var(--spr-status-ok);
+  }
+
+  .spr-check-unknown-groups .spr-check-mark {
+    color: var(--spr-status-warn);
+  }
+
+  .spr-check-invalid .spr-check-mark {
+    color: var(--spr-status-fail);
+  }
+
+  .spr-check-unpublished .spr-check-mark,
+  .spr-check-unreadable .spr-check-mark {
+    color: var(--spr-muted);
+  }
+
+  .spr-check-text {
+    display: grid;
+    min-width: 0;
+  }
+
+  .spr-check-name {
+    color: var(--spr-fg);
+    font-weight: var(--spr-weight-strong);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .spr-check-name:hover {
+    text-decoration: underline;
+  }
+
+  .spr-check-found {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-check-row > .spr-ready-action {
+    font-size: var(--spr-font-size-small);
+    padding: var(--spr-space-1) var(--spr-space-3);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 40rem) {
+    .spr-check-row {
+      grid-template-columns: auto 1fr;
+    }
+
+    .spr-check-row > .spr-ready-action {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+}

@@ -1,0 +1,123 @@
+@layer speicher.base {
+  /* Opens over the list on load: no button opens it, so its summary is only the backdrop */
+  .spr-ready-modal > summary {
+    padding: 0;
+  }
+
+  .spr-modal-panel.spr-ready-panel {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .spr-ready-check {
+    display: inline-flex;
+    color: var(--spr-status-ok);
+  }
+
+  .spr-ready-check .spr-icon {
+    width: 4rem;
+    height: 4rem;
+    stroke-width: 1.5;
+  }
+
+  /* What happened, in small points */
+  .spr-ready-done {
+    display: grid;
+    gap: var(--spr-space-1);
+    margin: 0;
+    padding-inline-start: var(--spr-space-4);
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+    line-height: 1.4;
+    text-align: start;
+  }
+
+  /* A small link beside a point, e.g. to the App on GitHub */
+  .spr-ready-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    margin-inline-start: var(--spr-space-1);
+    white-space: nowrap;
+  }
+
+  /* Inside a sentence, with no space of its own before it */
+  .spr-ready-link.spr-ready-inline {
+    margin-inline-start: 0;
+  }
+
+  .spr-ready-link .spr-icon {
+    width: 0.9em;
+    height: 0.9em;
+    margin: 0;
+  }
+
+  /* What is left: a button each, with a line saying why */
+  .spr-ready-actions {
+    display: grid;
+    justify-self: stretch;
+    gap: var(--spr-space-4);
+    margin: var(--spr-space-2) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .spr-ready-actions > li {
+    display: grid;
+    justify-items: center;
+    gap: var(--spr-space-1);
+  }
+
+  .spr-ready-actions form {
+    margin: 0;
+  }
+
+  .spr-ready-action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-2) var(--spr-space-5);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .spr-ready-action:hover {
+    border-color: var(--spr-accent);
+  }
+
+  .spr-ready-action.spr-ready-next {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-ready-action.spr-ready-next:hover {
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  .spr-ready-action .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-ready-why {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-ready-foot {
+    display: flex;
+    justify-self: stretch;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spr-space-2);
+    font-size: var(--spr-font-size-small);
+  }
+}

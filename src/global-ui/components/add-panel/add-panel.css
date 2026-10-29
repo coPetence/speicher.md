@@ -5,6 +5,20 @@
     gap: var(--spr-space-2);
   }
 
+  /*
+    A label sits close to its control, and a step apart from the control above,
+    as in the group row modal. The panel's gap is the step, so a label takes the
+    gap back below itself
+  */
+  .spr-add-panel > .spr-add-label {
+    margin-block: var(--spr-space-3) calc(var(--spr-space-1) - var(--spr-space-4));
+  }
+
+  .spr-add-panel .spr-choices > legend,
+  .spr-quick-choice > legend {
+    margin-bottom: var(--spr-space-1);
+  }
+
   .spr-choices > .spr-choice-note {
     display: none;
     flex: 1 1 100%;
@@ -14,5 +28,114 @@
 
   .spr-choices:has(input[data-spr-unavailable]:checked) > .spr-choice-note {
     display: block;
+  }
+
+  /* The fields of a kind the modal sets up in one go, shown while that kind is picked */
+  .spr-quick-setup {
+    display: grid;
+    justify-self: stretch;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-quick-setup[hidden],
+  .spr-quick-field[hidden] {
+    display: none;
+  }
+
+  /* Longer answers, one under the other */
+  .spr-quick-options {
+    display: grid;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-modal-panel .spr-quick-options > label {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size);
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+  }
+
+  .spr-quick-options input {
+    margin: 0;
+    accent-color: var(--spr-accent);
+  }
+
+  .spr-quick-field {
+    display: grid;
+    gap: var(--spr-space-1);
+    margin-top: var(--spr-space-3);
+  }
+
+  .spr-quick-choice {
+    display: grid;
+    gap: var(--spr-space-2);
+    margin: var(--spr-space-3) 0 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* Labelled as the modal's other fields are */
+  .spr-quick-choice > legend {
+    padding: 0;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .spr-add-panel > .spr-modal-actions {
+    align-items: center;
+  }
+
+  /* The manual way, as a link at the start of the button row: the modal's main button is the quick one */
+  .spr-modal-panel .spr-modal-actions > .spr-quick-manual {
+    margin-inline-end: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+    font-size: var(--spr-font-size-small);
+    text-decoration: underline;
+  }
+
+  .spr-modal-actions > .spr-quick-manual[hidden] {
+    display: none;
+  }
+
+  .spr-add-error {
+    margin: 0;
+  }
+
+  /* The modal's main button in the accent, as the group row modal's Add button is */
+  .spr-modal-panel .spr-modal-actions > .spr-add-submit {
+    border-color: var(--spr-accent);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-modal-panel .spr-modal-actions > .spr-add-submit:hover {
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  /* An icon after the label says where the button leaves to, e.g. GitHub */
+  .spr-add-submit > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-add-submit > span[hidden] {
+    display: none;
+  }
+
+  .spr-add-submit .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
   }
 }

@@ -12,7 +12,7 @@ import { GITHUB_CALLBACK_PATH } from '../../../auth/callback-url';
 import { FLOW_TTL_MS } from '../../../auth/github.service';
 import { mintToken } from '../../../auth/tokens';
 import { Logger, rootLogger } from '../../../common/logger';
-import { isLocalhostUrl, isPublicUrl } from '../../../common/public-url';
+import { isLocalhostUrl } from '../../../common/public-url';
 import { LoginFlow, initModels } from '../../../db/models';
 import {
   directoryWebhookPath,
@@ -38,6 +38,9 @@ const FLOW_MARK = 'github-app:';
 // Holds the page's form, sealed, while the browser is on GitHub
 export const GITHUB_APP_FORM_COOKIE = 'speicher_github_app_form';
 
+// Holds the manifest, sealed, for the one visit of the page that posts it to GitHub
+export const GITHUB_APP_HANDOFF_COOKIE = 'speicher_github_app_handoff';
+
 // Browsers keep a cookie of up to 4096 bytes, its name and attributes included
 const MAX_SEALED_FORM = 3800;
 
@@ -49,6 +52,54 @@ const MAX_SEALED_FORM = 3800;
  */
 export function githubAppPath(sectionId: string, app: string): string {
   return `/-/config/${sectionId}/${app}/manifest`;
+}
+
+/**
+ * readyPath returns the path of the page that lists what was set up for a member, and what to do next.
+ *
+ * @param sectionId the member's config page, e.g. `identity/github`
+ */
+export function readyPath(sectionId: string): string {
+  return `/-/config/${sectionId}/ready`;
+}
+
+/**
+ * providerInstallPath returns the path that starts the installation of a provider's App, so that its return can sign
+ * the person installing it in.
+ *
+ * @param providerId the provider's short id
+ */
+export function providerInstallPath(providerId: string): string {
+  return `/-/config/identity/${encodeURIComponent(providerId)}/install`;
+}
+
+/**
+ * sourceCheckPath returns the path of the modal that checks the repositories a source reads.
+ *
+ * @param forgeId the source's short id
+ */
+export function sourceCheckPath(forgeId: string): string {
+  return `/-/config/sources/${encodeURIComponent(forgeId)}/check`;
+}
+
+/**
+ * sourceGroupsPath returns the path of the modal that creates the groups a source's repositories name.
+ *
+ * @param forgeId the source's short id
+ */
+export function sourceGroupsPath(forgeId: string): string {
+  return `/-/config/sources/${encodeURIComponent(forgeId)}/groups`;
+}
+
+/**
+ * githubAppHandoffPath returns the path of the page that posts an App's manifest to GitHub. It is reached by a redirect,
+ * so the page the browser comes back to from GitHub is not the answer to a form.
+ *
+ * @param sectionId the config page the App is created for, e.g. `sources/gh`
+ * @param app which App of the page, e.g. `github-app`
+ */
+export function githubAppHandoffPath(sectionId: string, app: string): string {
+  return `${githubAppPath(sectionId, app)}/handoff`;
 }
 
 /**
@@ -84,9 +135,13 @@ export interface ManifestTarget {
   baseUrl?: string;
   // The form name of the page's switch between creating the App and entering it manually
   switchName: string;
+  // Whether the browser lands on the member's ready page once the App is saved, rather than on GitHub to install it
+  landsOnReady: boolean;
   manifest: (urls: ManifestUrls) => AppManifest;
   values: (app: ConvertedApp) => [string[], string][];
   stored?: (app: ConvertedApp) => [string[], unknown][];
+  // What a quick setup fills in that the add modal does not ask, where the member has nothing yet
+  quickDefaults?: (app: ConvertedApp) => [string[], unknown][];
   unsavedNotice: (installUrl: string) => string;
 }
 
@@ -103,6 +158,10 @@ export interface ManifestHandoff {
 export interface CarriedForm {
   body: Record<string, string | string[]>;
   parts: Record<string, string>;
+  // Started from the add modal, which carries no page: the App's values are written into the member, not decoded from a form
+  quick?: boolean;
+  // Whether the add modal asked for a public App, stored with it so the provider can say who signs in
+  public?: boolean;
 }
 
 /**
@@ -120,9 +179,9 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
     kind: 'github',
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`forges.${forgeId}.app`),
+    landsOnReady: true,
     manifest: ({ origin, redirectUrl, setupUrl }) => {
       const hook = webhookUrl(forgeId) ?? `${origin}${webhookPath(forgeId)}`;
-      console.log('hook', hook, isPublicUrl(hook));
       return appManifest({
         purpose: 'content-source',
         homepage: origin,
@@ -132,6 +191,9 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
         setupUrl,
       });
     },
+    // An App on one account reads that account's repositories only, so its name says nothing in their URLs
+    quickDefaults: (app) =>
+      app.owner ? [[['default_repository_owner'], app.owner.accountName]] : [],
     values: (app) => [
       [['app_id'], String(app.id)],
       [['private_key'], app.pem],
@@ -150,8 +212,16 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
  *
  * @param providerId the id of the identity provider
  * @param baseUrl the base URL of a GitHub Enterprise Server. If it is empty, the App is created on GitHub.com
+ * @param isPublic whether anyone with a GitHub account may sign in, rather than only the members of the App's owner
+ * @param signInOnInstall whether the person installing the App signs in with it as they do, which then returns
+ *   through the sign-in callback rather than the setup URL
  */
-export function identityProviderTarget(providerId: string, baseUrl = ''): ManifestTarget {
+export function identityProviderTarget(
+  providerId: string,
+  baseUrl = '',
+  isPublic = false,
+  signInOnInstall = false,
+): ManifestTarget {
   return {
     sectionId: memberSectionId('identity', providerId),
     app: 'github-app',
@@ -160,6 +230,7 @@ export function identityProviderTarget(providerId: string, baseUrl = ''): Manife
     kind: 'github',
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`auth.providers.${providerId}.app`),
+    landsOnReady: true,
     manifest: ({ origin, redirectUrl, setupUrl }) =>
       appManifest({
         purpose: 'identity-provider',
@@ -167,6 +238,8 @@ export function identityProviderTarget(providerId: string, baseUrl = ''): Manife
         callbackUrl: `${origin}${GITHUB_CALLBACK_PATH}`,
         redirectUrl,
         setupUrl,
+        public: isPublic,
+        signInOnInstall,
       }),
     values: (app) => [
       [['client_id'], app.client_id],
@@ -206,6 +279,7 @@ export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarge
     kind: 'github',
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`auth.providers.${providerId}.directory.app`),
+    landsOnReady: false,
     manifest: ({ origin, redirectUrl, setupUrl }) => {
       const hook =
         directoryWebhookUrl(providerId) ?? `${origin}${directoryWebhookPath(providerId)}`;
@@ -283,6 +357,33 @@ export function appFields(target: ManifestTarget, app: ConvertedApp): Record<str
 }
 
 /**
+ * writeAppValues writes all of the App's values into the member, as a quick setup with no page saves them.
+ *
+ * @param doc the configuration document
+ * @param target what the App was created for
+ * @param app the App GitHub created
+ * @param form the carried form, which says how the add modal set the App up
+ */
+export function writeAppValues(
+  doc: Document,
+  target: ManifestTarget,
+  app: ConvertedApp,
+  form: CarriedForm,
+): boolean {
+  for (const [path, value] of target.values(app)) setNodeAt(doc, [...target.path, ...path], value);
+  for (const [path, value] of target.quickDefaults?.(app) ?? []) {
+    if (doc.getIn([...target.path, ...path]) === undefined) {
+      setNodeAt(doc, [...target.path, ...path], value);
+    }
+  }
+  // Only an App the provider stores has the visibility the modal asked for written beside it
+  if (writeStoredValues(doc, target, app) && typeof form.public === 'boolean') {
+    setNodeAt(doc, [...target.path, 'app', 'public'], form.public);
+  }
+  return true;
+}
+
+/**
  * writeStoredValues writes the App's values that are not on the page's form into the member.
  *
  * @param doc the configuration document
@@ -323,7 +424,7 @@ export class GithubAppManifestService {
     owner: string,
     origin: string,
     form: CarriedForm,
-  ): Promise<{ handoff: ManifestHandoff; sealedForm: string }> {
+  ): Promise<{ handoff: ManifestHandoff; sealedForm: string; sealedHandoff: string }> {
     // The cookie holds the form sealed with this key, and only the flow's row holds the key
     const key = randomBytes(32);
     const sealedForm = seal(form, key);
@@ -351,18 +452,49 @@ export class GithubAppManifestService {
     const manifest = target.manifest({
       origin,
       redirectUrl: `${origin}${githubAppCallbackPath(target.sectionId, target.app)}`,
-      setupUrl: `${origin}${configPageUrl}`,
+      // GitHub sends the browser here once the App is installed
+      setupUrl: `${origin}${target.landsOnReady ? readyPath(target.sectionId) : configPageUrl}`,
     });
-    return {
-      handoff: {
-        manifestPostUrl: manifestFormUrl(web, owner, state),
-        manifest,
-        web,
-        owner,
-        configPageUrl,
-      },
-      sealedForm,
+    const handoff: ManifestHandoff = {
+      manifestPostUrl: manifestFormUrl(web, owner, state),
+      manifest,
+      web,
+      owner,
+      configPageUrl,
     };
+    // Sealed with the form's key, so the page that posts the manifest takes it from this flow only, unchanged
+    return { handoff, sealedForm, sealedHandoff: `${state}.${seal(handoff, key)}` };
+  }
+
+  /**
+   * handoff opens the manifest a flow sealed for the page that posts it to GitHub. It returns null when the cookie
+   * names no open flow of this App, or was changed.
+   *
+   * @param tenantId the tenant the page belongs to
+   * @param sectionId the config page the App is created for
+   * @param app which App of the page
+   * @param sealedHandoff the cookie the start set
+   */
+  async handoff(
+    tenantId: string,
+    sectionId: string,
+    app: string,
+    sealedHandoff: string,
+  ): Promise<ManifestHandoff | null> {
+    const cut = sealedHandoff.indexOf('.');
+    if (cut <= 0) return null;
+    const flow = await LoginFlow.findOne({
+      where: {
+        tenant_id: tenantId,
+        state: sealedHandoff.slice(0, cut),
+        provider: flowMark(sectionId, app),
+      },
+    });
+    if (!flow || flow.expires_at.getTime() < Date.now()) return null;
+    return open<ManifestHandoff>(
+      sealedHandoff.slice(cut + 1),
+      Buffer.from(flow.code_verifier, 'base64url'),
+    );
   }
 
   /**
@@ -396,7 +528,7 @@ export class GithubAppManifestService {
       );
     }
 
-    const form = open(sealedForm, Buffer.from(flow.code_verifier, 'base64url'));
+    const form = open<CarriedForm>(sealedForm, Buffer.from(flow.code_verifier, 'base64url'));
     if (!form) {
       throw new GithubAppManifestError(
         'The browser came back from GitHub without the details this page sent along. To create the App, start again on this page.',
@@ -438,12 +570,12 @@ function flowMark(sectionId: string, app: string): string {
 }
 
 /**
- * seal compresses and encrypts the carried form, so the cookie reveals nothing without the key.
+ * seal compresses and encrypts what a cookie carries, so it reveals nothing without the key.
  *
- * @param form the carried form
+ * @param form the carried form, or the hand-off
  * @param key the flow's key
  */
-function seal(form: CarriedForm, key: Buffer): string {
+function seal(form: CarriedForm | ManifestHandoff, key: Buffer): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const sealed = Buffer.concat([
@@ -454,12 +586,12 @@ function seal(form: CarriedForm, key: Buffer): string {
 }
 
 /**
- * open decrypts a sealed form. It returns null when the form was not sealed with this key, or was changed.
+ * open decrypts what a cookie carries. It returns null when it was not sealed with this key, or was changed.
  *
- * @param sealedForm the form from the cookie
+ * @param sealedForm the form or the hand-off from the cookie
  * @param key the flow's key
  */
-function open(sealedForm: string, key: Buffer): CarriedForm | null {
+function open<T extends CarriedForm | ManifestHandoff>(sealedForm: string, key: Buffer): T | null {
   try {
     const raw = Buffer.from(sealedForm, 'base64url');
     const decipher = createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
@@ -467,7 +599,7 @@ function open(sealedForm: string, key: Buffer): CarriedForm | null {
     const json = inflateRawSync(
       Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]),
     );
-    return JSON.parse(json.toString('utf8')) as CarriedForm;
+    return JSON.parse(json.toString('utf8')) as T;
   } catch {
     return null;
   }

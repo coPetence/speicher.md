@@ -8,7 +8,11 @@ export function mountBlockedAnswers(): void {
     );
     if (blocked.length === 0) continue;
 
-    const submit = group.closest('.spr-modal-panel')?.querySelector('button[type="submit"]');
+    // The modal's main button when it names one, as the add modal does beside its manual one
+    const panel = group.closest('.spr-modal-panel');
+    const submit =
+      panel?.querySelector('button[data-spr-modal-submit]') ??
+      panel?.querySelector('button[type="submit"]');
     if (!(submit instanceof HTMLButtonElement)) continue;
 
     const settle = (): void => {

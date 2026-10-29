@@ -29,6 +29,7 @@ import { mountSwatches } from './configurator/colour-swatch-picker';
 import { mountBulkRowRemoval } from './configurator/bulk-row-removal';
 import { mountPickLists } from './configurator/pick-list';
 import { mountChecks } from './configurator/live-connection-check';
+import { mountDeferredPanels } from './configurator/deferred-panel';
 import { mountWidths } from './configurator/embedding-width-lookup';
 import { mountFragments } from './configurator/open-folded-on-fragment';
 import { mountKnownHostsTables } from './configurator/known-hosts-table';
@@ -46,6 +47,7 @@ function mount(): void {
   mountReshapeSubmits();
   mountEnterLeavesField();
   mountChecks();
+  mountDeferredPanels();
 
   mountFilter('.spr-entries');
   mountModals();

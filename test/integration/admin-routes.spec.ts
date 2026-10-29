@@ -112,15 +112,53 @@ const CONTRACT: Record<string, Contract> = {
 
   'POST /-/config/:section/:member/:app/manifest': {
     covered:
-      'github-app-manifest.spec.ts. It hands the browser over to GitHub with a form ' +
-      'that posts a manifest there, so the document a JSON caller would receive is a ' +
-      'form for another site.',
+      'github-app-manifest.spec.ts. It starts the flow and redirects to the page that ' +
+      'hands the browser over to GitHub, or answers with the page when it refuses.',
+  },
+  'GET /-/config/:section/:member/:app/manifest/handoff': {
+    covered:
+      'github-app-manifest.spec.ts and quick-setup.spec.ts. The start of a flow redirects ' +
+      'here: once, with the cookie the start set, it is a form that posts a manifest to ' +
+      'GitHub; asked again, as Back from GitHub asks, it redirects to where the flow began.',
   },
   'GET /-/config/:section/:member/:app/manifest/callback': {
     covered:
       'github-app-manifest.spec.ts. It is where GitHub sends the browser back with ' +
-      'a code. It saves the page with the App GitHub created and redirects to where ' +
-      'the App is installed, or answers with the page when the save is refused.',
+      'a code. It saves the page with the App GitHub created and redirects to the ' +
+      "member's ready page, or for a directory App to where it is installed, or " +
+      'answers with the page when the save is refused.',
+  },
+  'POST /-/config/:section/-/create': {
+    covered:
+      'quick-setup.spec.ts. The add modal posts it: it starts the GitHub flow and ' +
+      'redirects to its hand-off page, saves the new member and redirects, or ' +
+      'answers with the section page and the modal reopened.',
+  },
+  'GET /-/config/:section/:member/check': {
+    covered:
+      'quick-setup.spec.ts. It reads the repositories of a GitHub source from GitHub, ' +
+      'which needs an installation of its App that no fixture has.',
+  },
+  'GET /-/config/:section/:member/groups': {
+    covered:
+      'quick-setup.spec.ts. It reads the repositories of a GitHub source from GitHub for ' +
+      'the groups they name, which needs an installation no fixture has.',
+  },
+  'POST /-/config/:section/:member/groups': {
+    covered:
+      'quick-setup.spec.ts. It creates the groups the modal names and redirects to the ' +
+      'check, or answers with the modal and why it refused.',
+  },
+  'GET /-/config/:section/:member/install': {
+    covered:
+      'quick-setup.spec.ts and setup-wizard.spec.ts. It records the installation of a ' +
+      "provider's App and redirects to GitHub, which a JSON caller has no use for; the " +
+      'installation returns through the GitHub sign-in callback.',
+  },
+  'GET /-/config/:section/:member/ready': {
+    covered:
+      'quick-setup.spec.ts. It needs a member set up from the add modal, which no ' +
+      'fixture has, and a GitHub that tells it about the App of a source.',
   },
   'POST /-/config/:section/:member': {
     covered:

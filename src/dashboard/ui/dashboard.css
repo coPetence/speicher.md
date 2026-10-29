@@ -20,6 +20,9 @@
 @import '../../global-ui/components/tile-badges/tile-badges.css';
 @import '../../global-ui/components/add-panel/add-panel.css';
 @import '../../global-ui/components/add-row-panel/add-row-panel.css';
+@import '../../global-ui/components/ready-panel/ready-panel.css';
+@import '../../global-ui/components/check-panel/check-panel.css';
+@import '../../global-ui/components/groups-panel/groups-panel.css';
 @import '../../global-ui/components/copy/copy.css';
 @import '../../global-ui/components/pager/pager.css';
 @import '../../global-ui/components/toast/toast.css';

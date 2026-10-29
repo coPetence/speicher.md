@@ -18,6 +18,7 @@ import {
   nounOf,
 } from '../../members';
 import type { EntryLine, SectionEntry } from '../../model';
+import { quickSetupOf } from '../../../quick-setup/registry';
 import type { SectionSource } from '../registry';
 import { sectionHead } from '../registry';
 
@@ -50,6 +51,7 @@ export function sourcesSection(root: Obj): SectionSource {
           label: entry.label,
           suggest: freeMemberId(ids, entry.value),
           mark: entry.mark,
+          quickSetup: quickSetupOf('sources', entry.value),
         })),
         // Navigates to the new forge's detail page
         opensPage: true,

@@ -11,10 +11,21 @@ import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-note
 import { memberOf, memberPosition, nounOf } from '../../../configurator/config-form/members';
 import { allFields, cardItems } from '../../../configurator/config-form/model';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
+import { quickSetupPath } from '../../../configurator/quick-setup/model';
+import { sourceCheckPath } from '../../../configurator/config-page/github-app-manifest';
 import type { SaveVerdict } from '../../../../config/classification';
 import { dashboardSectionTitle } from '../../../dashboard-sections';
 import { DashboardResponder } from '../../../respond';
 import { markSprite, renderInlineMark } from '../../provider-marks';
+
+// The mark of each state a checked repository can be in
+const CHECK_ICONS = {
+  ready: 'circle-check',
+  unpublished: 'circle-dashed',
+  'unknown-groups': 'triangle-alert',
+  invalid: 'circle-x',
+  unreadable: 'circle-help',
+} as const;
 
 /** Render a config section, using a fallback title if parsing failed */
 export function sendConfigSection(
@@ -95,6 +106,8 @@ export function sendConfigSection(
             .map((mark) => [mark, renderInlineMark(mark, 'spr-icon')]),
         ),
         section_id: sectionId,
+        // Where the add modal posts a kind it sets up in one go
+        quick_action: quickSetupPath(sectionId),
         section_title: payload.section?.title ?? titleOfSection(sectionId),
         // Breadcrumbs run from the overview to the current page
         crumbs: configTrail(
@@ -115,6 +128,20 @@ export function sendConfigSection(
         equals_icon: renderInlineIcon('arrow-right', 'spr-icon'),
         note_icon: renderInlineIcon('sticky-note', 'spr-icon'),
         external_icon: renderInlineIcon('external-link', 'spr-icon'),
+        // The large check a quick setup ends on
+        ready_icon: payload.ready ? renderInlineIcon('circle-check', 'spr-icon') : '',
+        ready_arrow_icon:
+          payload.ready || payload.check ? renderInlineIcon('arrow-right', 'spr-icon') : '',
+        // A mark per state of a checked repository
+        check_icons: payload.check
+          ? Object.fromEntries(
+              Object.entries(CHECK_ICONS).map(([state, icon]) => [
+                state,
+                renderInlineIcon(icon, 'spr-icon'),
+              ]),
+            )
+          : {},
+        check_again_href: payload.check ? sourceCheckPath(payload.check.id) : '',
         expiry_icon: renderInlineIcon('calendar-clock', 'spr-icon'),
         add_icon: renderInlineIcon('plus', 'spr-icon'),
         chevron_icon: renderInlineIcon('chevron-right', 'spr-icon'),

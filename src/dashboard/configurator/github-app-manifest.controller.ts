@@ -5,15 +5,17 @@
 import { Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { originOf } from '../../auth/callback-url';
+import { callbackUrl, originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
-import { FLOW_TTL_MS } from '../../auth/github.service';
+import { GithubAuthService } from '../../auth/github.service';
 import { ResolvedCaller } from '../../authz/caller';
-import { env } from '../../common/env';
 import { ConfigReadOnlyError } from '../../common/errors';
 import { ConfigService } from '../../config/config.service';
 import { DashboardResponder } from '../respond';
-import { sendGithubAppManifest } from '../ui/views/github-app-manifest/github-app-manifest';
+import {
+  handOffToGithub,
+  sendGithubAppManifest,
+} from '../ui/views/github-app-manifest/github-app-manifest';
 import { submitted } from './config-form/decode/body';
 import { isMemberId, memberSectionId, nounOf } from './config-form/members';
 import { readUploads } from './config-form/upload';
@@ -21,13 +23,18 @@ import { redirectTo, sendSection } from './config-http';
 import { ConfigPageService } from './config-page/config-page.service';
 import {
   GITHUB_APP_FORM_COOKIE,
+  GITHUB_APP_HANDOFF_COOKIE,
   GithubAppManifestError,
   GithubAppManifestService,
   MANIFEST_TARGETS,
   appFields,
   carryForm,
   githubAppCallbackPath,
+  githubAppHandoffPath,
+  providerInstallPath,
+  readyPath,
   uploadsOf,
+  writeAppValues,
   writeStoredValues,
 } from './config-page/github-app-manifest';
 import { ConfigSaveService } from './config-page/save';
@@ -40,6 +47,7 @@ export class GithubAppManifestController {
     private readonly saves: ConfigSaveService,
     private readonly respond: DashboardResponder,
     private readonly manifests: GithubAppManifestService,
+    private readonly github: GithubAuthService,
   ) {}
 
   /** Hand the browser over to GitHub to create one of the GitHub Apps of a source or an identity provider */
@@ -67,7 +75,7 @@ export class GithubAppManifestController {
       }
       if (uploads.refusal) throw new GithubAppManifestError(uploads.refusal);
       const target = targetOf(member, baseUrl);
-      const { handoff, sealedForm } = await this.manifests.start(
+      const started = await this.manifests.start(
         caller.tenantId,
         target,
         // Each App on a page has its own organization field
@@ -75,19 +83,52 @@ export class GithubAppManifestController {
         originOf(req),
         carryForm(body, uploads),
       );
-
-      res.cookie(GITHUB_APP_FORM_COOKIE, sealedForm, {
-        httpOnly: true,
-        secure: !env('SPEICHER_INSECURE_COOKIES'),
-        sameSite: 'lax',
-        path: githubAppCallbackPath(target.sectionId, target.app),
-        maxAge: FLOW_TTL_MS,
-      });
-      sendGithubAppManifest(res, handoff);
+      handOffToGithub(res, target, started, 'page');
     } catch (err) {
       if (!(err instanceof GithubAppManifestError)) throw err;
       return this.manifestRefused(req, res, caller, sectionId, err);
     }
+  }
+
+  /**
+   * The page that posts an App's manifest to GitHub, once: its cookie goes with the visit, so Back from GitHub leads to
+   * where the flow started instead of to GitHub again
+   */
+  @Get('config/:section/:member/:app/manifest/handoff')
+  async githubAppHandoff(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('section') section: string,
+    @Param('member') member: string,
+    @Param('app') app: string,
+    @Query('from') from?: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    const targetOf = MANIFEST_TARGETS[section]?.[app];
+    if (!caller.isAdmin || !targetOf || !isMemberId(section, member)) {
+      return this.respond.notFound(req, res);
+    }
+    const target = targetOf(member);
+
+    const sealed: unknown = req.cookies?.[GITHUB_APP_HANDOFF_COOKIE];
+    res.clearCookie(GITHUB_APP_HANDOFF_COOKIE, {
+      path: githubAppHandoffPath(target.sectionId, app),
+    });
+    const handoff =
+      typeof sealed === 'string'
+        ? await this.manifests.handoff(caller.tenantId, target.sectionId, app, sealed)
+        : null;
+    if (handoff) return sendGithubAppManifest(res, handoff);
+
+    // Visited before, which is how Back from GitHub arrives: the add modal on this kind, or the page the App is for
+    if (from === 'modal') return redirectTo(res, `/-/config/${section}?kind=${target.kind}`);
+    const stored = (await this.page.state(caller)).doc?.hasIn(target.path) === true;
+    return redirectTo(
+      res,
+      stored
+        ? `/-/config/${target.sectionId}`
+        : `/-/config/${target.sectionId}?kind=${target.kind}`,
+    );
   }
 
   /** Where GitHub sends the browser back after it created one of the GitHub Apps of a source or an identity provider */
@@ -159,11 +200,38 @@ export class GithubAppManifestController {
             intent: 'apply',
           },
         }),
-        amend: (doc) => writeStoredValues(doc, target, app),
+        // A flow started from the add modal carries no page to decode
+        decode: form.quick !== true,
+        amend: (doc) =>
+          form.quick === true
+            ? writeAppValues(doc, target, app, form)
+            : writeStoredValues(doc, target, app),
       });
       const installUrl = `${app.html_url}/installations/new`;
 
-      if (outcome.kind === 'redirect') return redirectTo(res, installUrl);
+      if (outcome.kind === 'redirect') {
+        // An App that has to be installed goes on to its installation, which returns to the ready modal. A source's
+        // and a directory App go to GitHub directly; a provider's goes through the start that lets its return sign in
+        if (section !== 'identity' || !target.landsOnReady) return redirectTo(res, installUrl);
+        if (app.owner?.isOrganization) return redirectTo(res, providerInstallPath(member));
+        // A sign-in App on a personal account has nothing to install. During the first setup its creator signs in
+        // with it straight away and becomes the first administrator
+        if (
+          caller.viaSetup &&
+          !this.config.hasAdministrator &&
+          app.owner?.isOrganization === false
+        ) {
+          const signIn = await this.github.authorizationUrl(
+            caller.tenantId,
+            member,
+            callbackUrl(req, 'github'),
+            `${readyPath(target.sectionId)}?first_admin=1`,
+            { namesFirstAdmin: true },
+          );
+          return res.redirect(302, signIn);
+        }
+        return redirectTo(res, readyPath(target.sectionId));
+      }
       if (outcome.kind !== 'page') return this.respond.notFound(req, res);
       outcome.payload.notice = target.unsavedNotice(installUrl);
       return sendSection(

@@ -162,9 +162,11 @@ export class ConfigController {
         .filter((op) => op.opensPage)
         .flatMap((op) => op.typeOptions ?? [])
         .find((option) => option.value === kind && !option.unavailable);
-      const landing = offered
-        ? entryHrefFor(sectionId, offered.suggest ?? offered.value, kind)
-        : null;
+      // A kind set up in one go stays here, with the add modal open on it
+      const landing =
+        offered && !offered.quickSetup
+          ? entryHrefFor(sectionId, offered.suggest ?? offered.value, kind)
+          : null;
       if (landing) return redirectTo(res, landing);
     }
     // Shows which config version each entry was introduced in

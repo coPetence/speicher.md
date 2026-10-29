@@ -1,9 +1,19 @@
-
-<% const add = it.add %>
-  <div class="spr-modal-panel">
+<%
+  const add = it.add;
+  const values = it.addValues || {};
+  // A kind with a quick setup is set up from here; the modal then posts to the quick setup, which sends any other kind to its page
+  const quick = Boolean(it.quickAction) && add.typeOptions.some(function (option) { return option.quickSetup; });
+  const pickedKind =
+    (it.openKind && add.typeOptions.find(function (option) { return option.value === it.openKind; }))
+    || add.typeOptions[0] || {};
+%>
+  <div class="spr-modal-panel spr-add-panel"<% if (quick) { %> data-spr-reveal-root<% } %>>
     <h2 class="spr-modal-title">
       <%= add.label %>
     </h2>
+    <% if (it.addError) { %>
+    <%~ include('@note', { level: 'fail', html: md(it.addError), role: 'alert', className: 'spr-add-error' }) %>
+    <% } %>
     <% if (add.typeLabel) { %>
     <fieldset
       class="spr-choices"
@@ -49,30 +59,98 @@
       }),
     }) %>
     <% } else { %>
-    <%
-      const pickedKind =
-        (it.openKind && add.typeOptions.find(function (option) { return option.value === it.openKind; }))
-        || add.typeOptions[0] || {};
-    %>
     <input
       id="add-name"
       name="add"
       form="add-member"
       type="text"
       required
-      value="<%= pickedKind.suggest || '' %>"
+      value="<%= values.add !== undefined ? values.add : (pickedKind.suggest || '') %>"
       pattern="<%= add.namePattern %>"
       title="<%= add.nameHint %>"
       spellcheck="false"
       autocomplete="off"
     >
     <% } %>
+    <% if (quick) { %>
+    <% add.typeOptions.filter(function (option) { return option.quickSetup; }).forEach(function (option) { %>
+    <% const setup = option.quickSetup; %>
+    <%
+      /*
+        The fields of one kind's quick setup, shown while that kind is picked. Every
+        kind's fields are submitted, so each is named after its kind and the server
+        reads only the picked one's.
+      */
+    %>
+    <div class="spr-quick-setup" data-spr-shown-with="kind" data-spr-shown-when="<%= option.value %>">
+      <% setup.fields.forEach(function (field) { %>
+      <% const name = 'quick:' + option.value + ':' + field.name; %>
+      <% const shownWith = field.shownWhen ? 'quick:' + option.value + ':' + field.shownWhen.field : ''; %>
+      <% const shownWhen = field.shownWhen ? field.shownWhen.values.join(' ') : ''; %>
+      <% if (field.kind === 'choice') { %>
+      <% const picked = values[name] || field.options[0].value; %>
+      <fieldset class="spr-quick-choice">
+        <legend><%= field.label %></legend>
+        <div class="<%= field.layout === 'list' ? 'spr-quick-options' : 'spr-choice-switch' %>" role="radiogroup" aria-label="<%= field.label %>">
+          <% field.options.forEach(function (choice) { %>
+          <label>
+            <input type="radio" name="<%= name %>" value="<%= choice.value %>" form="add-member"<%= choice.value === picked ? ' checked' : '' %>>
+            <%= choice.label %>
+          </label>
+          <% }) %>
+        </div>
+      </fieldset>
+      <% } else { %>
+      <% const inputId = 'q-' + option.value + '-' + field.name; %>
+      <div class="spr-quick-field"<% if (shownWith) { %> data-spr-shown-with="<%= shownWith %>" data-spr-shown-when="<%= shownWhen %>"<% } %>>
+        <div class="spr-add-label">
+          <label for="<%= inputId %>"><%= field.label %></label>
+          <% if (field.help) { %><%~ include('@info', { field: { path: inputId, label: field.label, help: field.help } }) %><% } %>
+        </div>
+        <input
+          id="<%= inputId %>"
+          name="<%= name %>"
+          form="add-member"
+          type="text"
+          value="<%= values[name] || '' %>"
+          placeholder="<%= field.placeholder || '' %>"
+          spellcheck="false"
+          autocomplete="off"
+        >
+      </div>
+      <% } %>
+      <% }) %>
+    </div>
+    <% }) %>
+    <% } %>
     <div class="spr-modal-actions">
+      <% if (quick) { %>
+      <% /* The way the modal worked before, the page of the new member with every field, for each kind set up in one go */ %>
+      <%
+        const quickKinds = add.typeOptions.filter(function (option) { return option.quickSetup; }).map(function (option) { return option.value; });
+      %>
       <button
         type="submit"
         form="add-member"
+        class="spr-quick-manual"
+        data-spr-shown-with="kind"
+        data-spr-shown-when="<%= quickKinds.join(' ') %>"
+        <%= quickKinds.includes(pickedKind.value) ? '' : 'hidden' %>
+      >Configure manually</button>
+      <% } %>
+      <button
+        type="submit"
+        form="add-member"
+        data-spr-modal-submit
+        <% if (quick) { %>class="spr-add-submit" formmethod="post" formaction="<%= it.quickAction %>"<% } %>
       >
+        <% if (quick) { %>
+        <% add.typeOptions.forEach(function (option) { %>
+        <span data-spr-shown-with="kind" data-spr-shown-when="<%= option.value %>"<%= option.value === pickedKind.value ? '' : ' hidden' %>><%= option.quickSetup ? option.quickSetup.submitLabel : add.label %><% if (option.quickSetup && option.quickSetup.leavesSite) { %><%~ it.externalIcon || '' %><% } %></span>
+        <% }) %>
+        <% } else { %>
         <%= add.label %>
+        <% } %>
       </button>
     </div>
   </div>
