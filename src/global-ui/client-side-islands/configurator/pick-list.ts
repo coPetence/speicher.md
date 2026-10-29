@@ -15,6 +15,8 @@ export function mountPickLists(): void {
   const form = configForm();
   if (!form) return;
 
+  // A choice the address names, e.g. from the repositories page: its dialog opens with it ticked
+  const picked = new URLSearchParams(window.location.search).get('pick')?.toLowerCase();
   for (const field of Array.from(form.querySelectorAll<HTMLElement>('.spr-field-pick-list'))) {
     const parts = partsOf(field);
     if (!parts) continue;
@@ -23,6 +25,12 @@ export function mountPickLists(): void {
     parts.modal.addEventListener('toggle', () => {
       if (!parts.modal.open) reset(parts);
     });
+    const choice = choicesOf(parts).find((each) => each.dataset.sprPickChoice === picked);
+    const box = choice?.querySelector<HTMLInputElement>('input');
+    if (box) {
+      box.checked = true;
+      parts.modal.open = true;
+    }
   }
 
   form.addEventListener('click', (event) => {
@@ -153,6 +161,11 @@ function settle(parts: Parts): void {
   parts.list.hidden = rows === 0;
   parts.empty.hidden = rows !== 0;
   parts.modal.hidden = choicesOf(parts).length === 0;
+  // In the dialog's place while there is nothing to add, saying why
+  const unavailable = parts.modal.parentElement?.querySelector<HTMLElement>(
+    '.spr-pick-list-unavailable',
+  );
+  if (unavailable) unavailable.hidden = !parts.modal.hidden;
   narrow(parts);
   reportScriptedEdit(parts.list);
 }

@@ -1,88 +1,99 @@
+<%
+  function action(link, primary) {
+    const outside = Boolean(link.external);
+    const kind = primary ? 'spr-ready-action' : 'spr-ready-link';
+    if (link.disabled) {
+%>
+<span class="spr-setup-fix-blocked">
+  <button type="button" class="<%= kind %>" disabled><%= link.label %></button>
+  <span class="spr-setup-fix-why"><%= link.disabled %></span>
+</span>
+<%
+    } else if (link.post) {
+%>
+<form class="spr-setup-fix-form" method="post" action="<%= link.href %>">
+  <% Object.keys(link.post).forEach(function (name) { %><input type="hidden" name="<%= name %>" value="<%= link.post[name] %>"><% }) %>
+  <button type="submit" class="<%= kind %>"><%= link.label %></button>
+</form>
+<%
+    } else {
+%>
+<a class="<%= kind %>" href="<%= link.href %>"<% if (outside) { %> target="_blank" rel="noopener"<% } %><% if (link.create) { %> data-spr-config-file-action="<%= link.create.action %>" data-spr-config-file-repository="<%= link.create.repository %>"<% } %>><%= link.label %><% if (outside) { %><%~ it.external_icon %><% } else if (primary) { %><%~ it.arrow_icon %><% } %></a>
+<%
+    }
+  }
+%>
 <div class="spr-page-head">
   <h1 class="spr-titled"><%~ it.head_icon %>Repositories</h1>
+  <% if (it.walkthrough) { %>
+  <%~ include('@walkthrough', it.walkthrough) %>
+  <% } %>
 </div>
 
 <div class="spr-empty">
   <p>
-    Speicher.md publishes a repository once a content source of this instance can read it and it has a
-    <code>.speicher.yaml</code> file at its root. The <code>.speicher.yaml</code> file is used to control access to the repository. In it you can name groups whose members
-    may read the repository. To read the repository yourself, the file must name a group you are in. Find out more about the <code>.speicher.yaml</code> file in our <a class="spr-ready-link spr-ready-inline" href="https://docs.speicher.md/speicher-md/repository/speicher-yaml" target="_blank" rel="noopener">documentation<%~ it.external_icon %></a>.
+    A repository is published once it has a <code>.speicher.yaml</code> file. This file defines which groups may read the repository.
+    <a class="spr-ready-link spr-ready-inline" href="https://docs.speicher.md/speicher-md/repository/speicher-yaml" target="_blank" rel="noopener">Learn more<%~ it.external_icon %></a>
   </p>
 </div>
 
-<% const inGroup = it.me && it.me.groups.length > 0; %>
-<section class="spr-card spr-card-1" data-spr-setup-region="group">
-  <header>
-    <h4>
-      Add yourself to a group
-      <% if (inGroup) { %>
-      <span class="spr-step-check"><%~ it.readable_icon %><span class="spr-clipped">done</span></span>
-      <% } %>
-    </h4>
-  </header>
+<% if (it.finished) { %>
+<div class="spr-setup-groups" data-spr-setup-region="group">
   <%~ include('@note', it.group_note) %>
-  <% if (!it.me) { %>
-  <p><a class="spr-ready-action" href="/-/setup/administrator">Become the administrator</a></p>
-  <% } else if (!inGroup) { %>
-  <p><a class="spr-ready-action" href="/-/config/groups">Open groups</a></p>
-  <% } %>
-</section>
+</div>
+<% } %>
 
-<section class="spr-card spr-card-1" data-spr-repository-step<%= it.busy ? ' data-spr-busy' : '' %>>
+<% /* The one thing to do next. The island runs the checks at the address, and swaps in what they and the refresh find */ %>
+<div data-spr-setup-fix-region<% if (it.check_href) { %> data-spr-check-href="<%= it.check_href %>"<% } %><% if (it.blocked) { %> data-spr-blocked<% } %><% if (it.readable) { %> data-spr-readable<% } %>>
+  <% if (it.fix) { %>
+  <% const fix = it.fix; %>
+  <section class="spr-card spr-card-1 spr-setup-fix" data-spr-setup-fix="<%= fix.id %>"<% if (fix.waits) { %> aria-busy="true"<% } %>>
+    <p class="spr-setup-fix-step"><% if (fix.waits) { %><%~ it.syncing_icon %>In progress<% } else { %>Next step<% } %></p>
+    <h3 class="spr-setup-fix-title"><%~ md(fix.title) %></h3>
+    <p class="spr-setup-fix-text"><%~ md(fix.text) %></p>
+    <% if (fix.detail) { %>
+    <p class="spr-setup-fix-detail"><%~ md(fix.detail) %></p>
+    <% } %>
+    <% if (fix.snippet && it.snippet) { %>
+    <div class="spr-setup-fix-snippet">
+      <pre><code><%= it.snippet %></code></pre>
+      <%~ include('@copy', { label: 'Copy .speicher.yaml', text: it.snippet, visible: true, copyIcon: it.copy_icon, copiedIcon: it.copied_icon }) %>
+    </div>
+    <% } %>
+    <% if (fix.action || fix.secondary) { %>
+    <div class="spr-setup-fix-actions">
+      <% if (fix.action) { action(fix.action, true) } %>
+      <% if (fix.secondary) { action(fix.secondary, false) } %>
+    </div>
+    <% } %>
+    <% if (fix.waits) { %>
+    <p class="spr-setup-fix-note">This page updates by itself.</p>
+    <% } %>
+  </section>
+  <% } %>
+</div>
+
+<section class="spr-card spr-card-1" data-spr-repository-step<%= it.busy ? ' data-spr-busy' : '' %><%= it.blocked || (!it.rows.length && !it.query) ? ' hidden' : '' %>>
   <header>
-    <h4>Grant the group access</h4>
-    <p class="spr-card-sub">Add a <code>.speicher.yaml</code> file to one of your repositories the content source has access to.</p>
+    <h4>Repositories of your content sources</h4>
+    <% /* Beside the heading, where a config card has its controls */ %>
+    <div class="spr-index-bar">
+      <form class="spr-form spr-filter" method="get" role="search" action="/-/repositories" data-spr-filter>
+        <span class="spr-input-icon">
+          <%~ it.search_icon %>
+          <input id="filter-repositories" type="search" name="q" value="<%= it.query %>"
+                 aria-label="Find a repository"
+                 placeholder="Repository or source"
+                 autocomplete="off" spellcheck="false">
+        </span>
+      </form>
+    </div>
   </header>
 
-  <% const pending = it.checks.filter(function (check) { return check.pending; }); %>
-  <% it.checks.forEach(function (check) { %>
-  <% /* While pending, the island asks the check address and puts what it found in this place and in the table */ %>
-  <div class="spr-setup-check" data-spr-check="<%= check.id %>"<% if (check.pending) { %> data-spr-check-href="<%= check.pending %>" aria-busy="true"<% } %>>
-    <% if (check.pending) { %>
-    <% } else if (check.problem) { %>
-    <%~ include('@note', { level: 'warn', html: md(check.problem.text) }) %>
-    <% if (check.problem.href && check.problem.label) { %>
-    <a class="spr-ready-action" href="<%= check.problem.href %>" target="_blank" rel="noopener"><%= check.problem.label %><%~ it.external_icon %></a>
-    <% } %>
-    <% } else if (check.empty) { %>
-    <p class="spr-check-summary">The App can read no repository yet.</p>
-    <% } %>
-    <% if (check.missing) { %>
-    <p><a href="/-/config/sources/<%= encodeURIComponent(check.id) %>/groups">Create the missing groups</a></p>
-    <% } %>
-    <% if (check.more) { %>
-    <p class="spr-check-summary">The App can read more repositories than were checked here.</p>
-    <% } %>
-  </div>
-  <% }) %>
-
-  <div data-spr-setup-region="discovering">
-    <% if (it.discovering.length) { %>
-    <%~ include('@note', { level: 'idle', text: 'Speicher is discovering the repositories of ' + it.discovering.join(', ') + '.' }) %>
-    <% } %>
-  </div>
-
-  <% if (it.rows.length || pending.length || it.query) { %>
-  <div class="spr-index-bar">
-    <form class="spr-form spr-filter" method="get" role="search" action="/-/repositories" data-spr-filter>
-      <span class="spr-input-icon">
-        <%~ it.search_icon %>
-        <input id="filter-repositories" type="search" name="q" value="<%= it.query %>"
-               aria-label="Find a repository"
-               placeholder="Repository or source"
-               autocomplete="off" spellcheck="false">
-      </span>
-    </form>
-  </div>
-  <% } %>
-
-  <p class="spr-check-summary" data-spr-empty="none"<%= it.rows.length || pending.length || it.query ? ' hidden' : '' %>>
-    No repository has been synchronized yet. Speicher finds the repositories of a content source on its next check.
-  </p>
   <p class="spr-check-summary" data-spr-empty="filtered"<%= it.query && !it.rows.length ? '' : ' hidden' %>>
     No repository matches <code data-spr-needle><%= it.query %></code>. <a href="/-/repositories">Show all</a>
   </p>
-  <div class="spr-scroll"<%= it.rows.length || (pending.length && !it.query) ? '' : ' hidden' %>>
+  <div class="spr-scroll"<%= it.rows.length ? '' : ' hidden' %>>
     <table class="spr-table" data-spr-repository-table>
       <thead>
         <tr>
@@ -131,41 +142,10 @@
           </td>
         </tr>
         <% }) %>
-        <% pending.forEach(function (check) { %>
-        <% /* Taken away once the check of the source has filled in its rows */ %>
-        <tr class="spr-setup-loading" data-spr-check-loading="<%= check.id %>">
-          <td colspan="5">
-            <span class="spr-activity" data-spr-check-text><%~ it.syncing_icon %>Checking the repositories of <%= check.id %> on GitHub… <a href="<%= check.pending %>">Check now</a></span>
-          </td>
-        </tr>
-        <% }) %>
       </tbody>
     </table>
   </div>
-  <% if (it.snippet) { %>
-  <details class="spr-setup-snippet">
-    <summary>The <code>.speicher.yaml</code> to commit</summary>
-    <pre><code><%= it.snippet %></code></pre>
-  </details>
-  <% } %>
 </section>
-
-<%
-  const status = it.status && {
-    'no-administrator': { level: 'warn', text: 'To add yourself to a group, you need to first log in as the administrator of this instance.' },
-    'no-group': { level: 'warn', text: 'Add yourself to a group, so a repository can grant you access.' },
-    syncing: { level: 'idle', text: 'This list updates by itself.' },
-    'no-repository': { level: 'idle', text: 'No repository has been synchronized yet. Speicher finds the repositories of a content source on its next check.' },
-    'no-access': { level: 'warn', text: 'A repository is synced, but its .speicher.yaml names no group you are in.' },
-    waiting: { level: 'idle', html: md('Add a `.speicher.yaml` file to one of your repositories the content source has access to.') },
-  }[it.status];
-%>
-<% /* No note once the guide bar offers to complete the setup */ %>
-<div data-spr-setup-status="<%= it.status || '' %>"<% if (it.readable) { %> data-spr-readable<% } %>>
-  <% if (status) { %>
-  <%~ include('@note', { level: status.level, text: status.text, html: status.html, className: 'spr-section-status' }) %>
-  <% } %>
-</div>
 
 <% if (it.config_file) { %>
 <%~ include('@config-file-panel', { configFile: it.config_file, externalIcon: it.external_icon }) %>

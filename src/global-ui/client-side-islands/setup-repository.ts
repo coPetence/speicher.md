@@ -1,15 +1,16 @@
 /**
- * The table of the setup's repository step: the checks of the GitHub sources, and its refresh
+ * The repositories page: its next step, the checks of the GitHub sources, and its refresh
  *
- * Each GitHub source's check asks GitHub, so the page is drawn without it and
- * this asks the check address once per source. What the check found goes into
- * the source's place above the table, and into the `.speicher.yaml` cells of its
- * rows; the repositories no sync has found yet are added
+ * The checks ask GitHub, so the page is drawn without them, and its next step
+ * says it is checking. This asks the check address once, and puts the step it
+ * answers with in that place, and the rows it found into the table
  *
  * The refresh asks for the page again while it is visible, often while a sync
  * or a discovery is queued or running. It takes the sync and readable cells of
- * every row, and the `.speicher.yaml` cells of the rows no check has filled, so
- * GitHub is not asked again. It stops once the administrator can read a repository
+ * every row, and the `.speicher.yaml` cells of the rows no check has filled. A
+ * page without the checks cannot say the next step, so the checks run again
+ * when a row changed or the tab is shown again, e.g. back from GitHub. The
+ * refresh stops once the administrator can read a repository
  *
  * The filter box narrows the table as on the sync status page, and narrows the
  * rows the checks and the refresh add too
@@ -23,24 +24,20 @@ const REFRESH_MS = 10_000;
 const BUSY_REFRESH_MS = 3_000;
 
 const STEP = '[data-spr-repository-step]';
+const FIX = '[data-spr-setup-fix-region]';
 const ROWS = '[data-spr-repository-table] > tbody';
-// The rows of repositories, not the ones that say a check is still running
 const REPOSITORY_ROWS = `${ROWS} > tr[data-spr-repo-row]`;
-const SWAPPED = [
-  '[data-spr-setup-region="group"]',
-  '[data-spr-setup-region="discovering"]',
-  '[data-spr-setup-status]',
-  '.spr-guide',
-];
+const SWAPPED = ['[data-spr-setup-region="group"]', '.spr-guide'];
 const DONE = '[data-spr-readable]';
 
 // Narrows the rows again after rows were added or swapped; none when the server narrowed the page
 let refilter: (() => void) | null = null;
+let checking = false;
 
 export function mountRepositoryStep(): void {
   if (!document.querySelector(STEP)) return;
   refilter = mountFilter('[data-spr-repository-table]');
-  mountChecks();
+  void check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref);
   mountRefresh();
   mountConfigFilePicker();
 }
@@ -93,42 +90,51 @@ function mountConfigFilePicker(): void {
   });
 }
 
-function mountChecks(): void {
-  for (const place of document.querySelectorAll<HTMLElement>('[data-spr-check-href]')) {
-    const href = place.dataset.sprCheckHref ?? '';
-    const source = place.dataset.sprCheck ?? '';
-    const loading = document.querySelector<HTMLElement>(
-      `[data-spr-check-loading="${CSS.escape(source)}"]`,
-    );
-    const link = loading?.querySelector('[data-spr-check-text] a');
-    // The link is for where nothing runs; here the check starts by itself
-    link?.remove();
-
-    void (async () => {
-      try {
-        const fresh = await page(href);
-        const found = fresh.querySelector(`[data-spr-check="${CSS.escape(source)}"]`);
-        if (!found) throw new Error('the check answered without its result');
-        place.replaceWith(document.importNode(found, true));
-        for (const row of fresh.querySelectorAll<HTMLElement>(REPOSITORY_ROWS)) {
-          if (row.dataset.sprSource !== source || !row.hasAttribute('data-spr-checked')) continue;
-          const current = rowNamed(row.dataset.sprRepoRow ?? '');
-          if (current) current.replaceWith(document.importNode(row, true));
-          else append(row);
-        }
-        loading?.remove();
-        refilter?.();
-      } catch {
-        // Offer the link again, to run the check by loading its page
-        place.removeAttribute('aria-busy');
-        const text = loading?.querySelector('[data-spr-check-text]');
-        if (text && link) {
-          text.textContent = `The check of ${source} did not finish here. `;
-          text.append(link);
-        }
-      }
-    })();
+/**
+ * Runs the checks of the GitHub sources at their address, and puts the next step and the rows they found in place
+ *
+ * @param href the check address, or undefined when the page has no checks to run
+ */
+async function check(href: string | undefined): Promise<void> {
+  if (!href || checking) return;
+  checking = true;
+  try {
+    const fresh = await page(href);
+    const next = fresh.querySelector(FIX);
+    if (!next || next.hasAttribute('data-spr-check-href')) {
+      throw new Error('the check answered without its result');
+    }
+    for (const row of fresh.querySelectorAll<HTMLElement>(REPOSITORY_ROWS)) {
+      if (!row.hasAttribute('data-spr-checked')) continue;
+      const current = rowNamed(row.dataset.sprRepoRow ?? '');
+      if (current) current.replaceWith(document.importNode(row, true));
+      else append(row);
+    }
+    replaceFix(next);
+    refilter?.();
+  } catch {
+    // Offer to run the check by loading its page
+    const note = document.querySelector(`${FIX} .spr-setup-fix-note`);
+    if (note) {
+      const again = document.createElement('a');
+      again.href = href;
+      again.textContent = 'Check again';
+      note.textContent = 'The check did not finish. ';
+      note.append(again);
+    }
+  } finally {
+    checking = false;
   }
+}
+
+// The next step in place of the current one, and the table shown once there is no step before the repositories
+function replaceFix(next: Element): void {
+  document.querySelector(FIX)?.replaceWith(document.importNode(next, true));
+  const step = document.querySelector<HTMLElement>(STEP);
+  if (!step) return;
+  const blocked = next.hasAttribute('data-spr-blocked');
+  const filtered = new URLSearchParams(window.location.search).has('q');
+  step.hidden = blocked || (!document.querySelector(REPOSITORY_ROWS) && !filtered);
 }
 
 function mountRefresh(): void {
@@ -138,12 +144,26 @@ function mountRefresh(): void {
     window.clearTimeout(timer);
     if (document.hidden || document.querySelector(DONE)) return;
     const busy = document.querySelector(STEP)?.hasAttribute('data-spr-busy') === true;
-    timer = window.setTimeout(() => void refresh(), busy ? BUSY_REFRESH_MS : REFRESH_MS);
+    timer = window.setTimeout(() => void refresh(false), busy ? BUSY_REFRESH_MS : REFRESH_MS);
   };
 
-  const refresh = async (): Promise<void> => {
+  const refresh = async (shown: boolean): Promise<void> => {
     try {
-      swap(await page(window.location.pathname + window.location.search));
+      const fresh = await page(window.location.pathname + window.location.search);
+      const changed = swap(fresh);
+      const next = fresh.querySelector<HTMLElement>(FIX);
+      const href = next?.dataset.sprCheckHref;
+      const current = document.querySelector(FIX);
+      if (next && !href) {
+        replaceFix(next);
+      } else if (
+        shown ||
+        changed ||
+        current?.hasAttribute('data-spr-check-href') ||
+        current?.hasAttribute('data-spr-blocked')
+      ) {
+        await check(href);
+      }
     } catch {
       // Offline or the server restarting; the next tick asks again
     }
@@ -152,7 +172,7 @@ function mountRefresh(): void {
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) window.clearTimeout(timer);
-    else void refresh();
+    else void refresh(true);
   });
 
   schedule();
@@ -167,7 +187,9 @@ async function page(href: string): Promise<Document> {
   return new DOMParser().parseFromString(await response.text(), 'text/html');
 }
 
-function swap(fresh: Document): void {
+// Takes what the fresh page knows; true when a row was added or changed, which the next step may depend on
+function swap(fresh: Document): boolean {
+  let changed = false;
   for (const selector of SWAPPED) {
     const current = document.querySelector(selector);
     const next = fresh.querySelector(selector);
@@ -180,6 +202,7 @@ function swap(fresh: Document): void {
     const current = rowNamed(row.dataset.sprRepoRow ?? '');
     if (!current) {
       append(row);
+      changed = true;
       continue;
     }
     // A check knows more of the file than the sync, so its cells stay
@@ -189,7 +212,10 @@ function swap(fresh: Document): void {
     for (const cell of cells) {
       const now = current.querySelector(`[data-spr-cell="${cell}"]`);
       const next = row.querySelector(`[data-spr-cell="${cell}"]`);
-      if (now && next && now.innerHTML !== next.innerHTML) now.innerHTML = next.innerHTML;
+      if (now && next && now.innerHTML !== next.innerHTML) {
+        now.innerHTML = next.innerHTML;
+        changed = true;
+      }
     }
     // The name links to the sync status once a sync has found it
     const name = current.querySelector(':scope > th');
@@ -204,6 +230,7 @@ function swap(fresh: Document): void {
     step.toggleAttribute('data-spr-busy', nextStep.hasAttribute('data-spr-busy'));
   }
   refilter?.();
+  return changed;
 }
 
 function rowNamed(name: string): HTMLElement | null {
@@ -216,10 +243,9 @@ function rowNamed(name: string): HTMLElement | null {
 function append(row: HTMLElement): void {
   const body = document.querySelector(ROWS);
   if (!body) return;
-  // Above the rows that say a check is still running
-  body.insertBefore(document.importNode(row, true), body.querySelector('[data-spr-check-loading]'));
+  body.append(document.importNode(row, true));
   const table = body.closest<HTMLElement>('.spr-scroll');
   if (table) table.hidden = false;
-  const none = document.querySelector<HTMLElement>('[data-spr-empty="none"]');
-  if (none) none.hidden = true;
+  const step = document.querySelector<HTMLElement>(STEP);
+  if (step && !document.querySelector(`${FIX}[data-spr-blocked]`)) step.hidden = false;
 }

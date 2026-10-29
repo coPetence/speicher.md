@@ -5,7 +5,12 @@
  */
 
 import { rootLogger } from '../../../common/logger';
-import { GithubAppOwner, githubAppLinks, lookupGithubApp } from '../../../github/app-links';
+import {
+  GithubAppOwner,
+  githubAppLinks,
+  installationUrl,
+  lookupGithubApp,
+} from '../../../github/app-links';
 import { InstallationAccess, installationAccess } from '../../../github/app-installation';
 import { githubHosts } from '../../../github/hosts';
 import {
@@ -212,20 +217,6 @@ function repositoriesText(access: InstallationAccess): string {
   const noun = n === 1 ? 'repository' : 'repositories';
   if (access.selection === 'all') return n === 1 ? 'its one repository' : `all ${n} ${noun}`;
   return n === 0 ? 'no repositories yet' : `${n} selected ${noun}`;
-}
-
-/**
- * installationUrl returns the page of an App's installation on GitHub, under the account it is installed on.
- *
- * @param web the GitHub web host
- * @param owner the account the App is installed on
- * @param installation the installation's id
- */
-function installationUrl(web: string, owner: GithubAppOwner, installation: string): string {
-  const account = owner.isOrganization
-    ? `/organizations/${encodeURIComponent(owner.accountName)}`
-    : '';
-  return `${web}${account}/settings/installations/${installation}`;
 }
 
 function bold(account: string): string {

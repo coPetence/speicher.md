@@ -24,6 +24,7 @@
 @import '../../global-ui/components/check-panel/check-panel.css';
 @import '../../global-ui/components/groups-panel/groups-panel.css';
 @import '../../global-ui/components/config-file-panel/config-file-panel.css';
+@import '../../global-ui/components/walkthrough/walkthrough.css';
 @import '../../global-ui/components/copy/copy.css';
 @import '../../global-ui/components/pager/pager.css';
 @import '../../global-ui/components/toast/toast.css';

@@ -65,6 +65,36 @@ describe('the table of the repository step', () => {
     expect(rows[1].file.create_href).toContain('config-file');
   });
 
+  it('is one row for a name the sync slugs, e.g. a dot in it', () => {
+    const rows = repositoryTable(
+      [{ ...synced('speicher-md', 'failed'), namespace: 'coPetence' }],
+      [],
+      new Map([
+        [
+          'gh',
+          [
+            {
+              name: 'coPetence/speicher.md',
+              href: '',
+              state: 'ready' as const,
+              text: '',
+              groups: ['public'],
+            },
+          ],
+        ],
+      ]),
+      new Set(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      key: 'copetence/speicher-md',
+      name: 'coPetence/speicher.md',
+      synced: { namespace: 'coPetence', slug: 'speicher-md' },
+      sync: { state: 'failed' },
+      groups: ['public'],
+    });
+  });
+
   it('says how far a repository no sync has found yet is, as the sync status would', () => {
     const rows = repositoryTable(
       [],

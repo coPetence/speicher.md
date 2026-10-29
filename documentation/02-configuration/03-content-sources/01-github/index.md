@@ -67,7 +67,8 @@ On the App's page on GitHub, choose **Install** and select the account or organi
 
 Only repositories with a `.speicher.yaml` at their root are published. The others are skipped, so installing the App on all repositories publishes nothing by itself. See [Publish your first repository](../../../01-quick-start/03-setup-repository.md) for the file.
 
-<!-- screenshot: the installation page on GitHub with "Only select repositories" -->
+![Screenshot: Installing the GitHub App on an organization](./assets/install-github-app-light.webp)
+![Screenshot: Installing the GitHub App on an organization](./assets/install-github-app-dark.webp)
 
 ## 4. How repositories are synced
 

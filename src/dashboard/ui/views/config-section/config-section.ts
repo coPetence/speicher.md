@@ -1,21 +1,22 @@
 import type { Request, Response } from 'express';
 
+import type { SaveVerdict } from '../../../../config/classification';
 import { sectionEmptyArt, tableEmptyArt } from '../../../../content-reader/empty-state';
 import { renderInlineIcon } from '../../../../content-reader/icons';
 import { escapeHtml, renderTemplate } from '../../../../content-reader/views';
-import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
 import { renderHelp } from '../../../../global-ui/help-markup';
 import { missingHostKeysText, unreadableLinesText } from '../../../../global-ui/known-hosts-notes';
 import type { Note } from '../../../../global-ui/note';
-import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
+import { CONFIG_SECTIONS } from '../../../configurator/config-form/fields';
 import { memberOf, memberPosition, nounOf } from '../../../configurator/config-form/members';
 import { allFields, cardItems } from '../../../configurator/config-form/model';
+import { sourceCheckPath } from '../../../configurator/config-page/github-app-manifest';
 import { ConfigSectionPayload } from '../../../configurator/config-page/payloads';
 import { quickSetupPath } from '../../../configurator/quick-setup/model';
-import { sourceCheckPath } from '../../../configurator/config-page/github-app-manifest';
-import type { SaveVerdict } from '../../../../config/classification';
 import { dashboardSectionTitle } from '../../../dashboard-sections';
 import { DashboardResponder } from '../../../respond';
+import { walkthroughView } from '../../../setup/walkthrough-view';
+import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
 import { markSprite, renderInlineMark } from '../../provider-marks';
 
 // The mark of each state a checked repository can be in
@@ -38,6 +39,8 @@ export function sendConfigSection(
   inSetup: boolean,
   status?: number,
 ): void {
+  // Opens by itself the first time the guided setup reaches the page, and from its link at any time
+  const walkthrough = walkthroughView(req, res, sectionId);
   respond.send(req, res, isAdmin, {
     section: 'config',
     subsection: sectionId,
@@ -53,6 +56,7 @@ export function sendConfigSection(
       renderTemplate('dashboard/ui/views/config-section', {
         ...(data as unknown as Record<string, unknown>),
         // Deduplicate page logos in a sprite; keep markup out of the payload
+        walkthrough,
         marks_sprite: markSprite([
           payload.section?.mark ?? '',
           ...[

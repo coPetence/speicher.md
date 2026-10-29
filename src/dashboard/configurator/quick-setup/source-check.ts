@@ -6,7 +6,7 @@ import {
   installationOn,
   repositoryConfigs,
 } from '../../../github/app-installation';
-import { githubAppLinks, lookupGithubApp } from '../../../github/app-links';
+import { githubAppLinks, installationUrl, lookupGithubApp } from '../../../github/app-links';
 import { githubHosts } from '../../../github/hosts';
 import { memberSectionId } from '../config-form/members';
 import {
@@ -22,10 +22,13 @@ import {
   checkRepository,
   isConfigPath,
   missingGroups,
+  publicRepoRef,
 } from './repository-check';
 
 export type SourceCheck = Pick<CheckModal, 'problem' | 'repositories' | 'more'> & {
   missing: MissingGroup[];
+  // The installation's page on GitHub, where the repositories it reads are picked
+  installation_href?: string;
 };
 
 /**
@@ -89,9 +92,10 @@ export async function checkSource(
     return {
       more: read.more,
       repositories: checked.map(({ repo, verdict }) =>
-        checkRow(repo, verdict, web, sourceId, back),
+        checkRow(repo, verdict, web, sourceId, back, known),
       ),
       missing: missingGroups(checked),
+      installation_href: installationUrl(web, app.owner, installation.installationId),
     };
   } catch (err) {
     const message = (err as Error).message;
@@ -121,6 +125,7 @@ function checkRow(
   web: string,
   sourceId: string,
   back: ConfigFileBack,
+  known: KnownGroups,
 ): CheckRow {
   const href = `${web}/${repo.fullName}`;
   const name = repo.fullName;
@@ -165,6 +170,7 @@ function checkRow(
         name,
         href,
         ...edit,
+        groups: grantedGroups(verdict.readers),
         state: 'unknown-groups',
         text: `Missing group: ${verdict.groups
           .map((each) =>
@@ -176,16 +182,31 @@ function checkRow(
       };
     case 'ready': {
       // A group links to its page; `public` and a count of people have none
+      const publicAllowed = known.allowsPublic(publicRepoRef(name));
       const readers = verdict.readers
-        .map((each) =>
-          / /.test(each) || each === PUBLIC_GROUP_NAME
-            ? each
-            : `[${each}](/-/config/${memberSectionId('groups', each)})`,
-        )
+        .map((each) => {
+          if (each === PUBLIC_GROUP_NAME) {
+            return publicAllowed ? each : `${each} (not enabled for this repository)`;
+          }
+          return / /.test(each) ? each : `[${each}](/-/config/${memberSectionId('groups', each)})`;
+        })
         .join(', ');
-      return { name, href, ...edit, state: 'ready', text: `Readable by ${readers}`, readers };
+      return {
+        name,
+        href,
+        ...edit,
+        state: 'ready',
+        text: `Readable by ${readers}`,
+        readers,
+        groups: grantedGroups(verdict.readers),
+      };
     }
   }
+}
+
+// The groups among the readers, `public` included, without a count of people
+function grantedGroups(readers: string[]): string[] {
+  return readers.filter((each) => !/ /.test(each));
 }
 
 /**

@@ -15,6 +15,8 @@
  * the GitHub checks and the refresh
  */
 
+import { mountModals } from './configurator/modal-focus-and-escape';
+import { mountWalkthroughs } from './configurator/walkthrough';
 import { mountCopy } from './copy';
 import { mountRepositoryStep } from './setup-repository';
 import { mountNav } from './slide';
@@ -72,3 +74,6 @@ mountClaimPoll();
 mountCopy();
 mountNav();
 mountRepositoryStep();
+// The walkthrough of the repositories page
+mountModals();
+mountWalkthroughs();

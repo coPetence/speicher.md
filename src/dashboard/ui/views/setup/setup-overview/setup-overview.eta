@@ -2,17 +2,14 @@
   <span class="spr-welcome-mark"><%~ it.mark_icon %></span>
   <h1>Welcome to Speicher.md</h1>
   <p>
-    Speicher.md publishes the Markdown files in your Git repositories as a documentation site. People sign in with
-    the accounts they already have, such as Microsoft Entra ID, Google or GitHub, and each page is shown only to the
-    people its repository grants access to. AI assistants can search and read the same pages, with the same
-    permissions, through the MCP server of Speicher.md.
+    Speicher.md shares the Markdown files in your Git repositories, from documentation to notes in your Obsidian vault. People can sign in with the accounts they already have, such as GitHub, Microsoft Entra ID or Google, and will see only the files you have granted them access to. You can use Speicher.md to share your documentation with the world, or to share your private notes with your team.
   </p>
   <% if (it.finished) { %>
   <%~ include('@note', { level: 'ok', html: md('The setup of this instance is complete. All settings remain available under [Configuration](/-/config).') }) %>
-  <% } else { %>
-  <p>
-    This setup guides you through a few steps: you connect a sign-in, become the administrator, create groups and
-    publish your first repository. To begin, click the button at the bottom of the page.
-  </p>
   <% } %>
+  <ul class="spr-welcome-links">
+    <li><a class="spr-ready-action" href="https://docs.speicher.md" target="_blank" rel="noopener"><%~ it.docs_icon %>Documentation<%~ it.external_icon %></a></li>
+    <li><a class="spr-ready-action" href="https://github.com/coPetence/speicher.md" target="_blank" rel="noopener"><%~ it.github_mark %>GitHub<%~ it.external_icon %></a></li>
+    <li><a class="spr-ready-action" href="https://copetence.de/" target="_blank" rel="noopener"><%~ it.copetence_icon %>coPetence<%~ it.external_icon %></a></li>
+  </ul>
 </div>

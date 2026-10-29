@@ -17,6 +17,7 @@ import { mountFileDrops } from './configurator/drop-in-field';
 import { mountReshapeSubmits } from './configurator/reshape-submits-form';
 import { mountEnterLeavesField } from './configurator/enter-leaves-field';
 import { mountModals } from './configurator/modal-focus-and-escape';
+import { mountWalkthroughs } from './configurator/walkthrough';
 import { mountDropdowns } from './configurator/picture-dropdown';
 import { mountBlockedAnswers } from './configurator/unavailable-choice-blocker';
 import { mountSuggestions } from './configurator/suggested-name-fill';
@@ -51,6 +52,7 @@ function mount(): void {
 
   mountFilter('.spr-entries');
   mountModals();
+  mountWalkthroughs();
   mountDropdowns();
   mountBlockedAnswers();
   mountSuggestions();

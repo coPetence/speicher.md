@@ -1,0 +1,210 @@
+<%
+  const walkthrough = it.walkthrough, icons = it.icons;
+  const titleId = 'walkthrough-' + walkthrough.id + '-title';
+  function members(kind, label, value) {
+%>
+<div class="spr-add-row-body">
+  <div class="spr-add-row-kinds">
+    <div class="spr-add-row-kind">
+      <label><input type="radio"<%= kind === 'group' ? ' checked' : '' %>><%~ icons.users %><span>IDP group</span></label>
+      <span class="spr-add-row-kind-chevron"><%~ icons.chevron %></span>
+    </div>
+    <div class="spr-add-row-kind">
+      <label><input type="radio"<%= kind === 'email' ? ' checked' : '' %>><%~ icons.mail %><span>Individual email</span></label>
+      <span class="spr-add-row-kind-chevron"><%~ icons.chevron %></span>
+    </div>
+  </div>
+  <div class="spr-add-row-panels">
+    <div class="spr-add-row-panel">
+      <label>Provider</label>
+      <span class="spr-walkthrough-picked"><%~ icons.github %><span>github</span><%~ icons.chevron_down %></span>
+      <div class="spr-add-label"><label><%= label %></label></div>
+      <textarea rows="4" readonly><%= value %></textarea>
+    </div>
+  </div>
+</div>
+<%
+  }
+  function kindTile(mark, label, recommended) {
+%>
+<span class="spr-tile spr-setup-kind"><%~ icons.marks[mark] %><span><%= label %></span><% if (recommended) { %><%~ include('@badge', { level: 'ok', label: 'recommended' }) %><% } %></span>
+<%
+  }
+  function signIn(mark, name) {
+%>
+<li><span class="spr-signin-option"><%~ icons.marks[mark] %><span>Sign in with <%= name %></span></span></li>
+<%
+  }
+  function audience(label, picked) {
+%>
+<label><input type="radio"<%= picked ? ' checked' : '' %>><%= label %></label>
+<%
+  }
+
+  // One member of a group, as its page lists it: where it comes from, and what it matches
+  function member(kind, value) {
+%>
+<div class="spr-row-card">
+  <div class="spr-row-card-source">
+    <span class="spr-entry-name"><%~ icons.github %><span><%= kind %></span></span>
+    <span class="spr-entry-sub">github</span>
+  </div>
+  <span class="spr-row-card-equals"><%~ icons.arrow %></span>
+  <div class="spr-row-card-match"><code><%= value %></code></div>
+</div>
+<%
+  }
+%>
+<details class="spr-modal spr-walkthrough" data-spr-walkthrough<%= it.open ? ' open' : '' %>>
+  <summary class="spr-walkthrough-open" aria-label="How does this work?" title="How does this work?"><%~ icons.help %></summary>
+  <div class="spr-modal-panel spr-walkthrough-panel" role="dialog" aria-labelledby="<%= titleId %>">
+    <h2 class="spr-modal-title" id="<%= titleId %>"><%= walkthrough.title %></h2>
+    <% walkthrough.slides.forEach(function (slide, index) { %>
+    <section class="spr-walkthrough-slide" data-spr-walkthrough-slide>
+      <% /* What the slide says first, then the controls it is about */ %>
+      <h3 class="spr-walkthrough-title"><%= slide.title %></h3>
+      <p class="spr-walkthrough-text"><%~ md(slide.text) %></p>
+      <% if (slide.points && slide.points.length) { %>
+      <ul class="spr-walkthrough-text spr-walkthrough-points">
+        <% slide.points.forEach(function (point) { %><li><%~ md(point) %></li><% }) %>
+      </ul>
+      <% } %>
+      <div class="spr-walkthrough-preview" inert aria-hidden="true">
+        <% if (slide.preview === 'idp-sign-in') { %>
+        <ul class="spr-signin-options spr-walkthrough-signin">
+          <% signIn('github', 'GitHub') %>
+          <% signIn('microsoft', 'Microsoft Entra ID') %>
+        </ul>
+        <% } else if (slide.preview === 'idp-kinds') { %>
+        <div class="spr-tiles spr-setup-kinds spr-walkthrough-kinds">
+          <% kindTile('github', 'GitHub', true) %>
+          <% kindTile('microsoft', 'Microsoft Entra ID', false) %>
+          <% kindTile('openid', 'OpenID Connect', false) %>
+          <% kindTile('mail', 'Magic link (email)', false) %>
+        </div>
+        <% } else if (slide.preview === 'idp-github') { %>
+        <div class="spr-walkthrough-window">
+          <p class="spr-walkthrough-window-title">Who should be able to sign in</p>
+          <div class="spr-quick-options">
+            <% audience('Members of my organization', false) %>
+            <% audience('Members of my organization and other GitHub users', false) %>
+            <% audience('Anyone with a GitHub account', true) %>
+            <% audience('Only me', false) %>
+          </div>
+        </div>
+        <% } else if (slide.preview === 'speicher-yaml') { %>
+        <% /* A repository with its file at the root, and what the file says */ %>
+        <div class="spr-walkthrough-file">
+          <div class="spr-walkthrough-file-name">acme/handbook / .speicher.yaml</div>
+          <pre><code>version: 1
+
+display:
+  title: Engineering Handbook
+
+access: [engineering]</code></pre>
+        </div>
+        <% } else if (slide.preview === 'group-add') { %>
+        <% /* A group's short id, and the same id where a repository grants it access */ %>
+        <div class="spr-walkthrough-window">
+          <p class="spr-walkthrough-window-title">Add a group</p>
+          <div class="spr-add-label"><label>Short id</label></div>
+          <input type="text" value="engineering" readonly>
+          <span class="spr-ready-action">Add a group</span>
+        </div>
+        <span class="spr-walkthrough-leads"><%~ icons.arrow_down %></span>
+        <div class="spr-walkthrough-file">
+          <div class="spr-walkthrough-file-name">.speicher.yaml</div>
+          <pre><code>version: 1
+access: [<mark>engineering</mark>]</code></pre>
+        </div>
+        <% } else if (slide.preview === 'group-provider') { %>
+        <% members('group', 'Group ids', 'acme/engineering') %>
+        <% } else if (slide.preview === 'group-email') { %>
+        <% members('email', 'Email addresses', 'ferdinand.duschka@copetence.de') %>
+        <% } else if (slide.preview === 'group-members') { %>
+        <% /* The members of a group, as its page lists them */ %>
+        <div class="spr-rows spr-row-cards">
+          <% member('IDP group', 'acme/engineering') %>
+          <% member('Individual email', 'ferdinand.duschka@copetence.de') %>
+        </div>
+        <% } else if (slide.preview === 'source-repositories') { %>
+        <% /* The repositories of a source, as the repositories page lists them */ %>
+        <table class="spr-table spr-walkthrough-table">
+          <thead>
+            <tr><th scope="col">Repository</th><th scope="col"><code>.speicher.yaml</code></th><th scope="col">Published</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">acme/handbook</th><td><%~ include('@badge', { level: 'ok', label: 'present' }) %></td><td><%~ include('@badge', { level: 'ok', label: 'yes' }) %></td></tr>
+            <tr><th scope="row">acme/website</th><td><%~ include('@badge', { level: 'idle', label: 'missing' }) %></td><td>–</td></tr>
+          </tbody>
+        </table>
+        <% } else if (slide.preview === 'source-kinds') { %>
+        <div class="spr-tiles spr-setup-kinds spr-walkthrough-kinds">
+          <% kindTile('github', 'GitHub App', false) %>
+          <% kindTile('git', 'Plain git remote', false) %>
+        </div>
+        <% } else if (slide.preview === 'source-account') { %>
+        <div class="spr-walkthrough-window">
+          <p class="spr-walkthrough-window-title">Which repositories do you want to sync</p>
+          <div class="spr-quick-options">
+            <% audience('From an organization', true) %>
+            <% audience('From my personal account', false) %>
+          </div>
+          <div class="spr-add-label"><label>Organization</label></div>
+          <input type="text" value="acme" readonly>
+          <span class="spr-ready-action">Continue on GitHub<%~ icons.external %></span>
+        </div>
+        <% } else if (slide.preview === 'source-install' && it.screenshots.install_github_app) { %>
+        <% /* GitHub's own page, which no component of ours can draw */ %>
+        <% const shot = it.screenshots.install_github_app; %>
+        <picture>
+          <% if (shot.dark) { %><source srcset="<%= shot.dark %>" media="(prefers-color-scheme: dark)"><% } %>
+          <img class="spr-walkthrough-screenshot" src="<%= shot.src %>" alt="" loading="lazy">
+        </picture>
+        <% } else if (slide.preview === 'repository-access') { %>
+        <div class="spr-walkthrough-file">
+          <div class="spr-walkthrough-file-name">acme/handbook / .speicher.yaml</div>
+          <pre><code>version: 1
+
+<mark>access</mark>:
+  groups: [staff]
+  users:
+    - email: ferdinand.duschka@copetence.de
+      until: 2027-03-31</code></pre>
+        </div>
+        <% } else if (slide.preview === 'repository-folders') { %>
+        <% /* A folder narrows what the root grants: sales reads the whole repository, staff all but sales/ */ %>
+        <div class="spr-walkthrough-file">
+          <div class="spr-walkthrough-file-name">acme/handbook</div>
+          <pre><code>├── .speicher.yaml    access: [staff, sales]
+├── onboarding.md
+└── sales/
+    ├── .speicher.yaml  access: [<mark>sales</mark>]
+    └── pricing.md</code></pre>
+        </div>
+        <% } else if (slide.preview === 'repository-sync') { %>
+        <% /* The Sync column of the repositories page, as the sync status draws it */ %>
+        <table class="spr-table spr-walkthrough-table">
+          <thead>
+            <tr><th scope="col">Repository</th><th scope="col">Sync</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">acme/handbook</th><td><%~ include('@badge', { level: 'ok', label: 'ok' }) %></td></tr>
+            <tr><th scope="row">acme/wiki</th><td><%~ include('@badge', { level: 'ok', label: 'ok' }) %><span class="spr-activity"><%~ icons.syncing %>syncing</span></td></tr>
+            <tr><th scope="row">acme/website</th><td><%~ include('@badge', { level: 'fail', label: 'failed' }) %></td></tr>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </section>
+    <% }) %>
+    <div class="spr-ready-foot spr-walkthrough-foot">
+      <button type="button" class="spr-walkthrough-back" data-spr-walkthrough-back hidden>Back</button>
+      <span class="spr-walkthrough-dots" data-spr-walkthrough-dots hidden>
+        <% walkthrough.slides.forEach(function () { %><span class="spr-walkthrough-dot" data-spr-walkthrough-dot></span><% }) %>
+      </span>
+      <button type="button" class="spr-ready-action spr-ready-next" data-spr-walkthrough-next hidden>Next<%~ icons.arrow %></button>
+      <button type="button" class="spr-ready-action spr-ready-next" data-spr-walkthrough-done data-spr-modal-cancel>Got it</button>
+    </div>
+  </div>
+</details>

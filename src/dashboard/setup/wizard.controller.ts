@@ -1,30 +1,9 @@
-/**
- * The setup wizard: pages that walk an instance through first configuration
- *
- * Reachable only by an instance admin (aka. a claimed session)
- * The overview starts the setup; the steps are walked through with the guide bar
- */
 import { Controller, Get, Inject, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import type { CheckRow } from '../configurator/config-page/payloads';
-import { starterConfig } from '../configurator/quick-setup/repository-check';
-import type { ConfigFileModal } from '../configurator/config-page/payloads';
-import { sourceConfigFilePath } from '../configurator/config-page/github-app-manifest';
-import { memberSectionId } from '../configurator/config-form/members';
-import {
-  checkSource,
-  configFileTarget,
-  githubSourceOf,
-} from '../configurator/quick-setup/source-check';
-import { githubHosts } from '../../github/hosts';
-import { DashboardResponder } from '../respond';
-import { StatusService } from '../status/status.service';
-import { GITHUB_APP_LOOKUP_FETCH } from '../../github/app-links';
 import { bindBrowser } from '../../auth/browser-binding';
 import { callbackUrl, originOf } from '../../auth/callback-url';
 import { callerOf } from '../../auth/caller.middleware';
-import { ResolvedCaller } from '../../authz/caller';
 import { GithubAuthService } from '../../auth/github.service';
 import { MagicLinkService } from '../../auth/magic-link.service';
 import { OidcService } from '../../auth/oidc.service';
@@ -34,16 +13,27 @@ import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { providerType } from '../../config/types';
 import { TenancyService } from '../../db/tenancy';
+import { GITHUB_APP_LOOKUP_FETCH } from '../../github/app-links';
+import { githubHosts } from '../../github/hosts';
+import { memberSectionId } from '../configurator/config-form/members';
+import { sourceConfigFilePath } from '../configurator/config-page/github-app-manifest';
+import type { CheckRow, ConfigFileModal } from '../configurator/config-page/payloads';
+import { publicRepoRef, starterConfig } from '../configurator/quick-setup/repository-check';
+import {
+  checkSource,
+  configFileTarget,
+  githubSourceOf,
+} from '../configurator/quick-setup/source-check';
+import { DashboardResponder } from '../respond';
+import { StatusService } from '../status/status.service';
 import {
   ProvableProvider,
   sendSetupAdministrator,
 } from '../ui/views/setup/setup-administrator/setup-administrator';
 import { sendSetup } from '../ui/views/setup/setup-overview/setup-overview';
-import {
-  RepositoryPayload,
-  sendSetupRepository,
-} from '../ui/views/setup/setup-repository/setup-repository';
-import { RepositoryTableRow, repositoryMatchText, repositoryTable } from './repository-table';
+import { sendSetupRepository } from '../ui/views/setup/setup-repository/setup-repository';
+import { nextFix } from './repository-fix';
+import { repositoryMatchText, repositoryTable } from './repository-table';
 import { SetupService } from './setup.service';
 import { REPOSITORY_STEP_PATH, SETUP_LATER_COOKIE } from './steps';
 
@@ -102,54 +92,69 @@ export class SetupWizardController {
     ]);
     const discovering = status.instance?.discovering ?? [];
 
-    // The check asks GitHub, so the page answers at once and the table asks for each source's check
-    const asked = typeof req.query.check === 'string' ? req.query.check : null;
+    // The checks ask GitHub, so the page answers at once and asks for them at the check address
+    const checking = req.query.check === '1';
     const configFile = this.configFileModal(req);
     const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-    const checks: RepositoryPayload['checks'] = [];
-    const found = new Map<string, CheckRow[]>();
+    const github = new Map<string, Record<string, unknown>>();
     const copies = new Set<string>();
     const origins = new Set<string>();
     for (const id of this.config.forgeIds) {
-      const github = githubSourceOf(this.config.forge(id));
-      if (!github) {
+      const forge = githubSourceOf(this.config.forge(id));
+      if (!forge) {
         copies.add(id);
         continue;
       }
-      const base = typeof github.base_url === 'string' ? github.base_url : undefined;
+      github.set(id, forge);
+      const base = typeof forge.base_url === 'string' ? forge.base_url : undefined;
       origins.add(new URL(githubHosts(base).web).origin);
-      if (asked !== id) {
-        const address = new URLSearchParams({ check: id, ...(query ? { q: query } : {}) });
-        checks.push({ id, pending: `${REPOSITORY_STEP_PATH}?${address}` });
-        continue;
-      }
-      const check = await checkSource(id, github, this.config, this.fetchImpl, 'setup');
-      found.set(id, check.repositories);
-      checks.push({
-        id,
-        pending: null,
-        problem: check.problem,
-        empty: !check.problem && check.repositories.length === 0,
-        missing: check.missing.length > 0,
-        more: check.more,
-      });
     }
+    const checks =
+      checking || github.size === 0
+        ? new Map(
+            await Promise.all(
+              [...github].map(
+                async ([id, forge]) =>
+                  [id, await checkSource(id, forge, this.config, this.fetchImpl, 'setup')] as const,
+              ),
+            ),
+          )
+        : null;
+    const found = new Map<string, CheckRow[]>(
+      [...(checks ?? [])].map(([id, check]) => [id, check.repositories]),
+    );
     const rows = repositoryTable(status.repos, readable, found, copies);
     const busy = discovering.length > 0 || rows.some((row) => row.sync?.activity);
     const shown = rows.filter((row) => repositoryMatchText(row).includes(query.toLowerCase()));
+
+    const me = identity
+      ? {
+          name: identity.email ?? identity.displayName ?? identity.subject,
+          provider: this.config.providerName(identity.provider),
+          groups: caller.internalGroups,
+        }
+      : null;
+    const finished = caller.inSetup !== true;
+    const fix = nextFix({
+      finished,
+      me,
+      readable: readable.length > 0,
+      sources: this.config.forgeIds,
+      checks,
+      discovering,
+      rows,
+      allowsPublic: (repository) => this.config.allowsPublic(publicRepoRef(repository)),
+    });
+    const address = new URLSearchParams({ check: '1', ...(query ? { q: query } : {}) });
 
     // The groups to grant are the ones the administrator is in, or every group while they are in none
     const groups =
       caller.internalGroups.length > 0 ? caller.internalGroups : this.config.groupNames;
     sendSetupRepository(this.respond, req, res, caller.isAdmin, {
-      finished: caller.inSetup !== true,
-      me: identity
-        ? {
-            name: identity.email ?? identity.displayName ?? identity.subject,
-            provider: this.config.providerName(identity.provider),
-            groups: caller.internalGroups,
-          }
-        : null,
+      finished,
+      me,
+      fix,
+      check_href: fix?.id === 'checking' ? `${REPOSITORY_STEP_PATH}?${address}` : null,
       query,
       config_file: configFile,
       picker:
@@ -168,13 +173,10 @@ export class SetupWizardController {
             }
           : null,
       form_origins: [...origins],
-      checks,
       rows: shown,
       snippet: copies.size > 0 ? starterConfig(groups) : null,
-      discovering,
       busy,
       readable: readable.length > 0,
-      status: repositoryStatus(caller, readable, rows, busy),
     });
   }
 
@@ -381,31 +383,6 @@ export class SetupWizardController {
     );
     return [...new Set(origins.filter((origin): origin is string => origin !== null))];
   }
-}
-
-/**
- * repositoryStatus says how far the repository step is, for the note at its foot.
- *
- * @param caller the administrator
- * @param readable the repositories they can read a page of
- * @param rows the rows of the step's table
- * @param busy whether a sync or a discovery is queued or running
- */
-function repositoryStatus(
-  caller: ResolvedCaller,
-  readable: string[],
-  rows: RepositoryTableRow[],
-  busy: boolean,
-): RepositoryPayload['status'] {
-  // A page of the configuration once the setup is complete, which says nothing about the setup
-  if (caller.inSetup !== true) return null;
-  if (readable.length > 0) return null;
-  if (!caller.identity) return 'no-administrator';
-  if (caller.internalGroups.length === 0) return 'no-group';
-  if (busy) return 'syncing';
-  if (rows.length === 0) return 'no-repository';
-  if (rows.some((row) => row.sync?.state === 'ok' && row.file.level === 'ok')) return 'no-access';
-  return 'waiting';
 }
 
 /** The submitted provider, else the sole option: one provider needs no selector */

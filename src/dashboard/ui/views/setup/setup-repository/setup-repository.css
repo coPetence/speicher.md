@@ -1,32 +1,170 @@
 @layer speicher.base {
-  .spr-setup-check {
-    display: grid;
-    gap: var(--spr-space-3);
-    margin-block: var(--spr-space-4);
+  /* Who is signed in and their groups, spaced as the cards around it */
+  .spr-setup-groups {
+    margin: var(--spr-space-5) 0;
   }
 
-  .spr-setup-check > h3 {
+  .spr-setup-groups > .spr-note {
+    max-inline-size: none;
+  }
+
+  /* Nothing to do, so no room taken */
+  [data-spr-setup-fix-region]:not(:has(*)) {
+    display: none;
+  }
+
+  /* The one thing to do next: what it is, why, and the button that does it */
+  .spr-setup-fix {
+    display: grid;
+    justify-items: start;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-setup-fix-step {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
     margin: 0;
+    color: var(--spr-accent);
     font-size: var(--spr-font-size-label);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-setup-fix[aria-busy] .spr-setup-fix-step {
     color: var(--spr-muted);
   }
 
-  [data-spr-setup-status] > .spr-section-status {
-    max-inline-size: none;
+  .spr-setup-fix-step .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-setup-fix-title {
+    margin: 0;
+    font-size: 1.125rem;
+  }
+
+  .spr-setup-fix-text,
+  .spr-setup-fix-note {
+    margin: 0;
+    max-inline-size: 48rem;
+    color: var(--spr-muted);
+  }
+
+  .spr-setup-fix-note {
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-setup-fix-detail {
+    margin: 0;
+  }
+
+  .spr-setup-fix-form {
+    display: contents;
+  }
+
+  /* A secondary action that posts, drawn as the links beside it */
+  .spr-setup-fix-actions button.spr-ready-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  /* Not usable yet, and why */
+  .spr-setup-fix-blocked {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-setup-fix-why {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  /* The group or file the check found, set apart from the text around it */
+  .spr-main .spr-setup-fix-detail code {
+    padding: 0.05em 0.35em;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-sm);
+    background: var(--spr-bg);
+    color: var(--spr-fg);
+  }
+
+  .spr-setup-fix-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spr-space-4);
+    margin-top: var(--spr-space-2);
+  }
+
+  /* The file to commit, with its copy button in the corner */
+  .spr-setup-fix-snippet {
+    position: relative;
+    justify-self: stretch;
+    max-inline-size: 36rem;
+  }
+
+  .spr-setup-fix-snippet > pre {
+    margin: 0;
+  }
+
+  .spr-setup-fix-snippet > .spr-copy {
+    position: absolute;
+    top: var(--spr-space-2);
+    right: var(--spr-space-2);
+  }
+
+  /* The filter beside the heading and what it says, as a config card's controls */
+  .spr-card > header > .spr-index-bar {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    margin: 0;
+  }
+
+  .spr-card > header:has(> .spr-index-bar) > .spr-card-sub {
+    grid-column: 1;
+  }
+
+  [data-spr-repository-step] > .spr-scroll {
+    margin-top: var(--spr-space-5);
+  }
+
+  [data-spr-repository-step] {
+    container-type: inline-size;
+  }
+
+  @container (width < 44rem) {
+    [data-spr-repository-step] > header > .spr-index-bar {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      margin-top: var(--spr-space-4);
+    }
+
+    [data-spr-repository-step] > header:has(> .spr-index-bar) > .spr-card-sub {
+      grid-column: 1 / -1;
+    }
+
+    [data-spr-repository-step] .spr-index-bar .spr-filter {
+      flex: 1 1 100%;
+    }
+
+    [data-spr-repository-step] .spr-index-bar .spr-filter .spr-input-icon {
+      flex: 1 1 auto;
+      max-width: none;
+    }
   }
 
   .spr-card > header + .spr-note {
     margin-top: var(--spr-space-4);
-  }
-
-  .spr-setup-snippet {
-    margin-top: var(--spr-space-4);
-  }
-
-  .spr-setup-snippet > summary {
-    cursor: pointer;
-    color: var(--spr-muted);
-    font-size: var(--spr-font-size-small);
   }
 
   /* The badge and what can be done about the file, on one line */
@@ -61,27 +199,16 @@
     margin: 0;
   }
 
-  .spr-setup-loading > td {
-    color: var(--spr-muted);
-  }
-
-  .spr-setup-loading .spr-activity {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spr-space-2);
-    margin-inline-start: 0;
-  }
-
-  .spr-setup-loading .spr-activity .spr-icon {
-    width: 1em;
-    height: 1em;
-    margin: 0;
-    vertical-align: baseline;
-  }
-
   .spr-setup-access {
     color: var(--spr-muted);
     font-size: var(--spr-font-size-small);
+  }
+
+  /* A file or a group in the small text: no chip, whose padding at the start of a line reads as a space */
+  .spr-main .spr-setup-access code,
+  .spr-main .spr-setup-fix-text code {
+    padding: 0;
+    background: none;
   }
 
   .spr-setup-access-warn {
