@@ -2,8 +2,12 @@
 # Writes docker-compose.yaml, .env and, for HTTPS with Caddy, a Caddyfile into the
 # install directory, then starts the containers. Running it again in the same
 # directory keeps the database password, so the existing database stays readable.
-# The release workflow replaces __VERSION__ with the released version, so a
-# downloaded script installs the image it was released with.
+# The release workflow replaces __VERSION__ with the released version.
+
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "This installer needs bash (on Alpine: apk add bash). Run it with: bash install.sh" >&2
+  exit 1
+fi
 
 set -euo pipefail
 
@@ -12,7 +16,6 @@ IMAGE="ghcr.io/copetence/speicher.md"
 DOCS_URL="https://docs.speicher.md/speicher-md"
 READY_TIMEOUT=180
 
-# Answers, from flags or prompts
 DIR=""
 MODE=""
 DOMAIN=""
@@ -32,21 +35,132 @@ HAS_ADMIN=false
 TUNNEL_SHOWN=false
 
 # ---------------------------------------------------------------------------
-# Output
+# Terminal settings
 
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-  BOLD=$'\033[1m' DIM=$'\033[2m' RED=$'\033[31m' GREEN=$'\033[32m' YELLOW=$'\033[33m' RESET=$'\033[0m'
-else
-  BOLD="" DIM="" RED="" GREEN="" YELLOW="" RESET=""
+# Not tput cols: inside $(…) it can't see the terminal and reports 80
+term_width() {
+  local size
+  size=$(stty size 2>/dev/null </dev/tty) || size=""
+  size=${size#* }
+  if [ "${size:-0}" -gt 0 ] 2>/dev/null; then echo "$size"; else echo "${COLUMNS:-80}"; fi
+}
+
+# rows_for <printed text>
+rows_for() {
+  local plain width
+  plain=$(printf '%s' "$1" | sed $'s/\033\\[[0-9;?]*[A-Za-z]//g')
+  width=$(term_width)
+  echo $(((${#plain} + width - 1) / width))
+}
+
+color_depth() {
+  local colors
+  case "${TERM:-dumb}" in dumb | unknown) echo none && return ;; esac
+  colors=$(tput colors 2>/dev/null) || colors=""
+  if [ -z "$colors" ]; then
+    # No terminfo entry, e.g. xterm-ghostty over SSH
+    case "$TERM" in
+      *256color*) colors=256 ;;
+      xterm* | screen* | tmux* | rxvt* | vt220 | linux | ansi | *color*) colors=8 ;;
+      *) colors=0 ;;
+    esac
+  fi
+  if [ "$colors" -ge 256 ] 2>/dev/null; then
+    echo 256
+  elif [ "$colors" -ge 8 ] 2>/dev/null; then
+    echo 8
+  else
+    echo none
+  fi
+}
+
+supports_unicode() {
+  # Linux console font lacks the glyphs
+  [ "${TERM:-}" != linux ] || return 1
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *[Uu][Tt][Ff]-8* | *[Uu][Tt][Ff]8*) return 0 ;;
+  esac
+  return 1
+}
+
+CURSOR_UI=false
+if [ -t 1 ]; then
+  case "${TERM:-dumb}" in dumb | unknown) ;; *) CURSOR_UI=true ;; esac
 fi
 
-info() { printf '%s\n' "$*"; }
-step() { printf '\n%s==> %s%s\n' "$BOLD" "$*" "$RESET"; }
-ok() { printf '%s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
-warn() { printf '%s!%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
+BOLD="" RED="" GREEN="" YELLOW="" RESET="" ACCENT="" MUTED=""
+BANNER_COLORS=("" "" "" "" "" "")
+DEPTH=none
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then DEPTH=$(color_depth); fi
+case "$DEPTH" in
+  256)
+    ACCENT=$'\033[38;5;32m'
+    MUTED=$'\033[38;5;245m'
+    BANNER_COLORS=(
+      $'\033[38;5;62m' $'\033[38;5;68m' $'\033[38;5;32m'
+      $'\033[38;5;31m' $'\033[38;5;37m' $'\033[38;5;36m'
+    )
+    ;;
+  8)
+    ACCENT=$'\033[36m'
+    MUTED=$'\033[2m'
+    BANNER_COLORS=("$ACCENT" "$ACCENT" "$ACCENT" "$ACCENT" "$ACCENT" "$ACCENT")
+    ;;
+esac
+if [ -n "$ACCENT" ]; then
+  BOLD=$'\033[1m' RED=$'\033[31m' GREEN=$'\033[32m' YELLOW=$'\033[33m' RESET=$'\033[0m'
+fi
+
+UNICODE=false
+if supports_unicode; then
+  UNICODE=true
+  G_STEP="◆" G_OK="✓" G_WARN="▲" G_ERROR="✗" G_DONE="◇" G_PROMPT="›" G_POINTER="❯" G_SEP="·" G_KEYS="↑/↓"
+  SPINNER=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+else
+  G_STEP="==>" G_OK="+" G_WARN="!" G_ERROR="x" G_DONE="-" G_PROMPT=">" G_POINTER=">" G_SEP="-" G_KEYS="Up/Down"
+  SPINNER=('|' '/' '-' '\')
+fi
+
+# ---------------------------------------------------------------------------
+# Output
+
+info() {
+  if [ -z "$*" ]; then printf '\n'; else printf '  %s\n' "$*"; fi
+}
+step() { printf '\n%s%s%s %s%s%s\n' "$ACCENT" "$G_STEP" "$RESET" "$BOLD" "$*" "$RESET"; }
+ok() { printf '  %s%s%s %s\n' "$GREEN" "$G_OK" "$RESET" "$*"; }
+warn() {
+  local line
+  printf '  %s%s%s %s\n' "$YELLOW" "$G_WARN" "$RESET" "$1" >&2
+  shift
+  for line in "$@"; do printf '    %s\n' "$line" >&2; done
+}
 die() {
-  printf '%serror:%s %s\n' "$RED" "$RESET" "$*" >&2
+  printf '\n  %s%s error:%s %s\n' "$RED$BOLD" "$G_ERROR" "$RESET" "$*" >&2
   exit 1
+}
+cmd() { printf '    %s%s%s\n' "$ACCENT" "$*" "$RESET"; }
+link() { printf '%s%s%s' "$ACCENT$BOLD" "$1" "$RESET"; }
+
+banner() {
+  if ! $UNICODE || [ "$(term_width)" -lt 72 ]; then
+    printf '\n  %s%sSpeicher.md%s\n' "$BOLD" "$ACCENT" "$RESET"
+    return
+  fi
+  local i=0 line
+  local lines=(
+    '███████╗██████╗ ███████╗██╗ ██████╗██╗  ██╗███████╗██████╗'
+    '██╔════╝██╔══██╗██╔════╝██║██╔════╝██║  ██║██╔════╝██╔══██╗'
+    '███████╗██████╔╝█████╗  ██║██║     ███████║█████╗  ██████╔╝         ╻'
+    '╚════██║██╔═══╝ ██╔══╝  ██║██║     ██╔══██║██╔══╝  ██╔══██╗   ┏┳┓ ┏━┫'
+    '███████║██║     ███████╗██║╚██████╗██║  ██║███████╗██║  ██║ ▪ ╹╹╹ ┗━┛'
+    '╚══════╝╚═╝     ╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝'
+  )
+  printf '\n'
+  for line in "${lines[@]}"; do
+    printf '  %s%s%s\n' "${BANNER_COLORS[i]}" "$line" "$RESET"
+    i=$((i + 1))
+  done
 }
 
 usage() {
@@ -72,43 +186,66 @@ nothing and uses the flags and defaults.
                         backing them up
   -y, --yes             ask no questions
   -h, --help            show this help
+
+Set NO_COLOR=1 for output without colors.
 EOF
 }
 
 # ---------------------------------------------------------------------------
+# Prompts
 
 has_tty() { { : </dev/tty; } 2>/dev/null; }
 
+# prompt <question> [hint], sets PROMPT_TEXT to the printed prompt
+prompt() {
+  local hint=${2:+ ($2)}
+  printf -v PROMPT_TEXT '  %s?%s %s%s%s %s%s ' "$ACCENT" "$RESET" "$1" "$MUTED" "$hint" "$G_PROMPT" "$RESET"
+  printf '%s' "$PROMPT_TEXT"
+}
+
+# answered <question> <answer> <rows to replace>
+answered() {
+  $CURSOR_UI || return 0
+  printf '\033[%dA\033[J' "$3"
+  printf '  %s%s%s %s %s%s%s\n' "$MUTED" "$G_DONE" "$RESET" "$1" "$ACCENT" "$2" "$RESET"
+}
+
 # ask <variable> <question> [default]
 ask() {
-  local __var=$1 question=$2 default=${3:-} answer=""
+  local __var=$1 question=$2 default=${3:-} answer="" rows
   if $ASSUME_YES; then
     printf -v "$__var" '%s' "$default"
     return
   fi
-  if [ -n "$default" ]; then
-    printf '%s %s[%s]%s ' "$question" "$DIM" "$default" "$RESET"
-  else
-    printf '%s ' "$question"
-  fi
+  prompt "$question" "$default"
   IFS= read -r answer </dev/tty || true
-  printf -v "$__var" '%s' "${answer:-$default}"
+  rows=$(rows_for "$PROMPT_TEXT$answer")
+  answer=${answer:-$default}
+  answered "$question" "${answer:-skipped}" "$rows"
+  printf -v "$__var" '%s' "$answer"
 }
 
-# ask_yes_no <question> <Y|n>
+# ask_yes_no <question> <y|n>
 ask_yes_no() {
-  local question=$1 default=$2 hint answer
+  local question=$1 default=$2 hint answer rows
   if $ASSUME_YES; then
     [ "$default" = y ]
     return
   fi
   if [ "$default" = y ]; then hint="Y/n"; else hint="y/N"; fi
   while true; do
-    printf '%s %s[%s]%s ' "$question" "$DIM" "$hint" "$RESET"
+    prompt "$question" "$hint"
     IFS= read -r answer </dev/tty || true
+    rows=$(rows_for "$PROMPT_TEXT$answer")
     case "${answer:-$default}" in
-      [Yy] | [Yy][Ee][Ss]) return 0 ;;
-      [Nn] | [Nn][Oo]) return 1 ;;
+      [Yy] | [Yy][Ee][Ss])
+        answered "$question" Yes "$rows"
+        return 0
+        ;;
+      [Nn] | [Nn][Oo])
+        answered "$question" No "$rows"
+        return 1
+        ;;
       *) info "Please answer y or n." ;;
     esac
   done
@@ -122,36 +259,42 @@ choose() {
     printf -v "$__var" '%s' "$default"
     return
   fi
-  info "$question"
-  if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then
-    choose_with_arrows "$__var" "$default" "$@"
+  if $CURSOR_UI; then
+    choose_with_arrows "$__var" "$question" "$default" "$@"
   else
-    choose_by_number "$__var" "$default" "$@"
+    choose_by_number "$__var" "$question" "$default" "$@"
   fi
 }
 
-# Moves a highlight with the arrow keys (or j/k, or a digit) and confirms with Enter
+# menu_option <option> [selected]
+menu_option() {
+  if [ -n "${2:-}" ]; then
+    printf '    %s%s %s%s' "$ACCENT$BOLD" "$G_POINTER" "$1" "$RESET"
+  else
+    printf '      %s' "$1"
+  fi
+}
+
 choose_with_arrows() {
-  local __var=$1 current=$2 option key rest i rows width
-  shift 2
+  local __var=$1 question=$2 current=$3 option key rest i title hint line option_rows=0
+  shift 3
   local count=$#
+  printf -v title '  %s?%s %s' "$ACCENT" "$RESET" "$question"
+  printf -v hint '    %s%s to move, Enter to select%s' "$MUTED" "$G_KEYS" "$RESET"
 
-  # Rows the menu takes up, as long options wrap on narrow terminals
-  width=$(tput cols 2>/dev/null || echo 80)
-  rows=0
-  for option in "$@"; do rows=$((rows + (${#option} + 2 + width - 1) / width)); done
+  for option in "$@"; do option_rows=$((option_rows + $(rows_for "$(menu_option "$option")"))); done
 
-  info "${DIM}Use ↑/↓ and Enter${RESET}"
+  printf '%s\n%s\n' "$title" "$hint"
   printf '\033[?25l'
-  trap 'printf "\033[?25h\n"; exit 130' INT TERM
   while true; do
     i=1
     for option in "$@"; do
       if [ "$i" -eq "$current" ]; then
-        printf '\033[2K%s❯ %s%s\n' "$BOLD$GREEN" "$option" "$RESET"
+        line=$(menu_option "$option" selected)
       else
-        printf '\033[2K  %s\n' "$option"
+        line=$(menu_option "$option")
       fi
+      printf '\033[2K%s\n' "$line"
       i=$((i + 1))
     done
 
@@ -159,7 +302,7 @@ choose_with_arrows() {
     case "$key" in
       "") break ;;
       $'\033')
-        # The rest of an arrow key arrives at once; a lone Esc times out
+        # Lone Esc times out
         IFS= read -rsn2 -t 1 rest </dev/tty || rest=""
         case "$rest" in
           "[A" | "OA") key=k ;;
@@ -172,23 +315,25 @@ choose_with_arrows() {
       j) current=$((current % count + 1)) ;;
       [1-9]) [ "$key" -gt "$count" ] || current=$key ;;
     esac
-    printf '\033[%dA' "$rows"
+    printf '\033[%dA' "$option_rows"
   done
   printf '\033[?25h'
-  trap - INT TERM
+  answered "$question" "${!current}" \
+    $(($(rows_for "$title") + $(rows_for "$hint") + option_rows))
   printf -v "$__var" '%s' "$current"
 }
 
 choose_by_number() {
-  local __var=$1 default=$2 option i answer
-  shift 2
+  local __var=$1 question=$2 default=$3 option i answer
+  shift 3
+  printf '  %s?%s %s\n' "$ACCENT" "$RESET" "$question"
   i=1
   for option in "$@"; do
     info "  $i) $option"
     i=$((i + 1))
   done
   while true; do
-    printf 'Choose %s[%s]%s ' "$DIM" "$default" "$RESET"
+    prompt "Choose" "$default"
     IFS= read -r answer </dev/tty || true
     answer=${answer:-$default}
     if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le $# ]; then
@@ -215,10 +360,9 @@ valid_port() {
 }
 
 # Succeeds when something on this host listens on the TCP port
+# Not lsof: BusyBox's ignores its arguments and always succeeds
 port_in_use() {
-  if command -v lsof >/dev/null 2>&1; then
-    lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
-  elif command -v ss >/dev/null 2>&1; then
+  if command -v ss >/dev/null 2>&1; then
     ss -Hltn "sport = :$1" 2>/dev/null | grep -q .
   else
     (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
@@ -232,17 +376,21 @@ check_docker() {
     die "The Docker Compose plugin is missing. Install it first: https://docs.docker.com/compose/install/"
   docker info >/dev/null 2>&1 ||
     die "Cannot reach the Docker daemon. Start Docker, or run the script as a user who may use Docker."
-  ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo 'failed to retrieve Docker version') with Compose version $(docker compose version --short 2>/dev/null || echo 'failed to retrieve Compose version')"
+  ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null) with Compose version $(docker compose version --short 2>/dev/null)"
 }
 
 # Runs before anything is asked or written, so a missing tool stops the script early
 check_dependencies() {
   step "Checking dependencies"
   local tool missing=""
-  for tool in basename cat chmod cp date grep head mkdir mktemp mv od sed sleep tr uname; do
+  for tool in basename cat chmod cp date grep head id mkdir mktemp mv sed sleep tail tr uname; do
     command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
   done
-  [ -z "$missing" ] || die "These required tools are missing:$missing"
+  command -v openssl >/dev/null 2>&1 || command -v od >/dev/null 2>&1 || missing="$missing openssl"
+  [ -z "$missing" ] || die "These required tools are missing:$missing. Install them with your package manager."
+  command -v ss >/dev/null 2>&1 ||
+    warn "ss is not installed, so the port check only sees services on 127.0.0.1." \
+      "For a full check, install iproute2 (on Alpine: apk add iproute2)."
 
   if [ "$START" = no ]; then
     if ! { command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; }; then
@@ -251,11 +399,6 @@ check_dependencies() {
   else
     check_docker
   fi
-}
-
-# Lowercase letters, digits, dashes and underscores, as Compose names the project
-project_name() {
-  basename "$DIR" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-'
 }
 
 check_start() {
@@ -277,6 +420,7 @@ check_start() {
         warn "$DOMAIN does not resolve yet. Caddy gets a certificate once it points at this server."
     fi
   fi
+  ok "Ready to start"
 }
 
 published_ports() {
@@ -362,7 +506,7 @@ ask_mode() {
 
   if [ "$MODE" = public ]; then
     while [ -z "$DOMAIN" ]; do
-      ask DOMAIN "Domain for Speicher, e.g. docs.example.com:"
+      ask DOMAIN "Domain for Speicher, e.g. docs.example.com"
       DOMAIN=${DOMAIN#http://}
       DOMAIN=${DOMAIN#https://}
       DOMAIN=${DOMAIN%/}
@@ -374,12 +518,12 @@ ask_mode() {
 
     if [ -z "$CADDY" ]; then
       info ""
-      info "Caddy can run alongside Speicher.md and get HTTPS certificates from Let's Encrypt."
-      info "It needs ports 80 and 443. Skip it if you already run a reverse proxy, e.g. nginx."
+      info "${MUTED}Caddy can run alongside Speicher.md and get HTTPS certificates from Let's Encrypt.${RESET}"
+      info "${MUTED}It needs ports 80 and 443. Skip it if you already run a reverse proxy, e.g. nginx.${RESET}"
       if ask_yes_no "Set up Caddy for HTTPS?" y; then CADDY=yes; else CADDY=no; fi
     fi
-    if [ "$CADDY" = yes ] && [ -z "$ACME_EMAIL" ] && ! $ASSUME_YES; then
-      ask ACME_EMAIL "Email for Let's Encrypt notices (optional, Enter to skip):"
+    if [ "$CADDY" = yes ] && [ -z "$ACME_EMAIL" ]; then
+      ask ACME_EMAIL "Email for Let's Encrypt notices, optional"
     fi
   else
     CADDY=no
@@ -389,10 +533,10 @@ ask_mode() {
     local suggestion=3000
     if ! $ASSUME_YES; then
       while port_in_use "$suggestion" && [ "$suggestion" -lt 3100 ]; do suggestion=$((suggestion + 1)); done
-      [ "$suggestion" = 3000 ] || info "Port 3000 is in use; $suggestion is free."
+      [ "$suggestion" = 3000 ] || info "${MUTED}Port 3000 is in use; $suggestion is free.${RESET}"
     fi
     while true; do
-      ask PORT "Port on this machine:" "$suggestion"
+      ask PORT "Port on this machine" "$suggestion"
       valid_port "$PORT" && break
       warn "The port must be a number from 1 to 65535."
       PORT=""
@@ -403,6 +547,16 @@ ask_mode() {
 
 # Takes the choices from the files of an earlier install, for the checks and the summary
 read_existing() {
+  local ignored=""
+  [ -z "$MODE" ] || ignored="$ignored --mode"
+  [ -z "$DOMAIN" ] || ignored="$ignored --domain"
+  [ -z "$PORT" ] || ignored="$ignored --port"
+  [ -z "$IMAGE_TAG" ] || ignored="$ignored --image-tag"
+  [ -z "$CADDY" ] || ignored="$ignored --caddy/--no-caddy"
+  [ -z "$ACME_EMAIL" ] || ignored="$ignored --acme-email"
+  [ -z "$ignored" ] || warn "The existing files are kept, so these flags have no effect:$ignored" \
+    "Choose to write a new docker-compose.yaml to apply them."
+
   [ -n "$(env_get POSTGRES_PASSWORD)" ] || die "$DIR/.env has no POSTGRES_PASSWORD"
   IMAGE_TAG=$(env_get SPEICHER_IMAGE_TAG)
   IMAGE_TAG=${IMAGE_TAG:-$(default_image_tag)}
@@ -428,22 +582,24 @@ public_url() {
   fi
 }
 
+summary_row() { printf '  %s%-10s%s %s\n' "$MUTED" "$1" "$RESET" "$2"; }
+
 confirm() {
   step "Summary"
-  info "  Directory   $DIR"
-  info "  URL         $(public_url)"
+  summary_row Directory "$DIR"
+  summary_row URL "$(link "$(public_url)")"
   if [ "$MODE" = public ]; then
     if [ "$CADDY" = yes ]; then
-      info "  HTTPS       Caddy, with a certificate from Let's Encrypt"
+      summary_row HTTPS "Caddy, with a certificate from Let's Encrypt"
     else
-      info "  HTTPS       your own reverse proxy, forwarding to 127.0.0.1:$PORT"
+      summary_row HTTPS "your own reverse proxy, forwarding to 127.0.0.1:$PORT"
     fi
   fi
-  info "  Image       $IMAGE:$IMAGE_TAG"
+  summary_row Image "$IMAGE:$IMAGE_TAG"
   if $KEEP_FILES; then
-    info "  Files       kept as they are"
+    summary_row Files "kept as they are"
   else
-    info "  Files       docker-compose.yaml, .env$([ "$CADDY" = yes ] && echo ", Caddyfile")"
+    summary_row Files "docker-compose.yaml, .env$([ "$CADDY" = yes ] && echo ", Caddyfile")"
   fi
   info ""
   ask_yes_no "Continue?" y || exit 1
@@ -470,7 +626,7 @@ backup() {
     local stamp
     stamp=$(date +%Y%m%d-%H%M%S)
     cp -p "$1" "$1.bak-$stamp"
-    info "  backed up $(basename "$1") to $(basename "$1").bak-$stamp"
+    info "${MUTED}Backed up $(basename "$1") to $(basename "$1").bak-$stamp${RESET}"
   fi
 }
 
@@ -504,7 +660,7 @@ write_env() {
     password=$(new_password)
     NEW_PASSWORD=true
   fi
-  [ -f "$DIR/.env" ] && backup "$DIR/.env"
+  backup "$DIR/.env"
   env_set POSTGRES_PASSWORD "$password"
   env_set SPEICHER_PUBLIC_URL "$(public_url)"
   env_set SPEICHER_IMAGE_TAG "$IMAGE_TAG"
@@ -629,7 +785,7 @@ render_caddyfile() {
 write_files() {
   step "Writing files"
   if $KEEP_FILES; then
-    ok "kept docker-compose.yaml and .env"
+    ok "Kept docker-compose.yaml and .env"
     return
   fi
 
@@ -659,9 +815,8 @@ db_accepts_password() {
     psql -h db -U speicher -d speicher -c 'select 1' >/dev/null 2>&1
 }
 
-# Postgres only reads POSTGRES_PASSWORD when it creates the volume, so a database
-# volume from an earlier install rejects the password in .env if that changed.
-# Connects over the network name, because local socket connections need no password.
+# Postgres reads POSTGRES_PASSWORD only on volume creation.
+# Connects via host "db": the local socket skips password auth.
 ensure_database_password() {
   step "Checking the database"
   compose up -d --wait db
@@ -672,8 +827,8 @@ ensure_database_password() {
 
   local volume
   volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$(compose ps -q db)")
-  warn "The database was created with a different password than the one in .env."
-  warn "Restore the old .env to keep the data, or delete the database to start over."
+  warn "The database was created with a different password than the one in .env." \
+    "Restore the old .env to keep the data, or delete the database to start over."
   ask_yes_no "Delete the old database and start with an empty one?" n ||
     die "Not starting. Restore the old .env, or delete the database with: docker compose down && docker volume rm $volume"
   compose down --remove-orphans
@@ -682,37 +837,47 @@ ensure_database_password() {
   ok "Deleted the old database"
 }
 
+speicher_ready() {
+  # Asks from inside the web container, so it works before DNS or the certificate is ready
+  compose exec -T web node -e \
+    "fetch('http://127.0.0.1:3000/-/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" \
+    >/dev/null 2>&1
+}
+
+wait_until_ready() {
+  step "Waiting for Speicher to be ready"
+  local started=$SECONDS frame=0 elapsed=0
+  if $CURSOR_UI; then printf '\033[?25l'; fi
+  until speicher_ready; do
+    elapsed=$((SECONDS - started))
+    if [ "$elapsed" -ge "$READY_TIMEOUT" ]; then
+      if $CURSOR_UI; then printf '\r\033[2K\033[?25h'; fi
+      warn "Speicher is not ready after ${READY_TIMEOUT}s. The last log lines:"
+      compose ps >&2 || true
+      compose logs --tail 50 migrate web >&2 || true
+      die "Speicher did not start. Fix the error above, then run: docker compose up -d"
+    fi
+    if $CURSOR_UI; then
+      printf '\r\033[2K  %s%s%s Starting the containers %s%ss%s' \
+        "$ACCENT" "${SPINNER[frame % ${#SPINNER[@]}]}" "$RESET" "$MUTED" "$elapsed" "$RESET"
+      frame=$((frame + 1))
+    fi
+    sleep 1
+  done
+  if $CURSOR_UI; then printf '\r\033[2K\033[?25h'; fi
+  ok "Speicher is ready after $((SECONDS - started))s"
+}
+
 start() {
   step "Pulling images"
-  if ! compose pull; then
-    if compose config --images | while read -r image; do docker image inspect "$image" >/dev/null 2>&1 || exit 1; done; then
-      warn "Pulling failed; starting with the images already on this machine."
-    else
-      die "Pulling the images failed. Check the network, and that the tag $IMAGE_TAG exists."
-    fi
-  fi
+  compose pull || warn "Pulling failed; starting with the images already on this machine."
 
   ensure_database_password
 
   step "Starting the containers"
   compose up -d
 
-  step "Waiting for Speicher to be ready"
-  local waited=0
-  # Asks from inside the web container, so it works before DNS or the certificate is ready
-  until compose exec -T web node -e \
-    "fetch('http://127.0.0.1:3000/-/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" \
-    >/dev/null 2>&1; do
-    if [ "$waited" -ge "$READY_TIMEOUT" ]; then
-      warn "Speicher is not ready after ${READY_TIMEOUT}s. The last log lines:"
-      compose ps >&2 || true
-      compose logs --tail 50 migrate web >&2 || true
-      die "Speicher did not start. Fix the error above, then run: docker compose up -d"
-    fi
-    sleep 2
-    waited=$((waited + 2))
-  done
-  ok "Speicher is ready"
+  wait_until_ready
 }
 
 # Opens the URL in the browser, when this machine has a desktop to open it on
@@ -738,8 +903,6 @@ claim_window_open() {
   esac
 }
 
-# In local mode Speicher only answers on this machine, which is usually a server
-# without a browser. An SSH tunnel makes it reachable from the user's own browser.
 tunnel_hint() {
   [ "$MODE" = local ] || return 0
   $TUNNEL_SHOWN && return 0
@@ -748,10 +911,18 @@ tunnel_hint() {
   info "On a server without a browser, forward the port to your own computer by running"
   info "this there, and keep it open while you use Speicher:"
   info ""
-  info "  ${BOLD}ssh -NL $PORT:localhost:$PORT $(id -un)@<server-ip>${RESET}"
+  cmd "ssh -NL $PORT:localhost:$PORT $(id -un)@<server-ip>"
   info ""
-  info "Then open $(public_url) in your browser."
+  info "Then open $(link "$(public_url)") in your browser."
   info ""
+}
+
+# Also accepts the pasted command: docker compose exec web speicher claim <CODE>
+claim_code() {
+  local input=$1
+  input=${input%"${input##*[![:space:]]}"}
+  case "$input" in *"speicher claim"[[:space:]]*) input=${input##*[[:space:]]} ;; esac
+  printf '%s' "${input#"${input%%[![:space:]]*}"}"
 }
 
 # Approves the browser the user opened, with the code its claim page shows
@@ -765,15 +936,16 @@ claim_instance() {
 
   step "Claiming the instance"
   if open_browser "$url"; then
-    info "Opened ${BOLD}$url${RESET} in your browser."
+    info "Opened $(link "$url") in your browser."
   else
-    info "Open ${BOLD}$url${RESET} in your browser."
+    info "Open $(link "$url") in your browser."
     tunnel_hint
   fi
-  info "The claim page shows a code like QUIET-HERON-4471. Enter it to authenticate this sesssion"
-  info "the browser belongs to whoever runs this server."
+  info "The claim page shows a code like QUIET-HERON-4471 to approve your session."
+  info ""
   while true; do
-    ask code "Code from the claim page (Enter to skip):"
+    ask code "Code or command from the claim page, Enter to skip"
+    code=$(claim_code "$code")
     [ -n "$code" ] || return 0
     if output=$(compose exec -T -e SPEICHER_LOG_LEVEL=warn web speicher claim "$code" 2>&1); then
       ok "$output"
@@ -796,37 +968,43 @@ next_steps() {
   step "Done"
   if ! $CLAIMED; then
     if $HAS_ADMIN; then
-      info "Speicher runs at ${BOLD}$url${RESET}. It already has an administrator, who can"
+      info "Speicher runs at $(link "$url"). It already has an administrator, who can"
       info "sign in there."
     elif [ "$START" = yes ]; then
-      info "Open ${BOLD}$url${RESET} and claim the instance. The page shows a command"
+      info "Open $(link "$url") and claim the instance. The page shows a command"
       info "to run in $DIR, like:"
       info ""
-      info "  docker compose exec web speicher claim <CODE>"
+      cmd "docker compose exec web speicher claim <CODE>"
       tunnel_hint
     else
       info "Start Speicher with:"
       info ""
-      info "  cd $DIR && docker compose up -d"
+      cmd "cd $DIR && docker compose up -d"
       info ""
-      info "Then open ${BOLD}$url${RESET} and claim the instance with a command like:"
+      info "Then open $(link "$url") and claim the instance with a command like:"
       info ""
-      info "  docker compose exec web speicher claim <CODE>"
+      cmd "docker compose exec web speicher claim <CODE>"
       tunnel_hint
     fi
     info ""
   fi
   if [ "$MODE" = public ]; then
     info "Point your reverse proxy at http://127.0.0.1:$PORT and serve $DOMAIN over HTTPS:"
-    info "  $DOCS_URL/05-operations/04-reverse-proxy-and-tls.md"
+    info "${MUTED}$DOCS_URL/05-operations/04-reverse-proxy-and-tls.md${RESET}"
     info ""
   fi
-  info "Next: $DOCS_URL/01-quick-start/02-setup-instance.md"
+  info "Next: ${MUTED}$DOCS_URL/01-quick-start/02-setup-instance.md${RESET}"
+  info ""
 }
 
 main() {
   parse_flags "$@"
-  info "${BOLD}Speicher installer${RESET} $(default_image_tag)"
+  if $CURSOR_UI; then trap 'printf "\033[?25h"' EXIT; fi
+  trap 'printf "\n"; exit 130' INT TERM
+
+  banner
+  info ""
+  info "${MUTED}Installer ${G_SEP} $(default_image_tag) ${G_SEP} docs.speicher.md${RESET}"
   check_dependencies
   ask_directory
   if $KEEP_FILES; then read_existing; else ask_mode; fi

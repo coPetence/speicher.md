@@ -1,5 +1,5 @@
-<div align="center"> 
-  <h1>Speicher.md</h1>
+<div align="center">
+  <img src=".github/assets/banner.svg" alt="Speicher.md" width="600">
   <p><strong>Git-native · Markdown · Per-folder access control · SSO (OIDC / Entra ID) · MCP server · Hybrid search · Self-hosted</strong></p>
   <p>
     <a href="https://speicher.md">Website</a> ·
