@@ -35,6 +35,7 @@ import {
 } from '../members';
 import { unavailableOption } from '../model';
 import type { Option, SectionEntry } from '../model';
+import { quickSetupOf } from '../../quick-setup/registry';
 import { directoryFields } from './identity/directory-fields';
 import { githubAppCard } from './identity/github-app-card';
 import { githubDirectoryCard } from './identity/github-directory-card';
@@ -71,6 +72,7 @@ export function identitySection(root: Obj): SectionSource {
             label: kind.label,
             suggest: freeMemberId(ids, kind.value),
             mark: kind.mark,
+            quickSetup: quickSetupOf('identity', kind.value),
           };
           // Magic-link is unavailable when no mail transport is configured
           return kind.value === 'magic-link' && !hasMailTransport

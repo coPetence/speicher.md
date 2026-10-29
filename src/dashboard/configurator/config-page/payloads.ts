@@ -5,6 +5,8 @@ import { SaveVerdict } from '../../../config/classification';
 import { ConfigSource, SkippedConfigVersion } from '../../../config/types';
 import { ShapeControl } from '../config-form/collections';
 import { FormSection } from '../config-form/model';
+import type { ReadyStep } from '../quick-setup/model';
+import type { MissingGroup } from '../quick-setup/repository-check';
 import { MemberUsage } from '../member-usage';
 import { RepairPreview } from '../repair-preview';
 
@@ -83,6 +85,16 @@ export interface ConfigSectionPayload extends ConfigCommon {
   holds_work: boolean;
   // Sub-kind dialog to open on load
   openKind: string;
+  // Why the add modal's quick setup was refused, shown in the reopened modal
+  add_error?: string;
+  // What the add modal held when its quick setup was refused, by field name
+  add_values?: Record<string, string>;
+  // What a quick setup did and what is left, shown as a modal over the list the member joined
+  ready?: ReadyModal;
+  // Whether the repositories a source reads are ready to be published, shown as a modal over the list of sources
+  check?: CheckModal;
+  // The groups those repositories name that do not exist yet, to be created, shown as a modal over the list of sources
+  create_groups?: CreateGroupsModal;
   // Kind being created in a multi-kind collection
   creating_kind: string;
   // Section member usage
@@ -104,4 +116,61 @@ export interface ConfigSectionPayload extends ConfigCommon {
   pending: boolean;
   // Scroll target after add/remove; focus selects the first field
   landing?: { path: string; focus: boolean };
+}
+
+/** The modal a quick setup ends on */
+export interface ReadyModal {
+  // The new member's page, e.g. `identity/github`
+  section_id: string;
+  id: string;
+  title: string;
+  steps: ReadyStep[];
+  // The modal's main button: Done, which leaves for the list without the ready address that opens this; or during
+  // the first setup, on to its next step
+  primary: { label: string; href: string; onward: boolean };
+}
+
+/** The modal that checks the repositories a source reads */
+export interface CheckModal {
+  // The source's page, e.g. `sources/github`
+  section_id: string;
+  id: string;
+  title: string;
+  // Why no repository could be checked, e.g. the App is not installed yet
+  problem?: { text: string; href?: string; label?: string };
+  repositories: CheckRow[];
+  // Whether the source reads more repositories than were checked
+  more: boolean;
+  // Not checked yet: the page answers at once, and the check runs at this address, which the modal is swapped for
+  pending?: { href: string };
+  primary: ReadyModal['primary'];
+}
+
+/** The modal that creates the groups a source's repositories name that do not exist yet */
+export interface CreateGroupsModal {
+  // The source's page, e.g. `sources/github`
+  section_id: string;
+  id: string;
+  // Where the modal posts, and where it leads back to
+  action: string;
+  back_href: string;
+  // Who the person creating the groups is, as the toggle that adds them names them; null when they have no sign-in
+  me: string | null;
+  groups: MissingGroup[];
+  error?: string;
+  // Not checked yet: the page answers at once, and the check runs at this address, which the modal is swapped for
+  pending?: { href: string };
+}
+
+/** One repository of the check */
+export interface CheckRow {
+  // e.g. `acme/handbook`
+  name: string;
+  // The repository on GitHub
+  href: string;
+  state: 'ready' | 'unpublished' | 'unknown-groups' | 'invalid' | 'unreadable';
+  // What the check found, in markdown
+  text: string;
+  // Where its `.speicher.yaml` is created on GitHub, for one that has none
+  create_href?: string;
 }

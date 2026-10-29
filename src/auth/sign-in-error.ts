@@ -11,7 +11,8 @@ export type SignInCode =
   | 'signin.subject-missing'
   | 'signin.wrong-provider'
   | 'signin.discovery-failed'
-  | 'signin.api-failed';
+  | 'signin.api-failed'
+  | 'signin.installation-unseen';
 
 /** Sign-in error with the provider's HTTP status, if available */
 export class SignInError extends CodedError<SignInCode> {

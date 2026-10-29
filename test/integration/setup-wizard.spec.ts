@@ -15,6 +15,9 @@ import {
 } from '../../src/config/loader';
 import { loadInstanceConfig } from '../../src/config/parser';
 import { setup } from '../../src/dashboard/setup/setup.service';
+import { GithubAppManifestService } from '../../src/dashboard/configurator/config-page/github-app-manifest';
+import { ConfigWatcher } from '../../src/config/watcher';
+import { saveInstanceConfig } from '../../src/config/loader';
 import { STEP_PROSE, SetupStepId } from '../../src/dashboard/setup/steps';
 import { unclaimedInstanceConfig } from '../../src/dashboard/setup/unclaimed';
 import { loadDocument } from '../../src/dashboard/configurator/config-form/document';
@@ -38,6 +41,21 @@ const ORIGINAL_PATH = process.env[INSTANCE_CONFIG_PATH_ENV];
 const ORIGINAL_INSECURE = process.env.SPEICHER_INSECURE_COOKIES;
 const sent: { to: string; subject: string; text: string }[] = [];
 
+const manifestGithub = (async () =>
+  new Response(
+    JSON.stringify({
+      id: 4242,
+      slug: 'speicher-mine',
+      owner: { login: 'octo', type: 'User' },
+      html_url: 'https://github.com/apps/speicher-mine',
+      pem: 'unused',
+      webhook_secret: null,
+      client_id: 'Iv1.mine',
+      client_secret: 'mine',
+    }),
+    { status: 201 },
+  )) as typeof fetch;
+
 beforeAll(async () => {
   harness = await createHarness();
   idp = await startFakeIdp();
@@ -54,7 +72,15 @@ beforeEach(async () => {
   mailer.send = async (to, subject, text) => {
     sent.push({ to, subject, text });
   };
-  app = await bootTestApp(config, [], [{ token: Mailer, value: mailer }]);
+  app = await bootTestApp(
+    config,
+    [],
+    [
+      { token: Mailer, value: mailer },
+      // GitHub, as it hands over an App it created on the person's own account
+      { token: GithubAppManifestService, value: new GithubAppManifestService(manifestGithub) },
+    ],
+  );
 });
 
 afterEach(async () => {
@@ -242,7 +268,7 @@ describe('the first run', () => {
     expect(finished.text).toContain('can no longer be claimed');
   });
 
-  it('offers the kinds as cards, each landing on the form for that kind', async () => {
+  it('offers the kinds as cards, each landing on the add modal or the form for that kind', async () => {
     const agent = await claim();
 
     const page = await agent.get('/-/setup').expect(200);
@@ -254,8 +280,11 @@ describe('the first run', () => {
     expect(page.text).toContain('href="/-/config/identity?kind=entra"');
     expect(page.text).toContain('Magic link (email)');
 
-    const identity = await agent.get('/-/config/identity?kind=github').expect(303);
-    expect(identity.headers.location).toBe('/-/config/identity/github?kind=github');
+    // A kind set up from the add modal opens it; any other lands on its form
+    const github = await agent.get('/-/config/identity?kind=github').expect(200);
+    expect(github.text).toMatch(/<details class="spr-modal[^"]*" open>/);
+    const identity = await agent.get('/-/config/identity?kind=oidc').expect(303);
+    expect(identity.headers.location).toBe('/-/config/identity/oidc?kind=oidc');
 
     const nonsense = await agent.get('/-/config/identity?kind=ldap').expect(200);
     expect(nonsense.text).not.toMatch(/<details class="spr-modal" open>/);
@@ -594,6 +623,86 @@ describe('the proving login through GitHub', () => {
   });
 });
 
+describe('the first administrator named by setting up a GitHub provider', () => {
+  /** Gives the provider the App this instance would have created on the organization acme */
+  async function storeApp(id = 'gh'): Promise<void> {
+    const doc = loadDocument((await getNewestConfigVersion(harness.tenantId))!.yaml);
+    doc.setIn(
+      ['auth', 'providers', id, 'app'],
+      doc.createNode({
+        client_id: GITHUB_CLIENT_ID,
+        slug: 'speicher-gh',
+        owner_account: 'acme',
+        owner_is_organization: true,
+        public: false,
+      }),
+    );
+    await saveInstanceConfig(harness.tenantId, doc.toString(), { origin: 'setup' });
+    await app.get(ConfigWatcher).refresh();
+  }
+
+  it('names the person who installs an organization’s App, and goes on with the setup', async () => {
+    const agent = await claim();
+    await addGithubProvider(agent);
+    await storeApp();
+
+    const install = await agent.get('/-/config/identity/gh/install').expect(303);
+    expect(install.headers.location).toBe(
+      `${idp.issuer}/github-apps/speicher-gh/installations/new`,
+    );
+
+    // GitHub signs the person in as they install the App, and sends them back with no state
+    const back = await agent
+      .get('/api/auth/github/callback?code=from-github&installation_id=99&setup_action=install')
+      .expect(302);
+    expect(back.headers.location).toBe(
+      '/-/config/identity/gh/ready?setup_action=install&installation_id=99&first_admin=1',
+    );
+    const newest = await getNewestConfigVersion(harness.tenantId);
+    expect(loadInstanceConfig(newest!.yaml).raw.admins?.users).toEqual([
+      { provider: 'gh', subject: '4242', note: 'First administrator: octo@idp.test' },
+    ]);
+    expect(await setup.claimWindowOpen(harness.tenantId)).toBe(false);
+
+    const page = await agent.get(back.headers.location).expect(200);
+    expect(page.text).toContain('You are signed in as the first administrator');
+    // The setup goes on with its next step, a content source
+    // The setup goes on with its next step: the add modal of a content source, on the GitHub quick setup
+    expect(page.text).toMatch(
+      /href="\/-\/config\/sources\?kind=github" data-spr-ready-primary>Continue/,
+    );
+    const sources = await agent.get('/-/config/sources?kind=github').expect(200);
+    expect(sources.text).toMatch(/<details class="spr-modal[^"]*" open>/);
+    expect(sources.text).toContain('name="quick:github:account"');
+  });
+
+  it('signs the creator of a personal account’s App straight in, as it has nothing to install', async () => {
+    const agent = await claim();
+    const created = await agent
+      .post('/-/config/identity/-/create')
+      .type('form')
+      .send({ kind: 'github', add: 'gh', 'quick:github:audience': 'me' })
+      .expect(303);
+    const handoff = await agent.get(created.headers.location).expect(200);
+    const action = /<form method="post" action="([^"]+)"/.exec(handoff.text)?.[1] ?? '';
+    const state = new URL(action.replace(/&amp;/g, '&')).searchParams.get('state');
+
+    const back = await agent
+      .get(`/-/config/identity/gh/github-app/manifest/callback?code=c&state=${state}`)
+      .expect(302);
+    const authorize = new URL(back.headers.location);
+    expect(`${authorize.origin}${authorize.pathname}`).toBe(
+      'https://github.com/login/oauth/authorize',
+    );
+    expect(authorize.searchParams.get('client_id')).toBe('Iv1.mine');
+
+    const flow = await LoginFlow.findOne({ order: [['created_at', 'DESC']] });
+    expect(flow?.provider).toBe('gh');
+    expect(flow?.names_first_admin).toBe(true);
+    expect(flow?.redirect_to).toBe('/-/config/identity/gh/ready?first_admin=1');
+  });
+});
+
 describe('the proving login through a magic link', () => {
   async function askForLink(agent: Agent, email: string): Promise<string> {
     const answered = await agent
@@ -845,6 +954,9 @@ async function startFakeIdp(): Promise<FakeIdp> {
       }
       if (url.pathname === '/api/v3/user/teams') {
         return send(res, 200, []);
+      }
+      if (url.pathname === '/api/v3/user/installations') {
+        return send(res, 200, { installations: [{ id: 99, account: { login: 'acme' } }] });
       }
       return send(res, 404, {});
     })();

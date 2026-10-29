@@ -77,6 +77,8 @@ export interface GithubProviderApp {
   slug: string;
   owner_account: string;
   owner_is_organization: boolean;
+  // Whether anyone with a GitHub account can sign in; absent when the App was not created by Speicher.md
+  public?: boolean;
 }
 
 export type ProviderConfig = OidcProviderConfig | MagicLinkProviderConfig | GithubProviderConfig;

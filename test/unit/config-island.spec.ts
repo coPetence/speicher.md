@@ -286,6 +286,54 @@ describe('the check a section offers', () => {
   });
 });
 
+describe('a panel whose check runs after the page', () => {
+  function renderPending(): void {
+    document.body.innerHTML = `
+      <main>
+        <form class="spr-config" data-spr-config="sources"></form>
+        <details class="spr-modal" open>
+          <summary></summary>
+          <div class="spr-modal-panel" data-spr-defer-key="check:team"
+               data-spr-defer="/-/config/sources/team/check?run=1" aria-busy="true">
+            <p data-spr-defer-text>Asking GitHub… <a href="/-/config/sources/team/check?run=1">Check now</a></p>
+          </div>
+        </details>
+      </main>`;
+  }
+
+  const panel = () => document.querySelector('.spr-modal-panel') as HTMLElement;
+
+  it('fetches the run address and swaps in the panel it answers with', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: async () =>
+        '<main><div class="spr-modal-panel" data-spr-defer-key="check:team"><ul><li>acme/wiki</li></ul></div></main>',
+    });
+    renderPending();
+    run();
+    // The link is for where nothing runs
+    expect(panel().querySelector('a')).toBeNull();
+    await flush();
+
+    expect(fetchMock).toHaveBeenCalledWith('/-/config/sources/team/check?run=1', expect.anything());
+    expect(panel().hasAttribute('data-spr-defer')).toBe(false);
+    expect(panel().textContent).toContain('acme/wiki');
+  });
+
+  it('offers the link again when the check does not finish', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 502, text: async () => '' });
+    renderPending();
+    run();
+    await flush();
+
+    expect(panel().getAttribute('aria-busy')).toBeNull();
+    expect(panel().textContent).toContain('The check did not finish here.');
+    expect(panel().querySelector('a')?.getAttribute('href')).toBe(
+      '/-/config/sources/team/check?run=1',
+    );
+  });
+});
+
 describe('the check a field offers', () => {
   function renderFieldCheck(path = 'auth.providers.entra.directory.type'): void {
     document.body.innerHTML = `
@@ -1634,6 +1682,61 @@ describe('a card shown with an option of a choice', () => {
     expect(card().hidden).toBe(false);
     pick('create');
     expect(card().hidden).toBe(true);
+  });
+});
+
+describe('fields of the add modal shown with the kind', () => {
+  function renderIndex(): void {
+    document.body.innerHTML = `
+      <main>
+        <details class="spr-modal spr-index-add" open>
+          <summary>Add a provider</summary>
+          <div class="spr-modal-panel" data-spr-reveal-root>
+            <label><input type="radio" name="kind" value="github" form="add-member" checked>GitHub</label>
+            <label><input type="radio" name="kind" value="oidc" form="add-member">OpenID Connect</label>
+            <div class="spr-quick-setup" data-spr-shown-with="kind" data-spr-shown-when="github">
+              <label><input type="radio" name="quick:github:audience" value="me" form="add-member" checked>Only me</label>
+              <label><input type="radio" name="quick:github:audience" value="org" form="add-member">Organization</label>
+              <label><input type="radio" name="quick:github:audience" value="org-and-others" form="add-member">Organization and others</label>
+              <div class="spr-quick-org" data-spr-shown-with="quick:github:audience" data-spr-shown-when="org org-and-others">
+                <input name="quick:github:org" form="add-member">
+              </div>
+            </div>
+          </div>
+        </details>
+        <form id="add-member" method="get" action="/-/config/identity"></form>
+        <form class="spr-config" method="post" action="/-/config/identity" data-spr-config="identity"></form>
+      </main>`;
+  }
+
+  const setup = () => document.querySelector('.spr-quick-setup') as HTMLElement;
+  const org = () => document.querySelector('.spr-quick-org') as HTMLElement;
+  const pick = (name: string, value: string) => {
+    const radio = document.querySelector(
+      `input[name="${name}"][value="${value}"]`,
+    ) as HTMLInputElement;
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  it('shows the quick setup of the picked kind only', () => {
+    renderIndex();
+    run();
+    expect(setup().hidden).toBe(false);
+    pick('kind', 'oidc');
+    expect(setup().hidden).toBe(true);
+  });
+
+  it('asks for the organization for each answer that names one', () => {
+    renderIndex();
+    run();
+    expect(org().hidden).toBe(true);
+    pick('quick:github:audience', 'org');
+    expect(org().hidden).toBe(false);
+    pick('quick:github:audience', 'org-and-others');
+    expect(org().hidden).toBe(false);
+    pick('quick:github:audience', 'me');
+    expect(org().hidden).toBe(true);
   });
 });
 

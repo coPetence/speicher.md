@@ -1,0 +1,64 @@
+<%
+  /*
+    The groups the repositories of a source grant access to and this instance does
+    not have, one row each, ticked to be created in one save. One switch adds the
+    person creating them to every new group, so they can read what they just set
+    up; otherwise the groups start empty. A name close to an existing group is
+    likely a typo, better fixed in the repository, so it starts unticked.
+  */
+  const modal = it.createGroups;
+  const titleId = 'groups-' + modal.id + '-title';
+%>
+<details class="spr-modal spr-groups-modal" open>
+  <summary aria-label="Close"></summary>
+  <% /* While pending, the deferred-panel island swaps this panel for the one the run address answers with */ %>
+  <div class="spr-modal-panel spr-groups-panel" role="dialog" aria-labelledby="<%= titleId %>" data-spr-defer-key="groups:<%= modal.id %>"<% if (modal.pending) { %> data-spr-defer="<%= modal.pending.href %>" aria-busy="true"<% } %>>
+    <h2 class="spr-modal-title" id="<%= titleId %>">Create the missing groups</h2>
+    <% if (modal.pending) { %>
+    <p class="spr-check-summary spr-pending" data-spr-defer-text>
+      Looking for the groups your repositories name… <a href="<%= modal.pending.href %>">Look now</a>
+    </p>
+    <div class="spr-ready-foot">
+      <a href="<%= modal.back_href %>">Back</a>
+    </div>
+    <% } else if (modal.groups.length === 0) { %>
+    <p class="spr-check-summary">Every group your repositories name exists already.</p>
+    <div class="spr-ready-foot">
+      <a href="<%= modal.back_href %>">Back</a>
+    </div>
+    <% } else { %>
+    <p class="spr-check-summary">
+      Your repositories grant access to <%= modal.groups.length === 1 ? 'a group' : 'groups' %> this instance does not have yet. Pick the ones to create; you can add people and teams to them on their pages afterwards.
+    </p>
+    <% if (modal.error) { %>
+    <%~ include('@note', { level: 'fail', html: md(modal.error), role: 'alert' }) %>
+    <% } %>
+    <form method="post" action="<%= modal.action %>" class="spr-groups-form">
+      <ul class="spr-groups-list">
+        <% modal.groups.forEach(function (group) { %>
+        <li class="spr-groups-row" data-spr-missing-group="<%= group.name %>">
+          <label class="spr-groups-name">
+            <input type="checkbox" name="create" value="<%= group.name %>"<%= group.suggestion ? '' : ' checked' %>>
+            <code><%= group.name %></code>
+          </label>
+          <span class="spr-groups-used">Used by <%= group.repositories.join(', ') %></span>
+          <% if (group.suggestion) { %>
+          <span class="spr-groups-typo">Did you mean <code><%= group.suggestion %></code>? Then fix the name in the repository instead.</span>
+          <% } %>
+        </li>
+        <% }) %>
+      </ul>
+      <% if (modal.me) { %>
+      <label class="spr-switch spr-groups-me">
+        <input type="checkbox" name="add_me" value="on" checked>
+        <span>Add me (<%= modal.me %>) to these groups</span>
+      </label>
+      <% } %>
+      <div class="spr-ready-foot">
+        <a href="<%= modal.back_href %>">Back</a>
+        <button type="submit" class="spr-ready-action spr-ready-next">Create groups</button>
+      </div>
+    </form>
+    <% } %>
+  </div>
+</details>

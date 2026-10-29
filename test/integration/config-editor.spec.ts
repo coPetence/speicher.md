@@ -957,7 +957,10 @@ describe('the identity section', () => {
     expect(said).toContain('<a href="/-/config/mail">');
     expect(page.html.indexOf(said!)).toBeGreaterThan(page.html.indexOf('spr-modal-panel'));
 
-    expect(page.html).toMatch(/<button\s+type="submit"\s+form="add-member"\s*>[^<]*<\/button>/);
+    // The modal's main button is not disabled by the server; the island blocks it while the kind is picked
+    const submit = /<button[^>]*data-spr-modal-submit[^>]*>/.exec(page.html)?.[0];
+    expect(submit).toBeDefined();
+    expect(submit).not.toContain('disabled');
   });
 
   it('marks nothing once the transport is configured', async () => {

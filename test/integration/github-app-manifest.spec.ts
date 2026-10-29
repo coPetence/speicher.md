@@ -13,6 +13,7 @@ import {
 } from '../../src/config/loader';
 import {
   GITHUB_APP_FORM_COOKIE,
+  GITHUB_APP_HANDOFF_COOKIE,
   GithubAppManifestService,
 } from '../../src/dashboard/configurator/config-page/github-app-manifest';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
@@ -115,9 +116,33 @@ function postForm(path: string, body: FormBody) {
   return req;
 }
 
-/** Presses the button that creates the App, with the form as the page holds it */
+/**
+ * Presses the button that creates the App, with the form as the page holds it. A start that is taken redirects to
+ * the page that posts the manifest to GitHub; expecting 200 follows it, and answers with that page and the cookies
+ * the start set.
+ */
 function startFlow(id: string, body: FormBody, section = 'sources', appSegment = 'github-app') {
-  return postForm(`/-/config/${section}/${id}/${appSegment}/manifest`, body);
+  const posted = postForm(`/-/config/${section}/${id}/${appSegment}/manifest`, body);
+  return {
+    expect: async (status: number): Promise<request.Response> => {
+      if (status !== 200) return posted.expect(status);
+      return followHandoff(await posted.expect(303));
+    },
+  };
+}
+
+/** Opens the page a start redirected to, as the browser does, with the cookies the start set */
+async function followHandoff(started: request.Response): Promise<request.Response> {
+  const cookies = ([] as string[]).concat(started.headers['set-cookie'] ?? []);
+  const handoff = cookies.find((each) => each.startsWith(`${GITHUB_APP_HANDOFF_COOKIE}=`));
+  if (!handoff) throw new Error('the start set no hand-off cookie');
+  const page = await request(app.getHttpServer())
+    .get(started.headers.location)
+    .set('cookie', `${ops}; ${handoff.split(';')[0]}`)
+    .expect(200);
+  // The start's cookies stay readable on what the start answered with
+  page.headers['set-cookie'] = started.headers['set-cookie'];
+  return page;
 }
 
 /** The page on GitHub the hand-off posts its manifest to */
@@ -268,6 +293,7 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     });
 
     const back = await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
+    // GitHub sends the browser to the ready modal once the App is installed
     expect(back.headers.location).toBe(INSTALL_URL);
     expect(github).toHaveBeenCalledWith(
       'https://api.github.com/app-manifests/the-code/conversions',
@@ -281,6 +307,12 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     // The form trims the key's last newline, as it trims a key pasted into it
     expect(team.private_key).toBe(PEM.trim());
     expect(team.webhook_secret).toBe('from-github');
+  });
+
+  it('leaves the default repository owner as the page has it, which a quick setup would fill in', async () => {
+    const { state, cookie } = await started('team', await openNewSource('team'));
+    await callback('team', `code=the-code&state=${state}`, cookie).expect(303);
+    expect((await stored()).doc.forges.team.default_repository_owner).toBeUndefined();
   });
 
   it('stores no webhook secret when GitHub created the App without a webhook, and says so', async () => {
@@ -326,6 +358,47 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     expect(Buffer.from(value.split('=')[1], 'base64url').toString('latin1')).not.toContain(
       'visible-owner',
     );
+  });
+
+  it('posts the manifest from a page reached by a redirect, which Back from GitHub leads past', async () => {
+    const posted = await postForm('/-/config/sources/team/github-app/manifest', {
+      ...(await openNewSource('team')),
+      'github-app:owner': 'acme',
+    }).expect(303);
+    expect(posted.headers.location).toBe('/-/config/sources/team/github-app/manifest/handoff');
+    await followHandoff(posted);
+
+    // Asked again, as Back from GitHub asks, the page leads to the new source's form instead
+    await request(app.getHttpServer())
+      .get(posted.headers.location)
+      .set('cookie', ops)
+      .expect(303)
+      .expect('location', '/-/config/sources/team?kind=github');
+  });
+
+  it("leads Back to a stored provider's own page", async () => {
+    await storeProvider('octo');
+    await request(app.getHttpServer())
+      .get('/-/config/identity/octo/github-directory-app/manifest/handoff')
+      .set('cookie', ops)
+      .expect(303)
+      .expect('location', '/-/config/identity/octo');
+  });
+
+  it('posts nothing to GitHub from a hand-off cookie that was changed', async () => {
+    const posted = await postForm(
+      '/-/config/sources/team/github-app/manifest',
+      await openNewSource('team'),
+    ).expect(303);
+    const handoff = ([] as string[])
+      .concat(posted.headers['set-cookie'] ?? [])
+      .find((each) => each.startsWith(`${GITHUB_APP_HANDOFF_COOKIE}=`))!
+      .split(';')[0];
+    await request(app.getHttpServer())
+      .get(posted.headers.location)
+      .set('cookie', `${ops}; ${handoff.slice(0, -2)}AA`)
+      .expect(303)
+      .expect('location', '/-/config/sources/team?kind=github');
   });
 
   it('refuses a cookie that was changed', async () => {
@@ -392,7 +465,7 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
     expect((await stored()).version).toBe(before);
   });
 
-  it('saves the provider with its client id and secret, then installs the App', async () => {
+  it('saves the provider with its client id and secret, then installs the App on its organization', async () => {
     const { state, cookie } = await started(
       'octo',
       {
@@ -404,7 +477,8 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
     const back = await callback('octo', `code=the-code&state=${state}`, cookie, 'identity').expect(
       303,
     );
-    expect(back.headers.location).toBe(INSTALL_URL);
+    // Through the start that lets the installation's return sign the person in
+    expect(back.headers.location).toBe('/-/config/identity/octo/install');
 
     const octo = (await stored()).doc.auth.providers.octo;
     expect(octo.type).toBe('github');
@@ -434,8 +508,8 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
       await openNewSource('octo', 'identity'),
       'identity',
     ).expect(200);
-    // After the App is installed, GitHub sends the browser to the provider's page
-    expect(manifestOf(response.text).setup_url).toMatch(/\/-\/config\/identity\/octo$/);
+    // After the App is installed, GitHub sends the browser to the provider's ready page
+    expect(manifestOf(response.text).setup_url).toMatch(/\/-\/config\/identity\/octo\/ready$/);
 
     const state = manifestPostUrl(response.text).searchParams.get('state')!;
     await callback('octo', `code=the-code&state=${state}`, formCookie(response), 'identity').expect(
@@ -533,13 +607,15 @@ describe('creating the directory App of an identity provider from a manifest', (
       'github-directory-app',
     );
 
-    await callback(
+    const back = await callback(
       'octo',
       `code=directory&state=${state}`,
       cookie,
       'identity',
       'github-directory-app',
     ).expect(303);
+    // The directory App is installed next; the ready page lists the sign-in App's steps
+    expect(back.headers.location).toBe(INSTALL_URL);
     const octo = (await stored()).doc.auth.providers.octo;
     expect(octo.client_id).toBe('Iv1.abc');
     expect(octo.directory).toMatchObject({

@@ -1,6 +1,6 @@
 /** GitHub App settings and installation links */
 
-import { githubHeaders } from './api';
+import { githubHeaders, githubRequest } from './api';
 import { GITHUB_WEB } from './hosts';
 import { GithubTokenMinter } from './tokens';
 import { CodedError } from '../common/errors';
@@ -51,9 +51,9 @@ export async function lookupGithubApp(
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ slug: string; owner: GithubAppOwner }> {
   const jwt = await new GithubTokenMinter(appId, privateKey, api, fetchImpl).appJwt();
-  const response = await fetchImpl(`${api}/app`, {
+  const response = await githubRequest(fetchImpl, `${api}/app`, {
     headers: githubHeaders(jwt),
-    signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+    timeoutMs: LOOKUP_TIMEOUT_MS,
   });
   if (!response.ok) {
     throw new GithubAppLookupError(

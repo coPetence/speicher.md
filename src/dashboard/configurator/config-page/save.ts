@@ -47,6 +47,9 @@ export interface SaveRequest {
   // Defer body parsing until read-only checks pass
   readBody: () => Promise<{ uploads: Uploads; body: Record<string, unknown> }>;
   amend?: (doc: Document) => boolean;
+  // False saves the member as seeded and amended, without reading the page's fields from the body. A body without
+  // them would read as a page whose checkboxes were all cleared
+  decode?: boolean;
 }
 
 function pageOf(sectionId: string, payload: ConfigSectionPayload, status?: number): SaveOutcome {
@@ -192,6 +195,7 @@ export class ConfigSaveService {
     json,
     readBody,
     amend,
+    decode = true,
   }: SaveRequest): Promise<SaveOutcome> {
     const state = await this.page.state(caller);
     const payload = await this.page.sectionPayload(state, sectionId);
@@ -248,7 +252,9 @@ export class ConfigSaveService {
       }));
 
     // Decode only this section to avoid clearing checkboxes in other sections
-    const { structural, changed: edited_ } = applyForm(doc, body, sectionId, hint);
+    const { structural, changed: edited_ } = decode
+      ? applyForm(doc, body, sectionId, hint)
+      : { structural: false, changed: false };
     const amended = amend?.(doc) ?? false;
     // Fetch host keys into the edited document without saving
     const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);

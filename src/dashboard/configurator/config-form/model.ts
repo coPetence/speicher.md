@@ -1,6 +1,7 @@
 /** Config page types */
 
 import type { CheckStatus } from '../../../common/check-status';
+import type { QuickSetup } from '../quick-setup/model';
 import type { CardItem, Field } from './config-fields';
 
 export interface Option {
@@ -14,6 +15,8 @@ export interface Option {
   mark?: string;
   // Unavailability reason as help markup
   unavailable?: string;
+  // The fields the add modal asks to set up a member of this kind in one go
+  quickSetup?: QuickSetup;
 }
 
 export function unavailableOption(option: Option, reason: string): Option {

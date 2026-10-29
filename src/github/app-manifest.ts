@@ -48,6 +48,8 @@ export interface AppManifest {
   callback_urls?: string[];
   setup_url: string;
   setup_on_update: boolean;
+  // Asks the person installing the App to sign in with it, and then sends them to the callback, not the setup URL
+  request_oauth_on_install?: boolean;
   public: boolean;
   default_permissions: Record<string, string>;
   default_events: string[];
@@ -70,6 +72,10 @@ export interface ContentSourceAppOptions extends AppManifestBase {
 export interface IdentityProviderAppOptions extends AppManifestBase {
   purpose: 'identity-provider';
   callbackUrl: string;
+  // Lets anyone with a GitHub account sign in; a private App takes only the members of its owner
+  public?: boolean;
+  // Signs the person installing the App in as they install it
+  signInOnInstall?: boolean;
 }
 
 export interface DirectoryAppOptions extends AppManifestBase {
@@ -118,6 +124,8 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   if (options.purpose === 'identity-provider') {
     return {
       ...base,
+      public: options.public === true,
+      ...(options.signInOnInstall ? { request_oauth_on_install: true } : {}),
       name: signInAppName(options.homepage),
       description: IDENTITY_PROVIDER_DESCRIPTION,
       callback_urls: [options.callbackUrl],

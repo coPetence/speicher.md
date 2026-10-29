@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import { ConfigService } from '../../../config/config.service';
 import { pageChrome } from '../../../content-reader/chrome';
+import { emptyStateArt } from '../../../content-reader/empty-state';
 import { renderTemplate, sendHtml } from '../../../content-reader/views';
 import { renderPage } from '../../../global-ui/global-views/page-layout/page-layout';
 
@@ -13,6 +14,7 @@ export function sendMagicLinkSentScreen(
   redirectTo: string,
 ): void {
   const body = renderTemplate('auth/views/magic-link-sent', {
+    art: emptyStateArt('mail'),
     email,
     otherAddressHref: `/api/auth/login?redirect_to=${encodeURIComponent(redirectTo)}`,
   });

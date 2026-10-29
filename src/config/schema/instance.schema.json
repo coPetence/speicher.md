@@ -1135,6 +1135,10 @@
             },
             "owner_is_organization": {
               "type": "boolean"
+            },
+            "public": {
+              "type": "boolean",
+              "description": "Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by Speicher.md."
             }
           }
         }

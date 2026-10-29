@@ -1,0 +1,58 @@
+<%
+  /*
+    Whether the repositories a source reads are ready to be published, as a modal
+    over the list of sources: one row each, saying what its .speicher.yaml files
+    grant, or why it is not published, with a link to create the file on GitHub
+    where there is none.
+  */
+  const check = it.check;
+  const titleId = 'check-' + check.id + '-title';
+  const count = function (state) {
+    return check.repositories.filter(function (repo) { return repo.state === state; }).length;
+  };
+  const ready = count('ready');
+%>
+<details class="spr-modal spr-check-modal" open>
+  <summary aria-label="Close"></summary>
+  <% /* While pending, the deferred-panel island swaps this panel for the one the run address answers with */ %>
+  <div class="spr-modal-panel spr-check-panel" role="dialog" aria-labelledby="<%= titleId %>" data-spr-defer-key="check:<%= check.id %>"<% if (check.pending) { %> data-spr-defer="<%= check.pending.href %>" aria-busy="true"<% } %>>
+    <h2 class="spr-modal-title" id="<%= titleId %>"><%= check.title %></h2>
+    <% if (check.pending) { %>
+    <p class="spr-check-summary spr-pending" data-spr-defer-text>
+      Loading GitHub repositories and <code>.speicher.yaml</code> files… <a href="<%= check.pending.href %>">Check now</a>
+    </p>
+    <% } else if (check.problem) { %>
+    <%~ include('@note', { level: 'warn', html: md(check.problem.text) }) %>
+    <% if (check.problem.href && check.problem.label) { %>
+    <a class="spr-ready-action" href="<%= check.problem.href %>" target="_blank" rel="noopener"><%= check.problem.label %><%~ it.externalIcon || '' %></a>
+    <% } %>
+    <% } else if (check.repositories.length === 0) { %>
+    <p class="spr-check-summary">The App can read no repository yet.</p>
+    <% } else { %>
+    <p class="spr-check-summary">
+      <%= ready %> of <%= check.repositories.length %> <%= check.repositories.length === 1 ? 'repository is' : 'repositories are' %> ready
+    </p>
+    <ul class="spr-check-list">
+      <% check.repositories.forEach(function (repo) { %>
+      <li class="spr-check-row spr-check-<%= repo.state %>" data-spr-repo-state="<%= repo.state %>">
+        <span class="spr-check-mark"><%~ it.checkIcons[repo.state] || '' %></span>
+        <span class="spr-check-text">
+          <a class="spr-check-name" href="<%= repo.href %>" target="_blank" rel="noopener"><%= repo.name %></a>
+          <span class="spr-check-found"><%~ md(repo.text) %></span>
+        </span>
+        <% if (repo.create_href) { %>
+        <a class="spr-ready-action" href="<%= repo.create_href %>" target="_blank" rel="noopener">Create .speicher.yaml<%~ it.externalIcon || '' %></a>
+        <% } %>
+      </li>
+      <% }) %>
+    </ul>
+    <% if (check.more) { %>
+    <p class="spr-check-summary">The App reads more repositories than were checked here.</p>
+    <% } %>
+    <% } %>
+    <div class="spr-ready-foot">
+      <a href="<%= it.checkAgainHref %>">Check again</a>
+      <a class="spr-ready-action spr-ready-next" href="<%= check.primary.href %>" data-spr-ready-primary><%= check.primary.label %><% if (check.primary.onward) { %><%~ it.arrowIcon || '' %><% } %></a>
+    </div>
+  </div>
+</details>

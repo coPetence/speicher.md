@@ -19,6 +19,7 @@ import {
   textField,
 } from '../../config-fields';
 import { scalarString } from '../../document';
+import { signInAudienceText } from '../../../github-sign-in-audience';
 import { memberSectionId } from '../../members';
 import type { Card } from '../../model';
 
@@ -88,6 +89,24 @@ function storedAppLinks(root: Obj, id: string): CardItem | null {
 }
 
 /**
+ * storedAudience returns who can sign in with a GitHub provider's App, as the add modal set it up.
+ * It returns null if the modal did not create the App, or if the client id now names another App.
+ *
+ * @param root the configuration document
+ * @param id the provider's key
+ */
+function storedAudience(root: Obj, id: string): string | null {
+  const base = ['auth', 'providers', id];
+  const app = at(root, [...base, 'app']) as Obj | undefined;
+  if (!app || scalarString(app.client_id) !== scalarString(at(root, [...base, 'client_id']))) {
+    return null;
+  }
+  const audience = signInAudienceText(app);
+  // A sentence on the card
+  return audience === null ? null : `${audience}.`;
+}
+
+/**
  * githubAppCard builds the card holding the client id and secret of a GitHub provider's App.
  *
  * @param root the configuration document
@@ -122,13 +141,14 @@ export function githubAppCard(root: Obj, id: string): Card {
   // Once the provider has an App, the card shows only its client id and secret, and the links to the App
   if (hasProviderApp(root, id)) {
     const links = storedAppLinks(root, id);
+    const audience = storedAudience(root, id);
     return {
       title: 'GitHub App',
       required: true,
       subtitle:
         'You can find these values in the settings of your OAuth App or GitHub App, under Developer settings.',
       removeOp: null,
-      notes: [],
+      notes: audience ? [audience] : [],
       cards: [],
       addOps: [],
       items: links ? [...credentials, links] : credentials,

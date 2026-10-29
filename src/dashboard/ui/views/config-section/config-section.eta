@@ -119,7 +119,7 @@
   <% } else if (pageAdd) { %>
   <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
     <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
-    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
+    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
   </details>
   <% } %>
 </div>
@@ -403,7 +403,7 @@
   <section class="spr-tile spr-tile-add">
     <details class="spr-modal"<%= it.openKind ? ' open' : '' %>>
       <summary aria-label="<%= pageAdd.label %>"><%~ it.add_icon || '+' %></summary>
-      <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks }) %>
+      <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
     </details>
   </section>
   <% } %>
@@ -494,3 +494,14 @@
 
 <% } %>
 
+<% if (it.create_groups) { %>
+<%~ include('@groups-panel', { createGroups: it.create_groups }) %>
+<% } %>
+
+<% if (it.check) { %>
+<%~ include('@check-panel', { check: it.check, checkIcons: it.check_icons, arrowIcon: it.ready_arrow_icon, externalIcon: it.external_icon, checkAgainHref: it.check_again_href }) %>
+<% } %>
+
+<% if (it.ready) { %>
+<%~ include('@ready-panel', { ready: it.ready, checkIcon: it.ready_icon, arrowIcon: it.ready_arrow_icon, externalIcon: it.external_icon }) %>
+<% } %>

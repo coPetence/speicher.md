@@ -49,6 +49,11 @@ function instanceYaml(): string {
     `      client_id: ${CLIENT_ID}`,
     '      client_secret: a-secret',
     `      base_url: ${gh.base}`,
+    '      app:',
+    `        client_id: ${CLIENT_ID}`,
+    '        slug: speicher-hub',
+    '        owner_account: acme',
+    '        owner_is_organization: true',
     'groups:',
     '  engineering:',
     '    - { provider: hub, id: acme/platform }',
@@ -324,6 +329,96 @@ describe('a sign-in that should not complete', () => {
   });
 });
 
+describe('the return of an installation', () => {
+  const INSTALLED = { id: '77', action: 'install' };
+
+  it('signs the person who installed the App in, without the PKCE GitHub never asked for', async () => {
+    const state = await github.startInstall(
+      harness.tenantId,
+      'hub',
+      '/-/config/identity/hub/ready',
+      {
+        namesFirstAdmin: true,
+      },
+    );
+    const done = await github.completeInstall(
+      harness.tenantId,
+      'from-github',
+      state,
+      INSTALLED,
+      REDIRECT_URI,
+    );
+
+    expect(done.kind).toBe('login');
+    if (done.kind !== 'login') return;
+    expect(done.login.identity).toMatchObject({ provider: 'hub', subject: '4711' });
+    expect(done.login.namesFirstAdmin).toBe(true);
+    expect(done.login.redirectTo).toBe(
+      '/-/config/identity/hub/ready?setup_action=install&installation_id=77&first_admin=1',
+    );
+    expect(gh.tokenBody?.has('code_verifier')).toBe(false);
+    expect(gh.seen).toContain('GET /api/v3/user/installations');
+  });
+
+  it('names nobody whose GitHub does not show the installation it said was made', async () => {
+    gh.installations = [{ id: 12, account: { login: 'acme' } }];
+    const state = await github.startInstall(harness.tenantId, 'hub', '/', {
+      namesFirstAdmin: true,
+    });
+    await expect(
+      github.completeInstall(harness.tenantId, 'from-github', state, INSTALLED, REDIRECT_URI),
+    ).rejects.toMatchObject({ code: 'signin.installation-unseen' });
+  });
+
+  it('names nobody for an installation on another account than the App’s', async () => {
+    gh.installations = [{ id: 77, account: { login: 'mallory-org' } }];
+    const state = await github.startInstall(harness.tenantId, 'hub', '/', {
+      namesFirstAdmin: true,
+    });
+    await expect(
+      github.completeInstall(harness.tenantId, 'from-github', state, INSTALLED, REDIRECT_URI),
+    ).rejects.toMatchObject({ code: 'signin.installation-unseen' });
+  });
+
+  it('only leads back when it names no first administrator, and never uses the code', async () => {
+    const state = await github.startInstall(
+      harness.tenantId,
+      'hub',
+      '/-/config/identity/hub/ready',
+    );
+    const done = await github.completeInstall(
+      harness.tenantId,
+      'from-github',
+      state,
+      INSTALLED,
+      REDIRECT_URI,
+    );
+    expect(done).toEqual({
+      kind: 'forward',
+      redirectTo: '/-/config/identity/hub/ready?setup_action=install&installation_id=77',
+    });
+    expect(gh.seen).toEqual([]);
+  });
+
+  it('is used once', async () => {
+    const state = await github.startInstall(harness.tenantId, 'hub', '/');
+    await github.completeInstall(harness.tenantId, undefined, state, INSTALLED, REDIRECT_URI);
+    await expect(
+      github.completeInstall(harness.tenantId, undefined, state, INSTALLED, REDIRECT_URI),
+    ).rejects.toMatchObject({ code: 'signin.unknown-state' });
+  });
+
+  it('cannot complete an ordinary sign-in with its state', async () => {
+    const state = await github.startInstall(harness.tenantId, 'hub', '/', {
+      namesFirstAdmin: true,
+    });
+    await expect(
+      github.completeLogin(harness.tenantId, 'from-github', state, REDIRECT_URI),
+    ).rejects.toThrow();
+    expect(gh.seen).toEqual([]);
+  });
+});
+
 describe('the session lifetime', () => {
   it('defaults to eight hours', () => {
     expect(github.sessionTtlMs('hub')).toBe(8 * 60 * 60_000);
@@ -428,6 +523,8 @@ interface FakeGithub {
   teams: FakeTeam[][];
   tokenError: string | null;
   failEmails: number | null;
+  /** The installations of the App the person signing in can see */
+  installations: { id: number; account: { login: string } }[];
   reset(): void;
   stop(): Promise<void>;
 }
@@ -457,6 +554,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
     teams: defaults.teams,
     tokenError: null,
     failEmails: null,
+    installations: [],
     reset() {
       state.seen = [];
       state.bearers = [];
@@ -466,6 +564,7 @@ async function startFakeGithub(): Promise<FakeGithub> {
       state.teams = defaults.teams.map((page) => [...page]);
       state.tokenError = null;
       state.failEmails = null;
+      state.installations = [{ id: 77, account: { login: 'acme' } }];
     },
     stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
@@ -492,6 +591,10 @@ async function startFakeGithub(): Promise<FakeGithub> {
       if (path === '/api/v3/user/emails') {
         if (state.failEmails) return send(res, state.failEmails, { message: 'no' });
         return send(res, 200, state.emails);
+      }
+
+      if (path === '/api/v3/user/installations') {
+        return send(res, 200, { installations: state.installations });
       }
 
       if (path === '/api/v3/user/teams') {
