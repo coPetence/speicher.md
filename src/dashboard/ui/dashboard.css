@@ -23,9 +23,13 @@
 @import '../../global-ui/components/ready-panel/ready-panel.css';
 @import '../../global-ui/components/check-panel/check-panel.css';
 @import '../../global-ui/components/groups-panel/groups-panel.css';
+@import '../../global-ui/components/config-file-panel/config-file-panel.css';
 @import '../../global-ui/components/copy/copy.css';
 @import '../../global-ui/components/pager/pager.css';
 @import '../../global-ui/components/toast/toast.css';
+@import '../../global-ui/components/setup-guide/setup-guide.css';
+@import './views/setup/setup-repository/setup-repository.css';
+@import './views/setup/setup-overview/setup-overview.css';
 
 @layer speicher.base {
   .spr-pane > .spr-main {

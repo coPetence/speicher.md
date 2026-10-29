@@ -1596,8 +1596,11 @@ describe('the groups section', () => {
     expect(seeded.html).toMatch(/engineering<\/a>[\s\S]*?spr-cell-quiet">seeded</);
 
     await addEntry('groups', 'client-acme');
-    const draft = await open('groups/client-acme');
-    await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
+    await post('groups/client-acme', {
+      ...formBody(await addRow('client-acme', 'entra', 'group')),
+      'groups.client-acme.0.id': 'grp-acme',
+      intent: 'apply',
+    }).expect(303);
 
     const after = await open('groups');
     expect(after.html).toMatch(/client-acme<\/a>[\s\S]*?spr-cell-quiet">ops@copetence\.test</);
@@ -1731,7 +1734,7 @@ describe('the groups section', () => {
     expect(html).toMatch(/name="op"\s+value="add:groups\.engineering\.row"/);
   });
 
-  it('creates a group from its own first save, with nothing mapped to it yet', async () => {
+  it('creates a group from its own first save, and not before it has a member', async () => {
     const href = await addEntry('groups', 'client-acme');
     expect(href).toBe('/-/config/groups/client-acme');
 
@@ -1750,17 +1753,29 @@ describe('the groups section', () => {
     expect(draft.html).toMatch(/data-spr-shown-with-rows="groups\.client-acme" hidden/);
     expect(await versionCount()).toBe(1);
 
-    await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
+    // Saved empty, it would grant nobody anything
+    const refused = await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(
+      400,
+    );
+    expect(refused.text).toContain('A group needs at least one member.');
+    // Only the refusal, not what saving would have done
+    expect(refused.text).not.toContain('class="spr-verdict"');
+    expect(await versionCount()).toBe(1);
 
+    await post('groups/client-acme', {
+      ...formBody(await addRow('client-acme', 'entra', 'group')),
+      'groups.client-acme.0.id': 'grp-acme',
+      intent: 'apply',
+    }).expect(303);
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    expect(loadInstanceConfig(yaml).raw.groups!['client-acme']).toEqual([]);
+    expect(loadInstanceConfig(yaml).raw.groups!['client-acme']).toEqual([
+      { provider: 'entra', id: 'grp-acme' },
+    ]);
     expect(yaml).toContain('grp-eng');
   });
 
   it('takes the first row from the group’s own page, once there is one to name', async () => {
     await addEntry('groups', 'client-acme');
-    const draft = await open('groups/client-acme');
-    await post('groups/client-acme', { ...draft.body, intent: 'apply' }).expect(303);
 
     await post('groups/client-acme', {
       ...formBody(await addRow('client-acme', 'entra', 'group')),

@@ -36,7 +36,12 @@ interface AppPlacement {
 interface GithubAppSetup {
   section: 'identity' | 'sources';
   // The setup's choice and its answers
-  choice: { name: string; label: string; layout: 'switch' | 'list'; placements: AppPlacement[] };
+  choice: {
+    name: string;
+    label: string;
+    layout: 'switch' | 'list' | 'dropdown';
+    placements: AppPlacement[];
+  };
   target: (id: string, placement: AppPlacement) => ManifestTarget;
   // What the App is installed on so the member works, e.g. `the repositories Speicher.md should read`
   installOn: (owner: string) => string;
@@ -269,7 +274,7 @@ export const githubProviderStarter = githubAppStarter({
   choice: {
     name: 'audience',
     label: 'Who should be able to sign in',
-    layout: 'list',
+    layout: 'dropdown',
     placements: SIGN_IN_AUDIENCES,
   },
   // An organization's App is installed, and the person installing it signs in as they do

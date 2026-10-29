@@ -3,20 +3,26 @@ import type { Request, Response } from 'express';
 import { ConfigService } from '../config/config.service';
 import { dashboardStylesheetUrl, islandUrl } from '../content-reader/assets.controller';
 import { ChromeConfig, pageChrome } from '../content-reader/chrome';
-import { renderSprite } from '../content-reader/icons';
-import { sendHtml } from '../content-reader/views';
-import { dashboardNav } from './ui/views/nav-tree/nav-tree';
-import { renderSetupProgress } from './ui/views/setup/setup-progress/setup-progress';
+import { renderInlineIcon, renderSprite } from '../content-reader/icons';
+import { renderComponent, sendHtml } from '../content-reader/views';
+import { sendNotFound } from '../global-ui/global-views/not-found/not-found';
 import { renderPage } from '../global-ui/global-views/page-layout/page-layout';
 import { NOTE_ICON_NAMES } from '../global-ui/note';
-import { sendNotFound } from '../global-ui/global-views/not-found/not-found';
-import { SetupStep, setupSteps } from './setup/steps';
 import {
   DASHBOARD_FOLDS_COOKIE,
   DashboardNavOptions,
   DashboardSection,
   openDashboardFolds,
 } from './dashboard-sections';
+import {
+  SETUP_LATER_COOKIE,
+  SETUP_LATER_PATH,
+  SetupStep,
+  setupGuide,
+  setupSteps,
+} from './setup/steps';
+import { dashboardNav } from './ui/views/nav-tree/nav-tree';
+import { renderSetupProgress } from './ui/views/setup/setup-progress/setup-progress';
 
 /**
  * Shared way to answer admin requests
@@ -48,14 +54,22 @@ export interface DashboardAnswer<T> {
 
   listsSetupSteps?: boolean; // Page shows the steps, so skip the progress bar
 
+  leadsSetup?: boolean;
+
   island?: string; // Interactive component to mount on the page
 
   searchQuery?: string; // Text shown in the sidebar search box
 }
 
-export function dashboardNavOptions(config: ConfigService): DashboardNavOptions {
+export function guidedThroughSetup(req: Request): boolean {
+  const caller = req.caller;
+  if (caller?.inSetup !== true) return false;
+  return caller.viaSetup === true || req.cookies?.[SETUP_LATER_COOKIE] !== '1';
+}
+
+export function dashboardNavOptions(config: ConfigService, guided: boolean): DashboardNavOptions {
   return {
-    showSetup: !config.hasAdministrator,
+    showSetup: guided,
     hasContent: config.hasContentSource, // Content sections need a source
 
     // Mail becomes reachable once it is configured or a magic-link provider needs it
@@ -78,6 +92,8 @@ export class DashboardResponder {
       res.status(status).json(answer.payload);
       return;
     }
+    const guided = guidedThroughSetup(req);
+    const steps = guided ? setupSteps(this.config, req.path, req.caller?.readsPage === true) : null;
     sendHtml(
       res,
       (nonce) =>
@@ -85,13 +101,10 @@ export class DashboardResponder {
           section: answer.section,
           subsection: answer.subsection,
 
-          ...dashboardNavOptions(this.config),
+          ...dashboardNavOptions(this.config, guided),
 
-          progress:
-            req.caller?.viaSetup === true && answer.listsSetupSteps !== true
-              ? // The setup wizard's own pages list the steps, so they opt out
-                setupSteps(this.config, req.path)
-              : undefined,
+          progress: steps && answer.listsSetupSteps !== true ? steps : undefined,
+          guide: guideBar(req, steps, answer.leadsSetup === true),
           title: answer.title,
           searchQuery: answer.searchQuery,
           body: answer.page(answer.payload),
@@ -121,6 +134,29 @@ export function wantsJson(req: Request): boolean {
   return req.accepts(['html', 'json']) === 'json';
 }
 
+/**
+ * guideBar returns the setup's bar at the foot of the page, or an empty string outside the setup.
+ *
+ * @param req the request
+ * @param steps the steps of the setup while it is guided, or null when it is not
+ * @param leads whether the page has its own button on through the setup
+ */
+function guideBar(req: Request, steps: SetupStep[] | null, leads: boolean): string {
+  const arrowIcon = renderInlineIcon('arrow-right', 'spr-icon');
+  if (!steps) {
+    return req.caller?.inSetup === true
+      ? renderComponent('@setup-guide', { deferred: true, arrowIcon })
+      : '';
+  }
+  if (leads) return '';
+  return renderComponent('@setup-guide', {
+    deferred: false,
+    guide: setupGuide(steps),
+    laterHref: req.caller?.viaSetup === true ? null : SETUP_LATER_PATH,
+    arrowIcon,
+  });
+}
+
 /** The admin page shell: nav column, optional setup rail, then the page body */
 export function renderDashboardPage(
   req: Request,
@@ -142,6 +178,8 @@ export function renderDashboardPage(
 
     progress?: SetupStep[]; // First-run step rail, drawn in the header beside the brand
 
+    guide?: string; // The setup's bar at the foot of the pane
+
     searchQuery?: string; // Prefills the nav search box
   },
 ): string {
@@ -162,6 +200,8 @@ export function renderDashboardPage(
     nav: nav.html,
 
     progressBar: progress.html,
+
+    guideBar: page.guide ?? '',
 
     // One sprite carries what nav and rail actually drew, and every note icon: an
     // island can turn any note to any level after the page has loaded

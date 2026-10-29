@@ -272,7 +272,7 @@
 <% if (it.table_empty_art) { %>
 <div class="spr-empty-state" data-spr-rows-empty="<%= collection %>"<%= table.entries.length > 0 ? ' hidden' : '' %>>
   <%~ it.table_empty_art %>
-  <p class="spr-empty"><%= table.emptyNote %></p>
+  <p class="spr-empty"><%~ md(table.emptyNote) %></p>
   <% if (table.entries.length === 0) { %><%~ addRow %><% } %>
 </div>
 <% } else { %>
@@ -496,6 +496,10 @@
 
 <% if (it.create_groups) { %>
 <%~ include('@groups-panel', { createGroups: it.create_groups }) %>
+<% } %>
+
+<% if (it.config_file) { %>
+<%~ include('@config-file-panel', { configFile: it.config_file, externalIcon: it.external_icon }) %>
 <% } %>
 
 <% if (it.check) { %>

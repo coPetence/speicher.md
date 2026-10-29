@@ -18,7 +18,7 @@ import { setup } from '../../src/dashboard/setup/setup.service';
 import { GithubAppManifestService } from '../../src/dashboard/configurator/config-page/github-app-manifest';
 import { ConfigWatcher } from '../../src/config/watcher';
 import { saveInstanceConfig } from '../../src/config/loader';
-import { STEP_PROSE, SetupStepId } from '../../src/dashboard/setup/steps';
+import { subjectPrincipal } from '../../src/common/principals';
 import { unclaimedInstanceConfig } from '../../src/dashboard/setup/unclaimed';
 import { loadDocument } from '../../src/dashboard/configurator/config-form/document';
 import { LoginFlow } from '../../src/db/models';
@@ -108,9 +108,26 @@ async function reset(): Promise<void> {
   await db.query(`DELETE FROM login_flows`, { type: QueryTypes.DELETE });
   await db.query(`DELETE FROM magic_link_tokens`, { type: QueryTypes.DELETE });
   await db.query(`DELETE FROM rate_limits`, { type: QueryTypes.DELETE });
-  await db.query(`UPDATE tenants SET first_admin_login_at = NULL, setup_reopen_count = 0`, {
-    type: QueryTypes.UPDATE,
-  });
+  await db.query(
+    `UPDATE tenants SET first_admin_login_at = NULL, setup_completed_at = NULL, setup_reopen_count = 0`,
+    { type: QueryTypes.UPDATE },
+  );
+  // A fresh instance: nobody can read a page yet
+  await db.query(`UPDATE documents SET effective_principals = '{}'`, { type: QueryTypes.UPDATE });
+}
+
+/** Lets the first administrator, named by the fake IdP's login, read the handbook */
+async function grantHandbook(): Promise<void> {
+  await getSequelize().query(
+    `UPDATE documents SET effective_principals = ARRAY[:principal] WHERE repo_id = :repoId`,
+    {
+      type: QueryTypes.UPDATE,
+      replacements: {
+        principal: subjectPrincipal('wizard', 'subject-from-the-idp'),
+        repoId: harness.repos.handbook,
+      },
+    },
+  );
 }
 
 function browser() {
@@ -203,35 +220,35 @@ async function prove(agent: Agent): Promise<request.Response> {
   return agent.get(`/api/auth/callback?code=${flow?.nonce}&state=${flow?.state}`);
 }
 
-/*
-  A step's card, found by the handle the page puts on it rather than by its copy:
-  the wording is `STEP_PROSE`'s to change, and a spec that looked for a sentence
-  reported a missing card the day one was reworded (five of these did).
-*/
-const card = (id: SetupStepId) => `data-spr-step="${id}"`;
-
 /** The page's CSP form-action directive */
 const formAction = (page: request.Response) =>
   String(page.headers['content-security-policy'])
     .split('; ')
     .find((directive) => directive.startsWith('form-action'));
 
-/** Where each card is on the page, so the order can be asserted without prose */
-const cardOrder = (html: string, ids: SetupStepId[]) => ids.map((id) => html.indexOf(card(id)));
+/** Where the guide bar leads from the overview, and what its button says */
+const start = (html: string) =>
+  /href="([^"]+)" data-spr-guide-next>(Start|Continue setup)</.exec(html)?.slice(1, 3) ?? [];
+
+/** Where the guide bar's button leads, or null when the bar shows none */
+const next = (html: string) => /href="([^"]+)" data-spr-guide-next>/.exec(html)?.[1] ?? null;
+
+/** A cell of a repository's row on the repository step */
+const cell = (html: string, repository: string, name: 'file' | 'sync' | 'readable') => {
+  const row =
+    new RegExp(`<tr [^>]*data-spr-repo-row="${repository}"[\\s\\S]*?</tr>`).exec(html)?.[0] ?? '';
+  return new RegExp(`data-spr-cell="${name}">([\\s\\S]*?)</td>`).exec(row)?.[1] ?? '';
+};
+
+/** Whether the guide bar's button completes the setup */
+const completes = (html: string) => html.includes('action="/-/setup/complete" data-spr-guide-next');
 
 describe('the first run', () => {
   it('goes from a claim to a proved administrator, typing no identity claim', async () => {
     const agent = await claim();
 
     const before = await agent.get('/-/setup').expect(200);
-    /*
-      The provider card and its heading. Not its `action` label: while the step is
-      undone the card draws the kind tiles instead of the link, which is the whole
-      point of the card -- so the heading is the part that is always there.
-    */
-    expect(before.text).toContain(card('provider'));
-    expect(before.text).toContain(STEP_PROSE.provider.heading);
-    expect(before.text).toContain('spr-setup-kinds');
+    expect(start(before.text)).toEqual(['/-/config/identity', 'Start']);
     expect(await setup.showsClaimPage(harness.tenantId, state())).toBe(true);
 
     await addProvider(agent);
@@ -241,8 +258,7 @@ describe('the first run', () => {
     expect(v1?.applied_by).toBeNull();
 
     const middle = await agent.get('/-/setup').expect(200);
-    expect(middle.text).toContain(card('administrator'));
-    expect(middle.text).toContain(STEP_PROSE.administrator.heading);
+    expect(start(middle.text)).toEqual(['/-/setup/administrator', 'Continue setup']);
 
     const done = await prove(agent);
     expect(done.status).toBe(302);
@@ -264,21 +280,23 @@ describe('the first run', () => {
     expect(await setup.showsClaimPage(harness.tenantId, state())).toBe(false);
 
     await agent.get('/-/status').expect(200);
-    const finished = await agent.get('/-/setup').expect(200);
-    expect(finished.text).toContain('can no longer be claimed');
+    // The setup goes on with the groups, now as the administrator
+    const onward = await agent.get('/-/setup').expect(200);
+    expect(start(onward.text)).toEqual(['/-/config/groups', 'Continue setup']);
   });
 
-  it('offers the kinds as cards, each landing on the add modal or the form for that kind', async () => {
+  it('welcomes to the setup, and opens the add modal or the form for a kind', async () => {
     const agent = await claim();
 
     const page = await agent.get('/-/setup').expect(200);
     expect(page.text).not.toContain('spr-account');
     expect(page.text).not.toContain('spr-search');
     expect(page.text).not.toContain('spr-signin');
-
-    expect(page.text).toContain('Microsoft Entra ID');
-    expect(page.text).toContain('href="/-/config/identity?kind=entra"');
-    expect(page.text).toContain('Magic link (email)');
+    expect(page.text).toContain('class="spr-welcome"');
+    // No kind tiles and no step cards: the guide bar is the way in
+    expect(page.text).not.toContain('spr-setup-kinds');
+    expect(page.text).not.toContain('data-spr-step=');
+    expect(page.text).toContain('class="spr-guide"');
 
     // A kind set up from the add modal opens it; any other lands on its form
     const github = await agent.get('/-/config/identity?kind=github').expect(200);
@@ -290,30 +308,23 @@ describe('the first run', () => {
     expect(nonsense.text).not.toMatch(/<details class="spr-modal" open>/);
   });
 
-  it('moves the cards to the next step once the provider is there', async () => {
-    const agent = await claim();
-    await addProvider(agent);
-    const page = await agent.get('/-/setup').expect(200);
-
-    expect(page.text).not.toContain('href="/-/config/identity?kind=entra"');
-    // Done, so the card offers the review label rather than the add one.
-    expect(page.text).toContain(STEP_PROSE.provider.reviewAction);
-    expect(page.text).not.toContain(STEP_PROSE.provider.action);
-
-    expect(page.text).toContain('href="/-/config/sources?kind=git"');
-    expect(page.text).toContain('Plain git remote');
-  });
-
   it('lands a source kind on its form too, which is a table and not tiles', async () => {
     const agent = await claim();
     const sources = await agent.get('/-/config/sources?kind=git').expect(303);
     expect(sources.headers.location).toBe('/-/config/sources/git?kind=git');
   });
 
-  it('puts the login last, because completing it ends the flow', async () => {
+  it('walks the steps in order, the login before the groups it needs', async () => {
     const agent = await claim();
-    const page = await agent.get('/-/setup').expect(200);
-    const order = cardOrder(page.text, ['provider', 'content', 'administrator']);
+    const page = await agent.get('/-/config').expect(200);
+    const rail = page.text.slice(page.text.indexOf('class="spr-progress"'));
+    const order = [
+      '/-/config/identity',
+      '/-/setup/administrator',
+      '/-/config/groups',
+      '/-/config/sources',
+      '/-/repositories',
+    ].map((href) => rail.indexOf(`href="${href}"`));
     expect(order.every((at) => at > -1)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
 
@@ -321,14 +332,15 @@ describe('the first run', () => {
     await agent.get('/-/config/sources').expect(200);
   });
 
-  it('sends the magic-link card to the relay first, as a step ahead of the provider', async () => {
+  it('puts the relay ahead of the provider that needs it, and leads on to that provider', async () => {
     const agent = await claim();
 
-    const fresh = await agent.get('/-/setup').expect(200);
-    expect(fresh.text).not.toContain(card('mail'));
-    expect(fresh.text).toContain('href="/-/config/mail"');
-    expect(fresh.text).not.toContain('href="/-/config/identity?kind=magic-link"');
-    expect(fresh.text).toContain('href="/-/config/identity?kind=entra"');
+    const fresh = await agent.get('/-/config').expect(200);
+    const rail = fresh.text.slice(
+      fresh.text.indexOf('class="spr-progress"'),
+      fresh.text.indexOf('</nav>', fresh.text.indexOf('class="spr-progress"')),
+    );
+    expect(rail).not.toContain('href="/-/config/mail"');
 
     const relay = await agent.get('/-/config/mail').expect(200);
     expect(relay.text).toMatch(/aria-current="step"[\s\S]*?Mail transport/);
@@ -336,17 +348,12 @@ describe('the first run', () => {
     expect(relay.text.indexOf('/-/config/mail')).toBeLessThan(
       relay.text.indexOf('/-/config/identity'),
     );
+    expect(next(relay.text)).toBeNull();
 
     const stored = await addMailTransport(agent);
-    expect(stored.headers.location).toBe('/-/config/identity?kind=magic-link');
-
-    const settled = await agent.get('/-/setup').expect(200);
-    expect(settled.text).toContain(card('mail'));
-    expect(settled.text).toContain(STEP_PROSE.mail.reviewAction);
-    expect(settled.text).toContain('href="/-/config/identity?kind=magic-link"');
-    const order = cardOrder(settled.text, ['mail', 'provider', 'content', 'administrator']);
-    expect(order.every((at) => at > -1)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(stored.headers.location).toMatch(/^\/-\/config\/mail\?saved=\d+$/);
+    const settled = await agent.get(stored.headers.location).expect(200);
+    expect(next(settled.text)).toBe('/-/config/identity?kind=magic-link');
 
     await addMagicLink(agent);
     const after = await agent.get('/-/config').expect(200);
@@ -368,11 +375,14 @@ describe('the first run', () => {
     expect(refused.text).toContain('/-/config/mail');
   });
 
-  it('hands a finished step over to the next, so nobody has to go looking for it', async () => {
+  it('stays on a saved step, and offers Next once it is done', async () => {
     const agent = await claim();
 
     await agent.get('/-/config/identity?add=wizard&kind=oidc').expect(303);
     const draft = await agent.get('/-/config/identity/wizard?kind=oidc').expect(200);
+    // Not done yet, so the bar has no Next
+    expect(next(draft.text)).toBeNull();
+    expect(draft.text).toContain('Step 1 of 5: <strong>Identity provider</strong>');
     const first = await agent
       .post('/-/config/identity/wizard?kind=oidc')
       .send({
@@ -382,7 +392,9 @@ describe('the first run', () => {
         intent: 'apply',
       })
       .expect(303);
-    expect(first.headers.location).toBe('/-/config/sources');
+    expect(first.headers.location).toMatch(/^\/-\/config\/identity\/wizard\?saved=\d+$/);
+    const saved = await agent.get(first.headers.location).expect(200);
+    expect(next(saved.text)).toBe('/-/setup/administrator');
     // The first provider is the default, on screen while it is made and in what is stored
     expect(draft.text).toMatch(/name="auth\.default_provider"[^>]*checked/);
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toContain(
@@ -401,7 +413,7 @@ describe('the first run', () => {
     expect(edited.headers.location).toMatch(/^\/-\/config\/identity\/wizard\?saved=\d+$/);
 
     const source = await addSource(agent);
-    expect(source.headers.location).toBe('/-/setup/administrator');
+    expect(source.headers.location).toMatch(/^\/-\/config\/sources\/docs\?saved=\d+$/);
     // The first source is the primary, written down, so a second one cannot move its URLs
     const stored = loadDocument((await getNewestConfigVersion(harness.tenantId))?.yaml ?? '');
     expect(stored.getIn(['forges', 'docs', 'primary'])).toBe(true);
@@ -428,29 +440,13 @@ describe('the first run', () => {
     expect(saved.headers.location).toMatch(/^\/-\/config\/identity\/wizard\?saved=\d+$/);
   });
 
-  it('offers every unfinished step its choices, not only the first', async () => {
-    const agent = await claim();
-    const page = await agent.get('/-/setup').expect(200);
-    expect(page.text).toContain('/-/config/identity?kind=entra');
-    expect(page.text).toContain('/-/config/sources?kind=git');
-  });
-
   it('gives the login a page of its own, which the overview links to', async () => {
     const agent = await claim();
     await addProvider(agent);
 
     const overview = await agent.get('/-/setup').expect(200);
-    expect(overview.text).toContain('href="/-/setup/administrator"');
+    expect(start(overview.text)[0]).toBe('/-/setup/administrator');
     expect(overview.text).not.toContain('action="/-/setup/prove"');
-
-    // A finished step carries a check, and only a finished one
-    const step = (id: string) =>
-      /<li data-spr-step="[^"]*"[\s\S]*?<\/li>/g.exec(
-        overview.text.slice(overview.text.indexOf(`data-spr-step="${id}"`) - 20),
-      )?.[0] ?? '';
-    expect(step('provider')).toContain('class="spr-step-check"');
-    expect(step('provider')).toContain('<span class="spr-clipped">done</span>');
-    expect(step('content')).not.toContain('spr-step-check');
 
     const page = await agent.get('/-/setup/administrator').expect(200);
     expect(page.text).toContain('action="/-/setup/prove"');
@@ -526,7 +522,8 @@ describe('the first run', () => {
     expect(config.text).toContain('href="/-/config/identity"');
     expect(config.text).toContain('href="/-/config/sources"');
 
-    expect((await agent.get('/-/setup').expect(200)).text).not.toContain('spr-progress');
+    // The overview shows the steps too, with nothing marked as the page
+    expect((await agent.get('/-/setup').expect(200)).text).toContain('spr-progress');
 
     expect(config.text).not.toContain('/-/graph');
 
@@ -540,15 +537,71 @@ describe('the first run', () => {
     expect(identity.text).toMatch(/href="\/-\/config\/identity" aria-current="page"/);
   });
 
-  it('drops the bar once the flow is over', async () => {
+  it('keeps guiding the first administrator, until they complete the setup', async () => {
     const agent = await claim();
     await addProvider(agent);
     await prove(agent);
 
-    const config = await agent.get('/-/config').expect(200);
-    expect(config.text).not.toContain('spr-progress');
-    expect(config.text).not.toContain('/-/setup"');
+    // Signed in as the administrator, no longer a claim session, and still guided
+    const guided = await agent.get('/-/config').expect(200);
+    expect(guided.text).toContain('spr-progress');
+    expect(guided.text).toContain('class="spr-guide"');
+    expect(next(guided.text)).toBe('/-/config/groups');
+    expect(guided.text).toContain('href="/-/setup/later"');
+    expect((await agent.get('/-/config/identity').expect(200)).text).not.toContain('spr-crumbs');
+
+    // Not before it is complete: refused while no page is readable
+    const early = await agent.post('/-/setup/complete').expect(303);
+    expect(early.headers.location).toBe('/-/repositories');
+    expect(next((await agent.get('/-/config').expect(200)).text)).toBe('/-/config/groups');
+
+    // Readable now, which offers to complete the setup, and only that ends it
+    await grantHandbook();
+    const readable = await agent.get('/-/config').expect(200);
+    expect(readable.text).toContain('class="spr-guide"');
+    expect(completes(readable.text)).toBe(true);
+
+    const completed = await agent.post('/-/setup/complete').expect(303);
+    expect(completed.headers.location).toBe('/');
+    const over = await agent.get('/-/config').expect(200);
+    expect(over.text).not.toContain('spr-progress');
+    expect(over.text).not.toContain('class="spr-guide"');
+    expect(over.text).not.toContain('/-/setup"');
     expect((await agent.get('/-/config/identity').expect(200)).text).toContain('spr-crumbs');
+    expect((await agent.get('/-/setup').expect(200)).text).toContain(
+      'The setup of this instance is complete.',
+    );
+
+    // Done for good: a page that is no longer readable does not reopen it
+    await getSequelize().query(`UPDATE documents SET effective_principals = '{}'`, {
+      type: QueryTypes.UPDATE,
+    });
+    expect((await agent.get('/-/config').expect(200)).text).not.toContain('class="spr-guide"');
+  });
+
+  it('can be left for later by the administrator, and taken up again from the overview', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const left = await agent.get('/-/setup/later').expect(303);
+    expect(left.headers.location).toBe('/-/config');
+    const later = await agent.get('/-/config').expect(200);
+    expect(later.text).not.toContain('spr-progress');
+    expect(later.text).toContain('The setup of this instance is not finished yet.');
+    expect(next(later.text)).toBe('/-/setup');
+
+    await agent.get('/-/setup').expect(200);
+    const resumed = await agent.get('/-/config').expect(200);
+    expect(resumed.text).toContain('spr-progress');
+    expect(next(resumed.text)).toBe('/-/config/groups');
+  });
+
+  it('cannot be left for later by a claim session, which has no administrator to leave it to', async () => {
+    const agent = await claim();
+    const page = await agent.get('/-/config').expect(200);
+    expect(page.text).not.toContain('/-/setup/later');
+    await agent.get('/-/setup/later').expect(404);
   });
 
   it('resumes after the tab is closed, through a fresh claim', async () => {
@@ -557,14 +610,190 @@ describe('the first run', () => {
 
     const second = await claim();
     const page = await second.get('/-/setup').expect(200);
-
-    // The provider card is done and the administrator card is still to do.
-    expect(page.text).toContain(STEP_PROSE.provider.reviewAction);
-    expect(page.text).toContain(card('administrator'));
-    expect(page.text).toContain(STEP_PROSE.administrator.heading);
+    expect(start(page.text)).toEqual(['/-/setup/administrator', 'Continue setup']);
 
     await prove(second);
     expect(await setup.claimWindowOpen(harness.tenantId)).toBe(false);
+  });
+});
+
+describe('a group made during the setup', () => {
+  async function draftGroup(agent: Agent): Promise<request.Response> {
+    await agent.get('/-/config/groups?add=eng').expect(303);
+    return agent.get('/-/config/groups/eng').expect(200);
+  }
+
+  it('says why it offers no members before there is a provider to take them from', async () => {
+    const draft = await draftGroup(await claim());
+    expect(draft.text).not.toContain('<span>Add members</span>');
+    expect(draft.text).toContain(
+      'To add members, first add an <a href="/-/config/identity">identity provider</a>.',
+    );
+  });
+
+  it('offers to add members once there is a provider', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    const draft = await draftGroup(agent);
+    expect(draft.text).toContain('<span>Add members</span>');
+    expect(draft.text).not.toContain('first add an');
+  });
+
+  it('is not saved without a member', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    const draft = await draftGroup(agent);
+    const refused = await agent
+      .post('/-/config/groups/eng')
+      .send({ ...formBody(draft.text), intent: 'apply' })
+      .expect(400);
+    expect(refused.text).toContain('A group needs at least one member.');
+    const stored = loadDocument((await getNewestConfigVersion(harness.tenantId))!.yaml);
+    expect(stored.hasIn(['groups', 'eng'])).toBe(false);
+  });
+
+  it('finishes the groups step once a group has a member, not when one only exists', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+    const withGroup = async (members: unknown[]) => {
+      const doc = loadDocument((await getNewestConfigVersion(harness.tenantId))!.yaml);
+      doc.setIn(['groups', 'eng'], doc.createNode(members));
+      await saveInstanceConfig(harness.tenantId, doc.toString(), { origin: 'setup' });
+      await app.get(ConfigWatcher).refresh();
+      return agent.get('/-/config/groups').expect(200);
+    };
+
+    expect(next((await withGroup([])).text)).toBeNull();
+    expect(next((await withGroup([{ provider: 'wizard', email: 'ada@idp.test' }])).text)).toBe(
+      '/-/config/sources?kind=github',
+    );
+  });
+});
+
+describe('the repository step', () => {
+  it('says what is left until the administrator can read a repository, and keeps showing it', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const page = await agent.get('/-/repositories').expect(200);
+    // With the provider the administrator signed in with
+    expect(page.text).toContain('You are signed in as someone@idp.test with wizard');
+    expect(page.text).toContain('href="/-/config/groups"');
+    // A row per synced repository, as the sync status has it, and readable by nobody yet
+    expect(cell(page.text, 'copetence/handbook', 'sync')).toContain('>ok<');
+    expect(cell(page.text, 'copetence/handbook', 'file')).toContain('>present<');
+    expect(cell(page.text, 'copetence/handbook', 'readable')).toContain('–');
+    expect(page.text).toContain('href="/-/status/copetence/handbook"');
+    // Refreshed by itself until it is readable
+    expect(page.text).toContain('data-spr-repository-step');
+    expect(page.text).toContain('data-spr-setup-status="no-group"');
+    expect(next(page.text)).toBeNull();
+    expect(completes(page.text)).toBe(false);
+
+    await grantHandbook();
+    const readable = await agent.get('/-/repositories').expect(200);
+    // The table stays, the handbook readable now, and the bar completes the setup
+    expect(cell(readable.text, 'copetence/handbook', 'readable')).toContain('>yes<');
+    expect(cell(readable.text, 'copetence/fieldkit', 'readable')).toContain('–');
+    // No note: the bar offers to complete the setup, and the refresh stops
+    expect(readable.text).toMatch(/data-spr-setup-status="" data-spr-readable>\s*<\/div>/);
+    expect(completes(readable.text)).toBe(true);
+    const [row] = await getSequelize().query<{ completed: boolean }>(
+      `SELECT setup_completed_at IS NOT NULL AS completed FROM tenants WHERE id = :id`,
+      { type: QueryTypes.SELECT, replacements: { id: harness.tenantId } },
+    );
+    expect(row.completed).toBe(false);
+
+    await agent.post('/-/setup/complete').expect(303);
+    const finished = await agent.get('/-/repositories').expect(200);
+    // A page of the configuration now, which says nothing about the setup
+    expect(finished.text).not.toContain('The setup of this instance is complete.');
+    expect(finished.text).not.toContain('spr-section-status');
+    expect(cell(finished.text, 'copetence/handbook', 'readable')).toContain('>yes<');
+    expect(finished.text).not.toContain('class="spr-guide"');
+  });
+
+  it('shows a repository that is queued for a sync, and one that is being synced', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const db = getSequelize();
+    await db.query(
+      `INSERT INTO jobs (tenant_id, kind, payload, status, run_after, locked_until)
+       VALUES (:tenantId, 'sync-repo-content', CAST(:queued AS jsonb), 'pending', now(), NULL),
+              (:tenantId, 'sync-repo-content', CAST(:running AS jsonb), 'running', now(), now() + interval '1 minute')`,
+      {
+        type: QueryTypes.INSERT,
+        replacements: {
+          tenantId: harness.tenantId,
+          queued: JSON.stringify({ repoId: harness.repos.handbook }),
+          running: JSON.stringify({ repoId: harness.repos.specs }),
+        },
+      },
+    );
+    try {
+      const page = await agent.get('/-/repositories').expect(200);
+      // As the sync status page shows it
+      expect(cell(page.text, 'copetence/handbook', 'sync')).toContain('queued</span>');
+      expect(cell(page.text, 'northwind-engineering/specs', 'sync')).toContain('syncing</span>');
+      expect(cell(page.text, 'copetence/fieldkit', 'sync')).not.toContain('spr-activity');
+      // Busy, so the page asks again sooner
+      expect(page.text).toMatch(/data-spr-repository-step data-spr-busy/);
+    } finally {
+      await db.query(`DELETE FROM jobs`, { type: QueryTypes.DELETE });
+    }
+  });
+
+  it('gives a source without a check the file to commit, granting the groups of the instance', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await addSource(agent);
+    await prove(agent);
+
+    const page = await agent.get('/-/repositories').expect(200);
+    expect(page.text).toContain('<pre><code>version: 1');
+    expect(page.text).toContain('groups: [readers]');
+  });
+
+  it('is not reachable by anybody who did not claim this instance', async () => {
+    await request(app.getHttpServer()).get('/-/repositories').expect(303);
+  });
+
+  it('narrows the table on the server, so the filter box works with no script', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const page = await agent.get('/-/repositories').query({ q: 'Hand' }).expect(200);
+    expect(page.text).toMatch(/<input id="filter-repositories"[^>]*value="Hand"/);
+    expect(page.text).toContain('data-spr-repo-row="copetence/handbook"');
+    expect(page.text).not.toContain('data-spr-repo-row="copetence/fieldkit"');
+
+    const none = await agent.get('/-/repositories').query({ q: 'nothing-matches' }).expect(200);
+    expect(none.text).not.toContain('data-spr-repo-row=');
+    expect(none.text).toMatch(/data-spr-empty="filtered">\s*No repository matches/);
+  });
+
+  it('is a page of the configuration once the setup is complete', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+    await grantHandbook();
+    await agent.post('/-/setup/complete').expect(303);
+
+    const page = await agent.get('/-/repositories').expect(200);
+    expect(page.text).toContain('<h1 class="spr-titled">');
+    expect(page.text).toMatch(/href="\/-\/repositories" aria-current="page"/);
+    // Under Configuration, after the content sources
+    const nav = page.text.slice(page.text.indexOf('data-spr-fold="config"'));
+    expect(nav.indexOf('href="/-/config/sources"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('href="/-/repositories"')).toBeGreaterThan(
+      nav.indexOf('href="/-/config/sources"'),
+    );
+    expect(page.text).not.toContain('class="spr-guide"');
   });
 });
 
@@ -666,14 +895,8 @@ describe('the first administrator named by setting up a GitHub provider', () => 
 
     const page = await agent.get(back.headers.location).expect(200);
     expect(page.text).toContain('You are signed in as the first administrator');
-    // The setup goes on with its next step, a content source
-    // The setup goes on with its next step: the add modal of a content source, on the GitHub quick setup
-    expect(page.text).toMatch(
-      /href="\/-\/config\/sources\?kind=github" data-spr-ready-primary>Continue/,
-    );
-    const sources = await agent.get('/-/config/sources?kind=github').expect(200);
-    expect(sources.text).toMatch(/<details class="spr-modal[^"]*" open>/);
-    expect(sources.text).toContain('name="quick:github:account"');
+    // The setup goes on with its next step, the groups
+    expect(page.text).toMatch(/href="\/-\/config\/groups" data-spr-ready-primary>Continue/);
   });
 
   it('signs the creator of a personal account’s App straight in, as it has nothing to install', async () => {

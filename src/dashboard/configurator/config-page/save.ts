@@ -7,13 +7,10 @@ import { ConfigError, ConfigReadOnlyError } from '../../../common/errors';
 import { rootLogger } from '../../../common/logger';
 import { brandRef } from '../../../config/brand';
 import { internBrandImage } from '../../../config/brand-store';
-import { stampBrandImages } from './brand-stamp';
-import { stampPickListOptions } from './pick-list-stamp';
 import { compareConfigs } from '../../../config/classification';
 import { ConfigService } from '../../../config/config.service';
 import { SaveActor, saveInstanceConfig, validateForSave } from '../../../config/loader';
 import { ConfigWatcher } from '../../../config/watcher';
-import { nextSetupPage, setupStateOf } from '../../setup/steps';
 import { applyForm } from '../config-form/apply';
 import { addTarget, reshaped, shapeControls } from '../config-form/collections';
 import type { KnownHostsField } from '../config-form/config-fields';
@@ -25,10 +22,12 @@ import { allFields } from '../config-form/model';
 import { sectionOf } from '../config-form/sections';
 import { Uploads, fillUploads } from '../config-form/upload';
 import { groupsOf, stampGroupUsage, stampUsage } from '../member-usage';
+import { stampBrandImages } from './brand-stamp';
 import { SectionChecks, stampUnsavedHostKeys } from './checks';
 import { ConfigPageService, carryUnsavedSecrets } from './config-page.service';
 import { stampEntryOrigins } from './origins';
 import { ConfigSectionPayload } from './payloads';
+import { stampPickListOptions } from './pick-list-stamp';
 import { fieldPathOf, stampProblems } from './problem-stamp';
 
 // Save result mapped to an HTTP response
@@ -75,6 +74,17 @@ function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] 
   if (!isSeq(list)) return undefined;
   const at = Math.min(Number(index), list.items.length - 1);
   return { path: at >= 0 ? `${target}.${at}` : target, focus: false };
+}
+
+/**
+ * groupItemCount returns how many members a group lists in a document.
+ *
+ * @param doc the document
+ * @param name the group's name
+ */
+function groupItemCount(doc: Document, name: string): number {
+  const items = doc.getIn(['groups', name]);
+  return isSeq(items) ? items.items.length : 0;
 }
 
 // Show save errors on the page and affected fields using dashboard wording
@@ -332,8 +342,17 @@ export class ConfigSaveService {
 
     if (body.intent !== 'apply') return pageOf(sectionId, payload);
 
-    // Capture setup progress before refresh mutates the config service
-    const beforeSave = by.origin === 'setup' ? setupStateOf(this.config) : null;
+    if (created && member?.section === 'groups' && groupItemCount(doc, member.id) === 0) {
+      return pageOf(
+        sectionId,
+        {
+          ...payload,
+          verdict: null,
+          error: 'A group needs at least one member. Add a member before you save the group.',
+        },
+        400,
+      );
+    }
 
     // Skip saving unchanged YAML
     if (edited === state.storedYaml) {
@@ -363,10 +382,7 @@ export class ConfigSaveService {
       }
 
       // Redirect after saving to prevent reloads from creating duplicate versions
-      // Advance newly completed setup steps without a saved toast on the next page
-      const forward = beforeSave ? nextSetupPage(beforeSave, this.config, sectionId) : null;
-
-      return { kind: 'redirect', href: forward ?? `/-/config/${sectionId}?saved=${saved.version}` };
+      return { kind: 'redirect', href: `/-/config/${sectionId}?saved=${saved.version}` };
     } catch (err) {
       // Show save-time refusals on the form
       if (err instanceof ConfigReadOnlyError || err instanceof ConfigError) {

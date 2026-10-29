@@ -14,6 +14,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { AuthzService } from '../authz/authz.service';
 import { ResolvedCaller } from '../authz/caller';
 import { addLogContext } from '../common/logger';
+import { ConfigService } from '../config/config.service';
 import { TenancyService } from '../db/tenancy';
 import { SetupService } from '../dashboard/setup/setup.service';
 import { mcpResourceIdentifier } from './oauth/metadata';
@@ -35,6 +36,7 @@ export class CallerMiddleware implements NestMiddleware {
     private readonly authz: AuthzService,
     private readonly tenancy: TenancyService,
     private readonly setup: SetupService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Resolve caller and pass errors to Express error handler */
@@ -68,7 +70,7 @@ export class CallerMiddleware implements NestMiddleware {
     }
 
     const session = await this.sessions.read(req);
-    req.caller = this.authz.resolve({
+    const caller = this.authz.resolve({
       tenantId: tenant.id,
       identity: session?.identity ?? null,
       rawGroupIds: session?.rawGroupIds ?? [],
@@ -77,6 +79,18 @@ export class CallerMiddleware implements NestMiddleware {
       // Setup sessions administer only the tenant they were created for
       viaSetup: session?.isSetup === true && (await this.setup.claimWindowOpen(tenant.id)),
     });
+
+    caller.inSetup =
+      caller.viaSetup === true ||
+      (caller.isAdmin &&
+        this.config.configSource === 'database' &&
+        (await this.setup.guideOpen(tenant.id)));
+    // Reading a synced page finishes the last step, so the setup can be completed
+    caller.readsPage =
+      caller.inSetup &&
+      caller.identity !== null &&
+      (await this.setup.readsAnyPage(tenant.id, caller.principals));
+    req.caller = caller;
   }
 }
 

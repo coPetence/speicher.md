@@ -10,9 +10,14 @@
  * when the command has succeeded
  *
  * A link `[data-spr-setup-refresh]` on the page acts as a mount guard
+ *
+ * Also serves the setup's repository step: the nav column, and its table with
+ * the GitHub checks and the refresh
  */
 
 import { mountCopy } from './copy';
+import { mountRepositoryStep } from './setup-repository';
+import { mountNav } from './slide';
 
 const POLL_MS = 2_000; // Between fetches
 
@@ -65,3 +70,5 @@ function mountClaimPoll(): void {
 
 mountClaimPoll();
 mountCopy();
+mountNav();
+mountRepositoryStep();

@@ -34,6 +34,8 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   'page:history':
     'versions, rollback, restore, repair, diff, compare, changes, undo, backup, export, download, yaml, bootstrap',
   'page:environment': 'env, environment variables, process, startup, secrets, variables',
+  'page:repositories':
+    'repos, speicher.yaml, access, readable, publish, groups, permissions, who can read',
   'page:connections':
     'tokens, oauth, revoke, disconnect, connected applications, agents, mcp clients',
 

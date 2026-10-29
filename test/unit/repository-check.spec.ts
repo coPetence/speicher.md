@@ -80,15 +80,18 @@ describe('checking a repository before it is published', () => {
     );
   });
 
-  it('offers a starter file the sync takes, granting a group that exists or one to create', () => {
+  it('offers a starter file the sync takes, granting the groups that exist or one to create', () => {
     expect(
-      checkRepository([{ path: '.speicher.yaml', raw: starterConfig('staff') }], known),
+      checkRepository(
+        [{ path: '.speicher.yaml', raw: starterConfig(['engineering', 'staff']) }],
+        known,
+      ),
     ).toEqual({
       state: 'ready',
-      readers: ['staff'],
+      readers: ['engineering', 'staff'],
     });
     expect(
-      checkRepository([{ path: '.speicher.yaml', raw: starterConfig(null) }], known),
+      checkRepository([{ path: '.speicher.yaml', raw: starterConfig([]) }], known),
     ).toMatchObject({
       state: 'unknown-groups',
       groups: [{ name: 'readers' }],

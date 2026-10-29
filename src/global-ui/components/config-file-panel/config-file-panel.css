@@ -1,0 +1,7 @@
+@layer speicher.base {
+  /* No group picked: the rows to pick from are marked, as a field with a problem is */
+  .spr-groups-list[data-spr-invalid] > .spr-groups-row,
+  .spr-groups-form:has([data-spr-config-file-none]:not([hidden])) .spr-groups-row {
+    border-color: var(--spr-status-fail);
+  }
+}

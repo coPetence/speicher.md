@@ -1,0 +1,174 @@
+<div class="spr-page-head">
+  <h1 class="spr-titled"><%~ it.head_icon %>Repositories</h1>
+</div>
+
+<div class="spr-empty">
+  <p>
+    Speicher.md publishes a repository once a content source of this instance can read it and it has a
+    <code>.speicher.yaml</code> file at its root. The <code>.speicher.yaml</code> file is used to control access to the repository. In it you can name groups whose members
+    may read the repository. To read the repository yourself, the file must name a group you are in. Find out more about the <code>.speicher.yaml</code> file in our <a class="spr-ready-link spr-ready-inline" href="https://docs.speicher.md/speicher-md/repository/speicher-yaml" target="_blank" rel="noopener">documentation<%~ it.external_icon %></a>.
+  </p>
+</div>
+
+<% const inGroup = it.me && it.me.groups.length > 0; %>
+<section class="spr-card spr-card-1" data-spr-setup-region="group">
+  <header>
+    <h4>
+      Add yourself to a group
+      <% if (inGroup) { %>
+      <span class="spr-step-check"><%~ it.readable_icon %><span class="spr-clipped">done</span></span>
+      <% } %>
+    </h4>
+  </header>
+  <%~ include('@note', it.group_note) %>
+  <% if (!it.me) { %>
+  <p><a class="spr-ready-action" href="/-/setup/administrator">Become the administrator</a></p>
+  <% } else if (!inGroup) { %>
+  <p><a class="spr-ready-action" href="/-/config/groups">Open groups</a></p>
+  <% } %>
+</section>
+
+<section class="spr-card spr-card-1" data-spr-repository-step<%= it.busy ? ' data-spr-busy' : '' %>>
+  <header>
+    <h4>Grant the group access</h4>
+    <p class="spr-card-sub">Add a <code>.speicher.yaml</code> file to one of your repositories the content source has access to.</p>
+  </header>
+
+  <% const pending = it.checks.filter(function (check) { return check.pending; }); %>
+  <% it.checks.forEach(function (check) { %>
+  <% /* While pending, the island asks the check address and puts what it found in this place and in the table */ %>
+  <div class="spr-setup-check" data-spr-check="<%= check.id %>"<% if (check.pending) { %> data-spr-check-href="<%= check.pending %>" aria-busy="true"<% } %>>
+    <% if (check.pending) { %>
+    <% } else if (check.problem) { %>
+    <%~ include('@note', { level: 'warn', html: md(check.problem.text) }) %>
+    <% if (check.problem.href && check.problem.label) { %>
+    <a class="spr-ready-action" href="<%= check.problem.href %>" target="_blank" rel="noopener"><%= check.problem.label %><%~ it.external_icon %></a>
+    <% } %>
+    <% } else if (check.empty) { %>
+    <p class="spr-check-summary">The App can read no repository yet.</p>
+    <% } %>
+    <% if (check.missing) { %>
+    <p><a href="/-/config/sources/<%= encodeURIComponent(check.id) %>/groups">Create the missing groups</a></p>
+    <% } %>
+    <% if (check.more) { %>
+    <p class="spr-check-summary">The App can read more repositories than were checked here.</p>
+    <% } %>
+  </div>
+  <% }) %>
+
+  <div data-spr-setup-region="discovering">
+    <% if (it.discovering.length) { %>
+    <%~ include('@note', { level: 'idle', text: 'Speicher is discovering the repositories of ' + it.discovering.join(', ') + '.' }) %>
+    <% } %>
+  </div>
+
+  <% if (it.rows.length || pending.length || it.query) { %>
+  <div class="spr-index-bar">
+    <form class="spr-form spr-filter" method="get" role="search" action="/-/repositories" data-spr-filter>
+      <span class="spr-input-icon">
+        <%~ it.search_icon %>
+        <input id="filter-repositories" type="search" name="q" value="<%= it.query %>"
+               aria-label="Find a repository"
+               placeholder="Repository or source"
+               autocomplete="off" spellcheck="false">
+      </span>
+    </form>
+  </div>
+  <% } %>
+
+  <p class="spr-check-summary" data-spr-empty="none"<%= it.rows.length || pending.length || it.query ? ' hidden' : '' %>>
+    No repository has been synchronized yet. Speicher finds the repositories of a content source on its next check.
+  </p>
+  <p class="spr-check-summary" data-spr-empty="filtered"<%= it.query && !it.rows.length ? '' : ' hidden' %>>
+    No repository matches <code data-spr-needle><%= it.query %></code>. <a href="/-/repositories">Show all</a>
+  </p>
+  <div class="spr-scroll"<%= it.rows.length || (pending.length && !it.query) ? '' : ' hidden' %>>
+    <table class="spr-table" data-spr-repository-table>
+      <thead>
+        <tr>
+          <th scope="col">Repository</th>
+          <th scope="col"><code>.speicher.yaml</code></th>
+          <th scope="col">Readable by</th>
+          <th scope="col">Readable by you</th>
+          <th scope="col">Sync</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% it.rows.forEach(function (row) { %>
+        <tr data-spr-row="<%= row.search %>" data-spr-repo-row="<%= row.key %>" data-spr-source="<%= row.source || '' %>"<% if (row.href) { %> data-spr-checked<% } %>>
+          <th scope="row">
+            <% if (row.status_href) { %>
+            <a href="<%= row.status_href %>"><%= row.name %></a>
+            <% } else if (row.href) { %>
+            <a href="<%= row.href %>" target="_blank" rel="noopener"><%= row.name %></a>
+            <% } else { %>
+            <%= row.name %>
+            <% } %>
+          </th>
+          <td data-spr-cell="file">
+            <span class="spr-setup-file">
+              <%~ include('@badge', { level: row.file.level, label: row.file.label }) %>
+              <% if (row.file.create_href) { %>
+              <a class="spr-setup-file-action" href="<%= row.file.create_href %>" title="Create .speicher.yaml"<% if (row.file.create_action) { %> data-spr-config-file-action="<%= row.file.create_action %>" data-spr-config-file-repository="<%= row.name %>"<% } %>><%~ it.create_icon %>Create</a>
+              <% } else if (row.file.edit_href) { %>
+              <a class="spr-setup-file-action" href="<%= row.file.edit_href %>" target="_blank" rel="noopener" title="Edit .speicher.yaml on GitHub"><%~ it.edit_icon %>Edit<%~ it.external_icon %></a>
+              <% } else if (row.file.copy) { %>
+              <%~ include('@copy', { label: 'Copy .speicher.yaml', text: it.snippet, visible: false, copyIcon: it.copy_icon, copiedIcon: it.copied_icon }) %>
+              <% } %>
+            </span>
+          </td>
+          <td data-spr-cell="access">
+            <% if (row.access) { %><span class="spr-setup-access spr-setup-access-<%= row.access.level %>"><%~ md(row.access.text) %></span><% } else { %>–<% } %>
+          </td>
+          <td data-spr-cell="readable">
+            <% if (row.readable) { %><%~ include('@badge', { level: 'ok', label: 'yes' }) %><% } else { %>–<% } %>
+          </td>
+          <td data-spr-cell="sync">
+            <% const shown = it.state_display[row.sync.state]; %>
+            <%~ include('@badge', { level: shown.level, label: shown.label }) %>
+            <% if (row.sync.activity === 'syncing') { %><span class="spr-activity"><%~ it.syncing_icon %>syncing</span><% } %>
+            <% if (row.sync.activity === 'queued') { %><span class="spr-activity"><%~ it.queued_icon %>queued</span><% } %>
+          </td>
+        </tr>
+        <% }) %>
+        <% pending.forEach(function (check) { %>
+        <% /* Taken away once the check of the source has filled in its rows */ %>
+        <tr class="spr-setup-loading" data-spr-check-loading="<%= check.id %>">
+          <td colspan="5">
+            <span class="spr-activity" data-spr-check-text><%~ it.syncing_icon %>Checking the repositories of <%= check.id %> on GitHub… <a href="<%= check.pending %>">Check now</a></span>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% if (it.snippet) { %>
+  <details class="spr-setup-snippet">
+    <summary>The <code>.speicher.yaml</code> to commit</summary>
+    <pre><code><%= it.snippet %></code></pre>
+  </details>
+  <% } %>
+</section>
+
+<%
+  const status = it.status && {
+    'no-administrator': { level: 'warn', text: 'To add yourself to a group, you need to first log in as the administrator of this instance.' },
+    'no-group': { level: 'warn', text: 'Add yourself to a group, so a repository can grant you access.' },
+    syncing: { level: 'idle', text: 'This list updates by itself.' },
+    'no-repository': { level: 'idle', text: 'No repository has been synchronized yet. Speicher finds the repositories of a content source on its next check.' },
+    'no-access': { level: 'warn', text: 'A repository is synced, but its .speicher.yaml names no group you are in.' },
+    waiting: { level: 'idle', html: md('Add a `.speicher.yaml` file to one of your repositories the content source has access to.') },
+  }[it.status];
+%>
+<% /* No note once the guide bar offers to complete the setup */ %>
+<div data-spr-setup-status="<%= it.status || '' %>"<% if (it.readable) { %> data-spr-readable<% } %>>
+  <% if (status) { %>
+  <%~ include('@note', { level: status.level, text: status.text, html: status.html, className: 'spr-section-status' }) %>
+  <% } %>
+</div>
+
+<% if (it.config_file) { %>
+<%~ include('@config-file-panel', { configFile: it.config_file, externalIcon: it.external_icon }) %>
+<% } else if (it.picker) { %>
+<%~ include('@config-file-panel', { configFile: it.picker, picker: true, externalIcon: it.external_icon }) %>
+<% } %>

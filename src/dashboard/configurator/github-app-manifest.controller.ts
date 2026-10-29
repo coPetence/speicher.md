@@ -236,7 +236,6 @@ export class GithubAppManifestController {
       outcome.payload.notice = target.unsavedNotice(installUrl);
       return sendSection(
         this.respond,
-        this.config,
         req,
         res,
         caller,
@@ -267,6 +266,6 @@ export class GithubAppManifestController {
       payload = draft;
     }
     payload.error = err.message;
-    sendSection(this.respond, this.config, req, res, caller, sectionId, payload, 400);
+    sendSection(this.respond, req, res, caller, sectionId, payload, 400);
   }
 }

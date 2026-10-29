@@ -12,7 +12,6 @@ import type { Request, Response } from 'express';
 
 import { callerOf } from '../../auth/caller.middleware';
 import { ResolvedCaller } from '../../authz/caller';
-import { ConfigService } from '../../config/config.service';
 import { configVersionAt } from '../../config/loader';
 import { DashboardResponder, wantsJson } from '../respond';
 import { sendConfig } from '../ui/views/config-overview/config-overview';
@@ -30,7 +29,6 @@ import { groupsOf, stampGroupUsage, stampUsage } from './member-usage';
 @Controller('-')
 export class ConfigController {
   constructor(
-    private readonly config: ConfigService,
     private readonly page: ConfigPageService,
     private readonly checks: SectionChecks,
     private readonly saves: ConfigSaveService,
@@ -242,6 +240,6 @@ export class ConfigController {
     payload: ConfigSectionPayload,
     status?: number,
   ): void {
-    sendSection(this.respond, this.config, req, res, caller, sectionId, payload, status);
+    sendSection(this.respond, req, res, caller, sectionId, payload, status);
   }
 }

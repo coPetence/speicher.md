@@ -66,6 +66,8 @@ export interface PageChrome {
   /** If the progressBar from the setup should be shown */
   progressBar?: string;
 
+  guideBar?: string;
+
   sprite?: string;
 
   island?: string | null;

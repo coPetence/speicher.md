@@ -2,10 +2,9 @@ import { describeExpiry, isExpired } from '../../../../../common/until';
 import { referrersOf } from '../../../../../config/groups';
 import type { GroupItem } from '../../../../../config/types';
 import { SOURCE_GROUP, SOURCE_PERSON, SOURCE_REFERENCE } from '../../collections';
-import { scalarString } from '../../document';
-import { at, membershipField, selectField, textField } from '../../config-fields';
 import type { Field, Obj } from '../../config-fields';
-import type { SectionEntry, TableAdd } from '../../model';
+import { at, membershipField, selectField, textField } from '../../config-fields';
+import { scalarString } from '../../document';
 import {
   GROUP_NAME,
   GROUP_NAME_HINT,
@@ -18,6 +17,7 @@ import {
   providerMark,
   providerType,
 } from '../../members';
+import type { SectionEntry, TableAdd } from '../../model';
 import type { SectionSource } from '../registry';
 import {
   matchFields,
@@ -34,6 +34,12 @@ export function groupSection(root: Obj, name: string): SectionSource {
   const referrers = referrersOf(at(root, ['groups']) as Record<string, GroupItem[]>, name);
   const others = groupNames(root).filter((other) => other !== name && !referrers.includes(other));
   const referenced = items.filter(isReferenceItem).map((item) => scalarString(item.group));
+  const add = rowAdd(
+    root,
+    name,
+    ids,
+    others.filter((other) => !referenced.includes(other)),
+  );
 
   return {
     id: memberSectionId('groups', name),
@@ -58,13 +64,10 @@ export function groupSection(root: Obj, name: string): SectionSource {
         columns: [],
         bulkRemoveOp: `remove-selected:groups.${name}`,
         entries: items.map((item, index) => rowEntry(root, name, index, item, others)),
-        emptyNote: 'No members yet.',
-        add: rowAdd(
-          root,
-          name,
-          ids,
-          others.filter((other) => !referenced.includes(other)),
-        ),
+        emptyNote: add
+          ? 'No members yet.'
+          : 'No members yet. To add members, first add an [identity provider](/-/config/identity).',
+        add,
       },
     ],
     addOps: [],

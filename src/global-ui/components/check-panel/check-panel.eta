@@ -41,7 +41,7 @@
           <span class="spr-check-found"><%~ md(repo.text) %></span>
         </span>
         <% if (repo.create_href) { %>
-        <a class="spr-ready-action" href="<%= repo.create_href %>" target="_blank" rel="noopener">Create .speicher.yaml<%~ it.externalIcon || '' %></a>
+        <a class="spr-ready-action" href="<%= repo.create_href %>">Create .speicher.yaml</a>
         <% } %>
       </li>
       <% }) %>

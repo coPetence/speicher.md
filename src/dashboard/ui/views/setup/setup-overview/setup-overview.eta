@@ -1,48 +1,18 @@
-
-<h1>Set up this instance</h1>
-
-<% if (it.finished) { %>
-<%~ include('@note', { level: 'ok', html: md('This instance has an administrator and can no longer be claimed. All settings below remain available under [Configuration](/-/config).') }) %>
-<% } else { %>
-<p class="spr-empty">
-  This instance has no administrator yet. To set up an administrator, follow the steps below.
-</p>
-<% } %>
-
-<% if (it.error) { %>
-<%~ include('@note', { level: 'fail', text: it.error, role: 'status' }) %>
-<% } %>
-
-<ol class="spr-steps">
-  <% it.steps.forEach(function (step) { %>
-  <%
-  %>
-  <li data-spr-step="<%= step.id %>" class="spr-step<%= step.done ? ' spr-step-done' : '' %><%= step.current ? ' spr-step-current' : '' %>">
-    <h2>
-      <%= step.heading %>
-      <% if (step.done) { %>
-      <span class="spr-step-check"><%~ it.check_icon %><span class="spr-clipped">done</span></span>
-      <% } %>
-    </h2>
-    <p><%~ md(step.blurb) %></p>
-
-    <%
-      const kinds =
-        step.id === 'provider' ? it.choices : step.id === 'content' ? it.sources : [];
-    %>
-    <% if (kinds.length) { %>
-    <%~ it.marks_sprite || '' %>
-    <div class="spr-tiles spr-setup-kinds">
-      <% kinds.forEach(function (choice) { %>
-      <a class="spr-tile spr-setup-kind" href="<%= choice.providerHref %>">
-        <svg class="spr-icon" aria-hidden="true"><use href="#m-<%= choice.providerMark %>"></use></svg>
-        <span><%= choice.providerLabel %></span>
-      </a>
-      <% }) %>
-    </div>
-    <% } else if (step.href) { %>
-    <p><a href="<%= step.href %>"><%= step.action %></a></p>
-    <% } %>
-  </li>
-  <% }) %>
-</ol>
+<div class="spr-welcome">
+  <span class="spr-welcome-mark"><%~ it.mark_icon %></span>
+  <h1>Welcome to Speicher.md</h1>
+  <p>
+    Speicher.md publishes the Markdown files in your Git repositories as a documentation site. People sign in with
+    the accounts they already have, such as Microsoft Entra ID, Google or GitHub, and each page is shown only to the
+    people its repository grants access to. AI assistants can search and read the same pages, with the same
+    permissions, through the MCP server of Speicher.md.
+  </p>
+  <% if (it.finished) { %>
+  <%~ include('@note', { level: 'ok', html: md('The setup of this instance is complete. All settings remain available under [Configuration](/-/config).') }) %>
+  <% } else { %>
+  <p>
+    This setup guides you through a few steps: you connect a sign-in, become the administrator, create groups and
+    publish your first repository. To begin, click the button at the bottom of the page.
+  </p>
+  <% } %>
+</div>

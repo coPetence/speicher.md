@@ -11,19 +11,16 @@ import { FLOW_TTL_MS, GITHUB_INSTALL_COOKIE, GithubAuthService } from '../../aut
 import { callerOf } from '../../auth/caller.middleware';
 import { ResolvedCaller } from '../../authz/caller';
 import { wordingFor } from '../../common/config-problems';
-import { CodedError, ConfigError, ConfigReadOnlyError } from '../../common/errors';
+import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
 import { env } from '../../common/env';
-import { PUBLIC_GROUP_NAME } from '../../common/principals';
-import { rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { saveInstanceConfig } from '../../config/loader';
 import { GithubProviderConfig, providerType } from '../../config/types';
 import { ConfigWatcher } from '../../config/watcher';
-import { GITHUB_APP_LOOKUP_FETCH, githubAppLinks, lookupGithubApp } from '../../github/app-links';
-import { RepositoryFiles, installationOn, repositoryConfigs } from '../../github/app-installation';
+import { GITHUB_APP_LOOKUP_FETCH, githubAppLinks } from '../../github/app-links';
 import { githubHosts } from '../../github/hosts';
 import { DashboardResponder } from '../respond';
-import { setupSteps } from '../setup/steps';
+import { REPOSITORY_STEP_PATH, setupSteps } from '../setup/steps';
 import { handOffToGithub } from '../ui/views/github-app-manifest/github-app-manifest';
 import type { Obj } from './config-form/config-fields';
 import { submitted, submittedList } from './config-form/decode/body';
@@ -44,26 +41,28 @@ import {
 import { redirectTo, sendSection } from './config-http';
 import { ConfigPageService } from './config-page/config-page.service';
 import { stampEntryOrigins } from './config-page/origins';
-import type { CheckModal, CheckRow, ConfigSectionPayload } from './config-page/payloads';
+import type { ConfigSectionPayload } from './config-page/payloads';
 import {
+  ConfigFileBack,
   GithubAppManifestError,
+  repositoriesConfigFilePath,
   GithubAppManifestService,
   readyPath,
   sourceCheckPath,
+  sourceConfigFilePath,
   sourceGroupsPath,
 } from './config-page/github-app-manifest';
 import { ConfigSaveService, provenanceOf } from './config-page/save';
 import { quickFieldName } from './quick-setup/model';
 import { primaryOf } from './quick-setup/ready';
 import { quickStarterOf } from './quick-setup/registry';
+import { MissingGroup, starterConfig } from './quick-setup/repository-check';
 import {
-  MissingGroup,
-  RepositoryVerdict,
-  checkRepository,
-  isConfigPath,
-  missingGroups,
-  starterConfig,
-} from './quick-setup/repository-check';
+  SourceCheck,
+  checkSource,
+  configFileTarget,
+  githubSourceOf,
+} from './quick-setup/source-check';
 
 // The add modal's fields for the kind and the short id
 const KIND_FIELD = 'kind';
@@ -122,7 +121,7 @@ export class QuickSetupController {
           Object.entries(input).map(([name, value]) => [quickFieldName(kind, name), value]),
         ),
       };
-      sendSection(this.respond, this.config, req, res, caller, section, payload, 400);
+      sendSection(this.respond, req, res, caller, section, payload, 400);
     };
 
     const noun = nounOf(section);
@@ -212,12 +211,15 @@ export class QuickSetupController {
       id,
       title: `${titleOf(payload, id)} is set up`,
       steps,
-      // The first setup goes on after the person who finished it became its administrator
+      // The first setup goes on, also after the person who finished it became its administrator
       primary: onward
         ? { ...onward, onward: true }
-        : primaryOf(caller.viaSetup || promoted ? setupSteps(this.config) : [], section),
+        : primaryOf(
+            caller.inSetup ? setupSteps(this.config, undefined, caller.readsPage === true) : [],
+            section,
+          ),
     };
-    sendSection(this.respond, this.config, req, res, caller, section, payload);
+    sendSection(this.respond, req, res, caller, section, payload);
   }
 
   /** Whether the repositories a GitHub source reads are ready to be published, as a modal over the list of sources */
@@ -233,7 +235,10 @@ export class QuickSetupController {
     const forge = caller.isAdmin && section === 'sources' ? githubForgeOf(state.doc, id) : null;
     if (!forge) return this.respond.notFound(req, res);
 
-    const done = primaryOf(caller.viaSetup ? setupSteps(this.config) : [], section);
+    const done = primaryOf(
+      caller.inSetup ? setupSteps(this.config, undefined, caller.readsPage === true) : [],
+      section,
+    );
     const payload = await this.page.sectionPayload(state, section);
     await stampEntryOrigins(caller.tenantId, payload);
     const modal = {
@@ -250,10 +255,10 @@ export class QuickSetupController {
         pending: { href: withRun(sourceCheckPath(id)) },
         primary: done,
       };
-      return sendSection(this.respond, this.config, req, res, caller, section, payload);
+      return sendSection(this.respond, req, res, caller, section, payload);
     }
 
-    const checked = await this.checkRepositories(id, forge, groupNames(state.doc)[0] ?? null);
+    const checked = await this.checkRepositories(id, forge);
     payload.check = {
       ...modal,
       problem: checked.problem,
@@ -269,7 +274,7 @@ export class QuickSetupController {
             }
           : done,
     };
-    sendSection(this.respond, this.config, req, res, caller, section, payload);
+    sendSection(this.respond, req, res, caller, section, payload);
   }
 
   /** The groups the repositories of a GitHub source name that do not exist yet, as a modal that creates them */
@@ -291,7 +296,7 @@ export class QuickSetupController {
         href: withRun(sourceGroupsPath(id)),
       });
     }
-    const checked = await this.checkRepositories(id, forge, null);
+    const checked = await this.checkRepositories(id, forge);
     await this.sendCreateGroups(req, res, caller, state, id, checked.missing);
   }
 
@@ -347,8 +352,114 @@ export class QuickSetupController {
     if (!refusal) return redirectTo(res, sourceCheckPath(id));
 
     // Refused: the modal again, with why
-    const checked = await this.checkRepositories(id, forge, null);
+    const checked = await this.checkRepositories(id, forge);
     await this.sendCreateGroups(req, res, caller, state, id, checked.missing, refusal);
+  }
+
+  /** The groups a new `.speicher.yaml` grants reading to, as a modal over the list of sources */
+  @Get('config/:section/:member/config-file')
+  async configFile(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('section') section: string,
+    @Param('member') id: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    const state = await this.page.state(caller);
+    const forge = caller.isAdmin && section === 'sources' ? githubForgeOf(state.doc, id) : null;
+    const target = configFileTarget(req.query);
+    if (!forge || !target) return this.respond.notFound(req, res);
+
+    // A single group is the only choice there is, so it starts ticked
+    const groups = groupNames(state.doc);
+    await this.sendConfigFile(
+      req,
+      res,
+      caller,
+      state,
+      id,
+      forge,
+      target,
+      groups.length === 1 ? groups : [],
+    );
+  }
+
+  /** Open GitHub's new-file page with a `.speicher.yaml` that grants reading to the picked groups */
+  @Post('config/:section/:member/config-file')
+  async createConfigFile(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('section') section: string,
+    @Param('member') id: string,
+  ): Promise<void> {
+    const caller = callerOf(req);
+    const state = await this.page.state(caller);
+    const forge = caller.isAdmin && section === 'sources' ? githubForgeOf(state.doc, id) : null;
+    const target = configFileTarget(req.query);
+    if (!forge || !target) return this.respond.notFound(req, res);
+
+    const known = groupNames(state.doc);
+    const picked = submittedList(req.body as Record<string, unknown>, 'grant').filter((name) =>
+      known.includes(name),
+    );
+    // Asked again over the page the modal was opened on
+    if (picked.length === 0 && target.back === 'setup') {
+      return redirectTo(
+        res,
+        `${repositoriesConfigFilePath(id, target.repository, target.branch)}&picked=none`,
+      );
+    }
+    if (picked.length === 0) {
+      return this.sendConfigFile(
+        req,
+        res,
+        caller,
+        state,
+        id,
+        forge,
+        target,
+        [],
+        'Pick at least one group.',
+      );
+    }
+
+    const { web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+    const create = new URLSearchParams({
+      filename: '.speicher.yaml',
+      value: starterConfig(picked),
+    });
+    redirectTo(
+      res,
+      `${web}/${target.repository}/new/${encodeURIComponent(target.branch)}?${create}`,
+    );
+  }
+
+  /** The list of sources with the modal that picks the groups of a new `.speicher.yaml` open over it */
+  private async sendConfigFile(
+    req: Request,
+    res: Response,
+    caller: ResolvedCaller,
+    state: Awaited<ReturnType<ConfigPageService['state']>>,
+    id: string,
+    forge: Record<string, unknown>,
+    target: { repository: string; branch: string; back: ConfigFileBack },
+    checked: string[],
+    error?: string,
+  ): Promise<void> {
+    const { web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+    const payload = await this.page.sectionPayload(state, 'sources');
+    await stampEntryOrigins(caller.tenantId, payload);
+    payload.config_file = {
+      section_id: memberSectionId('sources', id),
+      id,
+      repository: target.repository,
+      action: sourceConfigFilePath(id, target.repository, target.branch, target.back),
+      back_href: target.back === 'setup' ? REPOSITORY_STEP_PATH : sourceCheckPath(id),
+      leads_to: new URL(web).origin,
+      groups: groupNames(state.doc).map((name) => ({ name, checked: checked.includes(name) })),
+      ...(error ? { error } : {}),
+    };
+    sendSection(this.respond, req, res, caller, 'sources', payload, error ? 400 : 200);
   }
 
   /** The list of sources with the modal that creates missing groups open over it */
@@ -376,75 +487,15 @@ export class QuickSetupController {
       ...(error ? { error } : {}),
       ...(pending ? { pending } : {}),
     };
-    sendSection(this.respond, this.config, req, res, caller, 'sources', payload, error ? 400 : 200);
+    sendSection(this.respond, req, res, caller, 'sources', payload, error ? 400 : 200);
   }
 
   /** The rows of a check and the groups it found missing, or why there are none */
   private async checkRepositories(
     sourceId: string,
     forge: Record<string, unknown>,
-    group: string | null,
-  ): Promise<Pick<CheckModal, 'problem' | 'repositories' | 'more'> & { missing: MissingGroup[] }> {
-    const appId = String(forge.app_id);
-    const privateKey = String(forge.private_key);
-    const { api, web } = githubHosts(
-      typeof forge.base_url === 'string' ? forge.base_url : undefined,
-    );
-    const log = rootLogger.child('config.quick-setup');
-    const nothing = { repositories: [], more: false, missing: [] };
-    // What the check was doing, so a failure says where it stopped
-    let step = 'look up the App';
-    try {
-      const app = await lookupGithubApp(api, appId, privateKey, this.fetchImpl);
-      step = `find the App's installation on ${app.owner.accountName}`;
-      const installation = await installationOn(
-        api,
-        appId,
-        privateKey,
-        app.owner.accountName,
-        this.fetchImpl,
-      );
-      if (!installation) {
-        return {
-          ...nothing,
-          problem: {
-            text: `The App is not installed on **${app.owner.accountName}** yet, so it reads no repository.`,
-            href: githubAppLinks(web, app.slug, app.owner).installUrl,
-            label: 'Install on GitHub',
-          },
-        };
-      }
-      step = 'list the repositories the App reads';
-      const read = await repositoryConfigs(api, installation.token, isConfigPath, this.fetchImpl);
-      for (const repo of read.repositories) {
-        if (repo.files !== null) continue;
-        log.warn('could not read the .speicher.yaml files of a repository', {
-          source: sourceId,
-          repository: repo.fullName,
-          error: repo.error,
-        });
-      }
-      const checked = read.repositories.map((repo) => ({
-        repo,
-        repository: repo.fullName,
-        verdict: repo.files ? checkRepository(repo.files, this.config) : null,
-      }));
-      return {
-        more: read.more,
-        repositories: checked.map(({ repo, verdict }) => checkRow(repo, verdict, web, group)),
-        missing: missingGroups(checked),
-      };
-    } catch (err) {
-      const message = (err as Error).message;
-      log.warn('could not check the repositories of a source', {
-        source: sourceId,
-        step,
-        api,
-        code: err instanceof CodedError ? err.code : undefined,
-        error: message,
-      });
-      return { ...nothing, problem: { text: `Could not ${step}: ${message}.` } };
-    }
+  ): Promise<SourceCheck> {
+    return checkSource(sourceId, forge, this.config, this.fetchImpl);
   }
 
   /**
@@ -520,7 +571,6 @@ export class QuickSetupController {
         // Refused: the new member's page says why, as its Save button would
         return sendSection(
           this.respond,
-          this.config,
           req,
           res,
           caller,
@@ -547,77 +597,6 @@ function titleOf(payload: ConfigSectionPayload, id: string): string {
 }
 
 /**
- * checkRow says what the check found in one repository.
- *
- * @param repo the repository and its `.speicher.yaml` files
- * @param verdict what the check found in them, or null when they could not be read
- * @param web the GitHub web host
- * @param group a group of the instance a new `.speicher.yaml` grants reading to, or null when there is none yet
- */
-function checkRow(
-  repo: RepositoryFiles,
-  verdict: RepositoryVerdict | null,
-  web: string,
-  group: string | null,
-): CheckRow {
-  const href = `${web}/${repo.fullName}`;
-  const name = repo.fullName;
-  if (verdict === null) {
-    return {
-      name,
-      href,
-      state: 'unreadable',
-      text: `GitHub could not be asked for its files: ${repo.error ?? 'no reason given'}`,
-    };
-  }
-  const code = (each: string) => `\`${each}\``;
-  switch (verdict.state) {
-    case 'unpublished': {
-      const create = new URLSearchParams({
-        filename: '.speicher.yaml',
-        value: starterConfig(group),
-      });
-      return {
-        name,
-        href,
-        state: 'unpublished',
-        text: 'Not published: it has no `.speicher.yaml` yet',
-        create_href: `${href}/new/${encodeURIComponent(repo.defaultBranch)}?${create}`,
-      };
-    }
-    case 'invalid':
-      return { name, href, state: 'invalid', text: `${code(verdict.file)}: ${verdict.message}` };
-    case 'unknown-groups':
-      return {
-        name,
-        href,
-        state: 'unknown-groups',
-        text: `Missing group: ${verdict.groups
-          .map((each) =>
-            each.suggestion
-              ? `${code(each.name)} (did you mean ${code(each.suggestion)}?)`
-              : code(each.name),
-          )
-          .join(', ')}`,
-      };
-    case 'ready':
-      return {
-        name,
-        href,
-        state: 'ready',
-        // A group links to its page; `public` and a count of people have none
-        text: `Readable by ${verdict.readers
-          .map((each) =>
-            / /.test(each) || each === PUBLIC_GROUP_NAME
-              ? each
-              : `[${each}](/-/config/${memberSectionId('groups', each)})`,
-          )
-          .join(', ')}`,
-      };
-  }
-}
-
-/**
  * githubForgeOf returns a stored GitHub source with an App, or null.
  *
  * @param doc the stored configuration
@@ -626,13 +605,7 @@ function checkRow(
 function githubForgeOf(doc: Document | null, id: string): Record<string, unknown> | null {
   if (!doc || !isMemberId('sources', id)) return null;
   const node = doc.getIn(['forges', id], true);
-  if (!isMap(node)) return null;
-  const forge = node.toJS(doc) as Record<string, unknown>;
-  return forge.type === 'github' &&
-    typeof forge.app_id === 'string' &&
-    typeof forge.private_key === 'string'
-    ? forge
-    : null;
+  return isMap(node) ? githubSourceOf(node.toJS(doc)) : null;
 }
 
 /** The names of the groups the stored configuration defines */

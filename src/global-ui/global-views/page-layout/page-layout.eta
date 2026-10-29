@@ -76,6 +76,7 @@
         
         <% if (it.docked) { %><%~ include('@toolbar', it) %><% } %>
         <main class="spr-main"><%~ it.body %></main>
+        <%~ it.guideBar || '' %>
       </div>
     </div>
     

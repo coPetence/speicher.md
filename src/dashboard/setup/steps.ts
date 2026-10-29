@@ -2,7 +2,13 @@
 import { ConfigService } from '../../config/config.service';
 
 /** Identifiers for the setup wizard steps, in display order */
-export type SetupStepId = 'mail' | 'provider' | 'group' | 'administrator' | 'content';
+export type SetupStepId =
+  | 'mail'
+  | 'provider'
+  | 'administrator'
+  | 'group'
+  | 'content'
+  | 'repository';
 
 /** A step in the setup wizard, drawn as a list item with status */
 export interface SetupStep {
@@ -17,6 +23,10 @@ export interface SetupStep {
 }
 
 export const MAIL_TRANSPORT_PATH = '/-/config/mail';
+export const REPOSITORY_STEP_PATH = '/-/repositories';
+
+export const SETUP_LATER_COOKIE = 'speicher_setup_later';
+export const SETUP_LATER_PATH = '/-/setup/later';
 
 /** Subset of ConfigService properties that determine setup completion state */
 export type SetupState = Pick<
@@ -26,55 +36,17 @@ export type SetupState = Pick<
   | 'hasContentSource'
   | 'hasMagicLinkProvider'
   | 'hasMailTransport'
+  | 'groupNames'
+  | 'groupItems'
 >;
 
-/** The overview's copy for a step: heading, blurb, and the card's link label */
-export interface StepProse {
-  heading: string;
-  blurb: string;
-  /** The label while the step is undone, and the one once it is done */
-  action: string;
-  reviewAction: string;
-}
+export const SETUP_COMPLETE_PATH = '/-/setup/complete';
 
-export const STEP_PROSE: Record<SetupStepId, StepProse> = {
-  mail: {
-    heading: 'Mail transport',
-    blurb:
-      'Configure SMTP so the instance can send email. Magic-link providers need a relay ' +
-      'to deliver their sign-in links.',
-    action: 'Configure mail',
-    reviewAction: 'Review mail',
-  },
-  provider: {
-    heading: 'Identity provider',
-    blurb:
-      'Please first add an identity provider you can use to log in. This is required to sign in as the first administrator of this instance.',
-    action: 'Add an Identity provider',
-    reviewAction: 'Review Identity providers',
-  },
-  group: {
-    heading: 'Groups',
-    blurb: 'Manage the groups of users in your instance.',
-    action: 'Manage groups',
-    reviewAction: 'Review groups',
-  },
-  content: {
-    heading: 'Content source',
-    blurb:
-      'Connect the Git repositories that hold your documentation. Speicher reads the Markdown files and images from them and keeps them in sync as changes are pushed. GitHub and any plain Git remote are supported.',
-    action: 'Add a source',
-    reviewAction: 'Review sources',
-  },
-  administrator: {
-    heading: 'Become the first administrator',
-    blurb: 'Sign in to become the first administrator of this instance.',
-    action: 'Sign in',
-    reviewAction: 'Sign in',
-  },
-};
-
-export function setupSteps(config: SetupState, currentPath?: string): SetupStep[] {
+export function setupSteps(
+  config: SetupState,
+  currentPath?: string,
+  readsPage = false,
+): SetupStep[] {
   const steps: SetupStep[] = [
     // Not shown unless a magic-link provider exists, mail is configured, or the
     // user is on the mail page because only magic-link providers need a relay
@@ -99,10 +71,18 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
       current: false,
     },
     {
+      id: 'administrator',
+      title: 'Administrator',
+      href: '/-/setup/administrator',
+      done: config.hasAdministrator,
+      current: false,
+    },
+    {
       id: 'group',
       title: 'Groups',
       href: '/-/config/groups',
-      done: config.providerShortIds.length > 0,
+      // A group without members grants nobody anything
+      done: config.groupNames.some((name) => config.groupItems(name).length > 0),
       current: false,
     },
     {
@@ -113,10 +93,10 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
       current: false,
     },
     {
-      id: 'administrator',
-      title: 'Administrator',
-      href: '/-/setup/administrator',
-      done: config.hasAdministrator,
+      id: 'repository',
+      title: 'Repositories',
+      href: REPOSITORY_STEP_PATH,
+      done: readsPage,
       current: false,
     },
   ];
@@ -128,40 +108,48 @@ export function setupSteps(config: SetupState, currentPath?: string): SetupStep[
   return steps;
 }
 
-/** Snapshot the setup-relevant state of a ConfigService for later comparison */
-export function setupStateOf(config: SetupState): SetupState {
+/**
+ * entryHref returns where a step is entered from the step before it: its page, or the add modal its setup starts in.
+ *
+ * @param step the step entered
+ * @param steps the steps of the setup
+ */
+export function entryHref(step: SetupStep, steps: SetupStep[]): string {
+  // A relay is only set up for a magic-link provider, which is added next
+  if (step.id === 'provider' && steps.some((each) => each.id === 'mail' && each.done)) {
+    return `${step.href}?kind=magic-link`;
+  }
+  if (step.id === 'content') return '/-/config/sources?kind=github';
+  return step.href;
+}
+
+export interface SetupGuide {
+  step: SetupStep | null;
+  position: number;
+  count: number;
+  // `complete` posts to the address, which ends the setup
+  onward: { label: string; href: string; complete: boolean } | null;
+}
+
+// On a step's page the bar leads to the next one; elsewhere it starts the setup, or takes it up again
+function onwardLabel(step: SetupStep | null, steps: SetupStep[]): string {
+  if (step) return 'Next';
+  return steps.some((each) => each.done) ? 'Continue setup' : 'Start';
+}
+
+export function setupGuide(steps: SetupStep[]): SetupGuide {
+  const step = steps.find((each) => each.current) ?? null;
+  const next = steps.find((each) => !each.done && each !== step);
+  const finished = steps.some((each) => each.id === 'repository' && each.done);
+  const onward = finished
+    ? { label: 'Complete setup', href: SETUP_COMPLETE_PATH, complete: true }
+    : next && (step === null || step.done)
+      ? { label: onwardLabel(step, steps), href: entryHref(next, steps), complete: false }
+      : null;
   return {
-    providerShortIds: config.providerShortIds,
-    hasAdministrator: config.hasAdministrator,
-    hasContentSource: config.hasContentSource,
-    hasMagicLinkProvider: config.hasMagicLinkProvider,
-    hasMailTransport: config.hasMailTransport,
+    step,
+    position: step ? steps.indexOf(step) + 1 : 0,
+    count: steps.length,
+    onward,
   };
-}
-
-/** Find the step whose href matches /-/config/{sectionId} */
-function stepAt(steps: SetupStep[], sectionId: string): SetupStep | undefined {
-  return (
-    steps.find((step) => step.href === `/-/config/${sectionId}`) ??
-    steps.find((step) => step.href === `/-/config/${sectionId.split('/')[0]}`)
-  );
-}
-
-/** Return the next page to redirect to after a setup section is saved, or null */
-export function nextSetupPage(
-  before: SetupState,
-  after: SetupState,
-  sectionId: string,
-): string | null {
-  const finished = stepAt(setupSteps(after), sectionId);
-  if (!finished?.done) return null;
-  // Already done before this save: nothing changed
-  if (stepAt(setupSteps(before), sectionId)?.done === true) return null;
-
-  const next = setupSteps(after).find((step) => !step.done);
-  if (!next) return null;
-
-  // When mail is done and provider is next, hint magic-link as the kind to add
-  if (finished.id === 'mail' && next.id === 'provider') return `${next.href}?kind=magic-link`;
-  return next.href;
 }

@@ -49,7 +49,7 @@ async function resetSetupState(): Promise<void> {
   await getSequelize().query(`DELETE FROM instance_configs`, { type: QueryTypes.DELETE });
   await getSequelize().query(
     `UPDATE tenants SET first_admin_login_at = NULL, setup_reopened_at = NULL,
-            setup_reopen_count = 0`,
+            setup_completed_at = NULL, setup_reopen_count = 0`,
     { type: QueryTypes.UPDATE },
   );
 }
@@ -198,7 +198,7 @@ describe('approval lands on the browser that asked, and on no other', () => {
     expect(await setup.pending(harness.tenantId)).toHaveLength(0);
 
     const wizard = await agent.get('/-/setup').expect(200);
-    expect(wizard.text).toContain('Set up this instance');
+    expect(wizard.text).toContain('Welcome to Speicher.md');
 
     const config = await agent.get('/-/config').expect(200);
     expect(config.text).toContain('Identity');

@@ -73,6 +73,17 @@ const CONTRACT: Record<string, Contract> = {
   },
   'GET /-/setup': { both: '/-/setup' },
   'GET /-/setup/administrator': { both: '/-/setup/administrator' },
+  'GET /-/repositories': { both: '/-/repositories' },
+  'POST /-/setup/complete': {
+    covered:
+      'setup-wizard.spec.ts. It completes the setup and redirects to the documentation, ' +
+      'which a JSON caller has no use for.',
+  },
+  'GET /-/setup/later': {
+    covered:
+      'setup-wizard.spec.ts. It sets the cookie that leaves the setup for later and ' +
+      'redirects to the settings, which a JSON caller has no use for.',
+  },
   'POST /-/setup/prove': {
     covered:
       'setup-wizard.spec.ts. It begins a login rather than answering with a ' +
@@ -148,6 +159,15 @@ const CONTRACT: Record<string, Contract> = {
     covered:
       'quick-setup.spec.ts. It creates the groups the modal names and redirects to the ' +
       'check, or answers with the modal and why it refused.',
+  },
+  'GET /-/config/:section/:member/config-file': {
+    covered:
+      'quick-setup.spec.ts. It needs a GitHub source with an App, which no fixture has.',
+  },
+  'POST /-/config/:section/:member/config-file': {
+    covered:
+      'quick-setup.spec.ts. It redirects to GitHub’s new-file page, which a JSON caller ' +
+      'has no use for, or answers with the modal and why it refused.',
   },
   'GET /-/config/:section/:member/install': {
     covered:

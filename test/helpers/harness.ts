@@ -67,6 +67,11 @@ export async function createHarness(): Promise<Harness> {
   const ingest = new IngestService(config, blobs, sequelize);
 
   const tenantId = await defaultTenantId();
+  // A configured instance, past its setup
+  await sequelize.query(`UPDATE tenants SET setup_completed_at = now() WHERE id = :tenantId`, {
+    type: QueryTypes.UPDATE,
+    replacements: { tenantId },
+  });
   const forge = await Forge.create({
     tenant_id: tenantId,
     key: 'gh',

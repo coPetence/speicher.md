@@ -150,15 +150,15 @@ export function missingGroups(
 /**
  * starterConfig returns the `.speicher.yaml` the check offers to create in a repository that has none.
  *
- * @param group a group of the instance to grant reading to, or null to name one that is still to be created
+ * @param groups the groups of the instance to grant reading to, or none to name one that is still to be created
  */
-export function starterConfig(group: string | null): string {
+export function starterConfig(groups: string[]): string {
   return [
     'version: 1',
     '',
     '# Who may read this repository. Every name is a group of your Speicher.md instance',
     'access:',
-    `  groups: [${group ?? 'readers'}]`,
+    `  groups: [${groups.length > 0 ? groups.join(', ') : 'readers'}]`,
     '',
   ].join('\n');
 }
