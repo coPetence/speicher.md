@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-#
-# Sets up a Speicher instance with Docker Compose
-#
-#   bash install.sh            asks what it needs to know
-#   bash install.sh --help     lists the flags for a setup without questions
-#
 # Writes docker-compose.yaml, .env and, for HTTPS with Caddy, a Caddyfile into the
 # install directory, then starts the containers. Running it again in the same
 # directory keeps the database password, so the existing database stays readable.
-#
 # The release workflow replaces __VERSION__ with the released version, so a
 # downloaded script installs the image it was released with.
 
@@ -16,7 +9,7 @@ set -euo pipefail
 
 SPEICHER_VERSION="__VERSION__"
 IMAGE="ghcr.io/copetence/speicher.md"
-DOCS_URL="https://github.com/copetence/speicher.md/tree/main/documentation"
+DOCS_URL="https://docs.speicher.md/speicher-md"
 READY_TIMEOUT=180
 
 # Answers, from flags or prompts
@@ -36,6 +29,7 @@ KEEP_FILES=false
 NEW_PASSWORD=false
 CLAIMED=false
 HAS_ADMIN=false
+TUNNEL_SHOWN=false
 
 # ---------------------------------------------------------------------------
 # Output
@@ -82,7 +76,6 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# Prompts. They read from the terminal, so `curl … | bash` can still ask.
 
 has_tty() { { : </dev/tty; } 2>/dev/null; }
 
@@ -102,7 +95,7 @@ ask() {
   printf -v "$__var" '%s' "${answer:-$default}"
 }
 
-# ask_yes_no <question> <y|n>, succeeds on yes
+# ask_yes_no <question> <Y|n>
 ask_yes_no() {
   local question=$1 default=$2 hint answer
   if $ASSUME_YES; then
@@ -123,13 +116,72 @@ ask_yes_no() {
 
 # choose <variable> <question> <default number> <option>…, sets the chosen option's number
 choose() {
-  local __var=$1 question=$2 default=$3 i answer
+  local __var=$1 question=$2 default=$3
   shift 3
   if $ASSUME_YES; then
     printf -v "$__var" '%s' "$default"
     return
   fi
   info "$question"
+  if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then
+    choose_with_arrows "$__var" "$default" "$@"
+  else
+    choose_by_number "$__var" "$default" "$@"
+  fi
+}
+
+# Moves a highlight with the arrow keys (or j/k, or a digit) and confirms with Enter
+choose_with_arrows() {
+  local __var=$1 current=$2 option key rest i rows width
+  shift 2
+  local count=$#
+
+  # Rows the menu takes up, as long options wrap on narrow terminals
+  width=$(tput cols 2>/dev/null || echo 80)
+  rows=0
+  for option in "$@"; do rows=$((rows + (${#option} + 2 + width - 1) / width)); done
+
+  info "${DIM}Use ↑/↓ and Enter${RESET}"
+  printf '\033[?25l'
+  trap 'printf "\033[?25h\n"; exit 130' INT TERM
+  while true; do
+    i=1
+    for option in "$@"; do
+      if [ "$i" -eq "$current" ]; then
+        printf '\033[2K%s❯ %s%s\n' "$BOLD$GREEN" "$option" "$RESET"
+      else
+        printf '\033[2K  %s\n' "$option"
+      fi
+      i=$((i + 1))
+    done
+
+    IFS= read -rsn1 key </dev/tty || key=""
+    case "$key" in
+      "") break ;;
+      $'\033')
+        # The rest of an arrow key arrives at once; a lone Esc times out
+        IFS= read -rsn2 -t 1 rest </dev/tty || rest=""
+        case "$rest" in
+          "[A" | "OA") key=k ;;
+          "[B" | "OB") key=j ;;
+        esac
+        ;;
+    esac
+    case "$key" in
+      k) current=$(((current + count - 2) % count + 1)) ;;
+      j) current=$((current % count + 1)) ;;
+      [1-9]) [ "$key" -gt "$count" ] || current=$key ;;
+    esac
+    printf '\033[%dA' "$rows"
+  done
+  printf '\033[?25h'
+  trap - INT TERM
+  printf -v "$__var" '%s' "$current"
+}
+
+choose_by_number() {
+  local __var=$1 default=$2 option i answer
+  shift 2
   i=1
   for option in "$@"; do
     info "  $i) $option"
@@ -180,7 +232,25 @@ check_docker() {
     die "The Docker Compose plugin is missing. Install it first: https://docs.docker.com/compose/install/"
   docker info >/dev/null 2>&1 ||
     die "Cannot reach the Docker daemon. Start Docker, or run the script as a user who may use Docker."
-  ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '') with $(docker compose version --short 2>/dev/null || echo 'Compose')"
+  ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo 'failed to retrieve Docker version') with Compose version $(docker compose version --short 2>/dev/null || echo 'failed to retrieve Compose version')"
+}
+
+# Runs before anything is asked or written, so a missing tool stops the script early
+check_dependencies() {
+  step "Checking dependencies"
+  local tool missing=""
+  for tool in basename cat chmod cp date grep head mkdir mktemp mv od sed sleep tr uname; do
+    command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
+  done
+  [ -z "$missing" ] || die "These required tools are missing:$missing"
+
+  if [ "$START" = no ]; then
+    if ! { command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; }; then
+      warn "Docker with Compose is not available. The files will be written, but not checked."
+    fi
+  else
+    check_docker
+  fi
 }
 
 # Lowercase letters, digits, dashes and underscores, as Compose names the project
@@ -190,7 +260,6 @@ project_name() {
 
 check_start() {
   step "Checking the host"
-  check_docker
 
   local port
   for port in $(published_ports); do
@@ -198,14 +267,6 @@ check_start() {
       warn "Port $port is already in use. The containers will not start until it is free."
     fi
   done
-
-  # A new password cannot open a database volume made with an older one
-  if $NEW_PASSWORD && docker volume inspect "$(project_name)_speicher-db" >/dev/null 2>&1; then
-    warn "The volume $(project_name)_speicher-db exists from an earlier install, but .env had no"
-    warn "POSTGRES_PASSWORD. The new password will not open that database. Restore the old"
-    warn ".env, or remove the volume to start over: docker volume rm $(project_name)_speicher-db"
-    ask_yes_no "Continue anyway?" n || exit 1
-  fi
 
   if [ "$MODE" = public ] && [ "$CADDY" = yes ]; then
     if command -v getent >/dev/null 2>&1; then
@@ -274,6 +335,7 @@ ask_directory() {
     elif $ASSUME_YES; then
       die "$DIR already has a docker-compose.yaml; pass --overwrite to replace it"
     else
+      info ""
       choose choice "$DIR already has a docker-compose.yaml. What should happen?" 3 \
         "Back it up and write a new one (the database password is kept)" \
         "Keep it and only start the containers" \
@@ -289,12 +351,12 @@ ask_directory() {
 }
 
 ask_mode() {
-  step "How will Speicher be reached?"
+  step "Set domain"
   if [ -z "$MODE" ]; then
     local choice
-    choose choice "Who opens Speicher in the browser?" 1 \
-      "Only me, on this machine (http://localhost)" \
-      "Others too, on a domain over HTTPS (needs a domain that points at this server)"
+    choose choice "How do you want to setup Speicher.md?" 1 \
+      "Localhost (http://localhost)" \
+      "Public domain over HTTPS"
     if [ "$choice" = 1 ]; then MODE=local; else MODE=public; fi
   fi
 
@@ -312,7 +374,7 @@ ask_mode() {
 
     if [ -z "$CADDY" ]; then
       info ""
-      info "Caddy can run next to Speicher and get HTTPS certificates from Let's Encrypt."
+      info "Caddy can run alongside Speicher.md and get HTTPS certificates from Let's Encrypt."
       info "It needs ports 80 and 443. Skip it if you already run a reverse proxy, e.g. nginx."
       if ask_yes_no "Set up Caddy for HTTPS?" y; then CADDY=yes; else CADDY=no; fi
     fi
@@ -592,6 +654,34 @@ write_files() {
 
 compose() { docker compose --project-directory "$DIR" "$@"; }
 
+db_accepts_password() {
+  compose exec -T -e PGPASSWORD="$(env_get POSTGRES_PASSWORD)" db \
+    psql -h db -U speicher -d speicher -c 'select 1' >/dev/null 2>&1
+}
+
+# Postgres only reads POSTGRES_PASSWORD when it creates the volume, so a database
+# volume from an earlier install rejects the password in .env if that changed.
+# Connects over the network name, because local socket connections need no password.
+ensure_database_password() {
+  step "Checking the database"
+  compose up -d --wait db
+  if db_accepts_password; then
+    ok "The database accepts the password in .env"
+    return
+  fi
+
+  local volume
+  volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$(compose ps -q db)")
+  warn "The database was created with a different password than the one in .env."
+  warn "Restore the old .env to keep the data, or delete the database to start over."
+  ask_yes_no "Delete the old database and start with an empty one?" n ||
+    die "Not starting. Restore the old .env, or delete the database with: docker compose down && docker volume rm $volume"
+  compose down --remove-orphans
+  docker volume rm "$volume" >/dev/null
+  compose up -d --wait db
+  ok "Deleted the old database"
+}
+
 start() {
   step "Pulling images"
   if ! compose pull; then
@@ -601,6 +691,8 @@ start() {
       die "Pulling the images failed. Check the network, and that the tag $IMAGE_TAG exists."
     fi
   fi
+
+  ensure_database_password
 
   step "Starting the containers"
   compose up -d
@@ -646,6 +738,22 @@ claim_window_open() {
   esac
 }
 
+# In local mode Speicher only answers on this machine, which is usually a server
+# without a browser. An SSH tunnel makes it reachable from the user's own browser.
+tunnel_hint() {
+  [ "$MODE" = local ] || return 0
+  $TUNNEL_SHOWN && return 0
+  TUNNEL_SHOWN=true
+  info ""
+  info "On a server without a browser, forward the port to your own computer by running"
+  info "this there, and keep it open while you use Speicher:"
+  info ""
+  info "  ${BOLD}ssh -NL $PORT:localhost:$PORT $(id -un)@<server-ip>${RESET}"
+  info ""
+  info "Then open $(public_url) in your browser."
+  info ""
+}
+
 # Approves the browser the user opened, with the code its claim page shows
 claim_instance() {
   local url code output
@@ -660,8 +768,9 @@ claim_instance() {
     info "Opened ${BOLD}$url${RESET} in your browser."
   else
     info "Open ${BOLD}$url${RESET} in your browser."
+    tunnel_hint
   fi
-  info "The claim page shows a code like QUIET-HERON-4471. Enter it here to prove that"
+  info "The claim page shows a code like QUIET-HERON-4471. Enter it to authenticate this sesssion"
   info "the browser belongs to whoever runs this server."
   while true; do
     ask code "Code from the claim page (Enter to skip):"
@@ -685,32 +794,29 @@ next_steps() {
   local url
   url=$(public_url)
   step "Done"
-  if $CLAIMED; then
-    info "Your browser is signed in. Continue the setup there: add an identity provider,"
-    info "a content source and the first administrator."
-  elif $HAS_ADMIN; then
-    info "Speicher runs at ${BOLD}$url${RESET}. It already has an administrator, who can"
-    info "sign in there."
-  elif [ "$START" = yes ]; then
-    info "Open ${BOLD}$url${RESET} and claim the instance. The page shows a command"
-    info "to run in $DIR, like:"
+  if ! $CLAIMED; then
+    if $HAS_ADMIN; then
+      info "Speicher runs at ${BOLD}$url${RESET}. It already has an administrator, who can"
+      info "sign in there."
+    elif [ "$START" = yes ]; then
+      info "Open ${BOLD}$url${RESET} and claim the instance. The page shows a command"
+      info "to run in $DIR, like:"
+      info ""
+      info "  docker compose exec web speicher claim <CODE>"
+      tunnel_hint
+    else
+      info "Start Speicher with:"
+      info ""
+      info "  cd $DIR && docker compose up -d"
+      info ""
+      info "Then open ${BOLD}$url${RESET} and claim the instance with a command like:"
+      info ""
+      info "  docker compose exec web speicher claim <CODE>"
+      tunnel_hint
+    fi
     info ""
-    info "  docker compose exec web speicher claim <CODE>"
-  else
-    info "Start Speicher with:"
-    info ""
-    info "  cd $DIR && docker compose up -d"
-    info ""
-    info "Then open ${BOLD}$url${RESET} and claim the instance with a command like:"
-    info ""
-    info "  docker compose exec web speicher claim <CODE>"
   fi
-  info ""
-  if [ "$MODE" = public ] && [ "$CADDY" = yes ]; then
-    info "Caddy gets the certificate once $DOMAIN points at this server and ports 80 and"
-    info "443 are open. To check it: curl https://$DOMAIN/-/readyz"
-    info ""
-  elif [ "$MODE" = public ]; then
+  if [ "$MODE" = public ]; then
     info "Point your reverse proxy at http://127.0.0.1:$PORT and serve $DOMAIN over HTTPS:"
     info "  $DOCS_URL/05-operations/04-reverse-proxy-and-tls.md"
     info ""
@@ -721,6 +827,7 @@ next_steps() {
 main() {
   parse_flags "$@"
   info "${BOLD}Speicher installer${RESET} $(default_image_tag)"
+  check_dependencies
   ask_directory
   if $KEEP_FILES; then read_existing; else ask_mode; fi
   confirm
