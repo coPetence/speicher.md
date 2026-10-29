@@ -40,6 +40,12 @@
     <% if (it.editable) { %>
     <template data-spr-pick-row><% row('', null, true) %></template>
     <template data-spr-pick-choice><% choice('', null) %></template>
+    <% if (f.unavailable) { %>
+    <p class="spr-pick-list-unavailable"<%= f.options.length === 0 ? '' : ' hidden' %>>
+      <button type="button" class="spr-pick-list-open" disabled><%~ it.addIcon || '' %><%= f.addLabel %></button>
+      <span><%= f.unavailable %></span>
+    </p>
+    <% } %>
     <details class="spr-modal spr-pick-list-modal"<%= f.options.length === 0 ? ' hidden' : '' %>>
       <summary id="f-<%= f.path %>" class="spr-pick-list-open"><%~ it.addIcon || '' %><%= f.addLabel %></summary>
       <div class="spr-modal-panel spr-pick-list-dialog" role="dialog" aria-label="<%= f.addLabel %>">

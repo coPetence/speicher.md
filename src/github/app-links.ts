@@ -43,6 +43,20 @@ export function githubAppLinks(web: string, slug: string, owner: GithubAppOwner)
   return { settingsUrl: `${web}${settings}`, installUrl: `${web}${page}/installations/new` };
 }
 
+/**
+ * installationUrl returns the page of an App's installation on GitHub, under the account it is installed on.
+ *
+ * @param web the GitHub web host
+ * @param owner the account the App is installed on
+ * @param installation the installation's id
+ */
+export function installationUrl(web: string, owner: GithubAppOwner, installation: string): string {
+  const account = owner.isOrganization
+    ? `/organizations/${encodeURIComponent(owner.accountName)}`
+    : '';
+  return `${web}${account}/settings/installations/${installation}`;
+}
+
 /** Fetch the App's slug and owner via GET /app using an App JWT */
 export async function lookupGithubApp(
   api: string,

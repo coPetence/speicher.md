@@ -779,6 +779,44 @@ describe('checking the repositories a source reads', () => {
   });
 });
 
+describe('the next step of the repositories page', () => {
+  const fixOf = (html: string) => /data-spr-setup-fix="([^"]+)"/.exec(html)?.[1] ?? null;
+
+  it('says it is checking, and asks GitHub only at the check address', async () => {
+    await createOnGithub('sources', 'team');
+    lookup.mockClear();
+    const page = await ready('/-/repositories').expect(200);
+    expect(fixOf(page.text)).toBe('checking');
+    expect(page.text).toContain(
+      'data-spr-setup-fix-region data-spr-check-href="/-/repositories?check=1"',
+    );
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('asks to install the App when it is not installed, and nothing else', async () => {
+    await createOnGithub('sources', 'team');
+    const page = await ready('/-/repositories?check=1').expect(200);
+    expect(fixOf(page.text)).toBe('install');
+    expect(page.text.match(/data-spr-setup-fix="/g)).toHaveLength(1);
+    expect(page.text).toContain('is not installed on <strong>acme</strong> yet');
+    expect(page.text).toMatch(
+      new RegExp(
+        `<a class="spr-ready-action" href="${INSTALL_URL}" target="_blank" rel="noopener">Install on GitHub`,
+      ),
+    );
+  });
+
+  it('leads to the installation when the App reads no repository', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];
+    const page = await ready('/-/repositories?check=1').expect(200);
+    expect(fixOf(page.text)).toBe('no-repository');
+    expect(page.text).toContain(
+      'href="https://github.com/organizations/acme/settings/installations/5" target="_blank" rel="noopener">Open the installation',
+    );
+  });
+});
+
 describe('a check that asks GitHub', () => {
   it('answers at once with a pending modal, and asks GitHub only at the address it runs at', async () => {
     await createOnGithub('sources', 'team');

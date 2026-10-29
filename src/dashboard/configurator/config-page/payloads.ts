@@ -191,4 +191,5 @@ export interface CheckRow {
   create_action?: string;
   edit_href?: string;
   readers?: string;
+  groups?: string[];
 }

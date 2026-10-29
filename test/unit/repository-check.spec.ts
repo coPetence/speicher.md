@@ -9,6 +9,7 @@ import {
 const known: KnownGroups = {
   hasGroup: (name) => ['engineering', 'staff'].includes(name),
   suggestGroup: (name) => (name === 'enginering' ? 'engineering' : null),
+  allowsPublic: () => false,
 };
 
 const root = (body: string) => ({ path: '.speicher.yaml', raw: `version: 1\n${body}` });
@@ -63,6 +64,30 @@ describe('checking a repository before it is published', () => {
     expect(checkRepository([root('display:\n  title: Handbook\n')], known)).toMatchObject({
       state: 'invalid',
       file: '.speicher.yaml',
+    });
+  });
+
+  it('reads the files under the ingest root only, as the sync does', () => {
+    const fixture = {
+      path: 'test/fixtures/repos/fieldkit/.speicher.yaml',
+      raw: 'version: 1\ningest_root: docs\naccess:\n  groups: [contractors]\n',
+    };
+    const files = [
+      root('ingest_root: ./documentation/\naccess:\n  groups: [staff]\n'),
+      fixture,
+      {
+        path: 'documentation/guides/.speicher.yaml',
+        raw: 'version: 1\naccess:\n  groups: [ops]\n',
+      },
+    ];
+    expect(checkRepository(files, known)).toMatchObject({
+      state: 'unknown-groups',
+      groups: [{ name: 'ops', files: ['documentation/guides/.speicher.yaml'] }],
+    });
+    // Without an ingest root, the whole repository is read, and the folder's file is refused
+    expect(checkRepository([root('access:\n  groups: [staff]\n'), fixture], known)).toMatchObject({
+      state: 'invalid',
+      file: fixture.path,
     });
   });
 

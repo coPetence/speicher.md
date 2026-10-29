@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { DashboardResponder } from '../../../../respond';
+import { renderInlineMark } from '../../../provider-marks';
 import { DEFAULT_BRAND_ICON, renderInlineIcon } from '../../../../../content-reader/icons';
 import { renderTemplate } from '../../../../../content-reader/views';
 
@@ -25,6 +26,10 @@ export function sendSetup(
       renderTemplate('dashboard/ui/views/setup/setup-overview', {
         ...(data as unknown as Record<string, unknown>),
         mark_icon: renderInlineIcon(DEFAULT_BRAND_ICON, 'spr-icon'),
+        docs_icon: renderInlineIcon('book-open', 'spr-icon'),
+        github_mark: renderInlineMark('github', 'spr-icon'),
+        copetence_icon: renderInlineIcon('globe', 'spr-icon'),
+        external_icon: renderInlineIcon('external-link', 'spr-icon'),
       }),
   });
 }

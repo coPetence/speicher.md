@@ -17,6 +17,7 @@ import { isDashboardSectionDisabled } from './dashboard-sections';
 import { DashboardRepository } from './dashboard.repository';
 import { DashboardResponder, dashboardNavOptions, guidedThroughSetup, wantsJson } from './respond';
 import { searchDashboard } from './search/search';
+import { REPOSITORY_STEP_PATH } from './setup/steps';
 import { rememberFilter, rememberedFilter } from './status/filter-cookie';
 import { DEFAULT_REPO_FILTER, repoFilterFrom } from './status/repo-filter';
 import { repoSortFrom } from './status/repo-sort';
@@ -99,7 +100,11 @@ export class DashboardController {
 
   /** Queues discovery for every configured forge */
   @Post('discover')
-  async discoverForges(@Req() req: Request, @Res() res: Response): Promise<void> {
+  async discoverForges(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: { back?: unknown },
+  ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
@@ -121,7 +126,7 @@ export class DashboardController {
       res.status(200).json({ discovering: forges });
       return;
     }
-    res.redirect(303, '/-/status');
+    res.redirect(303, body?.back === 'repositories' ? REPOSITORY_STEP_PATH : '/-/status');
   }
 
   /** Queues a manual sync of one repository, deduplicated against pending jobs */
@@ -129,7 +134,7 @@ export class DashboardController {
   async syncRepository(
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: { namespace?: unknown; slug?: unknown },
+    @Body() body: { namespace?: unknown; slug?: unknown; back?: unknown },
   ): Promise<void> {
     const caller = callerOf(req);
     const namespace = typeof body?.namespace === 'string' ? body.namespace : '';
@@ -152,6 +157,7 @@ export class DashboardController {
       return;
     }
     // No `?syncing=` flag: the page asks the queue, so a reload is a fresh answer
+    if (body?.back === 'repositories') return res.redirect(303, REPOSITORY_STEP_PATH);
     res.redirect(303, `/-/status/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}`);
   }
 

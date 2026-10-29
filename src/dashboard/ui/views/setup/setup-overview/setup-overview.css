@@ -1,4 +1,10 @@
 @layer speicher.base {
+  /* In the middle of the page, both ways */
+  .spr-main:has(> .spr-welcome) {
+    display: grid;
+    align-content: center;
+  }
+
   .spr-welcome {
     display: grid;
     justify-items: center;
@@ -19,12 +25,22 @@
 
   .spr-welcome-mark {
     display: inline-flex;
-    color: var(--spr-accent);
+    color: var(--spr-fg);
   }
 
   .spr-welcome-mark .spr-icon {
     width: 5rem;
     height: 5rem;
     stroke-width: 1.5;
+  }
+
+  .spr-welcome-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spr-space-3);
+    margin: var(--spr-space-2) 0 0;
+    padding: 0;
+    list-style: none;
   }
 }

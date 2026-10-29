@@ -8,9 +8,12 @@
  */
 
 import { PUBLIC_GROUP_NAME } from '../../../common/principals';
+import { slugify } from '../../../common/slug';
+import type { RepoRef } from '../../../config/config.service';
 import { normalizeAccess } from '../../../config/types';
 import { FindingList } from '../../../ingest/findings';
 import { validateConfigFile } from '../../../ingest/validate';
+import { normalizeIngestRoot } from '../../../ingest/walk/root';
 
 /** A `.speicher.yaml` or `.speicher.yml`, by its path in the repository */
 export interface ConfigFile {
@@ -18,10 +21,21 @@ export interface ConfigFile {
   raw: string;
 }
 
-/** The instance's groups, as the check asks about them */
+/** The instance's groups, as the check asks about them, and the repositories it publishes to everyone */
 export interface KnownGroups {
   hasGroup(name: string): boolean;
   suggestGroup(name: string): string | null;
+  allowsPublic(repo: RepoRef): boolean;
+}
+
+/**
+ * publicRepoRef returns a repository on GitHub as the sync names it, e.g. for the instance's public repositories.
+ *
+ * @param fullName the repository as GitHub names it, e.g. `acme/Handbook.md`
+ */
+export function publicRepoRef(fullName: string): RepoRef {
+  const cut = fullName.indexOf('/');
+  return { namespace: fullName.slice(0, cut), slug: slugify(fullName.slice(cut + 1)) };
 }
 
 export interface UnknownGroup {
@@ -64,8 +78,10 @@ export function checkRepository(files: ConfigFile[], known: KnownGroups): Reposi
   // The root first: a folder's file is validated against the root's version
   const ordered = [root, ...files.filter((file) => file !== root)];
   let rootVersion: number | undefined;
+  let ingestRoot = '';
   for (const file of ordered) {
     const isRoot = file === root;
+    if (!isRoot && ingestRoot !== '' && !file.path.startsWith(`${ingestRoot}/`)) continue;
     const findings = new FindingList();
     const parsed = validateConfigFile(
       file.raw,
@@ -84,6 +100,7 @@ export function checkRepository(files: ConfigFile[], known: KnownGroups): Reposi
     const access = normalizeAccess(parsed.config.access);
     if (isRoot) {
       rootVersion = parsed.config.version;
+      ingestRoot = normalizeIngestRoot(parsed.config.ingest_root ?? '');
       if (!access) {
         return {
           state: 'invalid',

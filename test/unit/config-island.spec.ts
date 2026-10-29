@@ -1759,6 +1759,53 @@ describe('fields of the add modal shown with the kind', () => {
   });
 });
 
+describe('the walkthrough of a config page', () => {
+  function renderWalkthrough(): void {
+    document.body.innerHTML = `
+      <details class="spr-modal spr-walkthrough" data-spr-walkthrough open>
+        <summary></summary>
+        <div class="spr-modal-panel">
+          <section data-spr-walkthrough-slide>one</section>
+          <section data-spr-walkthrough-slide>two</section>
+          <section data-spr-walkthrough-slide>three</section>
+          <div class="spr-walkthrough-foot">
+            <button type="button" data-spr-walkthrough-back hidden>Back</button>
+            <span data-spr-walkthrough-dots hidden>
+              <span data-spr-walkthrough-dot></span><span data-spr-walkthrough-dot></span><span data-spr-walkthrough-dot></span>
+            </span>
+            <button type="button" data-spr-walkthrough-next hidden>Next</button>
+            <button type="button" data-spr-walkthrough-done data-spr-modal-cancel>Got it</button>
+          </div>
+        </div>
+      </details>`;
+  }
+
+  const shown = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-spr-walkthrough-slide]'))
+      .filter((slide) => !slide.hidden)
+      .map((slide) => slide.textContent);
+  const visible = (name: string) =>
+    !(document.querySelector(`[data-spr-walkthrough-${name}]`) as HTMLElement).hidden;
+
+  it('shows one slide at a time, with Got it in place of Next on the last', () => {
+    renderWalkthrough();
+    run();
+    expect([shown(), visible('back'), visible('next'), visible('done')]).toEqual([
+      ['one'],
+      false,
+      true,
+      false,
+    ]);
+    (document.querySelector('[data-spr-walkthrough-next]') as HTMLElement).click();
+    expect([shown(), visible('back')]).toEqual([['two'], true]);
+    (document.querySelector('[data-spr-walkthrough-next]') as HTMLElement).click();
+    expect([shown(), visible('next'), visible('done')]).toEqual([['three'], false, true]);
+    expect(document.querySelectorAll('[data-spr-walkthrough-dot][data-spr-current]')).toHaveLength(
+      1,
+    );
+  });
+});
+
 describe('the transport of a git remote', () => {
   const URL_PATH = 'forges.onprem.repos.0.url';
 
@@ -2523,6 +2570,7 @@ describe('a pick list', () => {
               ${row('old-team/renamed', false)}
             </ul>
             <p class="spr-pick-list-empty" hidden>No repository may publish yet.</p>
+            <p class="spr-pick-list-unavailable" hidden>Nothing to add.</p>
             <template data-spr-pick-row>${row('', true)}</template>
             <template data-spr-pick-choice>${choice('', '')}</template>
             <details class="spr-modal spr-pick-list-modal" open>
@@ -2568,6 +2616,31 @@ describe('a pick list', () => {
     document.querySelector(selector)!.dispatchEvent(event);
     return event.defaultPrevented;
   };
+
+  it('opens with the repository the address names ticked, e.g. from the repositories page', () => {
+    window.history.replaceState(null, '', '/-/config/public?pick=copetence%2Fhandbook');
+    try {
+      renderPickList();
+      expect(modal().open).toBe(true);
+      const ticked = Array.from(
+        document.querySelectorAll<HTMLInputElement>('fieldset input:checked'),
+      ).map((box) => box.value);
+      expect(ticked).toEqual(['copetence/handbook']);
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it('says why nothing can be added once every repository is listed', () => {
+    renderPickList();
+    tick('copetence/fieldkit');
+    tick('copetence/handbook');
+    click('button[data-spr-pick-add]');
+    expect(modal().hidden).toBe(true);
+    expect(document.querySelector('.spr-pick-list-unavailable')?.hasAttribute('hidden')).toBe(
+      false,
+    );
+  });
 
   it('shows the search box and Cancel, which only work with the script', () => {
     renderPickList();

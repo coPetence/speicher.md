@@ -166,6 +166,19 @@ export function buildClient(): void {
     );
   }
 
+  const screenshotDir = join(root, 'src', 'global-ui', 'components', 'walkthrough', 'images');
+  for (const file of readdirSync(screenshotDir).filter((f) => f.endsWith('.webp'))) {
+    const contents = readFileSync(join(screenshotDir, file));
+    const hash = createHash('sha256').update(contents).digest('hex').slice(0, 12);
+    const name = `walkthrough-${file.replace(/\.webp$/, '')}`;
+    const hashed = `${name}-${hash}.webp`;
+    writeFileSync(join(outdir, hashed), contents);
+    claim(name, hashed);
+    process.stdout.write(
+      `  ${name.padEnd(22)} ${String(contents.length).padStart(6)} bytes -> ${hashed}\n`,
+    );
+  }
+
   writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
   for (const file of readdirSync(outdir)) {

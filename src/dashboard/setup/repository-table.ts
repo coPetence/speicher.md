@@ -1,8 +1,8 @@
+import { slugify } from '../../common/slug';
 import type { CheckRow } from '../configurator/config-page/payloads';
 import type { RepoStatus } from '../status/status.types';
 import type { Level } from '../ui/levels';
 
-/** A cell of the table: a badge */
 export interface RepositoryCell {
   level: Level;
   label: string;
@@ -17,6 +17,7 @@ export interface RepositoryTableRow {
   href: string | null;
   // Its page on the sync status, once a sync has found it
   status_href: string | null;
+  synced: { namespace: string; slug: string } | null;
   // The short id of its content source
   source: string | null;
   // The modal that creates its `.speicher.yaml`, GitHub's page that edits it, or whether the file to commit is copied
@@ -28,6 +29,8 @@ export interface RepositoryTableRow {
   };
   // Who its `.speicher.yaml` lets read it, or what keeps it from doing so, in markdown, once a check has read the file
   access: { level: Level; text: string } | null;
+  // The groups its `.speicher.yaml` lets read it, once a check has read the file
+  groups: string[] | null;
   // As on the sync status page
   sync: Pick<RepoStatus, 'state' | 'activity' | 'last_error'>;
   readable: boolean;
@@ -47,26 +50,28 @@ export function repositoryTable(
   checks: Map<string, CheckRow[]>,
   copies: Set<string>,
 ): RepositoryTableRow[] {
-  const reads = new Set(readable.map((name) => name.toLowerCase()));
+  const reads = new Set(readable.map(repositoryKey));
   const rows = new Map<string, RepositoryTableRow>();
   for (const repo of status) {
     const name = `${repo.namespace}/${repo.slug}`;
-    const key = name.toLowerCase();
+    const key = repositoryKey(name);
     rows.set(key, {
       key,
       name,
       href: null,
       status_href: `/-/status/${encodeURIComponent(repo.namespace)}/${encodeURIComponent(repo.slug)}`,
+      synced: { namespace: repo.namespace, slug: repo.slug },
       source: repo.forge_key,
       file: syncedFile(repo, copies),
       access: null,
+      groups: null,
       sync: { state: repo.state, activity: repo.activity, last_error: repo.last_error },
       readable: reads.has(key),
     });
   }
   for (const [source, found] of checks) {
     for (const check of found) {
-      const key = check.name.toLowerCase();
+      const key = repositoryKey(check.name);
       const file = checkedFile(check);
       const access = checkedAccess(check);
       const row = rows.get(key) ?? {
@@ -74,9 +79,11 @@ export function repositoryTable(
         name: check.name,
         href: null,
         status_href: null,
+        synced: null,
         source,
         file,
         access,
+        groups: null,
         // Not found by a sync yet: published with its first sync, or not at all without a file
         sync: {
           state: check.state === 'unpublished' ? 'unpublished' : 'never-synced',
@@ -85,10 +92,28 @@ export function repositoryTable(
         },
         readable: false,
       };
-      rows.set(key, { ...row, name: check.name, href: check.href, file, access });
+      rows.set(key, {
+        ...row,
+        name: check.name,
+        href: check.href,
+        file,
+        access,
+        groups: check.groups ?? null,
+      });
     }
   }
   return [...rows.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/**
+ * repositoryKey returns the key a row is found by: the owner in lower case and the name as the sync slugs it, so
+ * `acme/Handbook.md` on GitHub and `acme/handbook-md` in the sync are one row.
+ *
+ * @param name the repository, as GitHub or the sync names it
+ */
+export function repositoryKey(name: string): string {
+  const cut = name.indexOf('/');
+  return `${name.slice(0, cut).toLowerCase()}/${slugify(name.slice(cut + 1))}`;
 }
 
 /**

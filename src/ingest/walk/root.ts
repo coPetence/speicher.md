@@ -138,7 +138,7 @@ async function resolveMaintainers(
 }
 
 /** Normalize a path by removing empty segments and `.` */
-function normalizeIngestRoot(value: string): string {
+export function normalizeIngestRoot(value: string): string {
   return value
     .split('/')
     .filter((p) => p !== '' && p !== '.')

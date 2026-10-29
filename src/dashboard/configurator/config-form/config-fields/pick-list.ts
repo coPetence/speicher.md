@@ -28,6 +28,7 @@ export interface PickListField extends FieldBase {
   addLabel: string;
   searchLabel: string;
   empty: string;
+  unavailable?: string;
 }
 
 export interface PickListOptions extends BaseOptions {
@@ -35,6 +36,7 @@ export interface PickListOptions extends BaseOptions {
   addLabel: string;
   searchLabel: string;
   empty: string;
+  unavailable?: string;
 }
 
 export function pickListField(
@@ -56,5 +58,6 @@ export function pickListField(
     addLabel: options.addLabel,
     searchLabel: options.searchLabel,
     empty: options.empty,
+    unavailable: options.unavailable,
   };
 }

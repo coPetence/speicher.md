@@ -240,6 +240,17 @@ const cell = (html: string, repository: string, name: 'file' | 'sync' | 'readabl
   return new RegExp(`data-spr-cell="${name}">([\\s\\S]*?)</td>`).exec(row)?.[1] ?? '';
 };
 
+/** Makes the first administrator, as the fake IdP signs them in, the one member of a group */
+async function joinGroup(name: string): Promise<void> {
+  const doc = loadDocument((await getNewestConfigVersion(harness.tenantId))!.yaml);
+  doc.setIn(['groups', name], doc.createNode([{ provider: 'wizard', email: 'someone@idp.test' }]));
+  await saveInstanceConfig(harness.tenantId, doc.toString(), { origin: 'setup' });
+  await app.get(ConfigWatcher).refresh();
+}
+
+/** Which next step the repositories page shows, or null when it shows none */
+const fixOf = (html: string) => /data-spr-setup-fix="([^"]+)"/.exec(html)?.[1] ?? null;
+
 /** Whether the guide bar's button completes the setup */
 const completes = (html: string) => html.includes('action="/-/setup/complete" data-spr-guide-next');
 
@@ -617,6 +628,132 @@ describe('the first run', () => {
   });
 });
 
+describe('the walkthrough of a config page', () => {
+  const opened = (html: string) =>
+    /<details class="spr-modal spr-walkthrough" data-spr-walkthrough open>/.test(html);
+
+  it('explains the identity providers on the first visit, recommending GitHub', async () => {
+    const agent = await claim();
+    const page = await agent.get('/-/config/identity').expect(200);
+    expect(opened(page.text)).toBe(true);
+    expect(page.text).toContain('How signing in works');
+    expect(page.text).toMatch(
+      /GitHub<\/span>\s*<span\s+class="spr-badge spr-badge-ok"[^>]*>recommended/,
+    );
+    expect(page.text).toContain(
+      'Since this is the easiest to set up, we recommend it if you are not setting up Speicher.md for an organization.',
+    );
+  });
+
+  it('does not open by itself over a modal the address opens', async () => {
+    const agent = await claim();
+    const page = await agent.get('/-/config/identity?kind=github').expect(200);
+    expect(opened(page.text)).toBe(false);
+    // Not seen yet, so a plain visit still opens it
+    expect(opened((await agent.get('/-/config/identity').expect(200)).text)).toBe(true);
+  });
+
+  it('opens by itself the first time the guided setup reaches the groups, and from its link after', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const first = await agent.get('/-/config/groups').expect(200);
+    expect(opened(first.text)).toBe(true);
+    expect(first.text).toContain('How groups work');
+    expect(String(first.headers['set-cookie'])).toContain('speicher_walkthrough_groups=1');
+
+    // Seen: shut, and still there to open from the heading
+    const again = await agent.get('/-/config/groups').expect(200);
+    expect(opened(again.text)).toBe(false);
+    // A question mark beside the heading opens it again
+    expect(again.text).toContain(
+      '<summary class="spr-walkthrough-open" aria-label="How does this work?" title="How does this work?">',
+    );
+  });
+
+  it('shows the controls it talks about, inert, so nothing in them can be used', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    const page = await agent.get('/-/config/groups').expect(200);
+    const previews = [
+      ...page.text.matchAll(/<div class="spr-walkthrough-preview" inert aria-hidden="true">/g),
+    ];
+    expect(previews).toHaveLength(5);
+    // It starts with the file the groups are used in
+    expect(page.text.indexOf('What is a .speicher.yaml file?')).toBeLessThan(
+      page.text.indexOf('What is a group?'),
+    );
+    // A group is its rules, any of which lets a person in, and a repository names it by its short id
+    expect(page.text).toContain('A group is a list of membership rules');
+    expect(page.text).toContain('access: [<mark>engineering</mark>]');
+    expect(page.text).toContain('ferdinand.duschka@copetence.de');
+    // Outside the page's form, so nothing in them is ever posted
+    const form = page.text.indexOf('<form class="spr-config"');
+    expect(page.text.indexOf('data-spr-walkthrough')).toBeLessThan(form);
+  });
+
+  it('explains the content sources, from what one is to installing the GitHub App', async () => {
+    const agent = await claim();
+    const page = await agent.get('/-/config/sources').expect(200);
+    expect(page.text).toContain('How content sources work');
+    const previews = [
+      ...page.text.matchAll(/<div class="spr-walkthrough-preview" inert aria-hidden="true">/g),
+    ];
+    expect(previews).toHaveLength(3);
+    expect(page.text.indexOf('What is a content source?')).toBeLessThan(
+      page.text.indexOf('Creating the GitHub App'),
+    );
+    expect(page.text).toContain('Which repositories do you want to sync');
+    // GitHub's installation page, in the scheme the browser follows
+    expect(page.text).toMatch(
+      /<source srcset="\/-\/static\/walkthrough-install-github-app-dark-\w+\.webp" media="\(prefers-color-scheme: dark\)">\s*<img class="spr-walkthrough-screenshot" src="\/-\/static\/walkthrough-install-github-app-light-\w+\.webp"/,
+    );
+  });
+
+  it('shows the screenshot in the scheme the reader fixed, and only that one', async () => {
+    const agent = await claim();
+    const page = await agent
+      .get('/-/config/sources')
+      .set('Cookie', 'speicher_theme=dark')
+      .expect(200);
+    expect(page.text).toMatch(
+      /<img class="spr-walkthrough-screenshot" src="\/-\/static\/walkthrough-install-github-app-dark-\w+\.webp"/,
+    );
+    expect(page.text).not.toContain('walkthrough-install-github-app-light-');
+  });
+
+  it('explains the repositories page on the first visit, from publishing to the sync', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+
+    const first = await agent.get('/-/repositories').expect(200);
+    expect(opened(first.text)).toBe(true);
+    expect(first.text).toContain('How repositories are published');
+    expect(String(first.headers['set-cookie'])).toContain('speicher_walkthrough_repositories=1');
+    const previews = [
+      ...first.text.matchAll(/<div class="spr-walkthrough-preview" inert aria-hidden="true">/g),
+    ];
+    expect(previews).toHaveLength(4);
+    expect(first.text).toContain('access: [<mark>sales</mark>]');
+    // Beside the heading, as on the config pages
+    expect(first.text).toMatch(/Repositories<\/h1>\s*<details class="spr-modal spr-walkthrough"/);
+
+    // Seen: shut, and still there to open
+    expect(opened((await agent.get('/-/repositories').expect(200)).text)).toBe(false);
+  });
+
+  it('does not open by itself on a page that is no step of a guided setup', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+    await agent.get('/-/setup/later').expect(303);
+    const page = await agent.get('/-/config/groups').expect(200);
+    expect(opened(page.text)).toBe(false);
+  });
+});
+
 describe('a group made during the setup', () => {
   async function draftGroup(agent: Agent): Promise<request.Response> {
     await agent.get('/-/config/groups?add=eng').expect(303);
@@ -672,33 +809,48 @@ describe('a group made during the setup', () => {
 });
 
 describe('the repository step', () => {
-  it('says what is left until the administrator can read a repository, and keeps showing it', async () => {
+  it('shows only the step before the repositories while the administrator is in no group', async () => {
     const agent = await claim();
     await addProvider(agent);
     await prove(agent);
 
     const page = await agent.get('/-/repositories').expect(200);
-    // With the provider the administrator signed in with
+    // One step, with the provider the administrator signed in with, and the way to do it
+    expect(fixOf(page.text)).toBe('group');
     expect(page.text).toContain('You are signed in as someone@idp.test with wizard');
-    expect(page.text).toContain('href="/-/config/groups"');
+    expect(page.text).toMatch(/<a class="spr-ready-action" href="\/-\/config\/groups">Open groups/);
+    // The table waits until it is of use
+    expect(page.text).toMatch(/data-spr-repository-step[^>]* hidden>/);
+    expect(page.text).toContain('data-spr-setup-fix-region data-spr-blocked>');
+    expect(next(page.text)).toBeNull();
+    expect(completes(page.text)).toBe(false);
+  });
+
+  it('says the one thing that is left until the administrator can read a repository', async () => {
+    const agent = await claim();
+    await addProvider(agent);
+    await prove(agent);
+    await joinGroup('staff');
+
+    const page = await agent.get('/-/repositories').expect(200);
     // A row per synced repository, as the sync status has it, and readable by nobody yet
     expect(cell(page.text, 'copetence/handbook', 'sync')).toContain('>ok<');
     expect(cell(page.text, 'copetence/handbook', 'file')).toContain('>present<');
     expect(cell(page.text, 'copetence/handbook', 'readable')).toContain('–');
     expect(page.text).toContain('href="/-/status/copetence/handbook"');
-    // Refreshed by itself until it is readable
-    expect(page.text).toContain('data-spr-repository-step');
-    expect(page.text).toContain('data-spr-setup-status="no-group"');
-    expect(next(page.text)).toBeNull();
-    expect(completes(page.text)).toBe(false);
+    expect(page.text).not.toMatch(/data-spr-repository-step[^>]* hidden>/);
+    // Synced with a file that grants none of the administrator's groups
+    expect(fixOf(page.text)).toBe('no-grant');
+    expect(page.text).toContain('Add <code>staff</code> to the groups under <code>access</code>.');
 
     await grantHandbook();
     const readable = await agent.get('/-/repositories').expect(200);
     // The table stays, the handbook readable now, and the bar completes the setup
     expect(cell(readable.text, 'copetence/handbook', 'readable')).toContain('>yes<');
     expect(cell(readable.text, 'copetence/fieldkit', 'readable')).toContain('–');
-    // No note: the bar offers to complete the setup, and the refresh stops
-    expect(readable.text).toMatch(/data-spr-setup-status="" data-spr-readable>\s*<\/div>/);
+    // No step: the bar offers to complete the setup, and the refresh stops
+    expect(fixOf(readable.text)).toBeNull();
+    expect(readable.text).toContain('data-spr-setup-fix-region data-spr-readable>');
     expect(completes(readable.text)).toBe(true);
     const [row] = await getSequelize().query<{ completed: boolean }>(
       `SELECT setup_completed_at IS NOT NULL AS completed FROM tenants WHERE id = :id`,
@@ -747,17 +899,6 @@ describe('the repository step', () => {
     }
   });
 
-  it('gives a source without a check the file to commit, granting the groups of the instance', async () => {
-    const agent = await claim();
-    await addProvider(agent);
-    await addSource(agent);
-    await prove(agent);
-
-    const page = await agent.get('/-/repositories').expect(200);
-    expect(page.text).toContain('<pre><code>version: 1');
-    expect(page.text).toContain('groups: [readers]');
-  });
-
   it('is not reachable by anybody who did not claim this instance', async () => {
     await request(app.getHttpServer()).get('/-/repositories').expect(303);
   });
@@ -794,6 +935,11 @@ describe('the repository step', () => {
       nav.indexOf('href="/-/config/sources"'),
     );
     expect(page.text).not.toContain('class="spr-guide"');
+    // No step any more: the administrator's groups, as a note
+    expect(page.text).toMatch(
+      /<div class="spr-setup-groups" data-spr-setup-region="group">\s*<p class="spr-note[^>]*>[\s\S]*?You are signed in as/,
+    );
+    expect(page.text).not.toContain('Your groups');
   });
 });
 

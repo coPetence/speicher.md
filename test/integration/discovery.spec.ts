@@ -531,6 +531,24 @@ describe('a redelivery an operator asked for', () => {
     expect(Number(row.count)).toBe(1);
   });
 
+  it('leads back to the repositories page when it was started there', async () => {
+    const discovered = await request(app.getHttpServer())
+      .post('/-/discover')
+      .set('cookie', admin)
+      .type('form')
+      .send({ back: 'repositories' })
+      .expect(303);
+    expect(discovered.headers.location).toBe('/-/repositories');
+
+    const synced = await request(app.getHttpServer())
+      .post('/-/sync')
+      .set('cookie', admin)
+      .type('form')
+      .send({ namespace: 'coPetence', slug: 'discovered', back: 'repositories' })
+      .expect(303);
+    expect(synced.headers.location).toBe('/-/repositories');
+  });
+
   it('answers the reader 404 for a repository that is not there', async () => {
     await request(app.getHttpServer())
       .post('/-/sync')

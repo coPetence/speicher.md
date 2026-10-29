@@ -1,0 +1,287 @@
+@layer speicher.base {
+  /* The link that opens it, at the end of the page's heading */
+  .spr-page-head > .spr-walkthrough {
+    margin-inline-start: auto;
+  }
+
+  /* A question mark beside the heading, as the rename pencil is */
+  .spr-walkthrough-open {
+    display: inline-flex;
+    align-items: center;
+    color: var(--spr-muted);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .spr-walkthrough-open:hover,
+  .spr-walkthrough-open:focus-visible {
+    color: var(--spr-accent);
+  }
+
+  .spr-walkthrough-open::-webkit-details-marker {
+    display: none;
+  }
+
+  .spr-walkthrough-open .spr-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+  }
+
+  .spr-modal-panel.spr-walkthrough-panel {
+    width: min(44rem, calc(100vw - var(--spr-space-5) * 2));
+    justify-items: stretch;
+  }
+
+  .spr-walkthrough-slide {
+    display: grid;
+    gap: var(--spr-space-3);
+  }
+
+  .spr-walkthrough-slide + .spr-walkthrough-slide {
+    margin-top: var(--spr-space-5);
+  }
+
+  /* The island shows one slide and one way on at a time; their own display would show them all */
+  .spr-walkthrough-slide[hidden],
+  .spr-walkthrough-foot > [hidden] {
+    display: none;
+  }
+
+  /* What the slide talks about, as the page draws it, set off from the text */
+  .spr-walkthrough-preview {
+    padding: var(--spr-space-5);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-surface);
+  }
+
+  .spr-walkthrough-preview textarea {
+    width: 100%;
+    resize: none;
+  }
+
+  .spr-walkthrough-preview .spr-add-row-body {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+
+  /* A member row without its box, note and actions: where it comes from, and what it matches */
+  .spr-walkthrough-preview .spr-row-card {
+    grid-template-columns: minmax(9rem, max-content) auto minmax(0, 1fr);
+  }
+
+  .spr-walkthrough-preview .spr-entry-name > .spr-icon {
+    width: 1.25em;
+    height: 1.25em;
+    margin: 0;
+  }
+
+  .spr-walkthrough-window {
+    display: grid;
+    gap: var(--spr-space-2);
+    max-width: 24rem;
+    margin-inline: auto;
+    padding: var(--spr-space-5);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-bg);
+  }
+
+  .spr-walkthrough-window-title {
+    margin: 0 0 var(--spr-space-2);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-walkthrough-window > .spr-ready-action {
+    justify-self: end;
+    margin-top: var(--spr-space-2);
+  }
+
+  /* From the group's short id down to the file that names it */
+  .spr-walkthrough-leads {
+    display: flex;
+    justify-content: center;
+    margin-block: var(--spr-space-2);
+    color: var(--spr-muted);
+  }
+
+  .spr-walkthrough-leads .spr-icon {
+    width: 1.25em;
+    height: 1.25em;
+    margin: 0;
+  }
+
+  .spr-walkthrough-table {
+    width: 100%;
+    margin: 0;
+  }
+
+  /* A screenshot brings its own frame */
+  .spr-walkthrough-preview:has(> picture) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  /* As tall as the other previews, so the modal fits without scrolling; scoped to beat `.spr-main img` */
+  .spr-walkthrough-preview .spr-walkthrough-screenshot {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: min(27rem, 52vh);
+    object-fit: contain;
+    margin-inline: auto;
+    border-radius: var(--spr-radius);
+  }
+
+  .spr-walkthrough-signin {
+    margin-inline: auto;
+  }
+
+  .spr-walkthrough-kinds {
+    margin: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .spr-walkthrough-kinds .spr-badge {
+    margin-inline-start: auto;
+  }
+
+  /* A file as an editor shows it: its name above its lines */
+  .spr-walkthrough-file {
+    max-width: 32rem;
+    margin-inline: auto;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-lg);
+    background: var(--spr-bg);
+    overflow: hidden;
+  }
+
+  .spr-walkthrough-file-name {
+    padding: var(--spr-space-2) var(--spr-space-4);
+    border-bottom: var(--spr-border) solid var(--spr-line);
+    color: var(--spr-muted);
+    font-family: var(--spr-font-mono);
+    font-size: var(--spr-font-size-label);
+  }
+
+  .spr-walkthrough-file > pre {
+    margin: 0;
+    padding: var(--spr-space-4);
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  /* The short id, where the file names it */
+  .spr-walkthrough-file mark {
+    padding: 0 0.15em;
+    border-radius: var(--spr-radius-sm);
+    background: color-mix(in oklab, var(--spr-accent) 25%, transparent);
+    color: inherit;
+  }
+
+  /* A picked provider, as the dropdown shows it closed */
+  .spr-walkthrough-picked {
+    display: flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin-bottom: var(--spr-space-3);
+    padding: var(--spr-space-2) var(--spr-space-3);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius);
+    background: var(--spr-surface);
+  }
+
+  .spr-walkthrough-picked .spr-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
+
+  .spr-walkthrough-picked > .spr-icon:last-child {
+    width: 1em;
+    height: 1em;
+    margin-inline-start: auto;
+  }
+
+  .spr-walkthrough-title {
+    margin: 0;
+    font-size: var(--spr-font-size);
+  }
+
+  .spr-walkthrough-text {
+    margin: 0;
+    color: var(--spr-muted);
+  }
+
+  .spr-walkthrough-points {
+    display: grid;
+    gap: var(--spr-space-1);
+    padding-inline-start: var(--spr-space-5);
+  }
+
+  /* A name or a value the text talks about, set apart from the muted text around it */
+  .spr-walkthrough-text code {
+    padding: 0.05em 0.35em;
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-sm);
+    background: var(--spr-surface);
+    color: var(--spr-fg);
+    font-family: var(--spr-font-mono);
+    font-size: 0.9em;
+  }
+
+  /* Back on the left, where the slide is in the middle, on to the next on the right */
+  .spr-ready-foot.spr-walkthrough-foot {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    margin-top: var(--spr-space-4);
+  }
+
+  .spr-walkthrough-back {
+    grid-column: 1;
+    justify-self: start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .spr-walkthrough-dots {
+    grid-column: 2;
+    display: flex;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-walkthrough-dots[hidden] {
+    display: none;
+  }
+
+  .spr-walkthrough-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--spr-line);
+  }
+
+  .spr-walkthrough-dot[data-spr-current] {
+    background: var(--spr-accent);
+  }
+
+  .spr-walkthrough-foot > [data-spr-walkthrough-next],
+  .spr-walkthrough-foot > [data-spr-walkthrough-done] {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  @media not all and (min-width: 48rem) {
+    .spr-walkthrough-preview .spr-add-row-body,
+    .spr-walkthrough-kinds {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

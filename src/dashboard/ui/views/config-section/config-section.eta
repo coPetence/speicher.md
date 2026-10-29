@@ -14,6 +14,10 @@
   <h1><%= it.section_title %></h1>
   <% } %>
 
+  <% if (it.walkthrough) { %>
+  <%~ include('@walkthrough', it.walkthrough) %>
+  <% } %>
+
   <% if (it.editable && it.section && it.section.renameOp && !it.creating) { %>
   <details class="spr-modal spr-rename">
     <summary aria-label="Rename <%= it.section_title %>"><%~ it.pencil_icon || 'Rename' %></summary>
