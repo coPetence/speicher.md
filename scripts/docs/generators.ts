@@ -8,9 +8,26 @@
  *
  * Schema tables use the pointer as the key path; use `key` to override it
  * `without:` excludes unreleased commands or top-level schema keys
+ *   <!-- generated: cli [without:a,b] -->              every command of the `speicher` CLI
+ *   <!-- generated: env-vars [NAME,NAME…] -->          the env table, or only the named rows
+ *   <!-- generated: schema <name>[#pointer] [key] -->  a key table from src/config/schema/<name>.schema.json
+ *   <!-- generated: schema <name> [without:a,b] -->    the reference page, leaving out the named top-level keys
+ *   <!-- generated: mcp-tools -->                      every tool of the MCP server, with its parameters
+ *   <!-- generated: install <local|caddy> <file> -->    a file deploy/install.sh writes, for that setup
+ *
+ * A schema block without a pointer is a reference page: one section per top-level
+ * key, and a heading for every key below it. With a pointer it is the table a guide
+ * page ends with, its keys spelled from the pointer, or from `key` where the pointer
+ * cannot say (a `$defs` entry has no place in the document until something refers
+ * to it).
+ *
+ * `without:` leaves out commands or top-level keys that exist in code but are not
+ * released yet, so the docs do not describe what readers cannot use.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 import { COMMANDS } from '../../src/cli/commands';
 import { renderEnvTable } from '../../src/common/env';
@@ -19,6 +36,14 @@ import { BlockSpec, DocsError } from './markers';
 import { SchemaDoc, renderEntries, renderFacts, renderTable } from './schema-table';
 
 const SCHEMA_DIR = resolve(__dirname, '../../src/config/schema');
+const INSTALLER = resolve(__dirname, '../../deploy/install.sh');
+
+/** The installer's flags for each setup the docs show */
+const INSTALL_SETUPS: Record<string, string[]> = {
+  local: ['--mode', 'local', '--port', '3000'],
+  caddy: ['--mode', 'public', '--domain', 'docs.example.com', '--caddy'],
+};
+const INSTALL_FILES: Record<string, string> = { 'docker-compose.yaml': 'yaml', Caddyfile: '' };
 
 export function generate(spec: BlockSpec): string {
   const without = new Set(
@@ -44,6 +69,9 @@ export function generate(spec: BlockSpec): string {
     case 'mcp-tools':
       expectArgs(kind, args, 0);
       return renderMcpTools();
+    case 'install':
+      expectArgs(kind, args, 2);
+      return renderInstallFile(args[0], args[1]);
     default:
       throw new DocsError('docs.unknown-kind', `Unknown generated block type: ${kind}`);
   }
@@ -81,6 +109,52 @@ export function renderMcpTools(): string {
       .filter(Boolean)
       .join('\n\n');
   }).join('\n\n');
+}
+
+const installRuns = new Map<string, Map<string, string>>();
+
+/**
+ * A file as deploy/install.sh writes it, so the manual setup in the docs is the
+ * same as the one the script makes
+ */
+export function renderInstallFile(setup: string, file: string): string {
+  const flags = INSTALL_SETUPS[setup];
+  if (flags === undefined) {
+    throw new Error(`install setup is one of ${Object.keys(INSTALL_SETUPS).join(', ')}`);
+  }
+  const language = INSTALL_FILES[file];
+  if (language === undefined) {
+    throw new Error(`install file is one of ${Object.keys(INSTALL_FILES).join(', ')}`);
+  }
+  let files = installRuns.get(setup);
+  if (files === undefined) {
+    files = runInstaller(flags);
+    installRuns.set(setup, files);
+  }
+  const content = files.get(file);
+  if (content === undefined) throw new Error(`the ${setup} setup writes no ${file}`);
+  return ['```' + language, content.trimEnd(), '```'].join('\n');
+}
+
+function runInstaller(flags: string[]): Map<string, string> {
+  const dir = mkdtempSync(join(tmpdir(), 'speicher-install-'));
+  try {
+    execFileSync('bash', [INSTALLER, '--yes', '--no-start', '--dir', dir, ...flags], {
+      env: { ...process.env, NO_COLOR: '1' },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    const files = new Map<string, string>();
+    for (const file of Object.keys(INSTALL_FILES)) {
+      try {
+        files.set(file, readFileSync(join(dir, file), 'utf8'));
+      } catch {
+        // The setup does not write this file
+      }
+    }
+    return files;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 function renderSchema(
