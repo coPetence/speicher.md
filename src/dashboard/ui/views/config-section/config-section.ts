@@ -19,7 +19,7 @@ import { DashboardResponder } from '../../../respond';
 import { markSprite, renderInlineMark } from '../../provider-marks';
 
 // The mark of each state a checked repository can be in
-const CHECK_ICONS = {
+export const CHECK_ICONS = {
   ready: 'circle-check',
   unpublished: 'circle-dashed',
   'unknown-groups': 'triangle-alert',
@@ -35,7 +35,7 @@ export function sendConfigSection(
   isAdmin: boolean,
   sectionId: string,
   payload: ConfigSectionPayload,
-  hasAdministrator: boolean,
+  inSetup: boolean,
   status?: number,
 ): void {
   respond.send(req, res, isAdmin, {
@@ -44,6 +44,7 @@ export function sendConfigSection(
     title: payload.section?.title ?? titleOfSection(sectionId),
     payload,
     island: 'config',
+    formActions: payload.config_file ? [payload.config_file.leads_to] : undefined,
     embedsFrames: payload.section
       ? allFields([payload.section]).some((f) => f.kind === 'template')
       : false,
@@ -114,7 +115,7 @@ export function sendConfigSection(
           sectionId,
           payload.section?.title ?? titleOfSection(sectionId),
           // Hide breadcrumbs during setup, when navigation uses a different root
-          hasAdministrator,
+          !inSetup,
         ),
         // Use the section icon unless the heading already has a provider logo
         head_icon: payload.section?.mark

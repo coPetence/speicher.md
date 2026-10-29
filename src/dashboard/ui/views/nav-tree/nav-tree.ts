@@ -13,12 +13,7 @@ import {
   visibleDashboardSections,
 } from '../../../dashboard-sections';
 import { CONFIG_NAV_SECTIONS } from '../../../configurator/config-form/fields';
-import {
-  ADMINISTRATOR_HREF,
-  ADMINISTRATOR_SECTION_ID,
-  MAIL_SECTION_ID,
-  setupNavSections,
-} from '../../../setup/setup-sections';
+import { MAIL_SECTION_ID, setupNavSections } from '../../../setup/setup-sections';
 import { renderIconRef, renderInlineIcon } from '../../../../content-reader/icons';
 import { renderTemplate } from '../../../../content-reader/views';
 
@@ -90,22 +85,15 @@ export function dashboardNav(
           children: [
             ...setupNavSections(showMailTransport || subsection === MAIL_SECTION_ID).map(
               (entry) => {
-                const nested = subsection?.startsWith(`${entry.id}/`) ?? false;
+                const onView = currentDashboardView === (entry.config ? 'config' : 'setup');
+                const nested = onView && (subsection?.startsWith(`${entry.id}/`) ?? false);
                 return link(
-                  `/-/config/${entry.id}`,
+                  entry.href,
                   entry.title,
                   entry.icon,
-                  entry.id === subsection ? 'page' : nested ? 'true' : null,
+                  onView && entry.id === subsection ? 'page' : nested ? 'true' : null,
                 );
               },
-            ),
-            link(
-              ADMINISTRATOR_HREF,
-              'Administrator',
-              'user-check',
-              currentDashboardView === 'setup' && subsection === ADMINISTRATOR_SECTION_ID
-                ? 'page'
-                : null,
             ),
             link(
               '/-/config',
@@ -121,16 +109,33 @@ export function dashboardNav(
       if (section.id === 'config') {
         return {
           ...row,
-          open: currentDashboardView === 'config' || openFolds.has(section.id),
-          children: CONFIG_NAV_SECTIONS.map((entry) => {
+          open: dashboardBranchOf(currentDashboardView) === 'config' || openFolds.has(section.id),
+          children: CONFIG_NAV_SECTIONS.flatMap((entry) => {
             // A sub-path marks the parent as an open branch, not the page
             const nested = subsection?.startsWith(`${entry.id}/`) ?? false;
-            return link(
+            const sectionLink = link(
               `/-/config/${entry.id}`,
               entry.title,
               entry.icon,
-              entry.id === subsection ? 'page' : nested ? 'true' : null,
+              currentDashboardView === 'config' && entry.id === subsection
+                ? 'page'
+                : nested
+                  ? 'true'
+                  : null,
             );
+            if (entry.id !== 'sources') return [sectionLink];
+            const repositories = visible.find((leaf) => leaf.id === 'repositories');
+            return repositories
+              ? [
+                  sectionLink,
+                  link(
+                    repositories.href,
+                    repositories.label,
+                    repositories.icon,
+                    currentDashboardView === 'repositories' ? 'page' : null,
+                  ),
+                ]
+              : [sectionLink];
           }),
         };
       }

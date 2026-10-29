@@ -12,6 +12,8 @@ import { Injectable } from '@nestjs/common';
 import { QueryTypes, Sequelize } from 'sequelize';
 
 import { hashToken, mintToken } from '../../auth/tokens';
+import { SetupReachRepository } from '../../authz/content/setup-reach.repository';
+import { Principal } from '../../common/principals';
 import { ConfigSource } from '../../config/types';
 import { getSequelize } from '../../db/sequelize';
 import { mintClaimCode } from './claim-code';
@@ -205,6 +207,62 @@ export class SetupService {
     );
     if (!rows[0]) return 'gone';
     return rows[0].approved ? 'approved' : 'pending';
+  }
+
+  /**
+   * guideOpen returns whether the guided setup of the tenant with the given tenantId still runs.
+   *
+   * @param tenantId the tenant
+   */
+  async guideOpen(tenantId: string): Promise<boolean> {
+    const [row] = await this.db.query<{ open: boolean }>(
+      `SELECT (setup_completed_at IS NULL) AS open FROM tenants WHERE id = :tenantId`,
+      { type: QueryTypes.SELECT, replacements: { tenantId } },
+    );
+    return row?.open === true;
+  }
+
+  /**
+   * readsAnyPage returns whether the given principals can read a synced page of the tenant with the given tenantId.
+   *
+   * @param tenantId the tenant
+   * @param principals the principals of the administrator asking
+   */
+  async readsAnyPage(tenantId: string, principals: Principal[]): Promise<boolean> {
+    return this.reach.readsAnyPage(tenantId, principals);
+  }
+
+  /**
+   * complete ends the guided setup of the tenant with the given tenantId. It is refused while the given principals
+   * cannot read a synced page.
+   *
+   * @param tenantId the tenant
+   * @param principals the principals of the administrator completing it
+   */
+  async complete(tenantId: string, principals: Principal[]): Promise<boolean> {
+    if (!(await this.reach.readsAnyPage(tenantId, principals))) return false;
+    await this.db.query(
+      `UPDATE tenants SET setup_completed_at = now()
+        WHERE id = :tenantId AND setup_completed_at IS NULL`,
+      { type: QueryTypes.UPDATE, replacements: { tenantId } },
+    );
+    return true;
+  }
+
+  /**
+   * readableRepositories returns the repositories of the tenant with the given tenantId that the given principals can
+   * read a page of, e.g. `acme/handbook`.
+   *
+   * @param tenantId the tenant
+   * @param principals the principals of the administrator asking
+   */
+  async readableRepositories(tenantId: string, principals: Principal[]): Promise<string[]> {
+    return this.reach.readableRepositories(tenantId, principals);
+  }
+
+  // The database is not up yet when this singleton is created
+  private get reach(): SetupReachRepository {
+    return new SetupReachRepository(this.db);
   }
 
   async latchFirstAdminLogin(tenantId: string): Promise<boolean> {

@@ -1,0 +1,60 @@
+@layer speicher.base {
+  .spr-guide {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spr-space-3);
+    padding: var(--spr-space-3)
+      max(var(--spr-gutter), calc((100% - var(--spr-measure-wide)) / 2));
+    border-top: var(--spr-border) solid var(--spr-line);
+    background: var(--spr-bg);
+  }
+
+  .spr-guide-where {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spr-space-4);
+    color: var(--spr-muted);
+  }
+
+  .spr-guide-where strong {
+    color: var(--spr-fg);
+  }
+
+  .spr-guide-later {
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-guide > [data-spr-guide-next] {
+    margin-inline-start: auto;
+  }
+
+  .spr-pane:has(.spr-config[data-spr-pending]) > .spr-guide {
+    display: none;
+  }
+
+  /* The pane is no box of its own, so the bar takes the row under the page */
+  @media not all and (min-width: 48rem) {
+    .spr-pane > .spr-guide {
+      grid-column: 1 / -1;
+      grid-row: 4;
+    }
+
+    .spr-pane:has(> .spr-guide) .spr-config .spr-config-actions {
+      bottom: calc(var(--spr-space-5) + 3.5rem);
+    }
+  }
+
+  /* The page scrolls inside the pane and fills it, with the bar at its foot */
+  @media (min-width: 48rem) {
+    .spr-pane:has(> .spr-guide) > .spr-main {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+  }
+}

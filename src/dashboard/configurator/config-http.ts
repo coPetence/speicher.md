@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 
 import { ResolvedCaller } from '../../authz/caller';
-import { ConfigService } from '../../config/config.service';
 import { DashboardResponder } from '../respond';
 import { sendConfigSection } from '../ui/views/config-section/config-section';
 import { ConfigSectionPayload } from './config-page/payloads';
@@ -25,7 +24,6 @@ export function redirectTo(res: Response, href: string): void {
 /** Sends a section or member page */
 export function sendSection(
   respond: DashboardResponder,
-  config: ConfigService,
   req: Request,
   res: Response,
   caller: ResolvedCaller,
@@ -40,7 +38,7 @@ export function sendSection(
     caller.isAdmin,
     sectionId,
     payload,
-    config.hasAdministrator,
+    caller.inSetup === true,
     status,
   );
 }

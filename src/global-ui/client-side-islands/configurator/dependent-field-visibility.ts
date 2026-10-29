@@ -3,9 +3,9 @@
  *
  * Fields with `data-spr-shown-with` are shown only when the named controlling
  * field has a non-empty value (select) or is checked (checkbox). When the
- * controlling field is the radio group of a choice, they are shown only while an
- * option named by `data-spr-shown-when` is checked; it may name several, separated
- * by spaces
+ * controlling field is the radio group or the select of a choice, they are shown
+ * only while an option named by `data-spr-shown-when` is picked; it may name
+ * several, separated by spaces
  * Elements with `data-spr-enabled-with` stay visible but are made inert while the
  * controlling checkbox is unchecked
  * Runs on mount and on every change of the controlling field
@@ -64,10 +64,16 @@ function revealWithin(form: HTMLElement): void {
     );
     if (!master) continue;
 
-    // Checkbox: hidden when unchecked. Select: hidden when no option chosen
+    // Checkbox: hidden when unchecked. Select: hidden when no option chosen, or none named by `data-spr-shown-when`
     const settle = () => {
       const asked = master instanceof HTMLInputElement ? master.checked : master.value !== '';
-      for (const element of belonging) element.hidden = !asked;
+      for (const element of belonging) {
+        const when = element.dataset.sprShownWhen;
+        element.hidden =
+          when && master instanceof HTMLSelectElement
+            ? !when.split(/\s+/).includes(master.value)
+            : !asked;
+      }
       for (const element of enabling) element.toggleAttribute('inert', !asked);
     };
 

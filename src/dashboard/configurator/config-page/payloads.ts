@@ -5,9 +5,9 @@ import { SaveVerdict } from '../../../config/classification';
 import { ConfigSource, SkippedConfigVersion } from '../../../config/types';
 import { ShapeControl } from '../config-form/collections';
 import { FormSection } from '../config-form/model';
+import { MemberUsage } from '../member-usage';
 import type { ReadyStep } from '../quick-setup/model';
 import type { MissingGroup } from '../quick-setup/repository-check';
-import { MemberUsage } from '../member-usage';
 import { RepairPreview } from '../repair-preview';
 
 /** State and payloads for `/-/config` pages */
@@ -95,6 +95,7 @@ export interface ConfigSectionPayload extends ConfigCommon {
   check?: CheckModal;
   // The groups those repositories name that do not exist yet, to be created, shown as a modal over the list of sources
   create_groups?: CreateGroupsModal;
+  config_file?: ConfigFileModal;
   // Kind being created in a multi-kind collection
   creating_kind: string;
   // Section member usage
@@ -162,6 +163,20 @@ export interface CreateGroupsModal {
   pending?: { href: string };
 }
 
+/** The modal that picks the groups a new `.speicher.yaml` grants reading to */
+export interface ConfigFileModal {
+  // The source's page, e.g. `sources/github`
+  section_id: string;
+  id: string;
+  // e.g. `acme/handbook`
+  repository: string;
+  action: string;
+  back_href: string;
+  leads_to: string;
+  groups: { name: string; checked: boolean }[];
+  error?: string;
+}
+
 /** One repository of the check */
 export interface CheckRow {
   // e.g. `acme/handbook`
@@ -171,6 +186,9 @@ export interface CheckRow {
   state: 'ready' | 'unpublished' | 'unknown-groups' | 'invalid' | 'unreadable';
   // What the check found, in markdown
   text: string;
-  // Where its `.speicher.yaml` is created on GitHub, for one that has none
+  // The modal that creates its `.speicher.yaml`, for one that has none
   create_href?: string;
+  create_action?: string;
+  edit_href?: string;
+  readers?: string;
 }

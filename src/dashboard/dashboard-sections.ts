@@ -17,6 +17,7 @@ export type DashboardSection =
   | 'history'
   | 'environment'
   | 'connections'
+  | 'repositories'
   | 'setup';
 
 /** One admin section: its nav entry, and who gets to see it */
@@ -83,6 +84,15 @@ export const DASHBOARD_SECTIONS: DashboardSectionEntry[] = [
     icon: 'settings',
     adminOnly: true,
     hiddenDuringSetup: 'always',
+  },
+  {
+    id: 'repositories',
+    label: 'Repositories',
+    href: '/-/repositories',
+    icon: 'book-marked',
+    adminOnly: true,
+    hiddenDuringSetup: 'always',
+    parent: 'config',
   },
   {
     id: 'explain',

@@ -15,12 +15,6 @@ import { Logger, rootLogger } from '../../../common/logger';
 import { isLocalhostUrl } from '../../../common/public-url';
 import { LoginFlow, initModels } from '../../../db/models';
 import {
-  directoryWebhookPath,
-  directoryWebhookUrl,
-  webhookPath,
-  webhookUrl,
-} from '../../../webhooks/webhook-url';
-import {
   AppManifest,
   ConvertedApp,
   appManifest,
@@ -28,6 +22,12 @@ import {
   manifestFormUrl,
 } from '../../../github/app-manifest';
 import { githubHosts } from '../../../github/hosts';
+import {
+  directoryWebhookPath,
+  directoryWebhookUrl,
+  webhookPath,
+  webhookUrl,
+} from '../../../webhooks/webhook-url';
 import { choiceName } from '../config-form/config-fields';
 import { setNodeAt } from '../config-form/document';
 import { memberSectionId } from '../config-form/members';
@@ -89,6 +89,27 @@ export function sourceCheckPath(forgeId: string): string {
  */
 export function sourceGroupsPath(forgeId: string): string {
   return `/-/config/sources/${encodeURIComponent(forgeId)}/groups`;
+}
+
+export type ConfigFileBack = 'check' | 'setup';
+
+export function repositoriesConfigFilePath(
+  forgeId: string,
+  repository: string,
+  branch: string,
+): string {
+  const query = new URLSearchParams({ config_file: forgeId, repository, branch });
+  return `/-/repositories?${query}`;
+}
+
+export function sourceConfigFilePath(
+  forgeId: string,
+  repository: string,
+  branch: string,
+  back: ConfigFileBack = 'check',
+): string {
+  const query = new URLSearchParams({ repository, branch, ...(back === 'setup' ? { back } : {}) });
+  return `/-/config/sources/${encodeURIComponent(forgeId)}/config-file?${query}`;
 }
 
 /**

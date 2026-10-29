@@ -1,0 +1,44 @@
+<%
+  const modal = it.configFile;
+  const titleId = 'config-file-' + (modal.id || 'picker') + '-title';
+%>
+<details class="spr-modal spr-groups-modal"<%= it.picker ? ' data-spr-config-file-picker' : ' open' %>>
+  <summary aria-label="Close"></summary>
+  <div class="spr-modal-panel spr-groups-panel" role="dialog" aria-labelledby="<%= titleId %>">
+    <h2 class="spr-modal-title" id="<%= titleId %>">Who may read <span data-spr-config-file-repository><%= modal.repository %></span>?</h2>
+    <% if (modal.groups.length === 0) { %>
+    <p class="spr-check-summary">
+      This instance has no groups yet. To configure the access rights for this repository via its <code>.speicher.yaml</code>, <a href="/-/config/groups">create a group</a> first.
+    </p>
+    <div class="spr-ready-foot">
+      <a href="<%= modal.back_href %>" data-spr-config-file-back>Back</a>
+    </div>
+    <% } else { %>
+    <p class="spr-check-summary">
+      Pick the groups whose members may read the repository.
+    </p>
+    <form method="post" action="<%= modal.action %>" target="_blank" class="spr-groups-form">
+      <ul class="spr-groups-list"<%= modal.error ? ' data-spr-invalid' : '' %>>
+        <% modal.groups.forEach(function (group) { %>
+        <li class="spr-groups-row" data-spr-grant-group="<%= group.name %>">
+          <label class="spr-groups-name">
+            <input type="checkbox" name="grant" value="<%= group.name %>"<%= group.checked ? ' checked' : '' %>>
+            <code><%= group.name %></code>
+          </label>
+        </li>
+        <% }) %>
+      </ul>
+      <% /* Under the list it is about, as a field's problem is */ %>
+      <% if (modal.error) { %>
+      <p class="spr-field-problem" role="alert"><%= modal.error %></p>
+      <% } else if (it.picker) { %>
+      <p class="spr-field-problem" role="alert" data-spr-config-file-none hidden>Pick at least one group.</p>
+      <% } %>
+      <div class="spr-ready-foot">
+        <a href="<%= modal.back_href %>" data-spr-config-file-back>Back</a>
+        <button type="submit" class="spr-ready-action spr-ready-next">Create on GitHub<%~ it.externalIcon || '' %></button>
+      </div>
+    </form>
+    <% } %>
+  </div>
+</details>

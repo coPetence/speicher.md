@@ -234,8 +234,12 @@ describe('the add modal of the identity providers', () => {
       .set('cookie', ops)
       .expect(200);
     expect(page.text).toContain('data-spr-reveal-root');
+    // A dropdown, one option per answer
+    const select = /<select[^>]*name="quick:github:audience"[\s\S]*?<\/select>/.exec(
+      page.text,
+    )?.[0];
     for (const audience of SIGN_IN_AUDIENCES) {
-      expect(page.text).toContain(`name="quick:github:audience" value="${audience.value}"`);
+      expect(select).toContain(`value="${audience.value}"`);
     }
     // The organization is asked for both answers that name one
     expect(page.text).toContain('data-spr-shown-when="org org-and-others"');
@@ -653,13 +657,114 @@ describe('checking the repositories a source reads', () => {
     );
     expect(page.text).toContain('It has no <code>access</code> block');
 
-    // GitHub's new-file page, with the file named and filled in, granting a group that exists
-    const create = /href="(https:\/\/github.com\/acme\/wiki\/new\/main\?[^"]+)"/.exec(
-      page.text,
-    )?.[1];
-    const url = new URL((create ?? '').replace(/&amp;/g, '&'));
-    expect(url.searchParams.get('filename')).toBe('.speicher.yaml');
-    expect(url.searchParams.get('value')).toContain('groups: [engineering]');
+    // The modal that picks who may read it, before GitHub's new-file page opens
+    expect(page.text).toContain(
+      'href="/-/config/sources/team/config-file?repository=acme%2Fwiki&amp;branch=main"',
+    );
+  });
+
+  describe('creating a .speicher.yaml from the check', () => {
+    const MODAL = '/-/config/sources/team/config-file?repository=acme%2Fwiki&branch=main';
+
+    function pick(fields: Record<string, string | string[]>, path = MODAL) {
+      return request(app.getHttpServer()).post(path).set('cookie', ops).type('form').send(fields);
+    }
+
+    it('offers every group of the instance, none of them ticked, and lets the post go on to GitHub', async () => {
+      await createOnGithub('sources', 'team');
+      const page = await ready(MODAL).expect(200);
+
+      expect(page.text).toContain(
+        'Who may read <span data-spr-config-file-repository>acme/wiki</span>?',
+      );
+      const offered = [...page.text.matchAll(/data-spr-grant-group="([^"]+)"/g)].map((m) => m[1]);
+      expect(offered).toEqual(['engineering', 'commercial', 'client-northwind', 'platform-ops']);
+      expect(page.text).not.toMatch(/name="grant" value="[^"]+" checked/);
+      expect(page.text).toContain('target="_blank"');
+      expect(String(page.headers['content-security-policy'])).toMatch(
+        /form-action 'self' https:\/\/github\.com/,
+      );
+    });
+
+    it('opens GitHub’s new-file page with a file that grants the picked groups only', async () => {
+      await createOnGithub('sources', 'team');
+      const sent = await pick({ grant: ['engineering', 'platform-ops', 'no-such-group'] }).expect(
+        303,
+      );
+
+      const url = new URL(sent.headers.location);
+      expect(`${url.origin}${url.pathname}`).toBe('https://github.com/acme/wiki/new/main');
+      expect(url.searchParams.get('filename')).toBe('.speicher.yaml');
+      expect(url.searchParams.get('value')).toContain('groups: [engineering, platform-ops]');
+    });
+
+    it('asks again when no group is picked', async () => {
+      await createOnGithub('sources', 'team');
+      const refused = await pick({}).expect(400);
+      expect(refused.text).toContain('Pick at least one group.');
+    });
+
+    it('refuses a repository that is not an owner and a name', async () => {
+      await createOnGithub('sources', 'team');
+      await ready(
+        '/-/config/sources/team/config-file?repository=..%2F..%2Fevil&branch=main',
+      ).expect(404);
+      await pick(
+        { grant: 'engineering' },
+        '/-/config/sources/team/config-file?repository=acme%2Fwiki',
+      ).expect(404);
+    });
+
+    it('waits closed on the repositories page, for the Create links to open in place', async () => {
+      await createOnGithub('sources', 'team');
+      const page = await ready('/-/repositories').expect(200);
+      expect(page.text).toMatch(
+        /<details class="spr-modal spr-groups-modal" data-spr-config-file-picker>/,
+      );
+      expect(page.text).toContain('data-spr-config-file-none hidden');
+      expect(String(page.headers['content-security-policy'])).toMatch(
+        /form-action 'self' https:\/\/github\.com/,
+      );
+    });
+
+    it('opens over the repositories page when it was asked for there, and leads back to it', async () => {
+      await createOnGithub('sources', 'team');
+      const page = await ready(
+        '/-/repositories?config_file=team&repository=acme%2Fwiki&branch=main',
+      ).expect(200);
+      expect(page.text).toContain(
+        'Who may read <span data-spr-config-file-repository>acme/wiki</span>?',
+      );
+      expect(page.text).toContain('href="/-/repositories" data-spr-config-file-back>Back</a>');
+      expect(page.text).toContain(
+        'action="/-/config/sources/team/config-file?repository=acme%2Fwiki&amp;branch=main&amp;back=setup"',
+      );
+      expect(String(page.headers['content-security-policy'])).toMatch(
+        /form-action 'self' https:\/\/github\.com/,
+      );
+
+      // Nothing picked: asked again over the repositories page
+      const again = await pick(
+        {},
+        '/-/config/sources/team/config-file?repository=acme%2Fwiki&branch=main&back=setup',
+      ).expect(303);
+      expect(again.headers.location).toBe(
+        '/-/repositories?config_file=team&repository=acme%2Fwiki&branch=main&picked=none',
+      );
+      const asked = await ready(again.headers.location).expect(200);
+      // Under the list, which is marked, as a field with a problem is
+      expect(asked.text).toContain(
+        '<p class="spr-field-problem" role="alert">Pick at least one group.</p>',
+      );
+      expect(asked.text).toContain('<ul class="spr-groups-list" data-spr-invalid>');
+
+      // Picked: on to GitHub as from the sources
+      const sent = await pick(
+        { grant: 'engineering' },
+        '/-/config/sources/team/config-file?repository=acme%2Fwiki&branch=main&back=setup',
+      ).expect(303);
+      expect(sent.headers.location).toMatch(/^https:\/\/github\.com\/acme\/wiki\/new\/main\?/);
+    });
   });
 
   it('says so when the App is not installed yet, with the way to install it', async () => {

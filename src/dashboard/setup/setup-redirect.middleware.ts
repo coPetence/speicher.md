@@ -17,7 +17,7 @@ const ALWAYS_REACHABLE_PREFIXES = [
   '/-/readyz',
 ];
 
-const SETUP_FLOW_PREFIXES = ['/-/setup', '/-/config', '/-/connections'];
+const SETUP_FLOW_PREFIXES = ['/-/setup', '/-/config', '/-/connections', '/-/repositories'];
 
 @Injectable()
 export class SetupRedirectMiddleware implements NestMiddleware {

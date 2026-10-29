@@ -19,8 +19,8 @@ export type QuickField =
       label: string;
       help?: string;
       options: Option[];
-      // A switch of a few short options side by side, or a list of radio buttons for longer ones
-      layout: 'switch' | 'list';
+      // A switch of a few short options side by side, a list of radio buttons for longer ones, or a dropdown
+      layout: 'switch' | 'list' | 'dropdown';
     }
   | {
       kind: 'text';

@@ -146,7 +146,7 @@ export function sendStatus(
   });
 }
 
-const STATE_DISPLAY: Record<RepoState, { label: string; level: Level }> = {
+export const STATE_DISPLAY: Record<RepoState, { label: string; level: Level }> = {
   ok: { label: 'ok', level: 'ok' },
   failed: { label: 'failed', level: 'fail' },
   stale: { label: 'stale', level: 'warn' },
@@ -189,7 +189,7 @@ export function problemSummary(problems: Problem[]): string {
   return count;
 }
 
-const QUEUED_ICON = 'clock';
+export const QUEUED_ICON = 'clock';
 
 /** `gh`, `gh and gl`, `gh, gl and git` */
 function listed(items: string[]): string {

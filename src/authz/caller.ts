@@ -37,6 +37,10 @@ export interface Caller {
   viaBearer: boolean; // Authenticated by an OAuth access token
 
   viaSetup?: boolean; // Setup session, administers its tenant
+
+  inSetup?: boolean;
+
+  readsPage?: boolean;
 }
 
 /** Caller with groups, principals and admin status resolved */

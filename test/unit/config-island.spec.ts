@@ -1738,6 +1738,25 @@ describe('fields of the add modal shown with the kind', () => {
     pick('quick:github:audience', 'me');
     expect(org().hidden).toBe(true);
   });
+
+  it('asks for the organization when the dropdown names one', () => {
+    document.body.innerHTML = `
+      <div data-spr-reveal-root>
+        <select name="quick:github:audience" form="add-member">
+          <option value="org" selected>Members of my organization</option>
+          <option value="me">Only me</option>
+        </select>
+        <div class="spr-quick-org" data-spr-shown-with="quick:github:audience" data-spr-shown-when="org org-and-others">
+          <input name="quick:github:org" form="add-member">
+        </div>
+      </div>`;
+    run();
+    expect(org().hidden).toBe(false);
+    const select = document.querySelector('select') as HTMLSelectElement;
+    select.value = 'me';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(org().hidden).toBe(true);
+  });
 });
 
 describe('the transport of a git remote', () => {

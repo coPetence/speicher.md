@@ -1,0 +1,94 @@
+@layer speicher.base {
+  .spr-setup-check {
+    display: grid;
+    gap: var(--spr-space-3);
+    margin-block: var(--spr-space-4);
+  }
+
+  .spr-setup-check > h3 {
+    margin: 0;
+    font-size: var(--spr-font-size-label);
+    color: var(--spr-muted);
+  }
+
+  [data-spr-setup-status] > .spr-section-status {
+    max-inline-size: none;
+  }
+
+  .spr-card > header + .spr-note {
+    margin-top: var(--spr-space-4);
+  }
+
+  .spr-setup-snippet {
+    margin-top: var(--spr-space-4);
+  }
+
+  .spr-setup-snippet > summary {
+    cursor: pointer;
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  /* The badge and what can be done about the file, on one line */
+  .spr-setup-file {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-setup-file-action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-1);
+    padding: 0 var(--spr-space-2);
+    border: var(--spr-border) solid var(--spr-line);
+    border-radius: var(--spr-radius-sm);
+    color: var(--spr-fg);
+    font-size: var(--spr-font-size-label);
+    line-height: 1.6;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .spr-setup-file-action:hover {
+    border-color: var(--spr-accent);
+    color: var(--spr-fg);
+  }
+
+  .spr-setup-file-action .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
+  .spr-setup-loading > td {
+    color: var(--spr-muted);
+  }
+
+  .spr-setup-loading .spr-activity {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin-inline-start: 0;
+  }
+
+  .spr-setup-loading .spr-activity .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+    vertical-align: baseline;
+  }
+
+  .spr-setup-access {
+    color: var(--spr-muted);
+    font-size: var(--spr-font-size-small);
+  }
+
+  .spr-setup-access-warn {
+    color: var(--spr-status-warn);
+  }
+
+  .spr-setup-access-fail {
+    color: var(--spr-status-fail);
+  }
+}

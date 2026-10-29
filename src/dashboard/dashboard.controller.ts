@@ -15,7 +15,7 @@ import { buildSections } from './configurator/config-form/fields';
 import { ConfigPageService } from './configurator/config-page/config-page.service';
 import { isDashboardSectionDisabled } from './dashboard-sections';
 import { DashboardRepository } from './dashboard.repository';
-import { DashboardResponder, dashboardNavOptions, wantsJson } from './respond';
+import { DashboardResponder, dashboardNavOptions, guidedThroughSetup, wantsJson } from './respond';
 import { searchDashboard } from './search/search';
 import { rememberFilter, rememberedFilter } from './status/filter-cookie';
 import { DEFAULT_REPO_FILTER, repoFilterFrom } from './status/repo-filter';
@@ -216,7 +216,11 @@ export class DashboardController {
     const state = await this.page.state(caller);
 
     const sections = state.doc ? buildSections(state.doc) : null;
-    const found = searchDashboard(query, sections, dashboardNavOptions(this.config));
+    const found = searchDashboard(
+      query,
+      sections,
+      dashboardNavOptions(this.config, guidedThroughSetup(req)),
+    );
 
     sendDashboardSearch(
       this.respond,

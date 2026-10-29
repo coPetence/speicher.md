@@ -87,7 +87,22 @@
       <% const name = 'quick:' + option.value + ':' + field.name; %>
       <% const shownWith = field.shownWhen ? 'quick:' + option.value + ':' + field.shownWhen.field : ''; %>
       <% const shownWhen = field.shownWhen ? field.shownWhen.values.join(' ') : ''; %>
-      <% if (field.kind === 'choice') { %>
+      <% if (field.kind === 'choice' && field.layout === 'dropdown') { %>
+      <% const picked = values[name] || field.options[0].value; %>
+      <% const selectId = 'q-' + option.value + '-' + field.name; %>
+      <div class="spr-quick-field">
+        <div class="spr-add-label">
+          <label for="<%= selectId %>"><%= field.label %></label>
+          <% if (field.help) { %><%~ include('@info', { field: { path: selectId, label: field.label, help: field.help } }) %><% } %>
+        </div>
+        <%~ include('@select', {
+          attributes: { id: selectId, name: name, form: 'add-member' },
+          options: field.options.map(function (choice) {
+            return { value: choice.value, label: choice.label, selected: choice.value === picked };
+          }),
+        }) %>
+      </div>
+      <% } else if (field.kind === 'choice') { %>
       <% const picked = values[name] || field.options[0].value; %>
       <fieldset class="spr-quick-choice">
         <legend><%= field.label %></legend>

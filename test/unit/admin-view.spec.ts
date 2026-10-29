@@ -1,5 +1,5 @@
 import { elapsed, isoOf, relativeTime, timeUntil } from '../../src/common/time';
-import { nextSetupPage, setupSteps } from '../../src/dashboard/setup/steps';
+import { setupGuide, setupSteps } from '../../src/dashboard/setup/steps';
 import { runLevel, severityLevel } from '../../src/dashboard/ui/levels';
 import { dashboardNav } from '../../src/dashboard/ui/views/nav-tree/nav-tree';
 import {
@@ -140,10 +140,12 @@ describe('the section list', () => {
   it('marks the step whose page you are on, and none on a page that is no step', () => {
     const configured = {
       providerShortIds: ['entra'],
-      hasAdministrator: false,
+      hasAdministrator: true,
       hasContentSource: false,
       hasMagicLinkProvider: false,
       hasMailTransport: false,
+      groupNames: ['staff'],
+      groupItems: () => [{ group: 'other' }],
     };
 
     const onIdentity = setupSteps(configured, '/-/config/identity');
@@ -161,6 +163,9 @@ describe('the section list', () => {
     expect(setupSteps(configured, '/-/config/groups').find((step) => step.current)?.id).toBe(
       'group',
     );
+    expect(setupSteps(configured, '/-/repositories').find((step) => step.current)?.id).toBe(
+      'repository',
+    );
 
     for (const path of ['/-/dead-jobs', '/-/config', '/-/config/sourcesx']) {
       expect(setupSteps(configured, path).filter((step) => step.current)).toEqual([]);
@@ -177,22 +182,26 @@ describe('the section list', () => {
       hasContentSource: false,
       hasMagicLinkProvider: false,
       hasMailTransport: false,
+      groupNames: [],
+      groupItems: () => [],
     };
 
     expect(setupSteps(fresh).map((step) => step.id)).toEqual([
       'provider',
+      'administrator',
       'group',
       'content',
-      'administrator',
+      'repository',
     ]);
 
     const arriving = setupSteps(fresh, '/-/config/mail');
     expect(arriving.map((step) => step.id)).toEqual([
       'mail',
       'provider',
+      'administrator',
       'group',
       'content',
-      'administrator',
+      'repository',
     ]);
     expect(arriving.find((step) => step.current)?.id).toBe('mail');
     expect(arriving.find((step) => step.id === 'mail')?.done).toBe(false);
@@ -207,47 +216,85 @@ describe('the section list', () => {
         providerShortIds: ['links'],
         hasMagicLinkProvider: true,
       }).map((step) => step.id),
-    ).toEqual(['mail', 'provider', 'group', 'content', 'administrator']);
+    ).toEqual(['mail', 'provider', 'administrator', 'group', 'content', 'repository']);
 
     for (const steps of [setupSteps(fresh), arriving, relayed]) {
       expect(steps.filter((step) => step.current)).toHaveLength(1);
     }
   });
 
-  it('hands a finished step over to the next, and only a finished one', () => {
+  it('counts the groups done once a group has a member, not when one only exists', () => {
+    const base = {
+      providerShortIds: ['entra'],
+      hasAdministrator: true,
+      hasContentSource: false,
+      hasMagicLinkProvider: false,
+      hasMailTransport: false,
+      groupNames: ['empty', 'staff'],
+    };
+    const group = (state: typeof base & { groupItems: (name: string) => { group: string }[] }) =>
+      setupSteps(state).find((step) => step.id === 'group')?.done;
+    expect(group({ ...base, groupItems: () => [] })).toBe(false);
+    expect(
+      group({ ...base, groupItems: (name) => (name === 'staff' ? [{ group: 'other' }] : []) }),
+    ).toBe(true);
+  });
+
+  it('offers the way on once the step on screen is done, and only then', () => {
     const fresh = {
       providerShortIds: [],
       hasAdministrator: false,
       hasContentSource: false,
       hasMagicLinkProvider: false,
       hasMailTransport: false,
+      groupNames: [] as string[],
+      groupItems: (): { group: string }[] => [],
     };
     const withProvider = { ...fresh, providerShortIds: ['entra'] };
 
-    expect(nextSetupPage(fresh, withProvider, 'identity')).toBe('/-/config/sources');
-    expect(nextSetupPage(fresh, withProvider, 'identity/entra')).toBe('/-/config/sources');
+    const undone = setupGuide(setupSteps(fresh, '/-/config/identity'));
+    expect([undone.step?.id, undone.position, undone.count]).toEqual(['provider', 1, 5]);
+    expect(undone.onward).toBeNull();
 
-    expect(nextSetupPage(withProvider, withProvider, 'identity/entra')).toBeNull();
+    expect(setupGuide(setupSteps(withProvider, '/-/config/identity/entra')).onward).toEqual({
+      label: 'Next',
+      href: '/-/setup/administrator',
+      complete: false,
+    });
 
-    expect(nextSetupPage(fresh, fresh, 'identity')).toBeNull();
+    // A page that is no step's starts the setup, or takes it up again
+    expect(setupGuide(setupSteps(fresh, '/-/setup')).onward).toEqual({
+      label: 'Start',
+      href: '/-/config/identity',
+      complete: false,
+    });
+    const elsewhere = setupGuide(setupSteps(withProvider, '/-/config/branding'));
+    expect([elsewhere.step, elsewhere.onward]).toEqual([
+      null,
+      { label: 'Continue setup', href: '/-/setup/administrator', complete: false },
+    ]);
 
-    // `group` is a setup step, and a provider finishes it, so it hands over like any other
-    expect(nextSetupPage(fresh, withProvider, 'groups')).toBe('/-/config/sources');
-
-    const withContent = { ...withProvider, hasContentSource: true };
-    expect(nextSetupPage(withProvider, withContent, 'sources/docs')).toBe('/-/setup/administrator');
-
-    expect(nextSetupPage(fresh, { ...fresh, hasMailTransport: true }, 'mail')).toBe(
-      '/-/config/identity?kind=magic-link',
-    );
+    // The relay is set up for a magic-link provider, so that is the one added next
     expect(
-      nextSetupPage(
-        { ...fresh, hasMailTransport: true },
-        { ...fresh, hasMailTransport: true },
-        'mail',
-      ),
-    ).toBeNull();
-    expect(nextSetupPage(fresh, { ...fresh, hasMailTransport: true }, 'notifications')).toBeNull();
+      setupGuide(setupSteps({ ...fresh, hasMailTransport: true }, '/-/config/mail')).onward,
+    ).toEqual({ label: 'Next', href: '/-/config/identity?kind=magic-link', complete: false });
+
+    // The last step is done once the administrator can read a page, which completes the setup
+    const last = {
+      ...withProvider,
+      hasAdministrator: true,
+      groupNames: ['staff'],
+      groupItems: () => [{ group: 'other' }],
+      hasContentSource: true,
+    };
+    expect(setupGuide(setupSteps(last, '/-/repositories')).onward).toBeNull();
+    for (const path of ['/-/repositories', '/-/config/branding']) {
+      expect(setupGuide(setupSteps(last, path, true)).onward).toEqual({
+        label: 'Complete setup',
+        href: '/-/setup/complete',
+        complete: true,
+      });
+    }
   });
 
   it('draws that step in the column too, because the two are one flow', () => {
@@ -286,13 +333,18 @@ describe('the section list', () => {
     expect(html).toContain('>All settings<');
   });
 
-  it('lists becoming the administrator under Set up, and marks it on its own page', () => {
+  it('lists the steps under Set up in their order, and marks a setup page on its own page', () => {
     const setup = dashboardNav('setup', true, { showSetup: true, hasContent: false }).html;
-    expect(setup).toContain('href="/-/setup/administrator"');
-    expect(setup.indexOf('/-/config/sources')).toBeLessThan(
-      setup.indexOf('/-/setup/administrator'),
-    );
-    expect(setup.indexOf('/-/setup/administrator')).toBeLessThan(setup.indexOf('>All settings<'));
+    const order = [
+      '/-/config/identity',
+      '/-/setup/administrator',
+      '/-/config/groups',
+      '/-/config/sources',
+      '/-/repositories',
+      '>All settings<',
+    ].map((href) => setup.indexOf(href));
+    expect(order.every((at) => at > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
 
     const onIt = dashboardNav('setup', true, {
       showSetup: true,

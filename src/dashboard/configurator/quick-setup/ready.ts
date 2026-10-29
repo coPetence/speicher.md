@@ -1,6 +1,6 @@
 /** The main button of the modal a quick setup ends on */
 
-import type { SetupStep } from '../../setup/steps';
+import { SetupStep, entryHref } from '../../setup/steps';
 import type { ReadyModal } from '../config-page/payloads';
 
 /**
@@ -13,10 +13,5 @@ import type { ReadyModal } from '../config-page/payloads';
 export function primaryOf(steps: SetupStep[], section: string): ReadyModal['primary'] {
   const next = steps.find((step) => !step.done);
   if (!next) return { label: 'Done', href: `/-/config/${section}`, onward: false };
-  return { label: 'Continue', href: ONWARD[next.id] ?? next.href, onward: true };
+  return { label: 'Continue', href: entryHref(next, steps), onward: true };
 }
-
-// Where a step goes on to when it is next: its add modal, open on the kind set up in one go
-const ONWARD: Partial<Record<SetupStep['id'], string>> = {
-  content: '/-/config/sources?kind=github',
-};

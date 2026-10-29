@@ -1,0 +1,31 @@
+<%
+  const guide = it.guide;
+%>
+<% if (it.deferred) { %>
+<aside class="spr-guide" aria-label="Setup">
+  <span class="spr-guide-where">The setup of this instance is not finished yet.</span>
+  <a class="spr-ready-action spr-ready-next" href="/-/setup" data-spr-guide-next>Resume setup<%~ it.arrowIcon %></a>
+</aside>
+<% } else { %>
+<aside class="spr-guide" aria-label="Setup">
+  <span class="spr-guide-where">
+    <% if (guide.step) { %>
+    <span>Step <%= guide.position %> of <%= guide.count %>: <strong><%= guide.step.title %></strong></span>
+    <% } else { %>
+    <span>Setting up this instance</span>
+    <% } %>
+    <% if (it.laterHref) { %>
+    <a class="spr-guide-later" href="<%= it.laterHref %>">Finish later</a>
+    <% } %>
+  </span>
+  <% if (guide.onward && guide.onward.complete) { %>
+  <form method="post" action="<%= guide.onward.href %>" data-spr-guide-next>
+    <button type="submit" class="spr-ready-action spr-ready-next">
+      <%= guide.onward.label %><%~ it.arrowIcon %>
+    </button>
+  </form>
+  <% } else if (guide.onward) { %>
+  <a class="spr-ready-action spr-ready-next" href="<%= guide.onward.href %>" data-spr-guide-next><%= guide.onward.label %><%~ it.arrowIcon %></a>
+  <% } %>
+</aside>
+<% } %>

@@ -1,0 +1,30 @@
+@layer speicher.base {
+  .spr-welcome {
+    display: grid;
+    justify-items: center;
+    gap: var(--spr-space-4);
+    max-width: var(--spr-measure);
+    margin: var(--spr-space-8) auto;
+    text-align: center;
+  }
+
+  .spr-main > .spr-welcome > h1 {
+    margin: 0;
+  }
+
+  .spr-welcome > p {
+    margin: 0;
+    color: var(--spr-muted);
+  }
+
+  .spr-welcome-mark {
+    display: inline-flex;
+    color: var(--spr-accent);
+  }
+
+  .spr-welcome-mark .spr-icon {
+    width: 5rem;
+    height: 5rem;
+    stroke-width: 1.5;
+  }
+}
