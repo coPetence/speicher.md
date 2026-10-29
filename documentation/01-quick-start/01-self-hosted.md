@@ -14,6 +14,11 @@ Speicher runs as two processes from the same container image:
 - **Docker** with the **Compose plugin**. [How to install](https://docs.docker.com/engine/install/)
 - **Port 3000** is not in use on your machine. If it is taken, do [use a different port](../reference/troubleshooting#port-3000-already-in-use)
 
+>[!info] Installation script
+> ```bash
+> curl https://raw.githubusercontent.com/coPetence/speicher.md/refs/heads/documentation/deploy/install.sh | bash
+>```
+
 ## 1. Create the compose file
 
 Create a directory for the instance, for example `speicher/`, and save the following as `docker-compose.yaml` inside it:
