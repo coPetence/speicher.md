@@ -16,12 +16,13 @@
 </div>
 <% } else { %>
 <h1>Speicher</h1>
-<% if (!it.authenticated) { %>
+<% if (!it.authenticated && !it.repos.length) { %>
 <p class="spr-empty">
   You are not signed in. <a href="/api/auth/login">Sign in</a> to see the
   documentation you have access to.
 </p>
-<% } else { %>
+<% } %>
+<% if (it.repos.length) { %>
 
 <ul class="spr-repos">
   <% it.repos.forEach(function (repo) { %>
