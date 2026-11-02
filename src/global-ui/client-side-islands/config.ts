@@ -40,6 +40,7 @@ import { mountRepositoryIds } from './configurator/repository-id-from-url';
 import { mountLanding } from './configurator/land-on-changed-entry';
 import { mountPreviewFades } from './configurator/template-preview-fade';
 import { mountOptionSearches } from './configurator/option-search';
+import { mountRowAddProblems } from './configurator/add-row-problems';
 
 function mount(): void {
   mountNav();
@@ -76,6 +77,7 @@ function mount(): void {
   mountLanding();
   mountPreviewFades();
   mountOptionSearches();
+  mountRowAddProblems();
 }
 
 if (document.readyState === 'loading') {

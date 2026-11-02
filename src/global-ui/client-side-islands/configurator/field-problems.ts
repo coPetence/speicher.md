@@ -25,14 +25,17 @@ export function fieldLabel(form: HTMLFormElement, path: string): string | null {
   return words ? words : null;
 }
 
+const ADD_MEMBERS_MODAL = '.spr-add-row-dialog';
+
 /** Clear server and client field errors */
 export function clearFieldProblems(form: HTMLFormElement): void {
-  for (const note of form.querySelectorAll(`.${NOTE}`)) note.remove();
+  const page = (element: Element) => !element.closest(ADD_MEMBERS_MODAL);
+  for (const note of [...form.querySelectorAll(`.${NOTE}`)].filter(page)) note.remove();
   for (const field of form.querySelectorAll(`.${INVALID}`)) {
     field.classList.remove(INVALID);
     field.removeAttribute('data-spr-problem');
   }
-  for (const control of form.querySelectorAll('[aria-invalid="true"]')) {
+  for (const control of [...form.querySelectorAll('[aria-invalid="true"]')].filter(page)) {
     control.removeAttribute('aria-invalid');
     control.removeAttribute('aria-describedby');
   }

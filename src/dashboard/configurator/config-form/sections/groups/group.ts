@@ -90,11 +90,22 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
   const perLine = 'Add one or more entries (one per line)';
   const kinds = [
     {
+      value: SOURCE_PERSON,
+      label: 'Individual email',
+      icon: 'mail',
+      help: 'Add one or more individual email addresses.',
+      nameLabel: 'Provider',
+      placeholder: 'Choose a provider',
+      options: ids.map(providerOption),
+      matches: { label: 'Email addresses', placeholder: 'alice@example.com', help: perLine },
+    },
+    {
       value: SOURCE_GROUP,
       label: 'IDP group',
       icon: 'users',
       help: "Reference a group from a configured identity provider. The group's members are added to this group.",
       nameLabel: 'Provider',
+      placeholder: 'Choose a provider',
       options: directory.map(providerOption),
       matches: {
         label: 'Group ids',
@@ -108,17 +119,9 @@ function rowAdd(root: Obj, name: string, ids: string[], others: string[]): Table
       icon: 'at-sign',
       help: 'Add every person with an email address at one of the listed domains. Only works with magic-link providers.',
       nameLabel: 'Provider',
+      placeholder: 'Choose a provider',
       options: magicLink.map(providerOption),
       matches: { label: 'Email domains', placeholder: 'example.com', help: perLine },
-    },
-    {
-      value: SOURCE_PERSON,
-      label: 'Individual email',
-      icon: 'mail',
-      help: 'Add one or more individual email addresses.',
-      nameLabel: 'Provider',
-      options: ids.map(providerOption),
-      matches: { label: 'Email addresses', placeholder: 'alice@example.com', help: perLine },
     },
     {
       value: SOURCE_REFERENCE,

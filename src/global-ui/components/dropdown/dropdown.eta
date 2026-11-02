@@ -5,6 +5,7 @@
       class="spr-dd-list"
       tabindex="-1"
     >
+      <% if (it.placeholder) { %><span class="spr-dd-placeholder"><%= it.placeholder %></span><% } %>
       <% it.options.forEach(function (option, index) { %>
       <label class="spr-dd-row">
         <input
@@ -14,7 +15,7 @@
           value="<%= option.value %>"
           <% if (it.form !== null) { %>form="<%= it.form || 'add-member' %>"<% } %>
           <% if (it.transient) { %>data-spr-transient<% } %>
-          <%= (it.picked ? option.value === it.picked : index === 0) ? 'checked' : '' %>
+          <%= (it.picked ? option.value === it.picked : index === 0 && !it.placeholder) ? 'checked' : '' %>
           <% if (option.unavailable) { %>data-spr-unavailable<% } %>
           <% if (option.suggest) { %>data-spr-suggest="<%= option.suggest %>"<% } %>
         >

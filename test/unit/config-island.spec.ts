@@ -796,6 +796,60 @@ describe('the save bar', () => {
     expect(field.querySelector('.spr-field-problem')).toBeNull();
   });
 
+  it('leaves the problems of the Add members modal to the modal', async () => {
+    render(true);
+    const dialog = document.createElement('div');
+    dialog.className = 'spr-add-row-dialog';
+    dialog.innerHTML =
+      '<textarea aria-invalid="true" aria-describedby="pm-x">ferdinand</textarea>' +
+      '<p class="spr-field-problem" id="pm-x">"ferdinand" is not an email address.</p>';
+    form().append(dialog);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        error: null,
+        verdict: { changed: [], rebuild: false, effect: 'hot', hotReloadAvailable: true },
+      }),
+    });
+    run();
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(dialog.querySelector('.spr-field-problem')).not.toBeNull();
+    expect(dialog.querySelector('textarea')!.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('clears a problem of the Add members modal once its box is changed', () => {
+    render();
+    const dialog = document.createElement('div');
+    dialog.className = 'spr-add-row-dialog';
+    dialog.innerHTML =
+      '<div class="spr-add-row-panel">' +
+      '<details class="spr-dropdown"><summary></summary><div class="spr-dd-list">' +
+      '<label class="spr-dd-row"><input type="radio" name="newname:x.person" value="entra"></label>' +
+      '</div></details>' +
+      '<p class="spr-field-problem" id="p-x">Choose a provider.</p>' +
+      '<div class="spr-add-row-matches">' +
+      '<textarea aria-invalid="true" aria-describedby="pm-x"></textarea>' +
+      '<p class="spr-field-problem" id="pm-x">Enter at least one email address.</p>' +
+      '</div></div>';
+    form().append(dialog);
+    run();
+
+    const radio = dialog.querySelector<HTMLInputElement>('input[type="radio"]')!;
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(dialog.querySelector('#p-x')).toBeNull();
+    // The entries' problem stays until the entries change
+    expect(dialog.querySelector('#pm-x')).not.toBeNull();
+
+    const textarea = dialog.querySelector('textarea')!;
+    textarea.value = 'ferdinand.duschka@copetence.de';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(dialog.querySelector('#pm-x')).toBeNull();
+    expect(textarea.hasAttribute('aria-invalid')).toBe(false);
+  });
+
   it('says a problem carrying a link with the link working, not as markup', async () => {
     render();
     fetchMock.mockResolvedValue({

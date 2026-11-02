@@ -161,7 +161,7 @@
   // Place Add above rows or below the empty state; bulk removal moves it when the last row is removed
   const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1);
   const addRow = it.editable && table.add
-    ? include('@add-row-panel', { add: table.add, collection: collection, open: it.creating && table.entries.length === 0, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon })
+    ? include('@add-row-panel', { add: table.add, collection: collection, open: it.creating && table.entries.length === 0, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon, state: it.row_add })
     : '';
 %>
 <% if (table.title || table.entries.length > 0) { %>

@@ -9,6 +9,7 @@ import { MemberUsage } from '../member-usage';
 import type { ReadyStep } from '../quick-setup/model';
 import type { MissingGroup } from '../quick-setup/repository-check';
 import { RepairPreview } from '../repair-preview';
+import type { RowAddState } from './row-add';
 
 /** State and payloads for `/-/config` pages */
 
@@ -90,6 +91,7 @@ export interface ConfigSectionPayload extends ConfigCommon {
   add_error_field?: string;
   // What the add modal held when its quick setup was refused, by field name
   add_values?: Record<string, string>;
+  row_add?: RowAddState;
   // What a quick setup did and what is left, shown as a modal over the list the member joined
   ready?: ReadyModal;
   // Whether the repositories a source reads are ready to be published, shown as a modal over the list of sources

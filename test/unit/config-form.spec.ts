@@ -1483,7 +1483,9 @@ describe('a group’s rows', () => {
     expect(page.addOps).toEqual([]);
     const add = page.tables![0].add!;
     expect(add.op).toBe('add:groups.engineering.row');
-    expect(add.kinds.map((k) => k.value)).toEqual(['group', 'domain', 'person', 'reference']);
+    expect(add.kinds.map((k) => k.value)).toEqual(['person', 'group', 'domain', 'reference']);
+    // A provider is never picked for you
+    expect(add.kinds.filter((k) => !k.multiple).every((k) => k.placeholder)).toBe(true);
 
     const options = (value: string) => add.kinds.find((k) => k.value === value)!.options;
     expect(options('group').map((o) => o.value)).toEqual(['entra', 'hub']);
@@ -1528,7 +1530,7 @@ describe('a group’s rows', () => {
       buildSections(lone)
         .find((s) => s.id === 'groups/engineering')!
         .tables![0].add!.kinds.map((k) => k.value),
-    ).toEqual(['group', 'person']);
+    ).toEqual(['person', 'group']);
 
     const nothing = loadDocument(FULL);
     nothing.deleteIn(['auth']);
@@ -1607,7 +1609,7 @@ describe('a group’s rows', () => {
       buildSections(loadDocument(FULL))
         .find((s) => s.id === 'groups/engineering')!
         .tables![0].add!.kinds.map((k) => k.matches?.label),
-    ).toEqual(['Group ids', 'Email domains', 'Email addresses', undefined]);
+    ).toEqual(['Email addresses', 'Group ids', 'Email domains', undefined]);
   });
 
   it('appends a person with the key that makes them one', () => {

@@ -1,13 +1,18 @@
-<% const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1), kindName = 'newkind:' + target %>
-<details class="spr-modal spr-index-add" data-spr-rows-add="<%= it.collection %>"<%= it.open ? ' open' : '' %>>
+<%
+  const add = it.add, target = add.op.slice(add.op.indexOf(':') + 1), kindName = 'newkind:' + target;
+  
+  const state = it.state && it.state.op === add.op ? it.state : null;
+  const pickedKind = state && add.kinds.some(function (kind) { return kind.value === state.kind; }) ? state.kind : add.kinds[0].value;
+  const kept = function (kind) { return state && state.kind === kind.value ? state : null; };
+  function problems(held, at, id) {
+    const texts = held ? held.problems.filter(function (problem) { return problem.at === at; }) : [];
+    if (texts.length === 0) return '';
+    return '<p class="spr-field-problem" id="' + id + '" role="alert">'
+      + texts.map(function (problem) { return md(problem.text); }).join('<br>') + '</p>';
+  }
+%>
+<details class="spr-modal spr-index-add" data-spr-rows-add="<%= it.collection %>"<%= it.open || state ? ' open' : '' %>>
   <summary><%~ it.addIcon || '+' %><span><%= add.label %></span></summary>
-  <% /*
-    Two panes, as the filter dialog on the sync status page is: the kinds of row
-    on the left, the one control of the chosen kind on the right. The kinds are
-    radios rather than buttons, so the choice reaches the server with no script;
-    the panels are hidden by the reveal island through `data-spr-shown-with`, and
-    all of them show where nothing runs.
-  */ %>
   <div class="spr-modal-panel spr-add-row-dialog" role="dialog" aria-labelledby="<%= add.op.replace(/[^a-z0-9]+/gi, '-') %>-title">
     <h2 class="spr-modal-title spr-add-row-title" id="<%= add.op.replace(/[^a-z0-9]+/gi, '-') %>-title">
       <%= add.title %>
@@ -22,7 +27,7 @@
               type="radio"
               name="<%= kindName %>"
               value="<%= kind.value %>"
-              <%= index === 0 ? 'checked' : '' %>
+              <%= kind.value === pickedKind ? 'checked' : '' %>
               data-spr-transient
             >
             <%~ (it.kindIcons || {})[kind.icon] || '' %>
@@ -35,6 +40,11 @@
       </fieldset>
       <div class="spr-add-row-panels">
         <% add.kinds.forEach(function (kind) { %>
+        <%
+          const held = kept(kind), picked = held ? held.picked : [];
+          const pickedProblem = problems(held, 'picked', 'p-' + add.op + '-' + kind.value);
+          const matchesProblem = problems(held, 'matches', 'pm-' + add.op + '-' + kind.value);
+        %>
         <div class="spr-add-row-panel" data-spr-shown-with="<%= kindName %>" data-spr-shown-when="<%= kind.value %>">
           <% if (!kind.multiple) { %><label for="n-<%= add.op %>-<%= kind.value %>"><%= kind.nameLabel %></label><% } %>
           <% /*
@@ -54,14 +64,14 @@
             <div class="spr-add-row-options">
               <% kind.options.forEach(function (option) { %>
               <label data-spr-option="<%= option.label.toLowerCase() %>">
-                <input type="checkbox" name="newname:<%= target %>.<%= kind.value %>" value="<%= option.value %>" data-spr-transient>
+                <input type="checkbox" name="newname:<%= target %>.<%= kind.value %>" value="<%= option.value %>"<%= picked.includes(option.value) ? ' checked' : '' %> data-spr-transient>
                 <span><%= option.label %></span>
               </label>
               <% }) %>
             </div>
           </fieldset>
           <% } else if (kind.options.some(function (option) { return option.mark; })) { %>
-          <%~ include('@dropdown', { options: kind.options, name: 'newname:' + target + '.' + kind.value, form: null, transient: true, optionMarks: it.optionMarks }) %>
+          <%~ include('@dropdown', { options: kind.options, name: 'newname:' + target + '.' + kind.value, form: null, transient: true, optionMarks: it.optionMarks, placeholder: kind.placeholder, picked: picked[0] }) %>
           <% } else { %>
           <%~ include('@select', {
             attributes: {
@@ -69,25 +79,31 @@
               name: 'newname:' + target + '.' + kind.value,
               'data-spr-transient': true,
             },
-            options: kind.options.map(function (option) {
-              return { value: option.value, label: option.label };
+            options: (kind.placeholder ? [{ value: '', label: kind.placeholder }] : []).concat(kind.options).map(function (option) {
+              return { value: option.value, label: option.label, selected: picked.includes(option.value) };
             }),
           }) %>
           <% } %>
+          <%~ pickedProblem %>
           <% if (kind.matches) { %>
-          <div class="spr-add-label">
-            <label for="m-<%= add.op %>-<%= kind.value %>"><%= kind.matches.label %></label>
-            <%~ include('@info', { field: { path: add.op + '-' + kind.value + '-matches', label: kind.matches.label, help: kind.matches.help } }) %>
+          <% /* Hidden by the stylesheet until a provider is picked */ %>
+          <div class="spr-add-row-matches">
+            <div class="spr-add-label">
+              <label for="m-<%= add.op %>-<%= kind.value %>"><%= kind.matches.label %></label>
+              <%~ include('@info', { field: { path: add.op + '-' + kind.value + '-matches', label: kind.matches.label, help: kind.matches.help } }) %>
+            </div>
+            <textarea
+              id="m-<%= add.op %>-<%= kind.value %>"
+              name="newmatches:<%= target %>.<%= kind.value %>"
+              rows="10"
+              placeholder="<%= kind.matches.placeholder %>"
+              spellcheck="false"
+              autocomplete="off"
+              data-spr-transient
+              <% if (matchesProblem) { %>aria-invalid="true" aria-describedby="pm-<%= add.op %>-<%= kind.value %>"<% } %>
+            ><%= held ? held.matches : '' %></textarea>
+            <%~ matchesProblem %>
           </div>
-          <textarea
-            id="m-<%= add.op %>-<%= kind.value %>"
-            name="newmatches:<%= target %>.<%= kind.value %>"
-            rows="10"
-            placeholder="<%= kind.matches.placeholder %>"
-            spellcheck="false"
-            autocomplete="off"
-            data-spr-transient
-          ></textarea>
           <% } %>
         </div>
         <% }) %>
