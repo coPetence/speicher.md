@@ -118,6 +118,7 @@ if supports_unicode; then
   SPINNER=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 else
   G_STEP="==>" G_OK="+" G_WARN="!" G_ERROR="x" G_DONE="-" G_PROMPT=">" G_POINTER=">" G_SEP="-" G_KEYS="Up/Down"
+  # shellcheck disable=SC1003 # backslash is needed for the spinner
   SPINNER=('|' '/' '-' '\')
 fi
 
