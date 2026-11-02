@@ -257,7 +257,7 @@ describe('the refresh', () => {
     filter('handbook');
     (document.querySelector('details[data-spr-repo]') as HTMLDetailsElement).open = true;
 
-    await jest.advanceTimersByTimeAsync(10_000);
+    await jest.advanceTimersByTimeAsync(5_000);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(rows().map((row) => row.dataset.sprRow?.split(' ')[1])).toContain('wiki');
@@ -273,9 +273,36 @@ describe('the refresh', () => {
     serve('<html><body><h1>Sign in</h1></body></html>');
     run();
 
-    await jest.advanceTimersByTimeAsync(10_000);
+    await jest.advanceTimersByTimeAsync(5_000);
 
     expect(shown()).toEqual(['handbook', 'specs']);
+  });
+
+  it('asks every second while jobs run, and every five seconds once none do', async () => {
+    jest.useFakeTimers();
+    render();
+    document
+      .querySelector('main')!
+      .insertAdjacentHTML('beforeend', '<div data-spr-activity data-spr-busy></div>');
+    const busy = document.documentElement.outerHTML;
+    const idle = busy.replace(' data-spr-busy=""', '');
+    expect(idle).not.toContain('data-spr-busy');
+    const fetchMock = serve(busy);
+    run();
+
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    // The jobs are done: the next answer is not busy, and the one after it waits
+    fetchMock.mockResolvedValue({ ok: true, text: async () => idle });
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await jest.advanceTimersByTimeAsync(4_000);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
 

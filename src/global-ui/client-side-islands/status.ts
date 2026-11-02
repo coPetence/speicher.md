@@ -19,8 +19,8 @@ import { mountNav } from './slide';
 // do not carry `data-spr-rows`
 const TABLE = '.spr-table[data-spr-rows]';
 
-const REFRESH_MS = 10_000;
-const BUSY_REFRESH_MS = 3_000;
+const REFRESH_MS = 5_000;
+const BUSY_REFRESH_MS = 1_000;
 const BUSY = '[data-spr-activity][data-spr-busy]';
 
 // The regions of the page that are replaced
