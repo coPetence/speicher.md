@@ -1,85 +1,57 @@
 <div align="center">
-  <img src=".github/assets/banner.svg" alt="Speicher.md" width="600">
-  <p><strong>Git-native · Markdown · Per-folder access control · SSO (OIDC / Entra ID) · MCP server · Hybrid search · Self-hosted</strong></p>
+  <img src=".github/assets/banner.svg" alt="speicher.md" width="600">
+  <p><strong>Git-native · Markdown · Per-folder access control · SSO (OIDC / Entra ID / GitHub) · MCP server · Hybrid search · Self-hosted</strong></p>
   <p>
     <a href="https://speicher.md">Website</a> ·
-    <a href="https://github.com/coPetence/speicher.md/releases/latest">Download</a> ·
-    <a href="#Self-Hosting">Start self-hosting</a> ·
-    <a href="https://docs.speicher.md">Docs</a> ·
+    <a href="https://docs.speicher.md/quick-start/self-hosted">Start self-hosting</a> ·
+    <a href="https://docs.speicher.md">Docs</a>
   </p>
 </div>
 
-# What is Speicher.md?
+## What is speicher.md?
 
-Speicher.md is a tool made for sharing your markdown files for documentation purposes or just to share some files from your Obisidan vault with others.
-Speicher.md uses any simple git repositories (hosted Github for example) as the source to ensure version control and wide compatibility.
-Our tool is specifically made to allow sharing your markdown files publicly and also easily with groups (or singular persons) registered on one of our supported identity providers (Github, Microsoft Entra, Google). Using identity providers allows implementing fine grained control over which users / groups see which files, as long as they are registered on any of these platforms; so no account on Speicher.md directly is required. You can also register the Speicher.md mcp server with your AI agent to chat with your documentation as context.
-Speicher.md simply parses the markdown files and converts them to pure HTML and CSS, therefore every page also works with javascript disabled.
-Migrating from documentation tools like Docusaurus or Starlight? Speicher.md reads the Markdown your static site generator already uses, including Docusaurus and Starlight sidebar ordering. Keep your repo and your workflow, and add access control on top.
+speicher.md is a self-hosted documentation platform for sharing docs with people outside your team (customers, partners, contractors) without risking a leak. Your Markdown lives in git, access rules live next to it, and every reader (human or AI agent) sees exactly the pages they're allowed to see.
 
-## Overview:
-
-- Sharing markdown files with fine grained access control (users or groups)
-- No javascript on the frontend
-- Git repository as source allows for version control
-- No new account needed, sign in via identity providers (Github, Microsoft Entra, Google)
-- Reproduceability with .speicher.instance.yaml as configuration file for seeding
-- Mcp server for AI agent integration
-- Fuzzy search your whole documentation
-
-## Environment variables
-
-Every variable is declared in `src/common/env.ts`, and this table is generated from it with `npm run docs:generate`. A `SPEICHER_*` variable that is set but not declared stops the process from starting, so the prefix is reserved: a `${VAR}` reference in the instance config must use a name outside it.
-
-<!-- generated: env-vars -->
-<!-- prettier-ignore-start -->
-| Variable | Default | Read by | Description |
-| -------- | ------- | ------- | ----------- |
-| `SPEICHER_CONFIG` | `./speicher.instance.yaml` | web + worker | Instance YAML file path. The file must exist when `SPEICHER_CONFIG_SOURCE` is `file`. |
-| `SPEICHER_CONFIG_SOURCE` | `file` | web + worker | Configuration source: `file` or `database`. File mode is read-only; restart to apply changes. |
-| `SPEICHER_CONFIG_POLL` | `10s` | web + worker | Interval between database configuration checks (e.g. `15m`). Use `0` to disable polling. |
-| `SPEICHER_DATABASE_URL` | `postgres://speicher:speicher@127.0.0.1:55432/speicher` | web + worker | PostgreSQL connection URL. Startup fails if the database is unreachable. |
-| `SPEICHER_DB_POOL` | `10` | web + worker | Maximum number of PostgreSQL connections in the pool. |
-| `SPEICHER_ASSET_PATH` | `./var/assets` | web + worker | Upload directory. Must be writable by the process. |
-| `SPEICHER_MIRROR_ROOT` | `./var/mirrors` | worker | Directory into which a sync downloads the data from git. The data is removed after each sync. Must be writable. |
-| `SPEICHER_SYNC_CONCURRENCY` | `4` | worker | Maximum number of repositories to sync at once. |
-| `SPEICHER_RECONCILE_INTERVAL` | `15m` | worker | Interval between remote checks for tracked repositories (e.g. `15m`). Shorter intervals increase load. |
-| `SPEICHER_DISCOVER_INTERVAL` | `6h` | worker | Interval between forge scans for new repositories (e.g. `6h`). Tracked repositories use `SPEICHER_RECONCILE_INTERVAL` instead. |
-| `SPEICHER_PUBLIC_URL` | — | web + worker | Public instance URL for webhooks, magic links, and the sitemap. Uses the request host if unset. |
-| `SPEICHER_ANON_RATE_LIMIT` | `60` | web | Anonymous requests allowed per minute per client IP. Signed-in users are exempt. Use `0` for no limit. |
-| `SPEICHER_PUBLIC_MAX_AGE` | `60` | web | Cache-Control `max-age` for anonymous responses, in seconds. Use `0` to disable public caching. |
-| `SPEICHER_TRUST_PROXY` | `loopback` | web | Trusted proxies for client IP and protocol: comma-separated `loopback`, `linklocal`, `uniquelocal`, IPs, or subnets. Use `uniquelocal` in Docker. No `true` or hop counts. |
-| `SPEICHER_LOG_LEVEL` | `info` | web + worker | Minimum log level: `debug`, `info`, `warn`, or `error`. SQL queries appear only at `debug`. |
-| `SPEICHER_LOG_FORMAT` | `json` | web + worker | Log format: `json` for one JSON object per line, or `pretty` for aligned, coloured text. |
-| `SPEICHER_DEV_LOGIN` | `false` | web | Enable sign-in as any identity without authentication. Development only; never enable in production. |
-| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag to allow cookies over HTTP. Development only; never enable in production. |
-| `PORT` | `3000` | web | HTTP server TCP port. |
-<!-- prettier-ignore-end -->
-<!-- /generated -->
-
-## First Startup
-
-Start up the container:
+## Try it yourself
 
 ```bash
-docker compose up -d
+curl -fsSL https://github.com/coPetence/speicher.md/releases/latest/download/install.sh | bash
 ```
 
-Assuming you have not set up an identity provider in the .speicher.instance.yaml file, wait for `docker compose logs -f web worker` to show:
+The installation script creates a directory `speicher/` in your home directory, downloads the latest release of speicher.md, and starts it with Docker Compose. It also generates a random database password and writes it to a `.env` file in the same directory.
 
-```
-no instance configuration; serving the claim page
-listening
-```
+When the script finishes, open [http://localhost:3000](http://localhost:3000) in your browser, or the address of your server.
 
-Access the Speicher.md instance in your browser, where you will be greated by a token (such as [link]). This token is used to verify your browser session for the initial setup by executing the following on the Speicher.md host:
+**[Continue with setting up the instance →](https://docs.speicher.md/quick-start/setup-instance)**
 
-```bash
-docker compose exec web speicher claim <your-token>
-```
+Other links:
 
-If you need further help, apart from the onboarding, setting up an identity provider please refer to the documentation [link]
+- [Manual installation](https://docs.speicher.md/quick-start/self-hosted-manual): If you prefer to set up the instance without the installation script
+- [Reverse proxy and TLS](https://docs.speicher.md/operations/reverse-proxy-and-tls): If you want to run the instance on a server with HTTPS
+- [Full documentation](https://docs.speicher.md)
 
-# License
+## Why speicher.md?
 
-Speicher.md is [BSL 1.1 licensed](LICENCE).
+Most wikis are not designed for protecting your content with fine-grained access control, while still being easy to share with large groups of people.
+
+speicher.md is designed specifically around sharing content with groups of people or agents. It relies on identity providers to manage access, so you can use your existing accounts and groups.
+
+Some things that make speicher.md unique:
+
+- **Git is the source of truth**: Content gets written in your editor, can be versioned and reviewed in your git workflow, and is served by speicher.md.
+- **Permissions are code**: ACLs are defined in `.speicher.yaml` files in the repository next to the content. This makes them versioned and reviewable, just like the content itself.
+- **Designed for AI agents**: speicher.md has a built-in MCP server, so your users can connect their own AI assistants to your documentation, and the assistant sees exactly the pages the user is allowed to see.
+
+## Maintainers & contact
+
+speicher.md is built and maintained by [coPetence GmbH](https://copetence.de), a software consultancy based in Germany. We can help with your self-hosted instance, commercial licensing, or custom features and integrations.
+
+Reach us at [speicher-md@copetence.de](mailto:speicher-md@copetence.de).
+
+## License
+
+speicher.md is source-available under the [Business Source License 1.1](LICENCE).
+
+- **Free for non-production use**: You can run speicher.md for free in a non-production environment, e.g. for testing or evaluation.
+- **Free in production** for organisations with fewer than 10 people (more details in the [license](LICENCE)).
+- **Commercial license**: For production use in larger organisations, please contact us for a commercial license.

@@ -141,17 +141,17 @@ jobs:
           grep -q "^SPEICHER_VERSION=\"${GITHUB_REF_NAME#v}\"$" dist/install.sh \
             || { echo "failed to stamp the version into install.sh" >&2; exit 1; }
 
-            - name: Draft release
-            env:
-              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              PRERELEASE: ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
-              run: |
-              gh release create "$GITHUB_REF_NAME" \
-              --title "$GITHUB_REF_NAME" \
-              --verify-tag \
-              --draft \
-              $PRERELEASE \
-              dist/install.sh
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --draft \
+            $PRERELEASE \
+            dist/install.sh
 
   # Records the release in Linear
   # stable releases use the Linear access key, pre-releases use the RC access key
