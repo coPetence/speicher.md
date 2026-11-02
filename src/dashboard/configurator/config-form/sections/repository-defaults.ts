@@ -21,15 +21,15 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
         },
       ),
       linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
-        help: 'The include list selects the Markdown files that are ingested. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
+        help: 'The include list selects the files that Speicher.md copies from a repository. The Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. Files that do not match any pattern are not downloaded. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
         fallback: SYNC_DEFAULTS.include,
-        placeholder: '**/*.md\n**/*.mdx\ndocs/**/*.md',
+        placeholder: '**/*.md\n**/*.mdx\n**/*.png\ndocs/**/*.md',
         rows: 6,
         inColumn: true,
         startsRow: true,
       }),
       linesField(root, ['defaults', 'sync', 'exclude'], 'defaults.sync.exclude', 'Exclude', {
-        help: 'The exclude list removes Markdown files from the ingest. Write one pattern per line. It is used for leaving out files such as READMEs, changelogs or drafts, for example `**/drafts/**`. A file that matches both lists is excluded. A repository that sets its own `sync.exclude` in `.speicher.yaml` adds to this list and does not replace it, so files excluded here stay excluded in every repository.',
+        help: 'The exclude list removes files from the ingest. Write one pattern per line. It is used for leaving out files such as READMEs, changelogs or drafts, for example `**/drafts/**`. A file that matches both lists is excluded. A repository that sets its own `sync.exclude` in `.speicher.yaml` adds to this list and does not replace it, so files excluded here stay excluded in every repository.',
         fallback: SYNC_DEFAULTS.exclude,
         placeholder: '**/README.md\n**/CHANGELOG.md\n**/drafts/**\n**/_*.md\n**/internal/**',
         rows: 6,

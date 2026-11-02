@@ -10,7 +10,6 @@
  */
 
 import { promises as fs } from 'node:fs';
-import { join } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
@@ -28,8 +27,8 @@ import { getSequelize } from '../db/sequelize';
 import { ForgeDriver, RemoteInstallation } from '../forge/driver';
 import { ForgeRegistry } from '../forge/registry';
 import { DirectoryLookup } from '../ingest/grants';
+import { checkoutIncludedFiles } from '../ingest/select';
 import { walkRepo } from '../ingest/walk/walk';
-import { MIRROR_ROOT } from './sync.service';
 
 @Injectable()
 export class RegistrationService {
@@ -333,12 +332,11 @@ export class RegistrationService {
     const remote = await this.forges.remoteRepoFor(repo);
     if (!driver || !remote) return;
 
-    const mirrorDir = join(MIRROR_ROOT, driver.key, `${remote.forgeRepoId}.git`);
-    await driver.fetchInto(remote, mirrorDir);
-
     const workingTree = await makeTempDir(`pr-${remote.forgeRepoId}`);
     try {
-      await driver.checkout(mirrorDir, sha, workingTree);
+      await driver.checkout(remote, sha, workingTree, (tree) =>
+        checkoutIncludedFiles(tree, this.config),
+      );
       const directory = await this.forges.directoryFor(driver.key);
       const walk = await walkRepo({
         workingTree,

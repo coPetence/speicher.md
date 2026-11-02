@@ -17,8 +17,10 @@ import { ConfigService } from '../config/config.service';
 import { RoutingService } from '../content-reader/routing';
 import { Forge, Repo, SyncRun, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
+import type { CommitTree } from '../forge/git';
 import { Finding } from './findings';
 import { DirectoryLookup } from './grants';
+import { checkoutIncludedFiles } from './select';
 import { misnamedConfigFile, misnamedConfigFinding } from './walk/fs';
 import { NotPublishedError } from './walk/root';
 import { RepoLookup, WalkResult, walkRepo } from './walk/walk';
@@ -88,6 +90,11 @@ export class IngestService {
         return route === null ? null : { repoId: route.repoId, slugPath: route.slugPath };
       },
     };
+  }
+
+  /** Check out the files of a commit that the repo's config includes */
+  selectFiles(tree: CommitTree): Promise<void> {
+    return checkoutIncludedFiles(tree, this.config);
   }
 
   /**

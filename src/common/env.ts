@@ -162,7 +162,8 @@ export const ENV_REGISTRY = {
     alsoInScripts: true,
   }),
   SPEICHER_MIRROR_ROOT: define({
-    description: 'Git mirror directory. Must be writable and have space for cloned repositories.',
+    description:
+      'Directory into which a sync downloads the data from git. The data is removed after each sync. Must be writable.',
     parse: asString,
     fallback: './var/mirrors',
     required: false,

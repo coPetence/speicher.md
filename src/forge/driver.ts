@@ -1,4 +1,5 @@
 import type { WebhookVerification } from '../webhooks/signed-delivery';
+import type { CheckedOutCommit, CommitTree } from './git';
 
 export interface RemoteRepo {
   /** A repo as the remote forge reports it; forgeRepoId stays stable across renames */
@@ -69,12 +70,16 @@ export interface ForgeDriver {
 
   misnamedRootConfig?(repo: RemoteRepo): Promise<string | null>;
 
-  /** Fetch the repo into a bare mirror, returning its default branch head sha */
-  fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string>;
+  /** Return the head sha of the default branch without downloading the repo */
+  remoteHead(repo: RemoteRepo): Promise<string>;
 
-  /** Materialise one tree from the mirror into targetDir, and resolve a branch's head */
-  checkout(mirrorDir: string, sha: string, targetDir: string): Promise<void>;
-  resolveHead(mirrorDir: string, branch: string): Promise<string>;
+  /** Write the files of one commit that select picks into targetDir */
+  checkout(
+    repo: RemoteRepo,
+    sha: string,
+    targetDir: string,
+    select: (tree: CommitTree) => Promise<void>,
+  ): Promise<CheckedOutCommit>;
 
   /** Post a check-run conclusion for a sha back to the forge */
   reportCheck(
