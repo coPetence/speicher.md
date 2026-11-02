@@ -14,7 +14,7 @@ import { ForgeConfig } from '../../config/types';
 import { githubHeaders } from '../../github/api';
 import { githubHosts } from '../../github/hosts';
 import { GithubTokenMinter } from '../../github/tokens';
-import { isConfigFilename } from '../../ingest/paths';
+import { isConfigFilename, isMisnamedConfigFilename } from '../../ingest/paths';
 import type { WebhookVerification } from '../../webhooks/signed-delivery';
 import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
 import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
@@ -120,10 +120,7 @@ export class GithubDriver implements ForgeDriver {
   async hasRootConfig(repo: RemoteRepo): Promise<boolean | null> {
     if (!repo.installationId) return null;
     try {
-      const entries = await this.api<{ name: string; type: string }[]>(
-        `/repos/${repo.namespace}/${repo.name}/contents?ref=${encodeURIComponent(repo.defaultBranch)}`,
-        repo.installationId,
-      );
+      const entries = await this.rootEntries(repo, repo.installationId);
       return entries.some((entry) => entry.type === 'file' && isConfigFilename(entry.name));
     } catch (err) {
       if (err instanceof GithubApiError && err.status === 404) return false;
@@ -133,6 +130,29 @@ export class GithubDriver implements ForgeDriver {
       });
       return null;
     }
+  }
+
+  async misnamedRootConfig(repo: RemoteRepo): Promise<string | null> {
+    if (!repo.installationId) return null;
+    try {
+      const entries = await this.rootEntries(repo, repo.installationId);
+      return (
+        entries.find((entry) => entry.type === 'file' && isMisnamedConfigFilename(entry.name))
+          ?.name ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  private rootEntries(
+    repo: RemoteRepo,
+    installationId: string,
+  ): Promise<{ name: string; type: string }[]> {
+    return this.api<{ name: string; type: string }[]>(
+      `/repos/${repo.namespace}/${repo.name}/contents?ref=${encodeURIComponent(repo.defaultBranch)}`,
+      installationId,
+    );
   }
 
   /** Clone or fetch a mirror of the repo, return the default branch SHA */

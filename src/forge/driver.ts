@@ -67,6 +67,8 @@ export interface ForgeDriver {
    */
   hasRootConfig?(repo: RemoteRepo): Promise<boolean | null>;
 
+  misnamedRootConfig?(repo: RemoteRepo): Promise<string | null>;
+
   /** Fetch the repo into a bare mirror, returning its default branch head sha */
   fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string>;
 

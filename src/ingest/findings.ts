@@ -49,6 +49,7 @@ export type FindingCode =
   | 'slug-collision'
   | 'mixed-ordering'
   | 'duplicate-config'
+  | 'config-misnamed'
   | 'empty-read-set'
   | 'noop-narrowing'
   | 'public-not-enabled'

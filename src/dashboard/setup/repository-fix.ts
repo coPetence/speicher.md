@@ -1,5 +1,6 @@
 import { PUBLIC_GROUP_NAME } from '../../common/principals';
 import { slugify } from '../../common/slug';
+import { misnamedConfigMessage } from '../../ingest/walk/fs';
 import { sourceGroupsPath } from '../configurator/config-page/github-app-manifest';
 import { publicRepoRef } from '../configurator/quick-setup/repository-check';
 import type { SourceCheck } from '../configurator/quick-setup/source-check';
@@ -18,6 +19,7 @@ export interface RepositoryFix {
     | 'discover'
     | 'add-repository'
     | 'not-found'
+    | 'misnamed'
     | 'no-file'
     | 'invalid'
     | 'missing-group'
@@ -238,7 +240,7 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
     };
   }
 
-  const missing = rows.find((row) => row.file.level === 'warn');
+  const missing = rows.find((row) => row.file.level === 'warn' && !row.file.misnamed);
   if (missing) {
     return {
       id: 'missing-group',
@@ -262,6 +264,19 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
       title: `Fix the \`.speicher.yaml\` of ${invalid.name}`,
       text: invalid.access?.text ?? 'The file is not valid.',
       action: editAction(invalid),
+    };
+  }
+
+  const misnamed = rows.find((row) => row.file.misnamed);
+  if (misnamed?.file.misnamed) {
+    return {
+      id: 'misnamed',
+      waits: false,
+      title: `Rename \`${misnamed.file.misnamed}\` in ${misnamed.name}`,
+      text: misnamedConfigMessage(misnamed.file.misnamed),
+      action: misnamed.file.edit_href
+        ? { label: 'Rename on GitHub', href: misnamed.file.edit_href, external: true }
+        : undefined,
     };
   }
 

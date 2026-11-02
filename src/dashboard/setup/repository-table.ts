@@ -26,6 +26,7 @@ export interface RepositoryTableRow {
     create_action?: string;
     edit_href?: string;
     copy?: boolean;
+    misnamed?: string;
   };
   // Who its `.speicher.yaml` lets read it, or what keeps it from doing so, in markdown, once a check has read the file
   access: { level: Level; text: string } | null;
@@ -144,6 +145,8 @@ function checkedFile(check: CheckRow): RepositoryTableRow['file'] {
     case 'ready':
       return { level: 'ok', label: 'present', ...edit };
     case 'unpublished':
+      if (check.misnamed)
+        return { level: 'warn', label: 'misnamed', misnamed: check.misnamed, ...edit };
       return {
         level: 'idle',
         label: 'missing',

@@ -110,6 +110,41 @@ describe('the next step of the repositories page', () => {
     expect(fix?.text).toContain('grants `staff` read access');
   });
 
+  it('asks to rename a config file named without its dot, before offering a new one', () => {
+    const fix = nextFix(
+      input({
+        rows: [
+          row('acme/wiki', {
+            file: {
+              level: 'warn',
+              label: 'misnamed',
+              misnamed: 'speicher.yaml',
+              edit_href: 'https://github.com/acme/wiki/edit/main/speicher.yaml',
+            },
+          }),
+          row('acme/handbook', {
+            file: {
+              level: 'idle',
+              label: 'missing',
+              create_href: '/-/repositories?config_file=gh',
+              create_action: '/-/config/sources/gh/config-file?repository=acme%2Fhandbook',
+            },
+          }),
+        ],
+      }),
+    );
+    expect(fix).toMatchObject({
+      id: 'misnamed',
+      title: 'Rename `speicher.yaml` in acme/wiki',
+      text: "`speicher.yaml` should be the repository's `.speicher.yaml`, but it is named incorrectly. Rename it to `.speicher.yaml`, with a leading dot.",
+      action: {
+        label: 'Rename on GitHub',
+        href: 'https://github.com/acme/wiki/edit/main/speicher.yaml',
+        external: true,
+      },
+    });
+  });
+
   it('gives a source without a check the file to commit', () => {
     const fix = nextFix(
       input({

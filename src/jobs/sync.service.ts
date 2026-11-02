@@ -65,7 +65,8 @@ export class SyncService {
 
     if (!repo.has_config && (await driver.hasRootConfig?.(remote)) === false) {
       this.log.debug('no root .speicher.yaml, so the repo is not fetched', { repo_id: repoId });
-      return this.recordUnpublished(repoId, trigger, mirrorDir);
+      const misnamed = (await driver.misnamedRootConfig?.(remote)) ?? null;
+      return this.recordUnpublished(repoId, trigger, mirrorDir, misnamed);
     }
 
     let head: string;
@@ -116,8 +117,9 @@ export class SyncService {
     repoId: string,
     trigger: Parameters<SyncService['syncRepo']>[1],
     mirrorDir: string,
+    misnamed: string | null = null,
   ): Promise<null> {
-    await this.ingest.recordUnpublished(repoId, trigger);
+    await this.ingest.recordUnpublished(repoId, trigger, misnamed);
     await fs.rm(mirrorDir, { recursive: true, force: true });
     return null;
   }

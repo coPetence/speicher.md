@@ -133,6 +133,16 @@ export function isConfigFilename(name: string): boolean {
   return (CONFIG_FILENAMES as readonly string[]).includes(name);
 }
 
+/**
+ * isMisnamedConfigFilename checks whether the .speicher.yaml is just mispelled
+ */
+export function isMisnamedConfigFilename(name: string): boolean {
+  if (isConfigFilename(name)) return false;
+  return (CONFIG_FILENAMES as readonly string[]).includes(
+    `.${name.replace(/^\./, '').toLowerCase()}`,
+  );
+}
+
 /** Path of a repo file relative to the ingest root; null if outside the ingest root */
 export function relativeToIngestRoot(ingestRoot: string, repoRelativePath: string): string | null {
   if (ingestRoot === '') return repoRelativePath;

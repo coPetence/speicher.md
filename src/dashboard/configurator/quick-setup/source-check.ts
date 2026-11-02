@@ -8,6 +8,8 @@ import {
 } from '../../../github/app-installation';
 import { githubAppLinks, installationUrl, lookupGithubApp } from '../../../github/app-links';
 import { githubHosts } from '../../../github/hosts';
+import { isMisnamedConfigFilename } from '../../../ingest/paths';
+import { misnamedConfigMessage } from '../../../ingest/walk/fs';
 import { memberSectionId } from '../config-form/members';
 import {
   ConfigFileBack,
@@ -91,6 +93,7 @@ export async function checkSource(
       fetchImpl,
       undefined,
       memory.repositories,
+      isMisnamedConfigFilename,
     );
     for (const repo of read.repositories) {
       if (repo.files !== null) continue;
@@ -192,6 +195,16 @@ function checkRow(
     : {};
   switch (verdict.state) {
     case 'unpublished':
+      if (repo.misnamed) {
+        return {
+          name,
+          href,
+          state: 'unpublished',
+          text: misnamedConfigMessage(repo.misnamed),
+          misnamed: repo.misnamed,
+          edit_href: `${href}/edit/${encodeURIComponent(repo.defaultBranch)}/${repo.misnamed}`,
+        };
+      }
       return {
         name,
         href,

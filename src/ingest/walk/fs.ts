@@ -1,8 +1,8 @@
 import { promises as fs } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 
-import { FindingList } from '../findings';
-import { CONFIG_FILENAMES } from '../paths';
+import { Finding, FindingList } from '../findings';
+import { CONFIG_FILENAMES, isMisnamedConfigFilename } from '../paths';
 
 export function isInside(parent: string, child: string): boolean {
   const rel = relative(parent, child);
@@ -61,6 +61,24 @@ export async function readConfigFile(dir: string): Promise<ConfigFile | null> {
     return { name, raw, ignored };
   }
   return null;
+}
+
+export async function misnamedConfigFile(dir: string): Promise<string | null> {
+  const names = await fs.readdir(dir).catch(() => [] as string[]);
+  return names.find(isMisnamedConfigFilename) ?? null;
+}
+
+export function misnamedConfigMessage(name: string): string {
+  return `\`${name}\` should be the repository's \`.speicher.yaml\`, but it is named incorrectly. Rename it to \`.speicher.yaml\`, with a leading dot.`;
+}
+
+export function misnamedConfigFinding(name: string): Finding {
+  return {
+    severity: 'warn',
+    code: 'config-misnamed',
+    source: name,
+    message: misnamedConfigMessage(name),
+  };
 }
 
 /** Warn that config files beside the one in use are ignored */
