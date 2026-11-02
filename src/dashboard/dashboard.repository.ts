@@ -49,6 +49,17 @@ export class DashboardRepository {
     return rows[0] ?? null;
   }
 
+  async repoIdsOf(tenantId: string, forgeKeys: string[]): Promise<string[]> {
+    if (forgeKeys.length === 0) return [];
+    const rows = await getSequelize().query<{ id: string }>(
+      `SELECT r.id
+         FROM repos r JOIN forges f ON f.id = r.forge_id
+        WHERE r.tenant_id = :tenantId AND f.key IN (:forgeKeys)`,
+      { type: QueryTypes.SELECT, replacements: { tenantId, forgeKeys } },
+    );
+    return rows.map((row) => row.id);
+  }
+
   /** The kind of source a repo came from, for the mark drawn beside its name */
   async forgeTypeOf(repoId: string): Promise<string | null> {
     const rows = await getSequelize().query<{ forge_type: string | null }>(

@@ -528,7 +528,9 @@ describe('what the worker is doing', () => {
     expect(res.text).toContain('Running');
     expect(res.text).toContain('Queued');
     expect(res.text).toMatch(/class="spr-activity">[\s\S]*?syncing/);
-    expect(res.text).toContain('Speicher is discovering the repositories of gh.');
+    expect(res.text).toContain(
+      'Speicher.md is checking gh for new repositories, and syncs all existing repositories.',
+    );
     expect(res.text).toContain('data-spr-activity data-spr-busy');
   });
 
