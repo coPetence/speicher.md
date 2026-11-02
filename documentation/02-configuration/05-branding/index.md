@@ -16,9 +16,9 @@ Under **Branding → Logos** you can upload three images:
 
 | Image                      | Formats          | Size limit | Used for                                                  |
 | -------------------------- | ---------------- | ---------- | --------------------------------------------------------- |
-| Header logo                | PNG, WebP or SVG | 64 KB      | The header, in light mode and in dark mode                |
-| Header logo for dark pages | PNG, WebP or SVG | 64 KB      | The header for readers in dark mode, instead of the above |
-| Favicon                    | PNG or SVG       | 32 KB      | The browser tab                                           |
+| Header logo                | PNG, WebP or SVG | 1 MB       | The header, in light mode and in dark mode                |
+| Header logo for dark pages | PNG, WebP or SVG | 1 MB       | The header for readers in dark mode, instead of the above |
+| Favicon                    | PNG or SVG       | 1 MB       | The browser tab                                           |
 
 - The favicon must be square. A PNG favicon must be at least 32×32 pixels.
 - SVG files may not contain scripts, event handlers, embedded HTML, entities, or references to anything outside the file, such as external images or stylesheets. Speicher refuses such a file when you upload it.
@@ -116,9 +116,9 @@ Every colour key is listed under `theme.palette` in the [instance configuration 
 | `brand.name` | string |  |  | The name shown at the top of every page, linking to the home page. It is also the logo's alt text. Without it, the header shows the host of `SPEICHER_PUBLIC_URL`. Example: `Acme Engineering Docs`. |
 | `brand.show_name` | boolean | `true` |  | Whether the name is shown beside the logo. Turn it off if your logo already contains the name. Without a logo, the name is always shown. Example: `false`. |
 | `brand.name_align` | `center`, `bottom` | `center` |  | How the name lines up with the logo: `center` centres it on the logo's height, `bottom` sets it on the logo's bottom edge. Example: `bottom`. |
-| `brand.logo` | string |  |  | The header logo: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set. |
-| `brand.logo_dark` | string |  |  | The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. |
-| `brand.icon` | string |  |  | The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels. |
+| `brand.logo` | string |  |  | The header logo: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set. |
+| `brand.logo_dark` | string |  |  | The header logo for readers in dark mode: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. |
+| `brand.icon` | string |  |  | The favicon shown in the browser tab: a square PNG or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels. |
 | `brand.wallpaper` | string |  |  | Wallpaper behind the pages as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG) |
 | `brand.wallpaper_dark` | string |  |  | Wallpaper for dark mode as base64 data URI (max 5 MB JPEG, PNG, WebP or SVG) |
 | `brand.wallpaper_all_themes` | boolean | `false` |  | Whether the uploaded wallpaper is shown in every theme. When this is turned off, only themes with a wallpaper of their own, such as Glass, show it. |

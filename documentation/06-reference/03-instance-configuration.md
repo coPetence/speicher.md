@@ -582,19 +582,19 @@ How the name lines up with the logo: `center` centres it on the logo's height, `
 
 **Type:** string
 
-The header logo: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set.
+The header logo: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set.
 
 ### `brand.logo_dark`
 
 **Type:** string
 
-The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image.
+The header logo for readers in dark mode: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image.
 
 ### `brand.icon`
 
 **Type:** string
 
-The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels.
+The favicon shown in the browser tab: a square PNG or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels.
 
 ### `brand.wallpaper`
 
