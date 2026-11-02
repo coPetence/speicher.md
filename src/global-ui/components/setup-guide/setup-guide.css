@@ -8,8 +8,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--spr-space-3);
-    padding: var(--spr-space-3)
-      max(var(--spr-gutter), calc((100% - var(--spr-measure-wide)) / 2));
+    padding: var(--spr-space-3) max(var(--spr-gutter), calc((100% - var(--spr-measure-wide)) / 2));
     border-top: var(--spr-border) solid var(--spr-line);
     background: var(--spr-bg);
   }

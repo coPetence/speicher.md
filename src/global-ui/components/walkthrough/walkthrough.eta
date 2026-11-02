@@ -1,5 +1,6 @@
 <%
   const walkthrough = it.walkthrough, icons = it.icons;
+  const BESIDE = ['idp-sign-in', 'source-install'];
   const titleId = 'walkthrough-' + walkthrough.id + '-title';
   function members(kind, label, value) {
 %>
@@ -27,7 +28,7 @@
   }
   function kindTile(mark, label, recommended) {
 %>
-<span class="spr-tile spr-setup-kind"><%~ icons.marks[mark] %><span><%= label %></span><% if (recommended) { %><%~ include('@badge', { level: 'ok', label: 'recommended' }) %><% } %></span>
+<span class="spr-tile spr-setup-kind"><%~ icons.marks[mark] %><span class="spr-walkthrough-kind-name"><span><%= label %></span><% if (recommended) { %><%~ include('@badge', { level: 'ok', label: 'recommended' }) %><% } %></span></span>
 <%
   }
   function signIn(mark, name) {
@@ -60,21 +61,54 @@
   <div class="spr-modal-panel spr-walkthrough-panel" role="dialog" aria-labelledby="<%= titleId %>">
     <h2 class="spr-modal-title" id="<%= titleId %>"><%= walkthrough.title %></h2>
     <% walkthrough.slides.forEach(function (slide, index) { %>
-    <section class="spr-walkthrough-slide" data-spr-walkthrough-slide>
+    <section class="spr-walkthrough-slide<%= BESIDE.includes(slide.preview) ? ' spr-walkthrough-slide-beside' : '' %>" data-spr-walkthrough-slide>
       <% /* What the slide says first, then the controls it is about */ %>
-      <h3 class="spr-walkthrough-title"><%= slide.title %></h3>
-      <p class="spr-walkthrough-text"><%~ md(slide.text) %></p>
-      <% if (slide.points && slide.points.length) { %>
-      <ul class="spr-walkthrough-text spr-walkthrough-points">
-        <% slide.points.forEach(function (point) { %><li><%~ md(point) %></li><% }) %>
-      </ul>
-      <% } %>
+      <div class="spr-walkthrough-copy">
+        <h3 class="spr-walkthrough-title"><%= slide.title %></h3>
+        <% if (slide.text) { %><p class="spr-walkthrough-text"><%~ md(slide.text) %></p><% } %>
+        <% if (slide.points && slide.points.length) { %>
+        <ul class="spr-walkthrough-text spr-walkthrough-points">
+          <% slide.points.forEach(function (point) { %><li><%~ md(point) %></li><% }) %>
+        </ul>
+        <% } %>
+        <% if (slide.faq && slide.faq.length) { %>
+        <% /* One shared name, so opening a question closes the one that was open */ %>
+        <div class="spr-walkthrough-faq">
+          <% slide.faq.forEach(function (item, at) { %>
+          <details class="spr-walkthrough-question" name="<%= titleId %>-faq-<%= index %>"<%= at === 0 ? ' open' : '' %>>
+            <summary><%= item.question %><%~ icons.chevron_down %></summary>
+            <p class="spr-walkthrough-text"><%~ md(item.answer) %></p>
+            <% if (item.points && item.points.length) { %>
+            <ul class="spr-walkthrough-text spr-walkthrough-points">
+              <% item.points.forEach(function (point) { %><li><%~ md(point) %></li><% }) %>
+            </ul>
+            <% } %>
+          </details>
+          <% }) %>
+        </div>
+        <% } %>
+      </div>
       <div class="spr-walkthrough-preview" inert aria-hidden="true">
         <% if (slide.preview === 'idp-sign-in') { %>
-        <ul class="spr-signin-options spr-walkthrough-signin">
-          <% signIn('github', 'GitHub') %>
-          <% signIn('microsoft', 'Microsoft Entra ID') %>
-        </ul>
+        <div class="spr-walkthrough-browser">
+          <div class="spr-walkthrough-browser-bar">
+            <span class="spr-walkthrough-browser-dots"><span></span><span></span><span></span></span>
+            <span class="spr-walkthrough-browser-url">docs.speicher.md</span>
+            <%~ include('@badge', { level: 'idle', label: 'example' }) %>
+          </div>
+          <div class="spr-walkthrough-login">
+            <p class="spr-walkthrough-login-title">Sign in</p>
+            <div class="spr-form spr-signin-form">
+              <input type="email" placeholder="Enter your email address" readonly>
+              <button type="button">Continue</button>
+            </div>
+            <p class="spr-signin-divider">or</p>
+            <ul class="spr-signin-options">
+              <% signIn('github', 'GitHub') %>
+              <% signIn('microsoft', 'Microsoft Entra ID') %>
+            </ul>
+          </div>
+        </div>
         <% } else if (slide.preview === 'idp-kinds') { %>
         <div class="spr-tiles spr-setup-kinds spr-walkthrough-kinds">
           <% kindTile('github', 'GitHub', true) %>

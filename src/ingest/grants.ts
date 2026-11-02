@@ -107,11 +107,8 @@ export async function resolveAccessBlock(
           line,
           message:
             ctx.publicGrant === 'refused'
-              ? '`public` names readers with no credential and can never be a maintainer — ' +
-                "operational access to this repository is not the internet's"
-              : '`public` is not enabled for this repository. An administrator lists it ' +
-                'under `public.repos` in the instance configuration first — publishing to ' +
-                "the internet is not a repository's own decision to make.",
+              ? 'the group `public` cannot be a maintainer. Remove `public` from `maintainers`.'
+              : 'This repository is not allowed to grant access to the group `public`. Remove `public` from `access`, or ask an administrator to add the repository under Configuration → Public access.',
         });
         continue;
       }

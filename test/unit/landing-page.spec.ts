@@ -122,3 +122,29 @@ describe('a file named after a sibling directory', () => {
     expect(result.findings.rejections.map((f) => f.code)).toContain('slug-collision');
   });
 });
+
+describe("the repository's start page without a title or heading", () => {
+  const startTitle = async () =>
+    (await walk()).documents.find((d) => d.slugPath === '' && d.isIndex)?.title;
+
+  it("is named after the repository's display title", async () => {
+    repo('access:\n  groups: [engineering]\ndisplay:\n  title: Engineering Handbook\n');
+    write('docs/index.md', 'Welcome.\n');
+
+    expect(await startTitle()).toBe('Engineering Handbook');
+  });
+
+  it('is named after the repository when it has no display title', async () => {
+    repo();
+    write('docs/index.md', 'Welcome.\n');
+
+    expect(await startTitle()).toBe('Handbook');
+  });
+
+  it('keeps the heading it has', async () => {
+    repo();
+    write('docs/index.md', '# Welcome\n');
+
+    expect(await startTitle()).toBe('Welcome');
+  });
+});

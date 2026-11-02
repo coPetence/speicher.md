@@ -803,7 +803,7 @@ describe('a group made during the setup', () => {
 
     expect(next((await withGroup([])).text)).toBeNull();
     expect(next((await withGroup([{ provider: 'wizard', email: 'ada@idp.test' }])).text)).toBe(
-      '/-/config/sources?kind=github',
+      '/-/config/sources',
     );
   });
 });

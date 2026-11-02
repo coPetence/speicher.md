@@ -49,9 +49,9 @@
   <% if (it.fix) { %>
   <% const fix = it.fix; %>
   <section class="spr-card spr-card-1 spr-setup-fix" data-spr-setup-fix="<%= fix.id %>"<% if (fix.waits) { %> aria-busy="true"<% } %>>
-    <p class="spr-setup-fix-step"><% if (fix.waits) { %><%~ it.syncing_icon %>In progress<% } else { %>Next step<% } %></p>
-    <h3 class="spr-setup-fix-title"><%~ md(fix.title) %></h3>
-    <p class="spr-setup-fix-text"><%~ md(fix.text) %></p>
+    <% if (!fix.waits) { %><p class="spr-setup-fix-step">Next step</p><% } %>
+    <h3 class="spr-setup-fix-title"><% if (fix.waits) { %><%~ it.syncing_icon %><% } %><%~ md(fix.title) %></h3>
+    <% if (fix.text) { %><p class="spr-setup-fix-text"><%~ md(fix.text) %></p><% } %>
     <% if (fix.detail) { %>
     <p class="spr-setup-fix-detail"><%~ md(fix.detail) %></p>
     <% } %>

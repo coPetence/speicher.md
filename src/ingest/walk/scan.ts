@@ -211,7 +211,10 @@ async function scanContentFile(
       body: parsed.body,
       frontmatter: parsed.frontmatter,
       resolved: dir.resolved,
-      folderTitle: deslugify(dir.slugPath.split('/').pop() ?? ''),
+      // The start page has no folder name, so it falls back to the repository's title or slug
+      folderTitle: dir.slugPath
+        ? deslugify(dir.slugPath.split('/').pop() ?? '')
+        : (dir.resolved.ownTitle ?? scan.root.resolved.ownTitle ?? deslugify(scan.root.repoSlug)),
     });
     return 'next';
   }

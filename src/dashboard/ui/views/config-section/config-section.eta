@@ -95,7 +95,24 @@
 %>
 <% const pageAdd = addOp; %>
 <%
-  const barRenders = it.section.layout === 'table' && (it.section.searchable || pageAdd);
+  const listEmpty = it.section.layout === 'table' && it.section.entries.length === 0 && !it.query;
+  const barRenders = it.section.layout === 'table' && !listEmpty && (it.section.searchable || pageAdd);
+  function addControl() {
+    if (pageAdd && pageAdd.href) {
+%>
+  <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
+    <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
+  </a>
+<%
+    } else if (pageAdd) {
+%>
+  <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
+    <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
+    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
+  </details>
+<%
+    }
+  }
 %>
 <% if (barRenders) { %>
 <div class="spr-index-bar">
@@ -116,16 +133,7 @@
   <% if (it.editable && it.section.bulkRemoveOp) { %>
   <button type="submit" name="op" value="<%= it.section.bulkRemoveOp %>" class="spr-remove spr-index-remove" form="config-form"><%~ it.remove_icon || '' %>Remove selected</button>
   <% } %>
-  <% if (pageAdd && pageAdd.href) { %>
-  <a class="spr-index-add spr-index-add-link" href="<%= pageAdd.href %>">
-    <%~ it.add_icon || '+' %><span><%= pageAdd.label %></span>
-  </a>
-  <% } else if (pageAdd) { %>
-  <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
-    <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
-    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
-  </details>
-  <% } %>
+  <% addControl() %>
 </div>
 <% } %>
 
@@ -362,9 +370,11 @@
    <%= it.section.entries.length > 0 || it.query ? 'hidden' : '' %>>
   <%~ it.empty_art %>
   <p class="spr-empty"><%= it.empty_text %></p>
+  <% if (listEmpty) { addControl() } %>
 </div>
 <% } else { %>
 <%~ include('@note', { level: 'idle', text: it.empty_text, data: { 'spr-empty': 'none' }, hidden: it.section.entries.length > 0 || it.query }) %>
+<% if (listEmpty) { addControl() } %>
 <% } %>
 <% if (it.section.searchable) { %>
 <% if (it.empty_art) { %>
@@ -499,7 +509,7 @@
 <% } %>
 
 <% if (it.create_groups) { %>
-<%~ include('@groups-panel', { createGroups: it.create_groups }) %>
+<%~ include('@groups-panel', { createGroups: it.create_groups, syncingIcon: it.syncing_icon }) %>
 <% } %>
 
 <% if (it.config_file) { %>
@@ -507,7 +517,7 @@
 <% } %>
 
 <% if (it.check) { %>
-<%~ include('@check-panel', { check: it.check, checkIcons: it.check_icons, arrowIcon: it.ready_arrow_icon, externalIcon: it.external_icon, checkAgainHref: it.check_again_href }) %>
+<%~ include('@check-panel', { check: it.check, checkIcons: it.check_icons, arrowIcon: it.ready_arrow_icon, externalIcon: it.external_icon, checkAgainHref: it.check_again_href, syncingIcon: it.syncing_icon }) %>
 <% } %>
 
 <% if (it.ready) { %>

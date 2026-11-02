@@ -47,10 +47,10 @@ describe('the main button of the modal a quick setup ends on', () => {
     ).toEqual({ label: 'Continue', href: '/-/config/groups', onward: true });
   });
 
-  it('leads on to the content source, on the GitHub quick setup, once a group exists', () => {
+  it('leads on to the content sources page, where its walkthrough opens first, once a group exists', () => {
     expect(
       primaryOf(during({ providers: 1, administrator: true, groups: 1, source: false }), 'groups'),
-    ).toEqual({ label: 'Continue', href: '/-/config/sources?kind=github', onward: true });
+    ).toEqual({ label: 'Continue', href: '/-/config/sources', onward: true });
   });
 
   it('leads on to the repository once the source is there too', () => {

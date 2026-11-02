@@ -27,7 +27,7 @@ export interface RepositoryFix {
     | 'syncing';
   waits: boolean;
   title: string;
-  text: string;
+  text?: string;
   detail?: string;
   action?: FixAction;
   secondary?: FixAction;
@@ -102,7 +102,6 @@ export function nextFix(input: FixInput): RepositoryFix | null {
       id: 'checking',
       waits: true,
       title: 'Checking your repositories on GitHub',
-      text: 'Speicher.md lists the repositories the GitHub App has access to. Then it reads the `.speicher.yaml` file of each repository.',
     };
   }
   const sourceFix = fixOfSources(input.checks, input.rows);
@@ -196,6 +195,9 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
     (row) => grants(row) === true || (grants(row) === null && row.sync.state !== 'ok'),
   );
   if (granted) {
+    if (granted.groups?.includes(PUBLIC_GROUP_NAME) && !input.allowsPublic(granted.name)) {
+      return fixOfPublic(input, granted);
+    }
     if (!granted.synced) return fixOfUnregistered(input, granted);
     if (granted.sync.state === 'failed') {
       return {
@@ -222,32 +224,7 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
 
   // Granted to everyone, but the instance does not publish it yet
   const unlisted = present.find((row) => row.groups?.includes(PUBLIC_GROUP_NAME));
-  if (unlisted) {
-    // As the list of public repositories names it
-    const listed = publicRepoRef(unlisted.name);
-    const name = `${slugify(listed.namespace)}/${listed.slug}`;
-    return {
-      id: 'public',
-      waits: false,
-      title: `Allow public access to ${unlisted.name}`,
-      text: `The \`.speicher.yaml\` of ${unlisted.name} grants \`public\` read access. To allow a repository to be accessible to everyone, an administrator must additionally add it to the list of public repositories in the instance's configuration. If you really want to allow public access to this repository, add it to that list.`,
-      detail: `Repository: \`${name}\``,
-      action: {
-        label: 'Add to public repositories',
-        href: `/-/config/public?${new URLSearchParams({ pick: name })}`,
-        ...(unlisted.synced
-          ? {}
-          : {
-              disabled:
-                input.discovering.length > 0
-                  ? 'Speicher.md is synchronizing the repository. You can add it once that is done.'
-                  : 'You can add the repository once it is synchronized.',
-            }),
-      },
-      secondary:
-        unlisted.synced || input.discovering.length > 0 ? editAction(unlisted) : discoverAction(),
-    };
-  }
+  if (unlisted) return fixOfPublic(input, unlisted);
 
   const other = present[0];
   if (other) {
@@ -307,6 +284,33 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
           }
         : undefined,
     snippet: copied && !only,
+  };
+}
+
+// A repository that grants `public`, which the instance does not publish yet
+function fixOfPublic(input: FixInput, row: RepositoryTableRow): RepositoryFix {
+  // As the list of public repositories names it
+  const listed = publicRepoRef(row.name);
+  const name = `${slugify(listed.namespace)}/${listed.slug}`;
+  return {
+    id: 'public',
+    waits: false,
+    title: `Allow public access to ${row.name}`,
+    text: `The \`.speicher.yaml\` of ${row.name} grants \`public\` read access. To allow a repository to be accessible to everyone, an administrator must additionally add it to the list of public repositories in the instance's configuration. If you really want to allow public access to this repository, add it to that list.`,
+    detail: `Repository: \`${name}\``,
+    action: {
+      label: 'Add to public repositories',
+      href: `/-/config/public?${new URLSearchParams({ pick: name })}`,
+      ...(row.synced
+        ? {}
+        : {
+            disabled:
+              input.discovering.length > 0
+                ? 'Speicher.md is synchronizing the repository. You can add it once that is done.'
+                : 'You can add the repository once it is synchronized.',
+          }),
+    },
+    secondary: row.synced || input.discovering.length > 0 ? editAction(row) : discoverAction(),
   };
 }
 
