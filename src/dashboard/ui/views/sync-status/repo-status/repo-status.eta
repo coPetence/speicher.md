@@ -15,7 +15,8 @@
 
 <% if (it.config && it.runs.length) { %>
 <% if (!it.config.hasConfig) { %>
-<%~ include('@note', { level: 'warn', html: md('There is no `.speicher.yaml` at the repository root, therefore this repository is not published.') }) %>
+<% const misnamed = it.runs[0].findings.find(function (finding) { return finding.code === 'config-misnamed'; }); %>
+<%~ include('@note', { level: 'warn', html: md(misnamed ? misnamed.message : 'There is no `.speicher.yaml` at the repository root, therefore this repository is not published.') }) %>
 <% } else if (it.config.principals === null) { %>
 
 <%~ include('@note', { level: 'warn', text: 'Nothing from this repository is published yet, because none of its syncs has succeeded. To find out why the last sync failed, open it in the list below.' }) %>

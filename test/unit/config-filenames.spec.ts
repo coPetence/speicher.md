@@ -4,6 +4,8 @@ import { join } from 'node:path';
 
 import { ConfigService } from '../../src/config/config.service';
 import { loadInstanceConfigFromFile } from '../../src/config/parser';
+import { isMisnamedConfigFilename } from '../../src/ingest/paths';
+import { misnamedConfigFile, misnamedConfigFinding } from '../../src/ingest/walk/fs';
 import { NotPublishedError } from '../../src/ingest/walk/root';
 import { walkRepo } from '../../src/ingest/walk/walk';
 
@@ -92,5 +94,35 @@ describe('config file names', () => {
     expect(findings.all.filter((f) => f.code === 'duplicate-config').map((f) => f.source)).toEqual([
       'docs/guides/.speicher.yaml',
     ]);
+  });
+});
+
+describe('a config file named wrongly', () => {
+  it('is a name written without its dot or in other capitals, and never a right one', () => {
+    for (const name of ['speicher.yaml', 'speicher.yml', 'Speicher.yaml', '.Speicher.YAML']) {
+      expect(isMisnamedConfigFilename(name)).toBe(true);
+    }
+    for (const name of ['.speicher.yaml', '.speicher.yml', 'speicher.json', 'README.md']) {
+      expect(isMisnamedConfigFilename(name)).toBe(false);
+    }
+  });
+
+  it('is found at the root, and named in the warning', async () => {
+    write('speicher.yaml', 'version: 1\naccess: [staff]\n');
+    write('docs/guide.md', '# Guide\n');
+    const name = await misnamedConfigFile(root);
+    expect(name).toBe('speicher.yaml');
+    expect(misnamedConfigFinding(name!)).toEqual({
+      severity: 'warn',
+      code: 'config-misnamed',
+      source: 'speicher.yaml',
+      message:
+        "`speicher.yaml` should be the repository's `.speicher.yaml`, but it is named incorrectly. Rename it to `.speicher.yaml`, with a leading dot.",
+    });
+  });
+
+  it('is none where the root has its config, or nothing like it', async () => {
+    write('.speicher.yaml', 'version: 1\naccess: [staff]\n');
+    expect(await misnamedConfigFile(root)).toBeNull();
   });
 });

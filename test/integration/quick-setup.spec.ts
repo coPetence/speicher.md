@@ -841,6 +841,18 @@ describe('the next step of the repositories page', () => {
     );
   });
 
+  it("marks a config file named without its dot, with GitHub's page to rename it rather than a second file", async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'all' }];
+    repos = { wiki: { 'speicher.yaml': 'version: 1\naccess: [engineering]\n' } };
+    const page = await ready('/-/repositories?check=1').expect(200);
+
+    const row = /<tr [^>]*data-spr-repo-row="acme\/wiki"[\s\S]*?<\/tr>/.exec(page.text)?.[0] ?? '';
+    expect(row).toContain('>misnamed<');
+    expect(row).toContain('href="https://github.com/acme/wiki/edit/main/speicher.yaml"');
+    expect(row).not.toContain('data-spr-config-file-action');
+  });
+
   it('leads to the installation when the App reads no repository', async () => {
     await createOnGithub('sources', 'team');
     installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];

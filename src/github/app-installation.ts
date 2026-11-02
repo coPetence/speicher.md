@@ -99,6 +99,7 @@ export interface RepositoryFiles {
   error?: string;
   // Whether there were more files than were read
   truncated: boolean;
+  misnamed?: string;
 }
 
 export interface RememberedFiles {
@@ -116,6 +117,7 @@ export interface RememberedFiles {
  * @param fetchImpl how GitHub is reached
  * @param limits how many repositories, and files of each, are read at most
  * @param remembered the repositories read earlier, by name
+ * @param isMisnamedPath which paths at the root are a mispelled `.speicher.yaml`
  */
 export async function repositoryConfigs(
   api: string,
@@ -124,6 +126,7 @@ export async function repositoryConfigs(
   fetchImpl: typeof fetch = fetch,
   limits = { repositories: PAGE_SIZE, files: 50 },
   remembered = new Map<string, RememberedFiles>(),
+  isMisnamedPath: (path: string) => boolean = () => false,
 ): Promise<{ repositories: RepositoryFiles[]; more: boolean }> {
   const listed = await get<{
     total_count?: number;
@@ -155,11 +158,13 @@ export async function repositoryConfigs(
           raw: await rawFile(api, token, repo.full_name, path, branch, fetchImpl),
         })),
       );
+      const misnamed = paths.find((path) => !path.includes('/') && isMisnamedPath(path));
       const repository = {
         fullName: repo.full_name,
         defaultBranch: branch,
         files,
         truncated: configs.length > limits.files,
+        ...(misnamed ? { misnamed } : {}),
       };
       if (pushedAt) remembered.set(repo.full_name, { pushedAt, repository });
       return repository;

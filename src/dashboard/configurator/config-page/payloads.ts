@@ -193,4 +193,5 @@ export interface CheckRow {
   edit_href?: string;
   readers?: string;
   groups?: string[];
+  misnamed?: string;
 }

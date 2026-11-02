@@ -19,6 +19,7 @@ import { Forge, Repo, SyncRun, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { Finding } from './findings';
 import { DirectoryLookup } from './grants';
+import { misnamedConfigFile, misnamedConfigFinding } from './walk/fs';
 import { NotPublishedError } from './walk/root';
 import { RepoLookup, WalkResult, walkRepo } from './walk/walk';
 import { retained } from './write/plan';
@@ -128,7 +129,10 @@ export class IngestService {
       });
       return await this.finishWritten(repo, run.id, walk, written);
     } catch (err) {
-      if (err instanceof NotPublishedError) return this.finishUnpublished(repo, run, options.sha);
+      if (err instanceof NotPublishedError) {
+        const misnamed = await misnamedConfigFile(options.workingTree);
+        return this.finishUnpublished(repo, run, options.sha, misnamed);
+      }
       return this.finishFailed(repo, run, options.sha, (err as Error).message);
     }
   }
@@ -191,7 +195,11 @@ export class IngestService {
   /**
    * Records a repo the forge reports without a root config, so it is never fetched
    */
-  async recordUnpublished(repoId: string, trigger: SyncOptions['trigger']): Promise<void> {
+  async recordUnpublished(
+    repoId: string,
+    trigger: SyncOptions['trigger'],
+    misnamed: string | null = null,
+  ): Promise<void> {
     const repo = await Repo.findByPk(repoId);
     if (!repo) return;
     const run = await SyncRun.create({
@@ -201,29 +209,47 @@ export class IngestService {
       trigger: trigger ?? 'manual',
       status: 'running',
     });
-    await this.markUnpublished(repo, run, null);
+    await this.markUnpublished(repo, run, null, misnamed);
   }
 
   /**
    * Purges the repo and marks it as unpublished when no root config exists
    */
-  private async finishUnpublished(repo: Repo, run: SyncRun, sha: string): Promise<SyncResult> {
-    await this.markUnpublished(repo, run, sha);
+  private async finishUnpublished(
+    repo: Repo,
+    run: SyncRun,
+    sha: string,
+    misnamed: string | null,
+  ): Promise<SyncResult> {
+    const findings = await this.markUnpublished(repo, run, sha, misnamed);
     return {
       status: 'ok',
       runId: run.id,
       sha,
-      findings: [],
+      findings,
       stats: emptyStats(),
       authorSummary: null,
       unpublished: true,
     };
   }
 
-  /** Purges the repo's content and marks the repo and its run as unpublished */
-  private async markUnpublished(repo: Repo, run: SyncRun, sha: string | null): Promise<void> {
+  /**
+   * Purges the repo's content and marks the repo and its run as unpublished
+   */
+  private async markUnpublished(
+    repo: Repo,
+    run: SyncRun,
+    sha: string | null,
+    misnamed: string | null,
+  ): Promise<Finding[]> {
+    const findings = misnamed ? [misnamedConfigFinding(misnamed)] : [];
     await this.purgeRepo(repo.id);
-    await run.update({ status: 'ok', finished_at: new Date(), stats: { unpublished: true } });
+    await run.update({
+      status: 'ok',
+      finished_at: new Date(),
+      stats: { unpublished: true },
+      findings,
+    });
     await repo.update({
       has_config: false,
       last_sha: sha,
@@ -232,6 +258,7 @@ export class IngestService {
       last_error: null,
       last_error_public: null,
     });
+    return findings;
   }
 
   /**
