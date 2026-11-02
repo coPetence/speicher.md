@@ -582,7 +582,11 @@
   }
 
   .spr-nav ul.spr-nav-tree ul {
-    padding-left: calc(var(--spr-nav-twisty) - 8px + var(--spr-border) / 2);
+    padding-left: var(--spr-space-1);
+  }
+
+  .spr-nav ul.spr-nav-tree ul a {
+    padding-inline-start: var(--spr-space-3);
   }
 
   .spr-nav ul ul {
