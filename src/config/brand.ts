@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-export const MAX_BRAND_LOGO_BYTES = 64 * 1024;
-export const MAX_BRAND_ICON_BYTES = 32 * 1024;
+export const MAX_BRAND_LOGO_BYTES = 1024 * 1024;
+export const MAX_BRAND_ICON_BYTES = 1024 * 1024;
 export const MAX_BRAND_WALLPAPER_BYTES = 5 * 1024 * 1024;
 export const MIN_BRAND_ICON_PIXELS = 32;
 

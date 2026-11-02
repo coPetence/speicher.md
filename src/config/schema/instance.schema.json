@@ -261,21 +261,21 @@
         },
         "logo": {
           "type": "string",
-          "maxLength": 90000,
+          "maxLength": 1400000,
           "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "The header logo: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set."
+          "description": "The header logo: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. Used in dark mode too, unless `logo_dark` is set."
         },
         "logo_dark": {
           "type": "string",
-          "maxLength": 90000,
+          "maxLength": 1400000,
           "pattern": "^(data:image/(svg\\+xml|png|webp);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "The header logo for readers in dark mode: a PNG, WebP or SVG of at most 64 KB, as a `data:` URI or a `sha256:` reference to an uploaded image."
+          "description": "The header logo for readers in dark mode: a PNG, WebP or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image."
         },
         "icon": {
           "type": "string",
-          "maxLength": 45000,
+          "maxLength": 1400000,
           "pattern": "^(data:image/(svg\\+xml|png);base64,[A-Za-z0-9+/]+={0,2}|sha256:[0-9a-f]{64})$",
-          "description": "The favicon shown in the browser tab: a square PNG or SVG of at most 32 KB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels."
+          "description": "The favicon shown in the browser tab: a square PNG or SVG of at most 1 MB, as a `data:` URI or a `sha256:` reference to an uploaded image. A PNG must be at least 32×32 pixels."
         },
         "wallpaper": {
           "type": "string",

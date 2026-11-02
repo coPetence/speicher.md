@@ -273,11 +273,10 @@ describe('what a favicon may be', () => {
     expect(icon(dataUri('image/svg+xml', sizedSvg('')))).toBeNull();
   });
 
-  it('is capped lower than a logo, and the message names its own cap', () => {
+  it('is capped at 1 MB, and the message names its own cap', () => {
     const square = pngSized(64, 64);
     const huge = Buffer.concat([square, Buffer.alloc(MAX_BRAND_ICON_BYTES)]);
-    expect(iconRefusal(dataUri('image/png', huge))).toMatch(/limit is 32 KB/);
-    expect(MAX_BRAND_ICON_BYTES).toBeLessThan(MAX_BRAND_LOGO_BYTES);
+    expect(iconRefusal(dataUri('image/png', huge))).toMatch(/limit is 1 MB/);
   });
 
   it('refuses the same SVG a logo refuses, and names itself when it does', () => {
