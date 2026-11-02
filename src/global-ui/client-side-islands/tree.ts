@@ -136,6 +136,7 @@ function sameOriginDocument(link: HTMLAnchorElement): boolean {
 }
 
 let navigationToken = 0;
+let shown = '';
 
 async function navigate(url: string, push: boolean): Promise<boolean> {
   const main = document.querySelector('main');
@@ -176,6 +177,7 @@ async function navigate(url: string, push: boolean): Promise<boolean> {
   if (!destination.hash && wanted.hash) destination.hash = wanted.hash;
 
   if (push) history.pushState({ speicher: true }, '', destination.href);
+  shown = destination.pathname + destination.search;
   mountHistorySteps(main);
   // Dispatch analytics, update nav highlights, close menus, focus content
   countFragment(fragment.countable === true);
@@ -321,7 +323,9 @@ function start(): void {
     });
   });
 
+  shown = location.pathname + location.search;
   addEventListener('popstate', () => {
+    if (location.pathname + location.search === shown) return;
     void navigate(location.href, false).then((handled) => {
       if (!handled) location.reload();
     });

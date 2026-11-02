@@ -81,6 +81,21 @@ beforeEach(() => {
   document.cookie = 'speicher_nav_width=; path=/; max-age=0';
 });
 
+// First in the file: every load adds its listeners for good, and one that has navigated would fetch here
+describe('stepping back between anchors on one page', () => {
+  it('scrolls as the browser does, and fetches nothing', async () => {
+    load();
+    const fetchMock = jest.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    history.pushState(null, '', '/#qa');
+    dispatchEvent(new PopStateEvent('popstate'));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('the steps back and forward beside the crumbs', () => {
   const steps = `
     <div class="spr-crumbs">

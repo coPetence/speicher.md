@@ -233,7 +233,8 @@ describe('the base stylesheet', () => {
     expect(base).not.toContain('transition-delay');
 
     const now = /a\[data-spr-preview\]:focus-visible::after[^{]*\{([^}]*)\}/.exec(RULES)?.[1] ?? '';
-    expect(now).toContain('transition-delay: 0s');
+    // Cancels a wait already running when Cmd is pressed mid-hover; a zero delay would not
+    expect(now).toContain('transition: none');
     expect(RULES).toContain('[data-spr-peek] a[data-spr-preview]:hover::after');
   });
 

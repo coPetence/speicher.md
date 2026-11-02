@@ -57,17 +57,12 @@ function dropEmptyHeaderRow(state: MarkdownIt.StateCore): void {
   }
 }
 
-/** Converts heading text to a URL-safe slug */
 export function headingSlug(text: string): string {
   return text
-    .replace(/[äöüÄÖÜß]/g, (c) => TRANSLITERATE[c] ?? c)
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
-    .replace(/(?<=[a-z0-9])[._](?=[a-z0-9])/g, '-')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s/g, '-');
+    .replace(/[^\p{L}\p{M}\p{N}\p{Pc}\- ]/gu, '')
+    .replace(/ /g, '-');
 }
 
 /** Strips the first h1 element from rendered HTML */
@@ -75,37 +70,57 @@ export function stripLeadingH1(html: string): string {
   return html.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>\s*/, '');
 }
 
-/** German characters headingSlug replaces before slug generation */
-const TRANSLITERATE: Record<string, string> = {
-  ä: 'ae',
-  ö: 'oe',
-  ü: 'ue',
-  Ä: 'ae',
-  Ö: 'oe',
-  Ü: 'ue',
-  ß: 'ss',
-};
-
 /** Render environment with heading deduplication state */
 interface RenderEnv extends MdxEnv {
   headings: Map<string, number>;
+}
+
+const HEADING_ID = /[ \t]*\{#([^\s{}]+)\}[ \t]*$/;
+
+/** Takes an id written as `{#my-id}` off the end of a heading and sets it on the heading */
+function headingIds(state: MarkdownIt.StateCore): void {
+  const tokens = state.tokens;
+  for (let i = 0; i < tokens.length - 1; i++) {
+    if (tokens[i].type !== 'heading_open') continue;
+    const inline = tokens[i + 1];
+    const written = HEADING_ID.exec(inline.content);
+    const last = inline.children?.at(-1);
+    if (!written || last?.type !== 'text' || !HEADING_ID.test(last.content)) continue;
+    tokens[i].attrSet('id', written[1]);
+    inline.content = inline.content.replace(HEADING_ID, '');
+    last.content = last.content.replace(HEADING_ID, '');
+  }
+}
+
+function headingText(inline: MarkdownIt.Token | undefined): string {
+  if (!inline?.children) return inline?.content ?? '';
+  return inline.children
+    .filter((child) => ['text', 'text_special', 'code_inline'].includes(child.type))
+    .map((child) => child.content)
+    .join('');
+}
+
+function uniqueSlug(seen: Map<string, number>, base: string): string {
+  let slug = base;
+  while (seen.has(slug)) {
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    slug = `${base}-${count}`;
+  }
+  seen.set(slug, 0);
+  return slug;
 }
 
 /**
  * Assigns auto-generated IDs to headings
  *
  * Not on a heading that already has an id, to preserve manually set anchors
- * Duplicate slugs get a -n suffix for deduplication
  */
 const renderHeadingOpen: MarkdownIt.Renderer.RenderRule = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
-  const text = tokens[idx + 1]?.content ?? '';
-  const base = headingSlug(text);
+  const base = headingSlug(headingText(tokens[idx + 1]));
   if (base && !token.attrGet('id')) {
-    const seen = (env as RenderEnv).headings;
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    token.attrSet('id', count === 0 ? base : `${base}-${count}`);
+    token.attrSet('id', uniqueSlug((env as RenderEnv).headings, base));
   }
   return self.renderToken(tokens, idx, options);
 };
@@ -130,6 +145,7 @@ function createParser(mdx: boolean): MarkdownIt {
   installTasks(md);
   if (mdx) installMdx(md);
   md.core.ruler.after('block', 'drop_empty_thead', dropEmptyHeaderRow);
+  md.core.ruler.after('inline', 'heading_ids', headingIds);
   md.renderer.rules.heading_open = renderHeadingOpen;
   return md;
 }
@@ -486,13 +502,13 @@ export function htmlToPlainText(html: string): string {
 export function firstH1(source: string): string | null {
   for (const line of source.split('\n')) {
     const atx = /^#\s+(.+?)\s*#*\s*$/.exec(line);
-    if (atx) return stripInlineMarkup(atx[1]);
+    if (atx) return stripInlineMarkup(atx[1].replace(HEADING_ID, ''));
   }
 
   const lines = source.split('\n');
   for (let i = 1; i < lines.length; i++) {
     if (/^=+\s*$/.test(lines[i]) && lines[i - 1].trim().length > 0) {
-      return stripInlineMarkup(lines[i - 1].trim());
+      return stripInlineMarkup(lines[i - 1].trim().replace(HEADING_ID, ''));
     }
   }
   return null;
