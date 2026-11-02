@@ -69,6 +69,26 @@ jobs:
         if: failure()
         run: docker compose -f compose.dev.yml logs --tail=80
 
+  install-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck deploy/install.sh test/e2e/install.sh
+
+      # check that docker compose and caddy accept the generated files from the install script
+      - name: Validate the written files with Docker Compose and Caddy
+        run: |
+          bash deploy/install.sh --yes --no-start --dir "$RUNNER_TEMP/local" --mode local
+          bash deploy/install.sh --yes --no-start --dir "$RUNNER_TEMP/caddy" \
+            --mode public --domain docs.example.com --caddy --acme-email ops@example.com
+          bash deploy/install.sh --yes --no-start --dir "$RUNNER_TEMP/proxy" \
+            --mode public --domain docs.example.com --no-caddy
+          for setup in local caddy proxy; do
+            docker compose --project-directory "$RUNNER_TEMP/$setup" config -q
+          done
+          docker run --rm -v "$RUNNER_TEMP/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -92,3 +112,16 @@ jobs:
             require('/app/dist/app.module.js');
             require('node:fs').accessSync('/app/dist/worker.js');
           "
+
+      # installs and starts the PR image
+      - name: Install with the script and wait until ready
+        run: |
+          docker tag speicher:pr ghcr.io/copetence/speicher.md:pr
+          bash deploy/install.sh --yes --dir "$RUNNER_TEMP/speicher" --mode local --image-tag pr
+
+      - name: End-to-end test of the installed stack
+        run: bash test/e2e/install.sh "$RUNNER_TEMP/speicher" pr
+
+      - name: Installer logs on failure
+        if: failure()
+        run: docker compose --project-directory "$RUNNER_TEMP/speicher" logs --tail=80 || true
