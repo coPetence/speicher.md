@@ -188,13 +188,16 @@ describe('the base stylesheet', () => {
     );
     expect(RULES).not.toContain('margin-inline-start: calc(-1 * var(--spr-nav-twisty))');
     expect(declarationsOfBase('.spr-nav-row:hover')).toContain('background: var(--spr-surface)');
-    // The guide line drops from the folder icon's centre, and the indent gives
-    // back what the line moved, so a child row starts where it always did.
+    // The guide line drops from the folder icon's centre, and a child's icon
+    // lines up with its parent's label, one small step in from the line.
     expect(declarationsOfBase('.spr-nav ul ul')).toContain(
       'margin-left: calc(var(--spr-space-4) + 8px - var(--spr-border) / 2)',
     );
     expect(declarationsOfBase('.spr-nav ul.spr-nav-tree ul')).toContain(
-      'padding-left: calc(var(--spr-nav-twisty) - 8px + var(--spr-border) / 2)',
+      'padding-left: var(--spr-space-1)',
+    );
+    expect(declarationsOfBase('.spr-nav ul.spr-nav-tree ul a')).toContain(
+      'padding-inline-start: var(--spr-space-3)',
     );
   });
 
