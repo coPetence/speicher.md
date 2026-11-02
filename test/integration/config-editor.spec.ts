@@ -121,6 +121,10 @@ const titleOf = (id: string): string => {
 };
 
 /** The `<h1>` a page draws, whatever its title says */
+/** A page without the steps back and forward in front of its crumbs, so the trail itself is asserted */
+const trail = (html: string) =>
+  html.replace(/<span class="spr-crumbs-history"[\s\S]*?<\/span>\s*/, '');
+
 const titledHeading = (title: string) =>
   new RegExp(
     `<h1 class="spr-titled">[\\s\\S]*?${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h1>`,
@@ -306,7 +310,7 @@ describe('the overview', () => {
       .set('cookie', ops)
       .expect(200);
     expect(page.text).toMatch(/<h1 class="spr-titled">[\s\S]*?Branding<\/h1>/);
-    expect(page.text).toMatch(
+    expect(trail(page.text)).toMatch(
       /<div class="spr-crumbs">\s*<a href="\/-\/config">Configuration<\/a> \/ Branding\s*<\/div>/,
     );
   });
@@ -1139,7 +1143,9 @@ describe('the identity section', () => {
   it('says where it is, in the breadcrumb under /-/config', async () => {
     const { html } = await open('identity/entra');
     expect(html).toMatch(/<h1 class="spr-titled">[\s\S]*entra<\/h1>/);
-    expect(html).toMatch(
+    // Back and forward in front of the trail, until the island shows them
+    expect(html).toContain('<span class="spr-crumbs-history" data-spr-history hidden>');
+    expect(trail(html)).toMatch(
       new RegExp(
         `<div class="spr-crumbs">\\s*<a href="/-/config">Configuration</a> / ` +
           `<a href="/-/config/identity">${titleOf('identity')}</a> / entra\\s*</div>`,
@@ -1150,10 +1156,10 @@ describe('the identity section', () => {
 
   it('names every page above a group, not only the one it came from', async () => {
     const { html } = await open('groups/engineering');
-    expect(html).toMatch(
+    expect(trail(html)).toMatch(
       /<div class="spr-crumbs">\s*<a href="\/-\/config">Configuration<\/a> \/ <a href="\/-\/config\/groups">Groups<\/a> \/ engineering\s*<\/div>/,
     );
-    const crumbs = html.slice(html.indexOf('<div class="spr-crumbs">'));
+    const crumbs = trail(html).slice(trail(html).indexOf('<div class="spr-crumbs">'));
     expect(crumbs.slice(0, crumbs.indexOf('</div>'))).not.toContain('<svg');
     expect(html).not.toContain('arrow-left');
   });
@@ -1702,7 +1708,7 @@ describe('the groups section', () => {
     expect(Object.keys(body)).toContain('__shape:groups.engineering');
     expect(Object.keys(body)).not.toContain('__shape:groups');
 
-    expect(html).toMatch(
+    expect(trail(html)).toMatch(
       /<div class="spr-crumbs">\s*<a href="\/-\/config">Configuration<\/a> \/ <a href="\/-\/config\/groups">Groups<\/a> \/ engineering\s*<\/div>/,
     );
     expect(html).toMatch(/href="\/-\/config\/groups" aria-current="true"/);

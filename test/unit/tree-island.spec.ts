@@ -81,6 +81,48 @@ beforeEach(() => {
   document.cookie = 'speicher_nav_width=; path=/; max-age=0';
 });
 
+describe('the steps back and forward beside the crumbs', () => {
+  const steps = `
+    <div class="spr-crumbs">
+      <span class="spr-crumbs-history" data-spr-history hidden>
+        <button type="button" data-spr-history-back>Back</button>
+        <button type="button" data-spr-history-forward>Forward</button>
+      </span>
+    </div>`;
+
+  afterEach(() => {
+    delete (window as { navigation?: unknown }).navigation;
+  });
+
+  it('are shown with the island, and step through the browser history', () => {
+    document.body.innerHTML = tree().replace('<main><h1>One</h1></main>', `<main>${steps}</main>`);
+    const back = jest.spyOn(history, 'back').mockImplementation(() => undefined);
+    const forward = jest.spyOn(history, 'forward').mockImplementation(() => undefined);
+    // eslint-disable-next-line no-new-func
+    new Function(BUNDLE)();
+
+    expect(document.querySelector<HTMLElement>('[data-spr-history]')!.hidden).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-spr-history-back]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-spr-history-forward]')!.click();
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
+  it('are disabled where the browser says there is nowhere to go', () => {
+    (window as { navigation?: unknown }).navigation = { canGoBack: true, canGoForward: false };
+    document.body.innerHTML = tree().replace('<main><h1>One</h1></main>', `<main>${steps}</main>`);
+    // eslint-disable-next-line no-new-func
+    new Function(BUNDLE)();
+
+    expect(document.querySelector<HTMLButtonElement>('[data-spr-history-back]')!.disabled).toBe(
+      false,
+    );
+    expect(document.querySelector<HTMLButtonElement>('[data-spr-history-forward]')!.disabled).toBe(
+      true,
+    );
+  });
+});
+
 describe('toggling', () => {
   it('opens a closed folder without navigating', () => {
     load();

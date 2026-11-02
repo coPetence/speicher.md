@@ -1,4 +1,10 @@
 
 <div class="spr-crumbs">
-  <% it.crumbs.forEach(function (crumb, i) { %><% if (i) { %> / <% } %><% if (crumb.href) { %><a href="<%= crumb.href %>"><%= crumb.title %></a><% } else { %><%= crumb.title %><% } %><% }) %>
+  <% if (it.history) { %>
+  <span class="spr-crumbs-history" data-spr-history hidden>
+    <button type="button" class="spr-crumbs-step" data-spr-history-back aria-label="Back" title="Back"><%~ inlineIcon('arrow-left') %></button>
+    <button type="button" class="spr-crumbs-step" data-spr-history-forward aria-label="Forward" title="Forward"><%~ inlineIcon('arrow-right') %></button>
+  </span>
+  <% } %>
+  <% it.crumbs.forEach(function (crumb, i) { %><% if (i) { %> / <% } %><% if (i === 0 && it.home && crumb.href) { %><a class="spr-crumbs-home" href="<%= crumb.href %>" aria-label="<%= crumb.title %>" title="<%= crumb.title %>"><%~ inlineIcon('house') %></a><% } else if (crumb.href) { %><a href="<%= crumb.href %>"><%= crumb.title %></a><% } else { %><%= crumb.title %><% } %><% }) %>
 </div>

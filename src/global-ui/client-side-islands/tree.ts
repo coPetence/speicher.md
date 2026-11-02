@@ -16,6 +16,7 @@
 import { countFragment, mountBeacon } from './beacon';
 import { mountCodeCopy } from './code-copy';
 import { mountCovers } from './cover-tile';
+import { mountHistorySteps } from './history-steps';
 import { mountPeek } from './peek';
 import { mountResizer } from './resize';
 import { SLIDE_MS, motionless, mountDetailsSlide } from './slide';
@@ -175,6 +176,7 @@ async function navigate(url: string, push: boolean): Promise<boolean> {
   if (!destination.hash && wanted.hash) destination.hash = wanted.hash;
 
   if (push) history.pushState({ speicher: true }, '', destination.href);
+  mountHistorySteps(main);
   // Dispatch analytics, update nav highlights, close menus, focus content
   countFragment(fragment.countable === true);
   markCurrent(destination.pathname);
@@ -271,6 +273,7 @@ function start(): void {
   mountTabs();
   mountCovers();
   mountCodeCopy();
+  mountHistorySteps();
 
   document.addEventListener('click', (event) => {
     if (event.defaultPrevented || event.button !== 0) return;

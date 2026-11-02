@@ -272,6 +272,20 @@ describe('the breadcrumb trail', () => {
     expect(crumbs).toContain('href="/handbook/reference"');
     expect((crumbs.match(/<a /g) ?? []).length).toBe(2);
   });
+
+  it("draws the repository's root as a house, named for whoever cannot see it", async () => {
+    const article = (await page('alice', '/handbook/reference/errors')).text;
+    expect(article).toMatch(
+      /<a class="spr-crumbs-home" href="\/handbook\/" aria-label="handbook" title="handbook"><svg class="spr-icon"/,
+    );
+  });
+
+  it('offers back and forward, hidden until the island can step through the history', async () => {
+    const article = (await page('alice', '/handbook/reference/errors')).text;
+    expect(article).toContain('<span class="spr-crumbs-history" data-spr-history hidden>');
+    expect(article).toContain('aria-label="Back"');
+    expect(article).toContain('aria-label="Forward"');
+  });
 });
 
 describe('the page title', () => {

@@ -5,6 +5,7 @@
  * Auto-submits the compare form on select change, hiding the now-redundant submit button
  */
 
+import { mountHistorySteps } from './history-steps';
 import { mountNav } from './slide';
 
 /** Selector for the version comparison form */
@@ -17,6 +18,7 @@ const COMPARE = 'form[data-spr-compare]';
  */
 function mountCompare(): void {
   mountNav();
+  mountHistorySteps();
   const form = document.querySelector<HTMLFormElement>(COMPARE);
   if (!form) return;
 

@@ -8,4 +8,59 @@
   .spr-crumbs a {
     color: var(--spr-muted);
   }
+
+  .spr-crumbs a.spr-crumbs-home {
+    display: inline-flex;
+    vertical-align: -0.15em;
+  }
+
+  .spr-crumbs-home .spr-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
+
+  .spr-crumbs-home:hover {
+    color: var(--spr-fg);
+  }
+
+  /* Back and forward, before the trail */
+  .spr-crumbs-history {
+    display: inline-flex;
+    gap: var(--spr-space-1);
+    margin-inline-end: var(--spr-space-3);
+    vertical-align: -0.2em;
+  }
+
+  .spr-crumbs-history[hidden] {
+    display: none;
+  }
+
+  .spr-crumbs-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1em;
+    border: 0;
+    border-radius: var(--spr-radius-sm);
+    background: none;
+    color: var(--spr-muted);
+    cursor: pointer;
+  }
+
+  .spr-crumbs-step:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .spr-crumbs-step:not(:disabled):hover {
+    background: var(--spr-surface);
+    color: var(--spr-fg);
+  }
+
+  .spr-crumbs-step .spr-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+  }
 }
