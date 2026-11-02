@@ -84,7 +84,7 @@
       </tr>
     </thead>
     <tbody>
-      <% it.runs.forEach(function (run) { %>
+      <% it.runs.forEach(function (run, index) { %>
       <tr>
         <th scope="row"><a href="<%= run.href %>"><time datetime="<%= run.startedAt %>"><%= run.started %></time></a></th>
         <td><%~ include('@badge', { level: run.level, label: run.status }) %></td>
@@ -96,12 +96,27 @@
         <td class="spr-num"><%= run.droppedGrants %></td>
         <% if (it.show_findings) { %>
         <td class="spr-num">
-          <span class="spr-run-findings">
-            <% if (run.worst) { %><%~ include('@badge', { level: run.worst.level, label: run.worst.severity, iconHtml: run.worst.iconHtml }) %><% } %><%= run.findings.length %>
-          </span>
+          <% if (run.findings.length > 0) { %>
+          <a class="spr-run-findings spr-run-findings-toggle" href="<%= run.href %>#findings" aria-expanded="false" aria-controls="run-findings-<%= index %>" data-spr-findings-toggle>
+            <% if (run.worst) { %><%~ include('@badge', { level: run.worst.level, label: run.worst.severity, iconHtml: run.worst.iconHtml }) %><% } %><%= run.findings.length %><%~ it.chevron_icon %>
+          </a>
+          <% } else { %>
+          <span class="spr-run-findings">0</span>
+          <% } %>
         </td>
         <% } %>
       </tr>
+      <% if (it.show_findings && run.findings.length > 0) { %>
+      <tr class="spr-run-findings-row" id="run-findings-<%= index %>" hidden>
+        <td colspan="<%= columns %>">
+          <%~ include('@findings', {
+            findings: run.findings.map(function (finding) {
+              return { level: finding.level, label: finding.severity, iconHtml: finding.iconHtml, source: finding.source, code: finding.code, message: finding.message };
+            }),
+          }) %>
+        </td>
+      </tr>
+      <% } %>
       <% }) %>
     </tbody>
   </table>

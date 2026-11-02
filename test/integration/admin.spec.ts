@@ -177,16 +177,21 @@ describe('an admin', () => {
     expect((await json('ops', '/-/status')).body.totals).not.toHaveProperty('dropped_grants');
   });
 
-  it("is sent from the repository's table to the run's own page for its findings", async () => {
+  it("opens a run's findings under its row from the count, which leads to them on the run's page without the island", async () => {
     const res = await page('ops', '/-/status/copetence/handbook');
     expect(res.status).toBe(200);
     expect(res.text).toContain(`href="${runPath}"`);
-    // Counted in the row, drawn on the run's page — never folded under the row
     expect(res.text).toMatch(/<th scope="col" class="spr-num">Findings<\/th>/);
-    expect(res.text).not.toContain('unknown-group');
     // The count carries the mark of the run's worst finding, the word as its name
+    const toggle = new RegExp(
+      `<a class="spr-run-findings spr-run-findings-toggle" href="${runPath}#findings" aria-expanded="false" aria-controls="(run-findings-\\d+)" data-spr-findings-toggle>\\s*<span\\s+class="spr-badge spr-badge-fail spr-badge-icon"\\s+title="reject"\\s*><svg[\\s\\S]*?<span class="spr-clipped">reject</span></span>\\s*1\\s*<svg`,
+    ).exec(res.text);
+    expect(toggle).not.toBeNull();
+    // The findings themselves, folded under the row until the count is pressed
     expect(res.text).toMatch(
-      /<span class="spr-run-findings">\s*<span\s+class="spr-badge spr-badge-fail spr-badge-icon"\s+title="reject"\s*><svg[\s\S]*?<span class="spr-clipped">reject<\/span><\/span>\s*1\s*<\/span>/,
+      new RegExp(
+        `<tr class="spr-run-findings-row" id="${toggle?.[1]}" hidden>[\\s\\S]*?unknown-group[\\s\\S]*?</tr>`,
+      ),
     );
   });
 

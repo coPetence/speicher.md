@@ -53,6 +53,39 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+describe("a run's findings count", () => {
+  function renderRuns(): void {
+    document.body.innerHTML = `
+      <main>
+        <table class="spr-table"><tbody>
+          <tr><td><a href="/-/status/copetence/handbook/runs/1#findings" aria-expanded="false" aria-controls="run-findings-0" data-spr-findings-toggle>1</a></td></tr>
+          <tr id="run-findings-0" hidden><td>unknown-group</td></tr>
+        </tbody></table>
+      </main>`;
+  }
+  const toggle = () => document.querySelector('[data-spr-findings-toggle]') as HTMLAnchorElement;
+  const row = () => document.getElementById('run-findings-0') as HTMLElement;
+  const press = (): boolean => {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    toggle().dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it('opens the findings under the row and closes them again, staying on the page', () => {
+    renderRuns();
+    run();
+    expect(toggle().getAttribute('role')).toBe('button');
+
+    expect(press()).toBe(true);
+    expect(row().hidden).toBe(false);
+    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+
+    press();
+    expect(row().hidden).toBe(true);
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
 describe('the repository status island', () => {
   it('asks nothing when no sync is in flight', async () => {
     render(false);
