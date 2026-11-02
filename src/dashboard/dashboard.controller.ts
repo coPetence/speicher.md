@@ -98,7 +98,9 @@ export class DashboardController {
     res.redirect(303, `/-/status?reembedding=${result.pending}`);
   }
 
-  /** Queues discovery for every configured forge */
+  /**
+   * Queues discovery for every configured forge, and a sync of every repo it has registered
+   */
   @Post('discover')
   async discoverForges(
     @Req() req: Request,
@@ -120,10 +122,20 @@ export class DashboardController {
       });
     }
 
+    const repoIds = await this.repo.repoIdsOf(caller.tenantId, forges);
+    for (const repoId of repoIds) {
+      await this.queue.enqueue({
+        tenantId: caller.tenantId,
+        kind: 'sync-repo-content',
+        payload: { repoId, trigger: 'manual' },
+        dedupeKey: `sync-repo-content:${repoId}`,
+      });
+    }
+
     res.setHeader('Vary', 'Accept');
     res.setHeader('Cache-Control', 'private, no-store');
     if (wantsJson(req)) {
-      res.status(200).json({ discovering: forges });
+      res.status(200).json({ discovering: forges, syncing: repoIds.length });
       return;
     }
     res.redirect(303, body?.back === 'repositories' ? REPOSITORY_STEP_PATH : '/-/status');

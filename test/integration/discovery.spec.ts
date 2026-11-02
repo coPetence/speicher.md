@@ -477,14 +477,33 @@ describe('a redelivery an operator asked for', () => {
     expect(await discoverJobs()).toBe(1);
   });
 
-  it('is what the dashboard offers without any of this', async () => {
+  it('is what the dashboard offers without any of this, and syncs every repository with it', async () => {
     await clearDiscoverJobs();
+    await getSequelize().query(`DELETE FROM jobs WHERE kind = 'sync-repo-content'`, {
+      type: QueryTypes.DELETE,
+    });
+    const [{ count: repos }] = await getSequelize().query<{ count: string }>(
+      `SELECT count(*) AS count FROM repos r JOIN forges f ON f.id = r.forge_id
+        WHERE r.tenant_id = :tenantId AND f.key = 'gh'`,
+      { type: QueryTypes.SELECT, replacements: { tenantId } },
+    );
+    expect(Number(repos)).toBeGreaterThan(0);
+
     await request(app.getHttpServer())
       .post('/-/discover')
       .set('cookie', admin)
       .set('accept', 'application/json')
-      .expect(200, { discovering: ['gh'] });
+      .expect(200, { discovering: ['gh'], syncing: Number(repos) });
     expect(await discoverJobs()).toBe(1);
+
+    // An ordinary sync each, which skips a repository whose commit has not changed
+    const syncs = await getSequelize().query<{ trigger: string }>(
+      `SELECT payload->>'trigger' AS trigger FROM jobs
+        WHERE tenant_id = :tenantId AND kind = 'sync-repo-content'`,
+      { type: QueryTypes.SELECT, replacements: { tenantId } },
+    );
+    expect(syncs).toHaveLength(Number(repos));
+    expect(syncs.every((job) => job.trigger === 'manual')).toBe(true);
   });
 
   it('is what the reconciler asks for on its own, without anybody pressing anything', async () => {
