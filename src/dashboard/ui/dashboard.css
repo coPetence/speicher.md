@@ -2192,17 +2192,19 @@
     align-items: center;
     gap: var(--spr-space-2);
     padding: var(--spr-space-2) var(--spr-space-4);
-    border: var(--spr-border) solid var(--spr-line);
+    border: var(--spr-border) solid var(--spr-accent);
     border-radius: var(--spr-radius);
-    background: var(--spr-surface);
-    color: var(--spr-fg);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font-weight: var(--spr-weight-strong);
     white-space: nowrap;
   }
 
   .spr-index-add-link:hover,
   .spr-index-add > summary:hover {
-    border-color: var(--spr-accent);
-    color: var(--spr-fg);
+    border-color: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+    color: var(--spr-bg);
   }
 
   .spr-index-add-link .spr-icon,

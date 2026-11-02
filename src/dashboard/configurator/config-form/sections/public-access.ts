@@ -15,7 +15,7 @@ export function publicSection(root: Obj): SectionSource {
         searchLabel: 'Search repositories…',
         empty: 'No repository may publish to public readers yet.',
         unavailable:
-          'There is no other synchronized repository to add. A repository can be added after its first sync.',
+          'Only repositories that have been synchronized can be added here. To add a repository or view its sync status, go to the [repositories page](/-/repositories).',
         help: 'A repository listed here is public only when its own .speicher.yaml grants public access. Add a repository here to allow it to use the `public` grant in its .speicher.yaml.',
       }),
     ],

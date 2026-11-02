@@ -78,13 +78,13 @@
 
   /* The add button while there is nothing to add, and why */
   .spr-pick-list-unavailable {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    display: grid;
+    justify-items: start;
     gap: var(--spr-space-3);
+  }
+
+  .spr-pick-list-unavailable > .spr-note {
     margin: 0;
-    color: var(--spr-muted);
-    font-size: var(--spr-font-size-small);
   }
 
   .spr-pick-list-unavailable[hidden] {

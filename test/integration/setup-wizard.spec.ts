@@ -818,7 +818,9 @@ describe('the repository step', () => {
     // One step, with the provider the administrator signed in with, and the way to do it
     expect(fixOf(page.text)).toBe('group');
     expect(page.text).toContain('You are signed in as someone@idp.test with wizard');
-    expect(page.text).toMatch(/<a class="spr-ready-action" href="\/-\/config\/groups">Open groups/);
+    expect(page.text).toMatch(
+      /<a class="spr-ready-action spr-ready-next" href="\/-\/config\/groups">Open groups/,
+    );
     // The table waits until it is of use
     expect(page.text).toMatch(/data-spr-repository-step[^>]* hidden>/);
     expect(page.text).toContain('data-spr-setup-fix-region data-spr-blocked>');

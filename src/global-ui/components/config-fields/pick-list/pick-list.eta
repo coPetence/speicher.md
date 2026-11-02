@@ -41,10 +41,10 @@
     <template data-spr-pick-row><% row('', null, true) %></template>
     <template data-spr-pick-choice><% choice('', null) %></template>
     <% if (f.unavailable) { %>
-    <p class="spr-pick-list-unavailable"<%= f.options.length === 0 ? '' : ' hidden' %>>
+    <div class="spr-pick-list-unavailable"<%= f.options.length === 0 ? '' : ' hidden' %>>
+      <%~ include('@note', { html: md(f.unavailable) }) %>
       <button type="button" class="spr-pick-list-open" disabled><%~ it.addIcon || '' %><%= f.addLabel %></button>
-      <span><%= f.unavailable %></span>
-    </p>
+    </div>
     <% } %>
     <details class="spr-modal spr-pick-list-modal"<%= f.options.length === 0 ? ' hidden' : '' %>>
       <summary id="f-<%= f.path %>" class="spr-pick-list-open"><%~ it.addIcon || '' %><%= f.addLabel %></summary>
