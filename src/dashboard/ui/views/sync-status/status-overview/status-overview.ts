@@ -4,7 +4,7 @@ import { forgeMark } from '../../../../configurator/config-form/members';
 import { Level } from '../../../levels';
 import { markSprite, renderMarkRef } from '../../../provider-marks';
 import { DashboardResponder } from '../../../../respond';
-import { SYNCING_ICON } from '../repo-status/repo-status';
+import { SYNC_ICON, SYNCING_ICON } from '../repo-status/repo-status';
 import {
   DEFAULT_REPO_FILTER,
   FILTER_DIMENSIONS,
@@ -25,9 +25,6 @@ import { renderTemplate } from '../../../../../content-reader/views';
 export interface StatusBanners {
   reembedding: number | null;
 }
-
-/** Asking a content source what it holds, on the button and nowhere else */
-export const DISCOVER_ICON = 'radar';
 
 /** Sends the sync-status overview: freshness and errors per repository */
 export function sendStatus(
@@ -77,6 +74,8 @@ export function sendStatus(
           repoFilterQuery(data.filter) === repoFilterQuery(DEFAULT_REPO_FILTER),
         filter_icon: renderInlineIcon('funnel', 'spr-icon'),
         clear_icon: renderInlineIcon('x', 'spr-icon'),
+        clear_filter_href: clearFilterHref(data),
+        filtered_art: emptyStateArt('filtered'),
         chevron_icon: renderInlineIcon('chevron-right', 'spr-icon'),
         problem_icon: renderInlineIcon('circle-x', 'spr-icon'),
         syncing_icon: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
@@ -123,7 +122,7 @@ export function sendStatus(
 
         search_icon: renderInlineIcon('search', 'spr-icon'),
 
-        discover_icon: renderInlineIcon(DISCOVER_ICON, 'spr-icon'),
+        sync_all_icon: renderInlineIcon(SYNC_ICON, 'spr-icon'),
         /*
           The folder with nothing read from it — the drawing `/-/config/sources`
           uses for the same emptiness, which is the page this one sends you to.
@@ -200,6 +199,14 @@ function sortHref(data: StatusPayload, sort: RepoSort): string {
   const params = new URLSearchParams(repoFilterQuery(data.filter));
   if (data.query) params.set('q', data.query);
   if (sort !== 'name') params.set('sort', sort);
+  return `/-/status?${params.toString()}`;
+}
+
+/** The list with no filter, keeping what was typed and how it is sorted */
+function clearFilterHref(data: StatusPayload): string {
+  const params = new URLSearchParams({ f: '1' });
+  if (data.query) params.set('q', data.query);
+  if (data.sort !== 'name') params.set('sort', data.sort);
   return `/-/status?${params.toString()}`;
 }
 

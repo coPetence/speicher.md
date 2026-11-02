@@ -21,6 +21,7 @@
              placeholder="Repository or source"
              autocomplete="off" spellcheck="false">
     </span>
+    <span class="spr-filter-set">
     <details class="spr-modal spr-filter-modal"<%= it.filter_applied > 0 ? ' data-spr-active' : '' %>>
       <summary aria-label="Filter" title="Filter"><%~ it.filter_icon || '' %></summary>
       <div class="spr-modal-panel spr-filter-dialog" role="dialog" aria-label="Filter repositories"
@@ -76,6 +77,10 @@
         <% if (it.sort !== 'name') { %><input type="hidden" name="sort" value="<%= it.sort %>"><% } %>
       </div>
     </details>
+    <% if (it.filter_applied > 0) { %>
+    <a class="spr-filter-remove" href="<%= it.clear_filter_href %>" aria-label="Clear the filter" title="Clear the filter"><%~ it.clear_icon || '' %></a>
+    <% } %>
+    </span>
     <button type="submit" class="spr-filter-go">Filter</button>
   </form>
   <% } %>
@@ -83,7 +88,7 @@
   
   <% if (discoverRenders) { %>
   <form method="post" action="/-/discover" class="spr-form spr-index-op">
-    <button type="submit"><%~ it.discover_icon || '' %>Discover now</button>
+    <button type="submit" class="spr-primary"><%~ it.sync_all_icon || '' %>Sync all</button>
   </form>
   <% } %>
 </div>
@@ -154,18 +159,20 @@
 
 <div class="spr-empty-state" data-spr-empty="none"
    <%= it.repos.length > 0 || it.query ? 'hidden' : '' %>>
-  <%~ it.empty_art || '' %>
   <% if (it.total === 0) { %>
+  <%~ it.empty_art || '' %>
   <p class="spr-empty">No repositories are configured.</p>
   <% } else if (it.default_hides_all) { %>
+  <%~ it.empty_art || '' %>
   <p class="spr-empty">
     None of the <%= it.total %> repositories has a <code>.speicher.yaml</code> at its root yet.
     <a href="/-/status?f=1">Show them</a>
   </p>
   <% } else { %>
+  <%~ it.filtered_art || '' %>
   <p class="spr-empty">
-    No repository matches the filter.
-    <a href="/-/status?f=1">Clear the filter</a>
+    No repository matches the filter. Repositories without the filter: <%= it.total %>.
+    <a href="<%= it.clear_filter_href %>">Clear the filter</a>
   </p>
   <% } %>
 </div>

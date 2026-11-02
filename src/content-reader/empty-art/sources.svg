@@ -1,0 +1,14 @@
+<!-- A folder, and the branch nothing has been read from -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <path d="M50 26a6 6 0 0 1 6-6h17l8 9h35a6 6 0 0 1 6 6v49a6 6 0 0 1-6 6h-1" opacity="0.45"/>
+  <path d="M46 29h17l8 9h35a6 6 0 0 1 6 6v49a6 6 0 0 1-6 6H46a6 6 0 0 1-6-6V35a6 6 0 0 1 6-6z" fill="currentColor" fill-opacity="0.06"/>
+  <circle cx="62" cy="84" r="4"/>
+  <circle cx="90" cy="56" r="4"/>
+  <path d="M62 48v28" stroke-dasharray="1 6" opacity="0.55" pathLength="29"/>
+  <path d="M90 64a20 20 0 0 1-20 20" stroke-dasharray="1 6" opacity="0.55" pathLength="29"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>

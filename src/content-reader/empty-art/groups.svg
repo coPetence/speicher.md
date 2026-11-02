@@ -1,0 +1,14 @@
+<!-- One person, and the two who have not been added -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <circle cx="80" cy="44" r="12" fill="currentColor" fill-opacity="0.06"/>
+  <path d="M101 96V82a14 14 0 0 0-14-14H73a14 14 0 0 0-14 14v14" fill="currentColor" fill-opacity="0.06"/>
+  <circle cx="44" cy="57" r="8" stroke-dasharray="1 6" opacity="0.55" pathLength="49"/>
+  <path d="M32 96v-8a11 11 0 0 1 11-11h11" stroke-dasharray="1 6" opacity="0.55" pathLength="36"/>
+  <circle cx="116" cy="57" r="8" stroke-dasharray="1 6" opacity="0.55" pathLength="49"/>
+  <path d="M128 96v-8a11 11 0 0 0-11-11h-11" stroke-dasharray="1 6" opacity="0.55" pathLength="36"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>

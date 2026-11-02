@@ -1,0 +1,14 @@
+<!-- A search box with something typed in it, and the results that did not come -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <rect x="36" y="28" width="88" height="20" rx="10" fill="currentColor" fill-opacity="0.06"/>
+  <circle cx="48" cy="37.5" r="3.5"/>
+  <path d="M50.5 40l3 3"/>
+  <path d="M62 38h30"/>
+  <path d="M96 33v10" opacity="0.55"/>
+  <path d="M44 66h72M44 78h58M44 90h40" stroke-dasharray="1 6" opacity="0.55"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>
