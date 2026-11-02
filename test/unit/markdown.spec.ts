@@ -534,14 +534,31 @@ describe('heading anchors', () => {
     expect(renderMarkdown('<h2 id="chosen">Mine</h2>\n').html).toContain('id="chosen"');
   });
 
-  it('drops punctuation and transliterates, as the common convention does', () => {
+  it('makes the anchor GitHub makes, so links written against GitHub land', () => {
     expect(headingSlug('What is `code`?')).toBe('what-is-code');
-    expect(headingSlug('Prüfung und Größe')).toBe('pruefung-und-groesse');
+    expect(headingSlug("What's new? (v2.0)")).toBe('whats-new-v20');
+    expect(headingSlug('Umlaute: Größe & Übersicht')).toBe('umlaute-größe--übersicht');
+    expect(headingSlug('Emoji 🚀 Launch')).toBe('emoji--launch');
+    expect(headingSlug('snake_case_heading')).toBe('snake_case_heading');
+    expect(headingSlug('assets.presign_ttl')).toBe('assetspresign_ttl');
+    expect(headingSlug('1. Create a source')).toBe('1-create-a-source');
   });
 
-  it('turns dots and underscores into hyphens, so config keys stay readable', () => {
-    expect(headingSlug('assets.presign_ttl')).toBe('assets-presign-ttl');
-    expect(headingSlug('1. Create a source')).toBe('1-create-a-source');
+  it('reads the anchor from the text of a heading, not from the targets of its links', () => {
+    const { html } = renderMarkdown('## See the [guide](https://example.test/guide) and `code`\n');
+    expect(html).toContain('id="see-the-guide-and-code"');
+  });
+
+  it('takes an id written as {#id} after a heading, and leaves it out of the text', () => {
+    const { html } = renderMarkdown('## Custom heading ID (extension) {#my-custom-id}\n');
+    expect(html).toContain('<h2 id="my-custom-id">Custom heading ID (extension)</h2>');
+    expect(renderMarkdown('# Title {#top}\n').firstHeading).toBe('Title');
+  });
+
+  it('numbers repeated headings past an anchor another heading already took', () => {
+    const { html } = renderMarkdown('## Notes\n\n## Notes 1\n\n## Notes\n\n## Notes\n');
+    const ids = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);
+    expect(ids).toEqual(['notes', 'notes-1', 'notes-2', 'notes-3']);
   });
 
   it('does not collapse the hyphens that removed punctuation leaves behind', () => {

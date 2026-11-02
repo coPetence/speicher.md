@@ -935,12 +935,19 @@
     transition-delay: var(--spr-preview-delay);
   }
 
+  @starting-style {
+    a[data-spr-preview]:hover::after {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
   a[data-spr-preview]:focus-visible::after,
   [data-spr-peek] a[data-spr-preview]:hover::after {
     display: block;
     opacity: 1;
     visibility: visible;
-    transition-delay: 0s;
+    transition: none;
   }
 
   .spr-aside {
@@ -1983,6 +1990,11 @@
 
   .spr-main table:not(.spr-table) tr > :last-child {
     border-right-width: 0;
+  }
+
+  .spr-main table:not(.spr-table) > thead > tr,
+  .spr-main table:not(.spr-table) > tbody > tr:nth-child(even) {
+    background: color-mix(in oklab, var(--spr-fg) 5%, transparent);
   }
 
   .spr-main table:not(.spr-table) > :last-child > tr:last-child > * {
