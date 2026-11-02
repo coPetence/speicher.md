@@ -61,8 +61,8 @@ export function sendRepo(
             ? approximateDuration(answer.config.poll_interval_ms)
             : '',
         },
-        // Findings are drawn on the run's own page; the table says how many
         show_findings: isAdmin,
+        chevron_icon: renderInlineIcon('chevron-down', 'spr-icon'),
         runs: answer.runs.map((run) => runView(answer.namespace, answer.slug, run)),
       }),
   });

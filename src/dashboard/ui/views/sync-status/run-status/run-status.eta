@@ -38,7 +38,7 @@
 <% } %>
 
 <% if (it.show_findings) { %>
-<h2>Findings</h2>
+<h2 id="findings">Findings</h2>
 <% if (it.run.findings.length === 0) { %>
 <p class="spr-empty">This run found nothing to report.</p>
 <% } else { %>

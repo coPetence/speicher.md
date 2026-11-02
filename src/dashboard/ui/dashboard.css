@@ -1725,6 +1725,33 @@
     background: none;
   }
 
+  .spr-run-findings-toggle {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .spr-run-findings-toggle:hover {
+    color: var(--spr-accent);
+  }
+
+  .spr-run-findings-toggle > .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+    transition: transform var(--spr-transition);
+  }
+
+  .spr-run-findings-toggle[aria-expanded='true'] > .spr-icon {
+    width: 1em;
+    height: 1em;
+    transform: rotate(180deg);
+  }
+
+  .spr-run-findings-row > td {
+    background: var(--spr-surface);
+  }
+
   .spr-cell-quiet {
     color: var(--spr-muted);
     white-space: nowrap;

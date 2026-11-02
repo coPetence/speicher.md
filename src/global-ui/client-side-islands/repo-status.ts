@@ -50,9 +50,23 @@ function mountSyncWatch(): void {
   schedule();
 }
 
+function mountFindingsToggles(): void {
+  for (const toggle of document.querySelectorAll<HTMLElement>('[data-spr-findings-toggle]')) {
+    const row = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+    if (!row) continue;
+    toggle.setAttribute('role', 'button');
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      row.hidden = !row.hidden;
+      toggle.setAttribute('aria-expanded', String(!row.hidden));
+    });
+  }
+}
+
 function mount(): void {
   mountNav();
   mountSyncWatch();
+  mountFindingsToggles();
 }
 
 if (document.readyState === 'loading') {
