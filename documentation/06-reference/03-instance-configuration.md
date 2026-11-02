@@ -1242,13 +1242,13 @@ Starting values for every repository. A repository's root `.speicher.yaml` chang
 
 **Type:** list of string
 
-Glob patterns of Markdown files to publish in every repository. Defaults to `**/*.md`.
+The include list determines which files will be downloaded from every git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. It defaults to `.md`, `.mdx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` and `.svg` files. A repository that sets its own `sync.include` replaces this list.
 
 ### `defaults.sync.exclude`
 
 **Type:** list of string
 
-Glob patterns of Markdown files never to publish in any repository. Defaults to `**/README.md`.
+The exclude list determines which files will not be downloaded from any git repository, even when the include list selects them. It defaults to `**/README.md`. A repository that sets its own `sync.exclude` adds to this list.
 
 ### `defaults.retrieval`
 

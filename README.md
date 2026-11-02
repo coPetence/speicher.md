@@ -41,7 +41,7 @@ Every variable is declared in `src/common/env.ts`, and this table is generated f
 | `SPEICHER_DATABASE_URL` | `postgres://speicher:speicher@127.0.0.1:55432/speicher` | web + worker | PostgreSQL connection URL. Startup fails if the database is unreachable. |
 | `SPEICHER_DB_POOL` | `10` | web + worker | Maximum number of PostgreSQL connections in the pool. |
 | `SPEICHER_ASSET_PATH` | `./var/assets` | web + worker | Upload directory. Must be writable by the process. |
-| `SPEICHER_MIRROR_ROOT` | `./var/mirrors` | worker | Git mirror directory. Must be writable and have space for cloned repositories. |
+| `SPEICHER_MIRROR_ROOT` | `./var/mirrors` | worker | Directory into which a sync downloads the data from git. The data is removed after each sync. Must be writable. |
 | `SPEICHER_SYNC_CONCURRENCY` | `4` | worker | Maximum number of repositories to sync at once. |
 | `SPEICHER_RECONCILE_INTERVAL` | `15m` | worker | Interval between remote checks for tracked repositories (e.g. `15m`). Shorter intervals increase load. |
 | `SPEICHER_DISCOVER_INTERVAL` | `6h` | worker | Interval between forge scans for new repositories (e.g. `6h`). Tracked repositories use `SPEICHER_RECONCILE_INTERVAL` instead. |

@@ -16,7 +16,7 @@ import { migrateUp } from '../../src/db/migrate';
 import { Forge, Installation, Repo, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { ForgeDriver, RemoteRepo } from '../../src/forge/driver';
-import { ensureMirror, resolveHead } from '../../src/forge/git';
+import { GitOptions } from '../../src/forge/git';
 import { GithubDriver } from '../../src/forge/github/github.driver';
 import { ForgeRegistry } from '../../src/forge/registry';
 import { DELIVERY_DEDUPE_WINDOW_MS } from '../../src/forge/webhook.controller';
@@ -162,9 +162,11 @@ class OriginBackedGithubDriver extends GithubDriver {
     super(key, config, () => undefined, fetchImpl);
   }
 
-  override async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
-    await ensureMirror(mirrorDir, { authenticatedUrl: `file://${this.originDir}` });
-    return resolveHead(mirrorDir, repo.defaultBranch);
+  protected override async withRemote<T>(
+    _repo: RemoteRepo,
+    run: (remote: GitOptions) => Promise<T>,
+  ): Promise<T> {
+    return run({ authenticatedUrl: `file://${this.originDir}` });
   }
 
   // The fake API has no contents endpoint, so the origin's files answer instead

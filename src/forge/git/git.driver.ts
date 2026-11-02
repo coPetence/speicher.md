@@ -7,35 +7,12 @@
  * Credentials are per-repo deploy keys or tokens
  */
 
-import { join } from 'node:path';
-
 import { Logger, rootLogger } from '../../common/logger';
 import { ForgeConfig, GitRepoConfig, gitRepositoryOwner } from '../../config/types';
 import { GitCredential, GitInvocation, withGitCredential } from '../credential';
 import type { WebhookVerification } from '../../webhooks/signed-delivery';
 import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
-import { MIRROR_ROOT, checkoutTree, defaultBranchOf, ensureMirror, resolveHead } from '../git';
-
-/**
- * Fetch the mirror and return the SHA of the default branch HEAD
- *
- * Sets repo.defaultBranch if it was unset, so the caller can reuse it
- */
-export async function fetchAndResolve(
-  repo: RemoteRepo,
-  mirrorDir: string,
-  invocation: GitInvocation,
-): Promise<string> {
-  await ensureMirror(mirrorDir, invocation);
-
-  const branch = repo.defaultBranch || ((await defaultBranchOf(mirrorDir)) ?? '');
-  if (!branch) {
-    throw new Error(`no branch configured for ${repo.forgeRepoId} and the remote HEAD is unset`);
-  }
-  repo.defaultBranch = branch;
-
-  return resolveHead(mirrorDir, branch);
-}
+import { CheckedOutCommit, CommitTree, checkoutCommit, resolveRemoteHead } from '../git';
 
 export class GitDriver implements ForgeDriver {
   readonly type = 'git' as const;
@@ -46,7 +23,6 @@ export class GitDriver implements ForgeDriver {
   constructor(
     readonly key: string,
     private readonly config: ForgeConfig,
-    private readonly mirrorRoot: string = MIRROR_ROOT,
   ) {}
 
   /** Always invalid: plain git remotes do not send webhooks */
@@ -90,28 +66,37 @@ export class GitDriver implements ForgeDriver {
     return this.toRemoteRepo(entry, await this.branchOf(entry));
   }
 
-  /** Fetch with credential wrapping, return the SHA of the branch HEAD */
-  async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
-    const entry = this.entry(repo.forgeRepoId);
-    if (!entry) throw new Error(`repo ${repo.forgeRepoId} is not configured on forge ${this.key}`);
-
-    return withGitCredential(entry.url, this.credentialFor(entry), (invocation) =>
-      fetchAndResolve(repo, mirrorDir, invocation),
+  /** Resolve the configured branch, or the remote HEAD, and set repo.defaultBranch to it */
+  async remoteHead(repo: RemoteRepo): Promise<string> {
+    const head = await this.withRemote(repo, (remote) =>
+      resolveRemoteHead(remote, repo.defaultBranch),
     );
+    repo.defaultBranch = head.branch;
+    return head.sha;
   }
 
-  /** Write the tree at sha into targetDir */
-  async checkout(mirrorDir: string, sha: string, targetDir: string): Promise<void> {
-    await checkoutTree(mirrorDir, sha, targetDir);
-  }
-
-  /** Return the SHA that refs/heads/branch points to */
-  async resolveHead(mirrorDir: string, branch: string): Promise<string> {
-    return resolveHead(mirrorDir, branch);
+  /** Write the files of sha that select picks into targetDir */
+  async checkout(
+    repo: RemoteRepo,
+    sha: string,
+    targetDir: string,
+    select: (tree: CommitTree) => Promise<void>,
+  ): Promise<CheckedOutCommit> {
+    return this.withRemote(repo, (remote) => checkoutCommit(remote, sha, targetDir, select));
   }
 
   /** No-op: plain git remotes have no commit status API */
   async reportCheck(): Promise<void> {}
+
+  /** Run with the repo's URL and credentials */
+  protected withRemote<T>(
+    repo: RemoteRepo,
+    run: (remote: GitInvocation) => Promise<T>,
+  ): Promise<T> {
+    const entry = this.entry(repo.forgeRepoId);
+    if (!entry) throw new Error(`repo ${repo.forgeRepoId} is not configured on forge ${this.key}`);
+    return withGitCredential(entry.url, this.credentialFor(entry), run);
+  }
 
   /** Find a configured repo by its id field */
   private entry(forgeRepoId: string): GitRepoConfig | undefined {
@@ -128,15 +113,9 @@ export class GitDriver implements ForgeDriver {
     };
   }
 
-  /** Use the configured branch or fall back to the remote HEAD */
+  /** The configured branch; empty means the remote HEAD, which remoteHead resolves */
   private async branchOf(entry: GitRepoConfig): Promise<string> {
-    if (entry.branch) return entry.branch;
-    return (await defaultBranchOf(this.mirrorDirFor(entry.id))) ?? '';
-  }
-
-  /** Standard mirror directory under the forge key */
-  mirrorDirFor(forgeRepoId: string): string {
-    return join(this.mirrorRoot, this.key, `${forgeRepoId}.git`);
+    return entry.branch ?? '';
   }
 
   /** Map a GitRepoConfig to a RemoteRepo, always private and active */

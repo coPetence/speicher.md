@@ -26,9 +26,9 @@ access:
 # Publish only the docs/ folder
 ingest_root: docs
 
-# Which Markdown files to publish
+# Which files to download from the repository
 sync:
-  include: ['**/*.md', '**/*.mdx']
+  include: ['**/*.md', '**/*.mdx', '**/*.png', '**/*.jpg']
   exclude: ['**/README.md', 'drafts/**']
 
 display:
@@ -48,19 +48,21 @@ The folder must exist in the repository. Write it without a leading slash.
 
 ## Choosing files with `sync`
 
-`sync.include` and `sync.exclude` are lists of glob patterns that choose which Markdown files become pages. A file is published when it matches an `include` pattern and no `exclude` pattern.
+`sync.include` and `sync.exclude` are lists of glob patterns that determine which files will be downloaded from the git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. A file is downloaded when it matches an `include` pattern and no `exclude` pattern. Apart from these files, Speicher only downloads the `.speicher.yaml` files and the covers for the folders.
 
 Unless you or your administrator change them, these are the patterns:
 
 ```yaml
 sync:
-  include: ['**/*.md', '**/*.mdx']
+  include:
+    ['**/*.md', '**/*.mdx', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.webp', '**/*.avif', '**/*.svg']
   exclude: ['**/README.md']
 ```
 
-- Patterns are matched against the file's path **below `ingest_root`**, also in a folder's `.speicher.yaml`. To exclude `docs/guides/old/` with `ingest_root: docs`, write `guides/old/**`, even in `docs/guides/.speicher.yaml`.
-- Patterns are case-sensitive: `**/README.md` does not exclude `readme.md`.
-- The patterns only choose Markdown files. Images and other files are published when a page links to them.
+- Patterns are written from `ingest_root`, not from the folder of the `.speicher.yaml` they are in. With `ingest_root: docs`, you exclude the folder `docs/guides/old/` with `guides/old/**`.
+- Patterns are case-sensitive: `**/README.md` does not exclude `readme.md`, and `**/*.png` does not include `diagram.PNG`.
+- If you set your own `include` in a `.speicher.yaml`, it replaces the `include` from every level above it: the instance defaults, the root `.speicher.yaml` and the `.speicher.yaml` of each parent folder. Make sure to list the image formats your pages use as well, otherwise their images are not downloaded.
+- A link to a file that is not downloaded is reported as a broken link.
 - A page with `draft: true` in its frontmatter is never published, whatever the patterns say.
 
 In a folder's `.speicher.yaml`:
@@ -134,13 +136,13 @@ Speicher checks every `.speicher.yaml` when it syncs a commit. **Sync status** i
 
 Administrators can change the starting values for all repositories in the instance configuration, under **Configuration → Repository defaults** or the `defaults` key. A repository's root `.speicher.yaml` then changes them the same way a folder does.
 
-For example, to publish MDX files in every repository:
+For example, to publish only Markdown files and WebP images in every repository:
 
 ```yaml
 # speicher.instance.yaml
 defaults:
   sync:
-    include: ['**/*.md', '**/*.mdx']
+    include: ['**/*.md', '**/*.mdx', '**/*.webp']
     exclude: ['**/README.md']
 ```
 
@@ -152,8 +154,8 @@ A default `display.cover` is a path relative to each repository's root, so every
 | --- | --- | --- | --- | --- |
 | `defaults` | object |  |  | Starting values for every repository. A repository's root `.speicher.yaml` changes them the same way a folder's file does. |
 | `defaults.sync` | object |  |  |  |
-| `defaults.sync.include` | list of string |  |  | Glob patterns of Markdown files to publish in every repository. Defaults to `**/*.md`. |
-| `defaults.sync.exclude` | list of string |  |  | Glob patterns of Markdown files never to publish in any repository. Defaults to `**/README.md`. |
+| `defaults.sync.include` | list of string |  |  | The include list determines which files will be downloaded from every git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. It defaults to `.md`, `.mdx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` and `.svg` files. A repository that sets its own `sync.include` replaces this list. |
+| `defaults.sync.exclude` | list of string |  |  | The exclude list determines which files will not be downloaded from any git repository, even when the include list selects them. It defaults to `**/README.md`. A repository that sets its own `sync.exclude` adds to this list. |
 | `defaults.retrieval` | object |  |  |  |
 | `defaults.retrieval.indexable` | boolean |  |  | Set to `false` to keep every repository's pages out of AI assistant search, the sitemap and search engines, unless a repository's pages are already excluded. Repositories cannot turn it back on. |
 | `defaults.display` | object |  |  |  |
@@ -170,8 +172,8 @@ Every key of `.speicher.yaml` is listed under [Repository configuration](../06-r
 | Key | Type | Default | Required | Description |
 | --- | --- | --- | --- | --- |
 | `sync` | object |  |  | Which Markdown files to publish. |
-| `sync.include` | list of string |  |  | Glob patterns of Markdown files to publish, matched against the path below `ingest_root`. Defaults to `**/*.md` and `**/*.mdx`. In a folder, it replaces the inherited list. |
-| `sync.exclude` | list of string |  |  | Glob patterns of Markdown files not to publish, matched against the path below `ingest_root`. Defaults to `**/README.md`. In a folder, it adds to the inherited list. Exclude wins over include. |
+| `sync.include` | list of string |  |  | The include list determines which files will be downloaded from the git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. It defaults to `.md`, `.mdx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` and `.svg` files. Patterns start at `ingest_root`: with `ingest_root: docs`, the pattern `guides/*.md` selects `docs/guides/*.md`. In a folder, it replaces the inherited list. |
+| `sync.exclude` | list of string |  |  | The exclude list determines which files will not be downloaded, even when the include list selects them. It defaults to `**/README.md`. Patterns start at `ingest_root`, as in the include list. In a folder, it adds to the inherited list. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->
 

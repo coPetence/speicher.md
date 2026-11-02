@@ -45,7 +45,7 @@ When you're done, commit and push the file.
 - **Folders:** every folder becomes a section in the navigation. If you want to have a custom page for a folder, create an `index.md` or `index.mdx` file in that folder and it will be served at the folder's own URL.
 - **Order:** a number prefix of up to three digits, followed by `-`, `_`, `.` or a space, sets the position in the navigation and is left out of the URL. `01-install.md` is listed before `02-configure.md` and served at `…/install`. Files without a prefix can be ordered with `sidebar_position` (Docusaurus) or `sidebar.order` (Starlight) in the frontmatter.
 - **Titles:** the page title is the `title` in the frontmatter, otherwise the first `# Heading`, otherwise the file name. See [Page title](../03-repository/03-markdown-syntax.md#page-title).
-- **Files:** images and other files that a page links to are served with the same access rules as the page.
+- **Files:** PNG, JPEG, GIF, WebP, AVIF and SVG images that a page links to are served with the same access rules as the page. Other file types, such as BMP images, are only downloaded when you add them to [`sync.include`](../03-repository/01-speicher-yaml.md#choosing-files-with-sync).
 
 ## 3. Give the content source access to the repository
 

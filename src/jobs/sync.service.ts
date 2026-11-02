@@ -1,17 +1,16 @@
 /**
  * Sync a repo's git history into speicher
  *
- * Fetches the latest commit from the forge, checks it out to a temp directory,
- * and hands it to the ingest pipeline. Records check runs on the forge and sends
+ * Checks out the files of the latest commit that the repo's config includes into a temp directory,
+ * and hands them to the ingest pipeline. Records check runs on the forge and sends
  * notifications on state change
  *
- * A repo whose forge reports no root config or is empty is marked unpublished without being fetched. An unpublished repo keeps no mirror
+ * A repo whose forge reports no root config or is empty is marked unpublished without being fetched
  * A repo whose namespace is no longer accepted is purged instead of synced
  * A repo whose SHA hasn't moved (and whose last sync was ok) is skipped unless
  * the trigger demands it
  */
 import { promises as fs } from 'node:fs';
-import { join } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
@@ -21,13 +20,11 @@ import { makeTempDir } from '../common/temp-dir';
 import { Repo, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
 import { RemoteRepo } from '../forge/driver';
-import { EmptyRepositoryError, MIRROR_ROOT, commitAuthorEmail } from '../forge/git';
+import { EmptyRepositoryError } from '../forge/git';
 import { ForgeRegistry } from '../forge/registry';
 import { IngestService, SyncResult } from '../ingest/ingest.service';
 import { NotifyService } from '../notify/notify.service';
 import { RoutingService } from '../content-reader/routing';
-
-export { MIRROR_ROOT };
 
 @Injectable()
 export class SyncService {
@@ -61,37 +58,35 @@ export class SyncService {
       return null;
     }
 
-    const mirrorDir = join(MIRROR_ROOT, driver.key, `${remote.forgeRepoId}.git`);
-
     if (!repo.has_config && (await driver.hasRootConfig?.(remote)) === false) {
       this.log.debug('no root .speicher.yaml, so the repo is not fetched', { repo_id: repoId });
       const misnamed = (await driver.misnamedRootConfig?.(remote)) ?? null;
-      return this.recordUnpublished(repoId, trigger, mirrorDir, misnamed);
+      return this.recordUnpublished(repoId, trigger, misnamed);
     }
 
     let head: string;
     try {
-      head = await driver.fetchInto(remote, mirrorDir);
+      head = await driver.remoteHead(remote);
     } catch (err) {
       if (!(err instanceof EmptyRepositoryError)) throw err;
       this.log.debug('the repo has no commits yet, so there is nothing to sync', {
         repo_id: repoId,
       });
-      return this.recordUnpublished(repoId, trigger, mirrorDir);
+      return this.recordUnpublished(repoId, trigger);
     }
 
     const forced = trigger === 'grant-review' || trigger === 'rebuild';
     if (!forced && repo.last_sha === head && repo.last_status === 'ok') {
       this.log.debug('head unchanged, nothing to do', { repo_id: repoId, sha: head });
       await Repo.update({ last_run_at: new Date() }, { where: { id: repoId } });
-      // An unpublished repo was only fetched to see whether it changed
-      if (!repo.has_config) await fs.rm(mirrorDir, { recursive: true, force: true });
       return null;
     }
 
     const workingTree = await makeTempDir(remote.forgeRepoId);
     try {
-      await driver.checkout(mirrorDir, head, workingTree);
+      const commit = await driver.checkout(remote, head, workingTree, (tree) =>
+        this.ingest.selectFiles(tree),
+      );
 
       if (remote.defaultBranch && repo.branch !== remote.defaultBranch) {
         await Repo.update({ branch: remote.defaultBranch }, { where: { id: repoId } });
@@ -104,23 +99,20 @@ export class SyncService {
         directory: await this.forges.directoryFor(driver.key),
       });
 
-      await this.report(repo, remote, head, result, mirrorDir);
-      if (result.unpublished) await fs.rm(mirrorDir, { recursive: true, force: true });
+      await this.report(repo, remote, head, result, commit.authorEmail);
       return result;
     } finally {
       await fs.rm(workingTree, { recursive: true, force: true });
     }
   }
 
-  /** Mark the repo unpublished without syncing it, and remove a mirror it no longer needs */
+  /** Mark the repo unpublished without syncing it */
   private async recordUnpublished(
     repoId: string,
     trigger: Parameters<SyncService['syncRepo']>[1],
-    mirrorDir: string,
     misnamed: string | null = null,
   ): Promise<null> {
     await this.ingest.recordUnpublished(repoId, trigger, misnamed);
-    await fs.rm(mirrorDir, { recursive: true, force: true });
     return null;
   }
 
@@ -132,7 +124,7 @@ export class SyncService {
     remote: RemoteRepo,
     sha: string,
     result: SyncResult,
-    mirrorDir: string,
+    committerEmail: string | null,
   ): Promise<void> {
     const driver = await this.forges.driverForRepo(repo);
     if (driver) {
@@ -145,7 +137,6 @@ export class SyncService {
       });
     }
 
-    const committerEmail = await commitAuthorEmail(mirrorDir, sha).catch(() => null);
     await this.notify.onSyncStateChange(repo, result, committerEmail, this.routing);
   }
 

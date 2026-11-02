@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -13,10 +13,16 @@ import { Forge, Repo, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../../src/forge/driver';
 import type { WebhookVerification } from '../../src/webhooks/signed-delivery';
-import { checkoutTree, ensureMirror, resolveHead } from '../../src/forge/git';
+import {
+  CLONE_ROOT,
+  CheckedOutCommit,
+  CommitTree,
+  checkoutCommit,
+  resolveRemoteHead,
+} from '../../src/forge/git';
 import { ForgeRegistry } from '../../src/forge/registry';
 import { IngestService } from '../../src/ingest/ingest.service';
-import { MIRROR_ROOT, SyncService } from '../../src/jobs/sync.service';
+import { SyncService } from '../../src/jobs/sync.service';
 import { Mailer } from '../../src/notify/mailer';
 import { NotifyService } from '../../src/notify/notify.service';
 import { RoutingService } from '../../src/content-reader/routing';
@@ -95,18 +101,22 @@ class LocalOriginDriver implements ForgeDriver {
     return this.rootConfig;
   }
 
-  async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
+  async remoteHead(repo: RemoteRepo): Promise<string> {
     this.fetches += 1;
-    await ensureMirror(mirrorDir, { authenticatedUrl: `file://${this.originDir}` });
-    return resolveHead(mirrorDir, repo.defaultBranch);
+    const head = await resolveRemoteHead(
+      { authenticatedUrl: `file://${this.originDir}` },
+      repo.defaultBranch,
+    );
+    return head.sha;
   }
 
-  async checkout(mirrorDir: string, sha: string, targetDir: string): Promise<void> {
-    await checkoutTree(mirrorDir, sha, targetDir);
-  }
-
-  async resolveHead(mirrorDir: string, branch: string): Promise<string> {
-    return resolveHead(mirrorDir, branch);
+  async checkout(
+    _repo: RemoteRepo,
+    sha: string,
+    targetDir: string,
+    select: (tree: CommitTree) => Promise<void>,
+  ): Promise<CheckedOutCommit> {
+    return checkoutCommit({ authenticatedUrl: `file://${this.originDir}` }, sha, targetDir, select);
   }
 
   async reportCheck(
@@ -257,7 +267,7 @@ describe('sync from a git repository', () => {
     });
   });
 
-  it('clones a mirror, materialises the tree, and ingests what git actually holds', async () => {
+  it('checks out the commit and ingests what git actually holds', async () => {
     const result = await fixture.sync.syncRepo(fixture.repoId, 'manual');
 
     expect(result?.status).toBe('ok');
@@ -382,9 +392,9 @@ describe('a repo the forge reports without a root config', () => {
 });
 
 describe('a repo with nothing to publish', () => {
-  const mirrorOf = (forgeRepoId: string) => join(MIRROR_ROOT, 'gh', `${forgeRepoId}.git`);
+  const clones = () => readdirSync(CLONE_ROOT).filter((name) => name.includes('-clone-'));
 
-  it('is recorded as unpublished when it has no commits, and keeps no mirror', async () => {
+  it('is recorded as unpublished when it has no commits, and keeps no git data', async () => {
     const fixture = await buildFixture({
       forgeRepoId: '90004',
       slug: 'never-pushed',
@@ -400,10 +410,10 @@ describe('a repo with nothing to publish', () => {
     expect(repo!.has_config).toBe(false);
     expect(repo!.last_run_at).not.toBeNull();
     expect(repo!.last_status).toBe('ok');
-    expect(existsSync(mirrorOf('90004'))).toBe(false);
+    expect(clones()).toEqual([]);
   });
 
-  it('drops its mirror once the walk finds no root config', async () => {
+  it('keeps no git data once the walk finds no root config', async () => {
     const fixture = await buildFixture({
       forgeRepoId: '90005',
       slug: 'no-config',
@@ -415,39 +425,30 @@ describe('a repo with nothing to publish', () => {
 
     expect(result?.unpublished).toBe(true);
     expect(fixture.driver.fetches).toBe(1);
-    expect(existsSync(mirrorOf('90005'))).toBe(false);
+    expect(clones()).toEqual([]);
   });
 });
 
-describe('the materialised tree', () => {
-  it('carries no .git, so the walk cannot read repository internals', async () => {
-    const originDir = createOrigin('main', {
-      '.speicher.yaml': REPO_CONFIG,
-      'docs/index.md': '# Guide\n',
+describe('a repo whose include leaves out what a page links to', () => {
+  it('publishes the included image and reports the left out file as a broken link', async () => {
+    const fixture = await buildFixture({
+      forgeRepoId: '90006',
+      slug: 'linked',
+      branch: 'main',
+      files: {
+        '.speicher.yaml': `${REPO_CONFIG}sync:\n  include: ['**/*.md', '**/*.png']\n`,
+        'docs/index.md': '# Linked\n\n![Diagram](diagram.png)\n\n![Scan](scan.bmp)\n',
+        'docs/diagram.png': 'png',
+        'docs/scan.bmp': 'bmp',
+      },
     });
-    temporary.push(originDir);
-    const mirrorDir = join(MIRROR_ROOT, 'gh', 'archive-check.git');
-    const target = mkdtempSync(join(tmpdir(), 'speicher-tree-'));
-    temporary.push(target);
 
-    await ensureMirror(mirrorDir, { authenticatedUrl: `file://${originDir}` });
-    await checkoutTree(mirrorDir, await resolveHead(mirrorDir, 'main'), target);
+    const result = await fixture.sync.syncRepo(fixture.repoId, 'manual');
 
-    expect(readdirSync(target).sort()).toEqual(['.speicher.yaml', 'docs']);
-  });
-});
-
-describe('a failing fetch', () => {
-  it('never puts the token in the error, which reaches /-/status and the admin log', async () => {
-    const mirrorDir = join(MIRROR_ROOT, 'gh', 'unreachable.git');
-    const url = 'https://x-access-token:ghs_supersecrettoken@127.0.0.1:1/copetence/guide.git';
-
-    const error = await ensureMirror(mirrorDir, { authenticatedUrl: url }).catch(
-      (err: Error) => err,
-    );
-
-    expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).not.toContain('ghs_supersecrettoken');
-    expect((error as Error).message).toContain('***');
+    expect(result?.status).toBe('ok');
+    expect(result?.stats.assets).toBe(1);
+    expect(result?.findings.filter((f) => f.code === 'broken-link').map((f) => f.message)).toEqual([
+      'broken internal link "docs/scan.bmp"',
+    ]);
   });
 });

@@ -7,8 +7,6 @@
  * Not using Octokit to keep dependencies minimal and control token lifecycle explicitly
  */
 
-import { join } from 'node:path';
-
 import { Logger, rootLogger } from '../../common/logger';
 import { ForgeConfig } from '../../config/types';
 import { githubHeaders } from '../../github/api';
@@ -17,7 +15,13 @@ import { GithubTokenMinter } from '../../github/tokens';
 import { isConfigFilename, isMisnamedConfigFilename } from '../../ingest/paths';
 import type { WebhookVerification } from '../../webhooks/signed-delivery';
 import { ForgeAction, ForgeDriver, RemoteInstallation, RemoteRepo } from '../driver';
-import { checkoutTree, ensureMirror, resolveHead as gitResolveHead } from '../git';
+import {
+  CheckedOutCommit,
+  CommitTree,
+  GitOptions,
+  checkoutCommit,
+  resolveRemoteHead,
+} from '../git';
 import { RateLimiter } from '../rate-limit';
 import { mapGithubEvent, verifyGithubSignature } from './webhook';
 
@@ -155,26 +159,36 @@ export class GithubDriver implements ForgeDriver {
     );
   }
 
-  /** Clone or fetch a mirror of the repo, return the default branch SHA */
-  async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
+  /** Return the SHA of the default branch without downloading the repo */
+  async remoteHead(repo: RemoteRepo): Promise<string> {
+    const head = await this.withRemote(repo, (remote) =>
+      resolveRemoteHead(remote, repo.defaultBranch),
+    );
+    return head.sha;
+  }
+
+  /** Write the files of sha that select picks into targetDir */
+  async checkout(
+    repo: RemoteRepo,
+    sha: string,
+    targetDir: string,
+    select: (tree: CommitTree) => Promise<void>,
+  ): Promise<CheckedOutCommit> {
+    return this.withRemote(repo, (remote) => checkoutCommit(remote, sha, targetDir, select));
+  }
+
+  /** Run with an installation token in the clone URL */
+  protected async withRemote<T>(
+    repo: RemoteRepo,
+    run: (remote: GitOptions) => Promise<T>,
+  ): Promise<T> {
     if (!repo.installationId) throw new Error(`repo ${repo.forgeRepoId} has no installation`);
     const host = this.config.base_url ? new URL(this.config.base_url).host : 'github.com';
     const url = await this.minter.authenticatedUrl(
       repo.installationId,
       `https://${host}/${repo.namespace}/${repo.name}.git`,
     );
-    await ensureMirror(mirrorDir, { authenticatedUrl: url });
-    return gitResolveHead(mirrorDir, repo.defaultBranch);
-  }
-
-  /** Check out a tree at a given SHA into a working directory */
-  async checkout(mirrorDir: string, sha: string, targetDir: string): Promise<void> {
-    await checkoutTree(mirrorDir, sha, targetDir);
-  }
-
-  /** Resolve a branch name to its commit SHA in a mirror */
-  async resolveHead(mirrorDir: string, branch: string): Promise<string> {
-    return gitResolveHead(mirrorDir, branch);
+    return run({ authenticatedUrl: url });
   }
 
   /** Create a check-run on the repo; silence errors so the caller proceeds */
@@ -202,11 +216,6 @@ export class GithubDriver implements ForgeDriver {
         error: (err as Error).message,
       });
     }
-  }
-
-  /** Derive the local mirror directory path for a repo */
-  mirrorDirFor(root: string, repo: RemoteRepo): string {
-    return join(root, this.key, `${repo.forgeRepoId}.git`);
   }
 
   /** Discard cached tokens for an installation (e.g. after app uninstalled) */

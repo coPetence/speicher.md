@@ -12,7 +12,8 @@ import { migrateUp } from '../../src/db/migrate';
 import { Forge, Repo, RepoSlugHistory, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { RemoteRepo } from '../../src/forge/driver';
-import { GitDriver, fetchAndResolve } from '../../src/forge/git/git.driver';
+import { GitInvocation } from '../../src/forge/credential';
+import { GitDriver } from '../../src/forge/git/git.driver';
 import { ForgeRegistry } from '../../src/forge/registry';
 import { WebhookController } from '../../src/forge/webhook.controller';
 import { IngestService } from '../../src/ingest/ingest.service';
@@ -114,10 +115,13 @@ class LocalGitDriver extends GitDriver {
     super(key, config.forge(key)!);
   }
 
-  async fetchInto(repo: RemoteRepo, mirrorDir: string): Promise<string> {
+  protected override async withRemote<T>(
+    repo: RemoteRepo,
+    run: (remote: GitInvocation) => Promise<T>,
+  ): Promise<T> {
     const origin = this.origins[repo.forgeRepoId];
     if (!origin) throw new Error(`no local origin for ${repo.forgeRepoId}`);
-    return fetchAndResolve(repo, mirrorDir, { authenticatedUrl: `file://${origin}` });
+    return run({ authenticatedUrl: `file://${origin}` });
   }
 }
 
