@@ -1435,6 +1435,11 @@ describe('the content sources section', () => {
     );
     expect(removed.text).toMatch(/<div class="spr-scroll" hidden>/);
     expect(removed.text).toMatch(/name="add"\s+form="add-member"/);
+    // Nothing to search, so the bar is gone and Add stands under the empty state
+    expect(removed.text).not.toContain('class="spr-index-bar"');
+    expect(removed.text).toMatch(
+      /<p class="spr-empty">No sources here yet\.<\/p>\s*<details class="spr-modal spr-index-add"/,
+    );
 
     await landing(
       'sources',

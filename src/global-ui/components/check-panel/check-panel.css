@@ -14,6 +14,13 @@
     font-size: var(--spr-font-size-small);
   }
 
+  .spr-pending > .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0 var(--spr-space-2) 0 0;
+    vertical-align: -0.125em;
+  }
+
   .spr-check-list {
     display: grid;
     justify-self: stretch;

@@ -252,6 +252,23 @@ describe('the next step of the repositories page', () => {
     });
   });
 
+  it('asks to allow public access before a sync that fails on it, though the file grants the administrator', () => {
+    const rows = [
+      row('TimMolitor/TestSpeicher', {
+        file: { level: 'ok', label: 'present' },
+        groups: ['staff', 'public'],
+        sync: { state: 'failed', activity: null, last_error: 'public is not enabled' },
+      }),
+    ];
+    expect(nextFix(input({ rows }))).toMatchObject({
+      id: 'public',
+      action: { href: '/-/config/public?pick=timmolitor%2Ftestspeicher' },
+    });
+
+    // Allowed: what is left is the sync
+    expect(nextFix(input({ rows, allowsPublic: () => true }))?.id).toBe('sync-failed');
+  });
+
   it('only reports the content sources after the setup', () => {
     expect(nextFix(input({ finished: true, me: { ...me, groups: [] } }))?.id).toBe('no-repository');
     expect(

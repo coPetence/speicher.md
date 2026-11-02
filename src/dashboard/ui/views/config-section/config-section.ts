@@ -18,6 +18,7 @@ import { DashboardResponder } from '../../../respond';
 import { walkthroughView } from '../../../setup/walkthrough-view';
 import { brokenVersionsDialog, loadNotes, versionNotes } from '../../config-notes';
 import { markSprite, renderInlineMark } from '../../provider-marks';
+import { SYNCING_ICON } from '../sync-status/repo-status/repo-status';
 
 // The mark of each state a checked repository can be in
 export const CHECK_ICONS = {
@@ -133,6 +134,7 @@ export function sendConfigSection(
         equals_icon: renderInlineIcon('arrow-right', 'spr-icon'),
         note_icon: renderInlineIcon('sticky-note', 'spr-icon'),
         external_icon: renderInlineIcon('external-link', 'spr-icon'),
+        syncing_icon: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
         // The large check a quick setup ends on
         ready_icon: payload.ready ? renderInlineIcon('circle-check', 'spr-icon') : '',
         ready_arrow_icon:

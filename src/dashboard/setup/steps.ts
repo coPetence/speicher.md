@@ -119,7 +119,6 @@ export function entryHref(step: SetupStep, steps: SetupStep[]): string {
   if (step.id === 'provider' && steps.some((each) => each.id === 'mail' && each.done)) {
     return `${step.href}?kind=magic-link`;
   }
-  if (step.id === 'content') return '/-/config/sources?kind=github';
   return step.href;
 }
 

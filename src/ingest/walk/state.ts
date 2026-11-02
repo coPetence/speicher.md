@@ -8,6 +8,7 @@ export type GrantContext = Parameters<typeof fold>[2]['grantContext'];
 export interface RepoRoot {
   workingTree: string;
   config: ConfigService;
+  repoSlug: string;
   ingestRoot: string;
   ingestAbs: string;
   /** File name the root config was read from (`.speicher.yaml` or `.speicher.yml`) */

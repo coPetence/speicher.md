@@ -16,7 +16,7 @@
     <h2 class="spr-modal-title" id="<%= titleId %>">Create the missing groups</h2>
     <% if (modal.pending) { %>
     <p class="spr-check-summary spr-pending" data-spr-defer-text>
-      Looking for the groups your repositories name… <a href="<%= modal.pending.href %>">Look now</a>
+      <%~ it.syncingIcon || '' %>Looking for the groups your repositories name… <a href="<%= modal.pending.href %>">Look now</a>
     </p>
     <div class="spr-ready-foot">
       <a href="<%= modal.back_href %>">Back</a>

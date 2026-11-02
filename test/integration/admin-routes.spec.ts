@@ -161,8 +161,7 @@ const CONTRACT: Record<string, Contract> = {
       'check, or answers with the modal and why it refused.',
   },
   'GET /-/config/:section/:member/config-file': {
-    covered:
-      'quick-setup.spec.ts. It needs a GitHub source with an App, which no fixture has.',
+    covered: 'quick-setup.spec.ts. It needs a GitHub source with an App, which no fixture has.',
   },
   'POST /-/config/:section/:member/config-file': {
     covered:

@@ -30,19 +30,17 @@
     font-weight: var(--spr-weight-strong);
   }
 
-  .spr-setup-fix[aria-busy] .spr-setup-fix-step {
-    color: var(--spr-muted);
-  }
-
-  .spr-setup-fix-step .spr-icon {
-    width: 1em;
-    height: 1em;
-    margin: 0;
-  }
-
   .spr-setup-fix-title {
     margin: 0;
     font-size: 1.125rem;
+  }
+
+  .spr-setup-fix-title > .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0 var(--spr-space-2) 0 0;
+    color: var(--spr-muted);
+    vertical-align: -0.125em;
   }
 
   .spr-setup-fix-text,
@@ -138,7 +136,10 @@
     margin-top: var(--spr-space-5);
   }
 
-  [data-spr-repository-step] {
+  [data-spr-repository-step].spr-card {
+    padding: 0;
+    border: 0;
+    background: none;
     container-type: inline-size;
   }
 

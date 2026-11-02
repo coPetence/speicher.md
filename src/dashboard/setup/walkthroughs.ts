@@ -18,10 +18,17 @@ export type WalkthroughPreview =
 export interface WalkthroughSlide {
   title: string;
   // Markdown
-  text: string;
+  text?: string;
   // A list under the text, each point in markdown
   points?: string[];
+  faq?: WalkthroughQuestion[];
   preview: WalkthroughPreview;
+}
+
+export interface WalkthroughQuestion {
+  question: string;
+  answer: string;
+  points?: string[];
 }
 
 export interface Walkthrough {
@@ -37,12 +44,28 @@ const WALKTHROUGHS: Walkthrough[] = [
     title: 'How signing in works',
     slides: [
       {
-        title: 'What is an identity provider?',
-        text: 'An identity provider is a service from a third party that authenticates a user, for example GitHub or Microsoft Entra ID. You can add several identity providers, to allow users to sign in with different accounts. When a person signs in, the identity provider confirms their identitiy and passes on to Speicher.md the following claims:',
-        points: [
-          'a permanent id of their account',
-          'their email address',
-          'the groups they are a member of, if the identity provider has groups',
+        title: '',
+        faq: [
+          {
+            question: 'What is an identity provider?',
+            answer:
+              'An identity provider is a service from a third party that authenticates a user, for example GitHub or Microsoft Entra ID.',
+          },
+          {
+            question: 'Can I add more than one identity provider?',
+            answer:
+              'Yes, you could for example add an Identity provider of an external organization you want to share documents with, in addition to your own Identity Provider.',
+          },
+          {
+            question: 'What does Speicher.md learn about a person?',
+            answer:
+              'When a person signs in, the identity provider passes on the following claims to Speicher.md:',
+            points: [
+              'a permanent id of their account',
+              'their email address',
+              'the groups they are a member of, if the identity provider has groups',
+            ],
+          },
         ],
         preview: 'idp-sign-in',
       },
@@ -112,7 +135,22 @@ const WALKTHROUGHS: Walkthrough[] = [
       },
       {
         title: 'Installing the GitHub App',
-        text: 'You can install the App on all repositories of the account, or just on selected ones. Speicher.md has read access to all the repositories the App is installed on. For each push to the default branch of a repository, GitHub notifies Speicher.md, which will then synchronize the repository.',
+        faq: [
+          {
+            question: 'Which repositories can I install the App on?',
+            answer:
+              'You can install the App on all repositories of your account, or only on the ones you select.',
+          },
+          {
+            question: 'What can Speicher.md access?',
+            answer: 'Speicher.md has read access to all the repositories the App is installed on.',
+          },
+          {
+            question: 'When does Speicher.md synchronize a repository?',
+            answer:
+              'For each push to the default branch of a repository, GitHub notifies Speicher.md, which then synchronizes the repository.',
+          },
+        ],
         preview: 'source-install',
       },
     ],

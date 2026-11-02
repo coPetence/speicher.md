@@ -95,6 +95,7 @@ export async function loadRoot(
   return {
     workingTree,
     config,
+    repoSlug: options.repo.slug,
     ingestRoot,
     ingestAbs,
     configName,

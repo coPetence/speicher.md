@@ -19,7 +19,7 @@
     <h2 class="spr-modal-title" id="<%= titleId %>"><%= check.title %></h2>
     <% if (check.pending) { %>
     <p class="spr-check-summary spr-pending" data-spr-defer-text>
-      Loading GitHub repositories and <code>.speicher.yaml</code> files… <a href="<%= check.pending.href %>">Check now</a>
+      <%~ it.syncingIcon || '' %>Loading GitHub repositories and <code>.speicher.yaml</code> files… <a href="<%= check.pending.href %>">Check now</a>
     </p>
     <% } else if (check.problem) { %>
     <%~ include('@note', { level: 'warn', html: md(check.problem.text) }) %>
