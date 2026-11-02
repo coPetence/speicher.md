@@ -15,7 +15,8 @@ speicher.md is a self-hosted documentation platform for sharing docs with people
 ## Try it yourself
 
 ```bash
-curl -fsSL https://github.com/coPetence/speicher.md/releases/latest/download/install.sh | bash
+curl -fsSL \
+  https://speicher.md/install.sh | bash
 ```
 
 The installation script creates a directory `speicher/` in your home directory, downloads the latest release of speicher.md, and starts it with Docker Compose. It also generates a random database password and writes it to a `.env` file in the same directory.
