@@ -28,6 +28,8 @@ VOLUME ["/var/lib/speicher"]
 
 ENV SPEICHER_CONFIG_SOURCE=database
 
+ENV SPEICHER_LOG_FORMAT=pretty
+
 RUN ln -s /app/bin/speicher /usr/local/bin/speicher
 
 RUN useradd --system --uid 10001 --home /app speicher \
