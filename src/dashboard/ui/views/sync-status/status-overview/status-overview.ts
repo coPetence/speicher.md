@@ -276,7 +276,7 @@ function filterGroups(data: StatusPayload) {
 const STAT_ICONS = {
   repositories: 'book-marked',
   pages: 'file-text',
-  running: SYNCING_ICON,
+  running: 'circle-check',
   queued: QUEUED_ICON,
   failed: 'circle-x',
   stale: 'clock-alert',
@@ -335,7 +335,7 @@ function statusTiles(payload: StatusPayload): StatusTile[] {
             ...(payload.instance.running_jobs > 0
               ? {
                   tone: 'blue' as const,
-                  iconHtml: renderInlineIcon(STAT_ICONS.running, 'spr-icon spr-spin'),
+                  iconHtml: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
                 }
               : {}),
           },
