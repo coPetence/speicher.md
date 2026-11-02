@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Speicher.md">
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="160">
+      <stop offset="0" stop-color="#6c71c4"/>
+      <stop offset="0.5" stop-color="#268bd2"/>
+      <stop offset="1" stop-color="#2aa198"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="32" fill="url(#g)"/>
+  <path fill="#fdf6e3" shape-rendering="crispEdges" d="M40 30h10v20h-10zM50 30h10v20h-10zM60 30h10v20h-10zM70 30h10v20h-10zM80 30h10v20h-10zM90 30h10v20h-10zM100 30h10v20h-10zM40 50h10v20h-10zM50 50h10v20h-10zM40 70h10v20h-10zM50 70h10v20h-10zM60 70h10v20h-10zM70 70h10v20h-10zM80 70h10v20h-10zM90 70h10v20h-10zM100 70h10v20h-10zM90 90h10v20h-10zM100 90h10v20h-10zM40 110h10v20h-10zM50 110h10v20h-10zM60 110h10v20h-10zM70 110h10v20h-10zM80 110h10v20h-10zM90 110h10v20h-10zM100 110h10v20h-10z"/>
+</svg>
