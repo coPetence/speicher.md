@@ -3,6 +3,7 @@ import request from 'supertest';
 import { QueryTypes } from 'sequelize';
 
 import { DEFAULT_TEMPLATE, stylesheetUrl } from '../../src/content-reader/assets.controller';
+import { emptyStateArt } from '../../src/content-reader/empty-state';
 import { forgeMark } from '../../src/dashboard/configurator/config-form/members';
 import { renderInlineMark } from '../../src/dashboard/ui/provider-marks';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
@@ -282,6 +283,26 @@ describe('the repository list', () => {
     expect(all.text).toMatch(/data-spr-empty="none"\s*hidden>/);
   });
 
+  it('draws a funnel when the filter leaves nothing, and says how many it holds back', async () => {
+    const { body } = await json('ops', '/-/status?f=1');
+    const res = await page('ops', '/-/status?f=1&owner=nobody&sort=pages-desc');
+    expect(res.text).toMatch(/data-spr-empty="none"\s*>/);
+    expect(res.text).toContain(emptyStateArt('filtered'));
+    expect(res.text).toContain(
+      `Repositories without the filter: ${body.totals.repositories as number}.`,
+    );
+    expect(res.text).toContain('<a href="/-/status?f=1&amp;sort=pages-desc">Clear the filter</a>');
+  });
+
+  it('puts a red half beside the funnel while a filter is applied, which takes it off', async () => {
+    const filtered = await page('ops', '/-/status?f=1&owner=nobody');
+    expect(filtered.text).toMatch(
+      /<\/details>\s*<a class="spr-filter-remove" href="\/-\/status\?f=1" aria-label="Clear the filter"/,
+    );
+    const unfiltered = await page('ops', '/-/status?f=1');
+    expect(unfiltered.text).not.toContain('spr-filter-remove');
+  });
+
   it('escapes the needle, which is text somebody typed', async () => {
     const res = await page('ops', '/-/status?q=%3Cb%3Eoops%3C%2Fb%3E');
     expect(res.text).not.toContain('<b>oops</b>');
@@ -300,9 +321,11 @@ describe('the repository list', () => {
     expect(res.text).toMatch(/<main[^>]*>\s*<h1>Sync status<\/h1>/);
   });
 
-  it('offers Discover on an instance whose table is empty', async () => {
+  it('offers Sync all on an instance whose table is empty, in the accent', async () => {
     const res = await page('ops', '/-/status?q=nosuchrepository');
-    expect(res.text).toContain('action="/-/discover"');
+    expect(res.text).toMatch(
+      /action="\/-\/discover"[^>]*>\s*<button type="submit" class="spr-primary"><svg[^>]*>[\s\S]*?<\/svg>Sync all<\/button>/,
+    );
   });
 
   describe('a repository whose first sync failed', () => {

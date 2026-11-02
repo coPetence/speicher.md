@@ -1,0 +1,12 @@
+<!-- A shield, and the person who would hold it -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <path d="M79.7 20.7C80.9 19.9 82 19 83 18.1A4.6 4.6 0 0 1 89 18.1C95.8 24 105.5 28.7 113.3 28.7A3.9 3.9 0 0 1 117.2 32.6V59.9C117.2 76.4 107.5 85.9 94.6 91.9" opacity="0.45"/>
+  <path d="M105.2 63.9C105.2 83.4 91.5 93.2 75.3 98.8A3.9 3.9 0 0 1 72.7 98.8C56.5 93.2 42.8 83.4 42.8 63.9V36.6A3.9 3.9 0 0 1 46.7 32.7C54.5 32.7 64.2 28 71 22.1A4.6 4.6 0 0 1 77 22.1C83.8 28 93.5 32.7 101.3 32.7A3.9 3.9 0 0 1 105.2 36.6z" fill="currentColor" fill-opacity="0.06"/>
+  <circle cx="74" cy="51" r="7" stroke-dasharray="1 6" opacity="0.55" pathLength="42"/>
+  <path d="M60 80a14 14 0 0 1 28 0" stroke-dasharray="1 6" opacity="0.55" pathLength="43"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>

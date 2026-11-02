@@ -1,0 +1,13 @@
+<!-- A page that is there and could not be built: torn across, the halves apart -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <path d="M50 22h40l14 14v22l-4 4-8-6-8 6-8-6-8 6-8-6-8 6-8-6V28a6 6 0 0 1 6-6z" fill="currentColor" fill-opacity="0.06"/>
+  <path d="M90 22v8a6 6 0 0 0 6 6h8"/>
+  <path d="M54 42h18"/>
+  <path d="M47 66l8 6 8-6 8 6 8-6 8 6 8-6 8 6 4-4v31a6 6 0 0 1-6 6H53a6 6 0 0 1-6-6z" fill="currentColor" fill-opacity="0.06"/>
+  <path d="M57 83h40M57 93h26" stroke-dasharray="1 6" opacity="0.55"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>

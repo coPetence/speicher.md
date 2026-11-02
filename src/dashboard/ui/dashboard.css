@@ -1988,14 +1988,50 @@
   }
 
   .spr-filter-modal > summary .spr-icon {
-    width: 1em;
-    height: 1em;
+    width: 1.15em;
+    height: 1.15em;
     margin: 0;
   }
 
   .spr-filter-modal[data-spr-active] > summary {
     background: color-mix(in oklab, var(--spr-accent) 12%, var(--spr-surface));
     color: var(--spr-accent);
+  }
+
+  .spr-filter-set {
+    display: inline-flex;
+    flex: none;
+    align-items: stretch;
+  }
+
+  .spr-filter-set:has(> .spr-filter-remove) > .spr-filter-modal > summary {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  .spr-filter-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spr-space-2);
+    border: var(--spr-border) solid color-mix(in oklab, var(--spr-status-fail) 45%, var(--spr-line));
+    border-inline-start: 0;
+    border-start-end-radius: var(--spr-radius);
+    border-end-end-radius: var(--spr-radius);
+    background: color-mix(in oklab, var(--spr-status-fail) 14%, var(--spr-surface));
+    color: var(--spr-status-fail);
+  }
+
+  .spr-filter-remove:hover {
+    border-color: var(--spr-status-fail);
+    background: var(--spr-status-fail);
+    color: var(--spr-bg);
+  }
+
+  .spr-filter-remove .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
   }
 
   .spr-modal-panel.spr-filter-dialog {

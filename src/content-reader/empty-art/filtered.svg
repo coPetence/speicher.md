@@ -1,0 +1,11 @@
+<!-- A funnel with something poured in, and nothing that came through it -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <path d="M48 26h64a3 3 0 0 1 2.2 5L90 58a5 5 0 0 0-1.3 3.4V92a3 3 0 0 1-4.3 2.7l-10-5A3 3 0 0 1 72.7 87V61.4A5 5 0 0 0 71.4 58L45.8 31a3 3 0 0 1 2.2-5z" fill="currentColor" fill-opacity="0.06"/>
+  <path d="M58 34h44"/>
+  <path d="M80.7 99v8" stroke-dasharray="1 6" opacity="0.55"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>

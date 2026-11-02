@@ -52,7 +52,7 @@ function render(query = ''): void {
           <button type="submit" class="spr-filter-go">Filter</button>
         </form>
         <form method="post" action="/-/discover" class="spr-form spr-index-op">
-          <button type="submit">Discover now</button>
+          <button type="submit" class="spr-primary">Sync all</button>
         </form>
       </div>
       <div class="spr-scroll">

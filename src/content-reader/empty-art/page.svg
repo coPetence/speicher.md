@@ -1,0 +1,13 @@
+<!-- A sheet of paper: a heading, and the rows that would have been under it -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <ellipse cx="80" cy="111" rx="46" ry="3" fill="currentColor" stroke="none" opacity="0.1"/>
+  <path d="M109 93h1a6 6 0 0 0 6-6V23a6 6 0 0 0-6-6H62a6 6 0 0 0-6 6" opacity="0.45"/>
+  <path d="M50 26h40l14 14v56a6 6 0 0 1-6 6H50a6 6 0 0 1-6-6V32a6 6 0 0 1 6-6z" fill="currentColor" fill-opacity="0.06"/>
+  <path d="M90 26v8a6 6 0 0 0 6 6h8"/>
+  <path d="M54 54h18"/>
+  <path d="M54 66h40M54 77h40M54 88h26" stroke-dasharray="1 6" opacity="0.55"/>
+  <path d="M27 38v8M23 42h8" opacity="0.55"/>
+  <path d="M136 28v6M133 31h6" opacity="0.35"/>
+  <circle cx="134" cy="62" r="3" opacity="0.55"/>
+  <circle cx="22" cy="80" r="1" fill="currentColor" opacity="0.55"/>
+</svg>
