@@ -215,7 +215,7 @@ describe('the base stylesheet', () => {
     const sized = [...RULES.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
       .filter(
         ([, selector, body]) =>
-          /(^|[\s,>+~])(pre|code|kbd|samp)\b/.test(selector) && /font-size/.test(body),
+          /(^|[\s,>+~])(pre|code|kbd|samp)\b/.test(selector) && /(^|[\s;])font-size\s*:/.test(body),
       )
       .map(([, selector]) => selector.replace(/\s+/g, ' ').trim());
     expect(sized).toEqual(['code, pre, kbd, samp', 'pre code']);

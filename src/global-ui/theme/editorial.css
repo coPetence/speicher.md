@@ -37,6 +37,7 @@
       'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     --spr-font-size: 18px;
     --spr-line-height: 1.7;
+    --spr-line-height-prose: 1.7;
     --spr-font-size-nav: 0.9rem;
     --spr-weight-strong: 700;
 
