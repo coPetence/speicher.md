@@ -149,13 +149,19 @@ async function landing(section: string, response: request.Response) {
  * Adds a row of a shape through a provider on a group's page, which is a round
  * trip that stores nothing; returns the page that came back, with the new row
  */
-async function addRow(name: string, provider: string, shape: string): Promise<string> {
+async function addRow(
+  name: string,
+  provider: string,
+  shape: string,
+  match = shape === 'person' ? 'ferdinand.duschka@copetence.de' : 'grp-added',
+): Promise<string> {
   const { body } = await open(`groups/${name}`);
   const added = await post(`groups/${name}`, {
     ...body,
     op: `add:groups.${name}.row`,
     [`newkind:groups.${name}.row`]: shape,
     [`newname:groups.${name}.row.${shape}`]: provider,
+    [`newmatches:groups.${name}.row.${shape}`]: match,
   }).expect(200);
   return added.text;
 }
@@ -1203,19 +1209,67 @@ describe('every way to remove something', () => {
       op: 'add:groups.engineering.row',
       'newkind:groups.engineering.row': 'person',
       'newname:groups.engineering.row.person': 'entra',
+      'newmatches:groups.engineering.row.person': 'ferdinand.duschka@copetence.de',
     }).expect(200);
     expect(added.text).toContain(
       '<div class="spr-row-card" data-spr-position="1" data-spr-kind="person" id="spr-landing">',
     );
-    expect(added.text).toMatch(/name="groups\.engineering\.1\.email"[^>]*value=""/);
+    expect(added.text).toMatch(
+      /name="groups\.engineering\.1\.email"[^>]*value="ferdinand\.duschka@copetence\.de"/,
+    );
     expect(added.text).toContain(
       '<input type="hidden" name="__shape:groups.engineering" value="group,person">',
     );
 
-    // Saved without typing, the row is not stored
-    await post('groups/engineering', { ...formBody(added.text), intent: 'apply' }).expect(303);
+    // Added, not saved
     const yaml = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
     expect(yaml).not.toMatch(/\bemail:/);
+  });
+
+  it('reopens the modal under the box that is wrong, and adds nothing', async () => {
+    const { body } = await open('groups/engineering');
+    const refuse = async (fields: Record<string, string>) => {
+      const refused = await post('groups/engineering', {
+        ...body,
+        op: 'add:groups.engineering.row',
+        ...fields,
+      }).expect(400);
+      expect(refused.text).toMatch(/<details class="spr-modal spr-index-add"[^>]* open>/);
+      expect(refused.text).not.toContain('data-spr-position="1"');
+      return refused.text;
+    };
+
+    const noProvider = await refuse({
+      'newkind:groups.engineering.row': 'person',
+      'newmatches:groups.engineering.row.person': 'ferdinand.duschka@copetence.de',
+    });
+    expect(noProvider).toMatch(/<p class="spr-field-problem"[^>]*>Choose a provider\.<\/p>/);
+
+    const empty = await refuse({
+      'newkind:groups.engineering.row': 'person',
+      'newname:groups.engineering.row.person': 'entra',
+    });
+    expect(empty).toMatch(
+      /<p class="spr-field-problem"[^>]*>Enter at least one email address\.<\/p>/,
+    );
+
+    const invalid = await refuse({
+      'newkind:groups.engineering.row': 'person',
+      'newname:groups.engineering.row.person': 'entra',
+      'newmatches:groups.engineering.row.person': 'ferdinand.duschka@copetence.de\nferdinand',
+    });
+    expect(invalid).toContain('&quot;ferdinand&quot; is not an email address.');
+    expect(invalid).toMatch(
+      /aria-invalid="true"[^>]*>ferdinand\.duschka@copetence\.de\nferdinand<\/textarea>/,
+    );
+    expect(invalid).toMatch(/name="newkind:groups\.engineering\.row"\s+value="person"\s+checked/);
+
+    const domain = await refuse({
+      'newkind:groups.engineering.row': 'group',
+      'newname:groups.engineering.row.group': 'entra',
+      'newmatches:groups.engineering.row.group': '',
+    });
+    expect(domain).toContain('Enter at least one group id.');
   });
 
   it('adds a row per line typed into the modal, saved as they are', async () => {
@@ -1722,10 +1776,10 @@ describe('the groups section', () => {
     expect(html).toMatch(
       /<h2 class="spr-modal-title spr-add-row-title" id="[^"]+">\s*Add members to engineering/,
     );
-    expect(html).toMatch(/name="newkind:groups\.engineering\.row"\s+value="group"\s+checked/);
-    // A provider is picked from the picture dropdown, in the page's own form
+    expect(html).toMatch(/name="newkind:groups\.engineering\.row"\s+value="person"\s+checked/);
+    // A provider is picked from the picture dropdown, in the page's own form, and none is picked for you
     expect(html).toMatch(
-      /<details class="spr-dropdown">[\s\S]*?name="newname:groups\.engineering\.row\.group"\s+value="entra"\s+data-spr-transient\s+checked/,
+      /<details class="spr-dropdown">[\s\S]*?<span class="spr-dd-placeholder">Choose a provider<\/span>[\s\S]*?name="newname:groups\.engineering\.row\.group"\s+value="entra"\s+data-spr-transient\s*>/,
     );
     expect(html).not.toMatch(
       /name="newname:groups\.engineering\.row\.group"[^>]*form="add-member"/,
@@ -2034,7 +2088,7 @@ describe('the groups section', () => {
 
   it('adds a person to a group, and they survive their own save', async () => {
     const page = formBody(await addRow('engineering', 'entra', 'person'));
-    expect(page['groups.engineering.1.email']).toBe('');
+    expect(page['groups.engineering.1.email']).toBe('ferdinand.duschka@copetence.de');
 
     await post('groups/engineering', {
       ...page,
@@ -2051,12 +2105,16 @@ describe('the groups section', () => {
     expect(yaml).not.toContain('null');
   });
 
-  it('writes nothing at all when an added row is left empty', async () => {
+  it('writes nothing at all when the modal is sent with no entries', async () => {
     const before = (await getNewestConfigVersion(harness.tenantId))?.yaml ?? '';
-    await post('groups/engineering', {
-      ...formBody(await addRow('engineering', 'entra', 'group')),
-      intent: 'apply',
-    }).expect(303);
+    const { body } = await open('groups/engineering');
+    const refused = await post('groups/engineering', {
+      ...body,
+      op: 'add:groups.engineering.row',
+      'newkind:groups.engineering.row': 'group',
+      'newname:groups.engineering.row.group': 'entra',
+    }).expect(400);
+    await post('groups/engineering', { ...formBody(refused.text), intent: 'apply' }).expect(303);
 
     expect((await getNewestConfigVersion(harness.tenantId))?.yaml).toBe(before);
   });
@@ -2438,10 +2496,10 @@ describe('editing', () => {
       op: 'add:groups.client-acme.row',
       'newkind:groups.client-acme.row': 'group',
       'newname:groups.client-acme.row.group': 'entra',
+      'newmatches:groups.client-acme.row.group': 'grp-acme',
     }).expect(200);
     const checked = await post('groups/client-acme', {
       ...formBody(page.text),
-      'groups.client-acme.0.id': 'grp-acme',
       intent: 'check',
     }).expect(200);
 
@@ -3281,6 +3339,7 @@ describe('adding and removing entries', () => {
       op: 'add:groups.engineering.row',
       'newkind:groups.engineering.row': 'group',
       'newname:groups.engineering.row.group': 'entra',
+      'newmatches:groups.engineering.row.group': 'grp-added',
     }).expect(200);
 
     const after = formBody(page.text);

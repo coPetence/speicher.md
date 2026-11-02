@@ -116,6 +116,7 @@ export interface TableAddKind {
   help?: string;
   // Input label
   nameLabel: string;
+  placeholder?: string;
   options: Option[];
   // Allow multiple selections
   multiple?: boolean;

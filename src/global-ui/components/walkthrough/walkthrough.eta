@@ -7,11 +7,11 @@
 <div class="spr-add-row-body">
   <div class="spr-add-row-kinds">
     <div class="spr-add-row-kind">
-      <label><input type="radio"<%= kind === 'group' ? ' checked' : '' %>><%~ icons.users %><span>IDP group</span></label>
+      <label><input type="radio"<%= kind === 'email' ? ' checked' : '' %>><%~ icons.mail %><span>Individual email</span></label>
       <span class="spr-add-row-kind-chevron"><%~ icons.chevron %></span>
     </div>
     <div class="spr-add-row-kind">
-      <label><input type="radio"<%= kind === 'email' ? ' checked' : '' %>><%~ icons.mail %><span>Individual email</span></label>
+      <label><input type="radio"<%= kind === 'group' ? ' checked' : '' %>><%~ icons.users %><span>IDP group</span></label>
       <span class="spr-add-row-kind-chevron"><%~ icons.chevron %></span>
     </div>
   </div>
@@ -19,8 +19,10 @@
     <div class="spr-add-row-panel">
       <label>Provider</label>
       <span class="spr-walkthrough-picked"><%~ icons.github %><span>github</span><%~ icons.chevron_down %></span>
-      <div class="spr-add-label"><label><%= label %></label></div>
-      <textarea rows="4" readonly><%= value %></textarea>
+      <div class="spr-add-row-matches">
+        <div class="spr-add-label"><label><%= label %></label></div>
+        <textarea rows="4" readonly><%= value %></textarea>
+      </div>
     </div>
   </div>
 </div>

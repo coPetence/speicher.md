@@ -221,7 +221,33 @@
     font-size: 1.15em;
   }
 
-  .spr-add-row-panel > textarea {
+  .spr-add-row-matches {
+    display: grid;
+    gap: var(--spr-space-1);
+    margin-top: var(--spr-space-3);
+  }
+
+  .spr-add-row-panel:has(> .spr-dropdown):not(:has(> .spr-dropdown input:checked))
+    > .spr-add-row-matches,
+  .spr-add-row-panel:has(> .spr-select option[value='']:checked) > .spr-add-row-matches {
+    visibility: hidden;
+  }
+
+  .spr-add-row-panel > .spr-dropdown:not([open]):has(+ .spr-field-problem),
+  .spr-add-row-panel > .spr-select:has(+ .spr-field-problem) > select,
+  .spr-add-row-matches > textarea[aria-invalid='true'] {
+    border-color: var(--spr-status-fail);
+    box-shadow: 0 0 0 1px var(--spr-status-fail);
+  }
+
+  .spr-add-row-panel > .spr-field-problem {
+    block-size: 0;
+    margin-block-end: calc(-1 * var(--spr-space-1));
+    overflow: visible;
+    translate: 0 var(--spr-space-1);
+  }
+
+  .spr-add-row-matches > textarea {
     padding: var(--spr-space-2) var(--spr-space-3);
     border: var(--spr-border) solid var(--spr-line);
     border-radius: var(--spr-radius);

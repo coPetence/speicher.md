@@ -104,6 +104,13 @@
   .spr-dropdown:not([open]) > .spr-dd-list > .spr-dd-row > input {
     visibility: hidden;
   }
+  .spr-dd-placeholder {
+    color: var(--spr-muted);
+  }
+  .spr-dropdown[open] .spr-dd-placeholder,
+  .spr-dd-list:has(input:checked) > .spr-dd-placeholder {
+    display: none;
+  }
   .spr-modal-panel:has(.spr-dropdown[open]) {
     overflow: visible;
   }

@@ -29,6 +29,7 @@ import { stampEntryOrigins } from './origins';
 import { ConfigSectionPayload } from './payloads';
 import { stampPickListOptions } from './pick-list-stamp';
 import { fieldPathOf, stampProblems } from './problem-stamp';
+import { groupItemCount, refusedRows, rowAddOf } from './row-add';
 
 // Save result mapped to an HTTP response
 export type SaveOutcome =
@@ -74,17 +75,6 @@ function landingOf(doc: Document, op: unknown): ConfigSectionPayload['landing'] 
   if (!isSeq(list)) return undefined;
   const at = Math.min(Number(index), list.items.length - 1);
   return { path: at >= 0 ? `${target}.${at}` : target, focus: false };
-}
-
-/**
- * groupItemCount returns how many members a group lists in a document.
- *
- * @param doc the document
- * @param name the group's name
- */
-function groupItemCount(doc: Document, name: string): number {
-  const items = doc.getIn(['groups', name]);
-  return isSeq(items) ? items.items.length : 0;
 }
 
 // Show save errors on the page and affected fields using dashboard wording
@@ -261,10 +251,15 @@ export class ConfigSaveService {
         return brandRef(image);
       }));
 
+    const rowAdd = rowAddOf(body.op);
+    const before = rowAdd ? groupItemCount(doc, rowAdd.group) : 0;
+
     // Decode only this section to avoid clearing checkboxes in other sections
     const { structural, changed: edited_ } = decode
       ? applyForm(doc, body, sectionId, hint)
       : { structural: false, changed: false };
+
+    const rowsRefused = rowAdd && structural ? refusedRows(doc, body, rowAdd, before) : null;
     const amended = amend?.(doc) ?? false;
     // Fetch host keys into the edited document without saving
     const hostKeys = await this.checks.fetchHostKeys(doc, sectionId, body.op, state.storedYaml);
@@ -315,6 +310,9 @@ export class ConfigSaveService {
     }
 
     // List edits and host-key fetches re-render without validating or saving
+    if (rowsRefused) {
+      return pageOf(sectionId, { ...payload, row_add: rowsRefused }, 400);
+    }
     if (structural || hostKeys) {
       payload.landing = landingOf(doc, body.op);
       return pageOf(sectionId, payload);
