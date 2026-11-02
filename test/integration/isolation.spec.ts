@@ -269,6 +269,14 @@ describe('site root: repos with nothing visible are absent', () => {
     expect(res.text).toContain('Northwind Specifications');
   });
 
+  it('shows the public repositories to a reader who is not signed in', async () => {
+    const res = await as('anonymous').get('/');
+    expect(res.status).toBe(200);
+    expect(res.text).toMatch(/<span class="spr-repo-name">copetence\/speicher-docs<\/span>/i);
+    expect(res.text).not.toContain('coPetence Handbook');
+    expect(res.text).not.toContain('You are not signed in');
+  });
+
   it('shows nothing to an admin who holds no content grant', async () => {
     const res = await as('ops').get('/');
     expect(res.status).toBe(200);
