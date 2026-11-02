@@ -64,6 +64,8 @@
     --spr-font-size-code: 0.95em;
     --spr-line-height: 1.6;
     --spr-line-height-tight: 1.35;
+    --spr-line-height-prose: 1.5;
+    --spr-line-height-heading: 1.25;
     --spr-font-size-nav: 1em;
     --spr-font-size-small: 0.85rem;
     --spr-font-size-label: 0.8rem;
@@ -1433,9 +1435,31 @@
     }
   }
 
-  .spr-article h2 {
-    margin-top: var(--spr-space-8);
-    margin-bottom: var(--spr-space-3);
+  .spr-article {
+    line-height: var(--spr-line-height-prose);
+  }
+
+  .spr-article :where(h1, h2, h3, h4, h5, h6) {
+    margin-block: calc(var(--spr-font-size) * 1.5) var(--spr-font-size);
+    line-height: var(--spr-line-height-heading);
+  }
+
+  .spr-article-head h1 {
+    margin-block: 0 var(--spr-font-size);
+  }
+
+  .spr-article-body :where(p, ul, ol, dl, blockquote, pre, table, details) {
+    margin-block: 0 var(--spr-font-size);
+  }
+
+  .spr-article-body
+    :where(li, blockquote, details, td, th, .spr-callout)
+    > :where(p, ul, ol, dl, blockquote, pre, table):last-child {
+    margin-block-end: 0;
+  }
+
+  .spr-article-body li + li {
+    margin-block-start: 0.25em;
   }
 
   .spr-main img {
