@@ -7,7 +7,7 @@
  * document rather than reading `type`
  */
 
-import { scalarString } from '../document';
+import { quickSetupOf } from '../../quick-setup/registry';
 import type { Field, Obj } from '../config-fields';
 import {
   SECRET_HELP,
@@ -19,6 +19,7 @@ import {
   textField,
   urlField,
 } from '../config-fields';
+import { scalarString } from '../document';
 import {
   ENTRA_TENANT_HINT,
   ENTRA_TENANT_PATTERN,
@@ -33,9 +34,8 @@ import {
   providerIds,
   type KindHint,
 } from '../members';
-import { unavailableOption } from '../model';
 import type { Option, SectionEntry } from '../model';
-import { quickSetupOf } from '../../quick-setup/registry';
+import { unavailableOption } from '../model';
 import { directoryFields } from './identity/directory-fields';
 import { githubAppCard } from './identity/github-app-card';
 import { githubDirectoryCard } from './identity/github-directory-card';
@@ -206,7 +206,7 @@ export function providerSection(root: Obj, id: string, hint?: KindHint): Section
     // Store the provider id when enabled
     booleanField(root, ['auth', 'default_provider'], 'auth.default_provider', 'Default provider', {
       trueValue: id,
-      help: 'Enable to use this provider for `access.users` entries that omit a provider in `.speicher.yaml`. The first provider added is the default.',
+      help: `If you enable this option, people listed under \`access.users\` in a \`.speicher.yaml\` sign in with ${id} by default, unless their entry specifically names another provider. This means that you can write \`{ email: example@copetence.de }\` instead of \`{ provider: ${id}, email: example@copetence.de }\`.`,
       trailing: kind === 'github',
     }),
   );
