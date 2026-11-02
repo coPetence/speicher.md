@@ -1,7 +1,7 @@
 
 <div class="spr-article">
 <% if (it.crumbs && it.crumbs.length > 1) { %>
-<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<%~ include('@crumbs', { crumbs: it.crumbs, home: true, history: true }) %>
 <% } %>
 <h1><%~ it.icon || '' %><%= it.heading %></h1>
 <% if (it.cover) { %>

@@ -1,6 +1,6 @@
 
 
-<%~ include('@crumbs', { crumbs: [{ href: '/-/config', title: 'Configuration' }, { title: 'Configuration history' }] }) %>
+<%~ include('@crumbs', { crumbs: [{ href: '/-/config', title: 'Configuration' }, { title: 'Configuration history' }], history: true }) %>
 
 <h1>Configuration history</h1>
 <p class="spr-section-blurb"><%~ md(it.blurb) %></p>

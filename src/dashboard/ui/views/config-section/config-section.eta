@@ -1,6 +1,6 @@
 
 <% if (it.crumbs && it.crumbs.length > 1) { %>
-<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<%~ include('@crumbs', { crumbs: it.crumbs, history: true }) %>
 <% } %>
 
 <%~ it.marks_sprite || '' %>

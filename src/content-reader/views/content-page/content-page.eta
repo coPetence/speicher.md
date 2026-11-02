@@ -3,7 +3,7 @@
 
 <div class="spr-article-head">
 <% if (it.crumbs && it.crumbs.length > 1) { %>
-<%~ include('@crumbs', { crumbs: it.crumbs }) %>
+<%~ include('@crumbs', { crumbs: it.crumbs, home: true, history: true }) %>
 <% } %>
 
 <h1<% if (it.headingId) { %> id="<%= it.headingId %>"<% } %>><%~ it.icon || '' %><%= it.title %></h1>

@@ -19,7 +19,7 @@ import { env, isProduction } from '../common/env';
 import type { ColourScheme } from '../config/palette';
 import { renderHelp } from '../global-ui/help-markup';
 import { noteIconName } from '../global-ui/note';
-import { renderIconRef } from './icons';
+import { renderIconRef, renderInlineIcon } from './icons';
 
 // Views live beside the surface that sends them — `content-reader/views`, `dashboard/ui/views`,
 // `auth/views` and `global-ui/global-views` — so a view's name is its folder's path from the
@@ -31,9 +31,11 @@ const eta = new Eta({
   cache: isProduction(),
   autoEscape: true,
   autoTrim: false,
-  // Every template and partial gets `md()`, which renders a help text's markup, and
-  // `noteIcon()`, which the `@note` component draws the icon of a note's level with
-  functionHeader: 'const md = this.config.md; const noteIcon = this.config.noteIcon;',
+  // Every template and partial gets `md()`, which renders a help text's markup,
+  // `noteIcon()`, which the `@note` component draws the icon of a note's level with, and
+  // `inlineIcon()`, which draws any icon by its name, e.g. `inlineIcon('house')`
+  functionHeader:
+    'const md = this.config.md; const noteIcon = this.config.noteIcon; const inlineIcon = this.config.inlineIcon;',
 });
 
 // Called through a closure, since help-markup imports this module for escapeHtml and may
@@ -41,6 +43,7 @@ const eta = new Eta({
 Object.assign(eta.config, {
   md: (text: string | undefined) => renderHelp(text ?? ''),
   noteIcon: (level?: string) => renderIconRef(noteIconName(level)),
+  inlineIcon: (name: string) => renderInlineIcon(name, 'spr-icon'),
 });
 
 /** Every view is a folder holding `<name>.eta`, so `dashboard/ui/views/sync-status/dead-jobs` is `src/dashboard/ui/views/sync-status/dead-jobs/dead-jobs.eta` */
