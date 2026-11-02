@@ -1,11 +1,12 @@
 <%
   function action(link, primary) {
     const outside = Boolean(link.external);
-    const kind = primary ? 'spr-ready-action' : 'spr-ready-link';
+    // The main action in the accent; a disabled one in the shared disabled look
+    const kind = primary ? 'spr-ready-action spr-ready-next' : 'spr-ready-link';
     if (link.disabled) {
 %>
 <span class="spr-setup-fix-blocked">
-  <button type="button" class="<%= kind %>" disabled><%= link.label %></button>
+  <button type="button" class="<%= primary ? 'spr-ready-action' : kind %>" disabled><%= link.label %></button>
   <span class="spr-setup-fix-why"><%= link.disabled %></span>
 </span>
 <%

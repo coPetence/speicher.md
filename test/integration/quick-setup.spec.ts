@@ -801,7 +801,7 @@ describe('the next step of the repositories page', () => {
     expect(page.text).toContain('is not installed on <strong>acme</strong> yet');
     expect(page.text).toMatch(
       new RegExp(
-        `<a class="spr-ready-action" href="${INSTALL_URL}" target="_blank" rel="noopener">Install on GitHub`,
+        `<a class="spr-ready-action spr-ready-next" href="${INSTALL_URL}" target="_blank" rel="noopener">Install on GitHub`,
       ),
     );
   });

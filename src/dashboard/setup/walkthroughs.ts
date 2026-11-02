@@ -132,7 +132,7 @@ const WALKTHROUGHS: Walkthrough[] = [
         points: [
           '`groups`: the members of the groups of this instance',
           '`users`: individual people by email address (here you can additionally set an expiration date for each person)',
-          'the group `public` under `groups`: everyone, without signing in. It applies once the repository is in the list of public repositories.',
+          'the group `public` under `groups`: everyone, without signing in. This only applies once the repository is in the list of public repositories. You can add a repository to the list of public repositories [here](/-/config/public).',
         ],
         preview: 'repository-access',
       },
