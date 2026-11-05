@@ -14,7 +14,7 @@ export function loadNotes(config: ConfigCommon): Note[] {
   if (config.unreadable) {
     notes.push({
       level: 'fail',
-      html: `Speicher cannot read the configuration file ${file}: ${escapeHtml(config.unreadable)}. This instance keeps running the configuration it loaded at startup. To fix this, make sure that the file exists and that Speicher may read it.`,
+      html: `speicher.md cannot read the configuration file ${file}: ${escapeHtml(config.unreadable)}. This instance keeps running the configuration it loaded at startup. To fix this, make sure that the file exists and that speicher.md may read it.`,
     });
   }
   if (config.unparseable && config.config_source === 'database') {

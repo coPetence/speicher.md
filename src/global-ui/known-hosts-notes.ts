@@ -8,7 +8,7 @@ export function missingHostKeysText(missing: string[]): string {
     missing.length < 2
       ? (missing[0] ?? '')
       : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
-  return `Host keys missing: Speicher has no host key for ${servers} yet, so the configuration cannot be saved. To add ${missing.length === 1 ? 'it' : 'them'}, press Fetch host keys.`;
+  return `Host keys missing: speicher.md has no host key for ${servers} yet, so the configuration cannot be saved. To add ${missing.length === 1 ? 'it' : 'them'}, press Fetch host keys.`;
 }
 
 /** Says how many lines are not host keys, and where to see them */

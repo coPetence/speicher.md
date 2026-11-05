@@ -81,7 +81,7 @@ export function directoryFields(
             shownWith,
             required: true,
             sourceToCopyFrom: from('client_id'),
-            help: 'The directory client id is the application (client) id Speicher uses to look up users and groups in Microsoft Graph. The app registration needs the application permissions `User.Read.All` and `GroupMember.Read.All`.',
+            help: 'The directory client id is the application (client) id speicher.md uses to look up users and groups in Microsoft Graph. The app registration needs the application permissions `User.Read.All` and `GroupMember.Read.All`.',
           }),
           secretField(
             root,
@@ -126,7 +126,7 @@ export function directoryFields(
         { value: type, label: type === 'graph' ? 'Microsoft Graph' : 'GitHub' },
       ],
       // TODO check wether this is actually correct
-      help: "The directory lookup lets Speicher ask the provider's user directory about the people and groups repositories grant access to. It is used to match a grant by email even when the sign-in name differs from the address, to show how many people a group reaches, and to drop grants for people whose account has been disabled or deleted.",
+      help: "The directory lookup lets speicher.md ask the provider's user directory about the people and groups repositories grant access to. It is used to match a grant by email even when the sign-in name differs from the address, to show how many people a group reaches, and to drop grants for people whose account has been disabled or deleted.",
     }),
     ...credentials,
     cacheLifetime,

@@ -49,7 +49,7 @@ interface GithubAppSetup {
     placements: AppPlacement[];
   };
   target: (id: string, placement: AppPlacement) => ManifestTarget;
-  // What the App is installed on so the member works, e.g. `the repositories Speicher.md should read`
+  // What the App is installed on so the member works, e.g. `the repositories speicher.md should read`
   installOn: (owner: string) => string;
 }
 
@@ -278,7 +278,7 @@ export const githubProviderStarter = githubAppStarter({
   // An organization's App is installed, and the person installing it signs in as they do
   target: (id, placement) =>
     identityProviderTarget(id, '', placement.public, placement.organization),
-  installOn: (owner) => `${owner}, so Speicher.md can read the teams of the people signing in`,
+  installOn: (owner) => `${owner}, so speicher.md can read the teams of the people signing in`,
 });
 
 export const githubSourceStarter = githubAppStarter({
@@ -293,5 +293,5 @@ export const githubSourceStarter = githubAppStarter({
     ],
   },
   target: (id) => contentSourceTarget(id),
-  installOn: (owner) => `${owner}, on the repositories Speicher.md should read`,
+  installOn: (owner) => `${owner}, on the repositories speicher.md should read`,
 });

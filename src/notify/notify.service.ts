@@ -67,8 +67,8 @@ export class NotifyService {
     });
     const subject =
       state === 'ok'
-        ? `speicher — ${repo.slug} is syncing again`
-        : `speicher — sync failed for ${repo.slug}`;
+        ? `speicher.md —${repo.slug} is syncing again`
+        : `speicher.md —sync failed for ${repo.slug}`;
 
     const body =
       state === 'ok'
@@ -111,7 +111,7 @@ export class NotifyService {
       for (const address of await this.adminAddresses()) {
         await this.mailer.send(
           address,
-          `speicher — ${row.slug} has not synced`,
+          `speicher.md —${row.slug} has not synced`,
           `${row.namespace}/${row.slug} has not synced recently.\n\nDetails: /-/status\n`,
         );
       }
@@ -137,7 +137,7 @@ export class NotifyService {
     for (const address of await this.adminAddresses()) {
       await this.mailer.send(
         address,
-        `speicher — ${rows.length} repo(s) have grants expiring`,
+        `speicher.md —${rows.length} repo(s) have grants expiring`,
         `${rows.length} repositories have individual grants expiring soon.\n\nDetails: /-/status\n`,
       );
     }

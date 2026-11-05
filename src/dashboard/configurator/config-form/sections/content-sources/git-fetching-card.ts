@@ -25,7 +25,7 @@ export function fetchingCard(root: Obj, id: string): Card {
     items: [
       durationField(root, [...base, 'poll_interval'], p('poll_interval'), 'Poll interval', {
         fallback: '1h',
-        help: 'How often Speicher checks the repositories of this source for new commits. This can be overridden per repository.',
+        help: 'How often speicher.md checks the repositories of this source for new commits. This can be overridden per repository.',
       }),
     ],
   };

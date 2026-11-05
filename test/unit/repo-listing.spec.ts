@@ -17,7 +17,7 @@ describe('the front page without a repository', () => {
     expect(page).toContain('<svg class="spr-empty-art">');
     expect(page).toContain('<h1>No repositories yet</h1>');
     expect(page).toContain('href="/-/config/sources"');
-    expect(page).not.toContain('<h1>Speicher</h1>');
+    expect(page).not.toContain('<h1>speicher.md</h1>');
   });
 
   it('sends an administrator with a content source to the sync status', () => {

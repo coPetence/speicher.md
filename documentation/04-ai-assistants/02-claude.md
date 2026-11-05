@@ -1,15 +1,15 @@
 # Claude
 
-You can connect Speicher to Claude as a custom connector. Claude can then search and read your documentation in any chat, with exactly the access you have yourself.
+You can connect speicher.md to Claude as a custom connector. Claude can then search and read your documentation in any chat, with exactly the access you have yourself.
 
-Your Speicher administrator must have set up the instance for AI assistants first. See [AI assistants](index.mdx).
+Your speicher.md administrator must have set up the instance for AI assistants first. See [AI assistants](index.mdx).
 
 ## 1. Add the connector
 
 In Claude, open **Settings → Connectors** and choose **Add custom connector**.
 
 - **Name:** what the connector is called in Claude, for example `Company Docs`.
-- **URL:** your Speicher address followed by `/mcp` or `/mcp/public`. For example:
+- **URL:** your speicher.md address followed by `/mcp` or `/mcp/public`. For example:
 
 ```
 https://<hostname>/mcp
@@ -33,17 +33,17 @@ If Claude marks **No sign-in** as detected, check that you entered `/mcp` and no
 
 Click **Add**.
 
-![Claude: Speicher MCP Connection Authentication](./assets/claude-authentication-dialog.png)
+![Claude: speicher.md MCP Connection Authentication](./assets/claude-authentication-dialog.png)
 
 ## 3. Sign in and connect
 
-Claude opens Speicher in a new window:
+Claude opens speicher.md in a new window:
 
-1. Sign in to Speicher as usual.
-2. Speicher shows **Connect Claude**. Click **Connect**.
+1. Sign in to speicher.md as usual.
+2. speicher.md shows **Connect Claude**. Click **Connect**.
 3. You are sent back to Claude. The connector is now connected.
 
-![Claude: Speicher Connect Screen](./assets/claude-connect-screen.png)
+![Claude: speicher.md Connect Screen](./assets/claude-connect-screen.png)
 
 ## 4. Use it in a chat
 
@@ -59,7 +59,7 @@ Claude decides on its own when to search, read or list pages. It shows you which
 
 You can end the connection from either side:
 
-- **In Speicher:** open **Connected applications** (`/-/connections`) and click **Disconnect** next to Claude.
+- **In speicher.md:** open **Connected applications** (`/-/connections`) and click **Disconnect** next to Claude.
 - **In Claude:** remove the connector under **Settings → Connectors**.
 
 ## Troubleshooting

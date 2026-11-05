@@ -8,7 +8,7 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
   return {
     ...sectionHead('defaults'),
     blurb:
-      'Speicher ingests only Markdown files (`.md` and `.mdx`) from a repository. The include and exclude lists below decide which of those files are ingested.',
+      'speicher.md ingests only Markdown files (`.md` and `.mdx`) from a repository. The include and exclude lists below decide which of those files are ingested.',
     twoColumns: true,
     fields: [
       textField(
@@ -17,11 +17,11 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
         'defaults.display.cover',
         'Default cover image path',
         {
-          help: 'The path in which Speicher.md looks for the default cover image in every repository, relative to the repository root. For example at `assets/cover.png`. A repository or folder that sets its own `display.cover` in `.speicher.yaml` replaces it. Use a PNG, JPEG, WebP, AVIF or GIF image.',
+          help: 'The path in which speicher.md looks for the default cover image in every repository, relative to the repository root. For example at `assets/cover.png`. A repository or folder that sets its own `display.cover` in `.speicher.yaml` replaces it. Use a PNG, JPEG, WebP, AVIF or GIF image.',
         },
       ),
       linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
-        help: 'The include list selects the files that Speicher.md copies from a repository. The Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. Files that do not match any pattern are not downloaded. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
+        help: 'The include list selects the files that speicher.md copies from a repository. The Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. Files that do not match any pattern are not downloaded. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
         fallback: SYNC_DEFAULTS.include,
         placeholder: '**/*.md\n**/*.mdx\n**/*.png\ndocs/**/*.md',
         rows: 6,

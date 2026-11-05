@@ -25,11 +25,11 @@ const IDENTITY_PROVIDER_PERMISSIONS = {
 };
 
 const SPEICHER_DESCRIPTION =
-  'Speicher.md is a tool for sharing your Markdown files, for documentation or from your Obsidian vault. It uses simple Git repositories as the source, so your files stay under version control. You can share the files publicly, or with groups and single people who sign in with one of the supported identity providers (GitHub, Microsoft Entra, Google), so nobody needs an account on Speicher.md. Every page is plain HTML and CSS and works without JavaScript, and the Speicher.md MCP server lets your AI agent use the documentation as context.';
+  'speicher.md is a tool for sharing your Markdown files, for documentation or from your Obsidian vault. It uses simple Git repositories as the source, so your files stay under version control. You can share the files publicly, or with groups and single people who sign in with one of the supported identity providers (GitHub, Microsoft Entra, Google), so nobody needs an account on speicher.md. Every page is plain HTML and CSS and works without JavaScript, and the speicher.md MCP server lets your AI agent use the documentation as context.';
 
-const CONTENT_SOURCE_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App gives Speicher.md read access to the repositories it is installed on. Speicher.md reads their Markdown files, updates its pages whenever a change is pushed, and checks the \`.speicher.yaml\` in pull requests.`;
+const CONTENT_SOURCE_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App gives speicher.md read access to the repositories it is installed on. speicher.md reads their Markdown files, updates its pages whenever a change is pushed, and checks the \`.speicher.yaml\` in pull requests.`;
 
-const IDENTITY_PROVIDER_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets people sign in to Speicher.md with their GitHub account. Access can then be granted to their GitHub teams, or to them by email address.`;
+const IDENTITY_PROVIDER_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets people sign in to speicher.md with their GitHub account. Access can then be granted to their GitHub teams, or to them by email address.`;
 
 const DIRECTORY_PERMISSIONS = {
   members: 'read',
@@ -37,7 +37,7 @@ const DIRECTORY_PERMISSIONS = {
 
 const DIRECTORY_EVENTS = ['membership', 'team', 'organization'];
 
-const DIRECTORY_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets Speicher.md look up the members and teams of the organizations it is installed on. Speicher.md uses this to notice when someone leaves a team or the organization during their session, and to show how many people a team grant reaches.`;
+const DIRECTORY_DESCRIPTION = `${SPEICHER_DESCRIPTION}\n\nThis App lets speicher.md look up the members and teams of the organizations it is installed on. speicher.md uses this to notice when someone leaves a team or the organization during their session, and to show how many people a team grant reaches.`;
 
 export interface AppManifest {
   name: string;
@@ -92,13 +92,13 @@ export type AppManifestOptions =
 const MAX_APP_NAME = 34;
 
 /**
- * signInAppName returns the name of an identity provider's App: the hostname of this instance, then `Speicher.md`.
+ * signInAppName returns the name of an identity provider's App: the hostname of this instance, then `speicher.md`.
  * A hostname too long for GitHub's limit on App names is shortened.
  *
  * @param homepage the address of this instance
  */
 export function signInAppName(homepage: string): string {
-  const suffix = ' Speicher.md';
+  const suffix = ' speicher.md';
   let host: string;
   try {
     host = new URL(homepage).hostname;
@@ -137,7 +137,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
     return {
       ...base,
       ...webhookOf(options.webhookUrl, DIRECTORY_EVENTS),
-      name: 'Speicher.md Directory',
+      name: 'speicher.md Directory',
       description: DIRECTORY_DESCRIPTION,
       default_permissions: DIRECTORY_PERMISSIONS,
     };
@@ -145,7 +145,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   return {
     ...base,
     ...webhookOf(options.webhookUrl, CONTENT_SOURCE_EVENTS),
-    name: 'Speicher.md',
+    name: 'speicher.md',
     description: CONTENT_SOURCE_DESCRIPTION,
     default_permissions: CONTENT_SOURCE_PERMISSIONS,
   };

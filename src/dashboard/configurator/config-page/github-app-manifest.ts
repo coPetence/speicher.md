@@ -224,7 +224,7 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
         : []),
     ],
     unsavedNotice: (installUrl) =>
-      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the repositories Speicher.md should be able to read.`,
+      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the repositories speicher.md should be able to read.`,
   };
 }
 
@@ -281,7 +281,7 @@ export function identityProviderTarget(
           ]
         : [],
     unsavedNotice: (installUrl) =>
-      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the organization whose members should be able to sign in, so Speicher.md can read their teams.`,
+      `App successfully created, but this page could not be saved yet. The App's credentials are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on the organization whose members should be able to sign in, so speicher.md can read their teams.`,
   };
 }
 
@@ -321,7 +321,7 @@ export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarge
         : []),
     ],
     unsavedNotice: (installUrl) =>
-      `App successfully created, but this page could not be saved yet. The App's id and private key are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on every organization whose members and teams Speicher.md should look up.`,
+      `App successfully created, but this page could not be saved yet. The App's id and private key are filled in below. Fix the problems on this page and save it, then [install the App](${installUrl}) on every organization whose members and teams speicher.md should look up.`,
   };
 }
 

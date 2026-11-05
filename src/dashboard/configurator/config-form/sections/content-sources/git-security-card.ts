@@ -33,7 +33,7 @@ export function securityCard(root: Obj, id: string): Card {
   const servers = sshServers(root, id);
   return {
     title: 'Security',
-    subtitle: 'Which SSH servers Speicher trusts when it fetches the repositories.',
+    subtitle: 'Which SSH servers speicher.md trusts when it fetches the repositories.',
     removeOp: null,
     notes: [],
     cards: [],
@@ -42,7 +42,7 @@ export function securityCard(root: Obj, id: string): Card {
     hidden: servers.length === 0,
     items: [
       knownHostsField(root, [...base, 'known_hosts'], p('known_hosts'), 'Known hosts', {
-        help: 'These are the SSH host keys of the servers the `ssh://` repositories of this source are fetched from. A host key is the public key a server proves its identity with, so Speicher can authenticate the real server. Speicher does not connect to a server whose key is not listed here. To add the keys, press **Fetch host keys** and ==compare the fingerprints with the ones published by the administrator of the server==, and save.',
+        help: 'These are the SSH host keys of the servers the `ssh://` repositories of this source are fetched from. A host key is the public key a server proves its identity with, so speicher.md can authenticate the real server. speicher.md does not connect to a server whose key is not listed here. To add the keys, press **Fetch host keys** and ==compare the fingerprints with the ones published by the administrator of the server==, and save.',
         rows: 3,
         servers,
         required: servers.length > 0,

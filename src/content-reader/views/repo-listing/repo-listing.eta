@@ -8,14 +8,14 @@
   <p class="spr-empty">No repository on this instance is shared with you yet.</p>
   <% } else if (!it.has_content_source) { %>
   <h1>No repositories yet</h1>
-  <p class="spr-empty"><%~ md('Speicher reads documentation from the repositories of a content source. To add one, open [Content sources](/-/config/sources).') %></p>
+  <p class="spr-empty"><%~ md('speicher.md reads documentation from the repositories of a content source. To add one, open [Content sources](/-/config/sources).') %></p>
   <% } else { %>
   <h1>No repositories yet</h1>
-  <p class="spr-empty"><%~ md('Speicher has not found a repository with a speicher.yaml yet. To see the current synchronization status, open [Sync status](/-/status).') %></p>
+  <p class="spr-empty"><%~ md('speicher.md has not found a repository with a speicher.yaml yet. To see the current synchronization status, open [Sync status](/-/status).') %></p>
   <% } %>
 </div>
 <% } else { %>
-<h1>Speicher</h1>
+<h1>speicher.md</h1>
 <% if (!it.authenticated && !it.repos.length) { %>
 <p class="spr-empty">
   You are not signed in. <a href="/api/auth/login">Sign in</a> to see the

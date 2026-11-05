@@ -1096,7 +1096,7 @@ describe('the proving login through a magic link', () => {
 
     const token = await askForLink(agent, 'Ada@Example.test');
     expect(sent.map(({ to, subject }) => [to, subject])).toEqual([
-      ['ada@example.test', 'Become the Speicher administrator'],
+      ['ada@example.test', 'Become the speicher.md administrator'],
     ]);
 
     const done = await agent.get(`/api/auth/magic/callback?token=${token}`).expect(302);

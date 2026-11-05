@@ -24,7 +24,7 @@ export function adminSummary(findings: FindingList): string {
 export function authorSummary(findings: FindingList): string {
   const subtrees = [...new Set(findings.rejections.map((f) => f.source))];
   return [
-    `✗ speicher — sync failed for ${subtrees.join(', ')}`,
+    `✗ speicher.md — sync failed for ${subtrees.join(', ')}`,
     findings.toAuthorText(),
     '  Serving the previous version until this is fixed.',
   ].join('\n');

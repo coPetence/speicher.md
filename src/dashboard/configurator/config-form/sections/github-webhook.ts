@@ -13,7 +13,7 @@ export interface WebhookWording {
 export function webhookNote(url: string, baseUrl: string, wording: WebhookWording): string {
   const reach = webhookReach(url, baseUrl);
   if (reach === 'refused') {
-    return `Speicher will create the App without a webhook, because GitHub does not accept a webhook on localhost. Without a webhook, ${wording.without}.`;
+    return `speicher.md will create the App without a webhook, because GitHub does not accept a webhook on localhost. Without a webhook, ${wording.without}.`;
   }
   if (reach === 'uncertain') {
     return `GitHub may not be able to reach the address of this instance, because it points to a private network or is not known yet. If GitHub cannot reach it, ${wording.without}.`;

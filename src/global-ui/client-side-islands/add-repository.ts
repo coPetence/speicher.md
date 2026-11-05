@@ -87,7 +87,7 @@ export function mountAddRepository(checkNow: (href: string) => Promise<boolean>)
     again.disabled = false;
     if (before !== seen) return;
     if (!answered) {
-      say('Speicher.md could not finish the check. To try again, press Check again.');
+      say('speicher.md could not finish the check. To try again, press Check again.');
       return;
     }
 
@@ -98,14 +98,14 @@ export function mountAddRepository(checkNow: (href: string) => Promise<boolean>)
     found.push(...rowsOf(picked, added));
     if (found.length === 0) {
       say(
-        `Speicher.md found no new repository in ${source} yet. If you just saved on GitHub, wait a moment and check again.`,
+        `speicher.md found no new repository in ${source} yet. If you just saved on GitHub, wait a moment and check again.`,
       );
       return;
     }
     say(
       found.length === 1
-        ? `Speicher.md found a new repository in ${source}.`
-        : `Speicher.md found ${found.length} new repositories in ${source}.`,
+        ? `speicher.md found a new repository in ${source}.`
+        : `speicher.md found ${found.length} new repositories in ${source}.`,
     );
     list.replaceChildren(...found);
     list.hidden = false;
@@ -162,7 +162,7 @@ export async function lookUpSources(load: (href: string) => Promise<Document>): 
   } catch {
     for (const note of modal.querySelectorAll('[data-spr-add-lookup]')) {
       note.textContent =
-        'Speicher.md could not look up the GitHub App. To try again, reload the page.';
+        'speicher.md could not look up the GitHub App. To try again, reload the page.';
     }
   }
 }

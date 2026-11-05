@@ -60,7 +60,7 @@ function unsearchableNote(config: ConfigCommon): Note {
   if (config.unreadable) {
     return {
       level: 'warn',
-      html: `Only pages are searchable, because Speicher cannot read the configuration file ${file}: ${escapeHtml(config.unreadable)}. To search the settings as well, make sure that the file exists and that Speicher may read it.`,
+      html: `Only pages are searchable, because speicher.md cannot read the configuration file ${file}: ${escapeHtml(config.unreadable)}. To search the settings as well, make sure that the file exists and that speicher.md may read it.`,
     };
   }
 

@@ -4,9 +4,9 @@ icon: file-text
 
 # Markdown syntax
 
-Speicher reads CommonMark with the usual GitHub additions, plus callouts, wikilinks, footnotes and a set of MDX components. Pages render to plain HTML, so everything here works without JavaScript.
+speicher.md reads CommonMark with the usual GitHub additions, plus callouts, wikilinks, footnotes and a set of MDX components. Pages render to plain HTML, so everything here works without JavaScript.
 
-By default, Speicher reads every `.md` and `.mdx` file in the repository except `README.md` files. To change that, set [`sync`](01-speicher-yaml.md#choosing-files-with-sync) in `.speicher.yaml`.
+By default, speicher.md reads every `.md` and `.mdx` file in the repository except `README.md` files. To change that, set [`sync`](01-speicher-yaml.md#choosing-files-with-sync) in `.speicher.yaml`.
 
 ## Pages and folders
 
@@ -23,7 +23,7 @@ The title comes from the first of these that exists:
 2. the first `# Heading` of the page
 3. the file name, without prefix and extension
 
-The first `# Heading` is shown as the page title, so Speicher removes it from the page body. Start your sections with `##`.
+The first `# Heading` is shown as the page title, so speicher.md removes it from the page body. Start your sections with `##`.
 
 ## Frontmatter
 
@@ -45,12 +45,12 @@ draft: false
 - `tags` link pages on the same topic. They have no effect on who can read the page.
 - `redirect_from` lists old addresses that should redirect here, for example after moving a page. Write the full path as it appears in the URL, including the repository, such as `/handbook/ops/deploy` or `/acme/handbook/ops/deploy`.
 - `draft: true` leaves the file out completely.
-- Keys Speicher doesn't know are ignored, and the sync warns about them.
+- Keys speicher.md doesn't know are ignored, and the sync warns about them.
 
 All keys are listed under [Frontmatter](../06-reference/05-frontmatter.md). Frontmatter cannot change who can read a page; that is what [`.speicher.yaml`](02-access.md) is for.
 
 :::caution
-If the frontmatter is not valid YAML, Speicher rejects the file and reports the error on the **Sync status** page. The rest of its folder is not updated in that sync.
+If the frontmatter is not valid YAML, speicher.md rejects the file and reports the error on the **Sync status** page. The rest of its folder is not updated in that sync.
 :::
 
 ## Headings and anchors
@@ -109,7 +109,7 @@ If you write in Obsidian, you can keep its link syntax:
 ![[diagrams/architecture.png]]
 ```
 
-Speicher looks for the target relative to the current file, then from the repository root, then by file name anywhere in the repository. The extension is optional. If several files have the same name, the link goes to the first one, and the sync warns you to write a path instead.
+speicher.md looks for the target relative to the current file, then from the repository root, then by file name anywhere in the repository. The extension is optional. If several files have the same name, the link goes to the first one, and the sync warns you to write a path instead.
 
 `![[image.png]]` shows the image. `![[Some page]]` cannot show a page inside another yet, so it becomes a link to that page.
 
@@ -160,7 +160,7 @@ GitHub's alert syntax works too:
 
 ```md
 > [!NOTE]
-> Speicher reads this as a note.
+> speicher.md reads this as a note.
 ```
 
 Here the types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING` and `CAUTION`. Following GitHub, `CAUTION` looks the same as `danger`.
@@ -175,7 +175,7 @@ Here the types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING` and `CAUTION`. Followin
 - [x] Write the page
 - [ ] Review it
 
-Speicher reads Markdown.[^1]
+speicher.md reads Markdown.[^1]
 
 [^1]: CommonMark, with the GitHub additions.
 ```
@@ -187,9 +187,9 @@ Speicher reads Markdown.[^1]
 
 ## HTML
 
-You can mix HTML into Markdown. Speicher keeps text formatting and structure, such as `<details>`/`<summary>`, `<kbd>`, `<mark>`, `<sub>`, `<sup>`, `<abbr>`, `<dl>`, tables and `<img>`.
+You can mix HTML into Markdown. speicher.md keeps text formatting and structure, such as `<details>`/`<summary>`, `<kbd>`, `<mark>`, `<sub>`, `<sup>`, `<abbr>`, `<dl>`, tables and `<img>`.
 
-It removes everything that could run code or change the page's layout: `<script>`, `<style>`, `<iframe>`, `<object>`, forms, `style` attributes, event handlers such as `onclick`, and `javascript:` links. Classes are removed too, except the ones Speicher uses itself.
+It removes everything that could run code or change the page's layout: `<script>`, `<style>`, `<iframe>`, `<object>`, forms, `style` attributes, event handlers such as `onclick`, and `javascript:` links. Classes are removed too, except the ones speicher.md uses itself.
 
 ## MDX components
 
@@ -241,7 +241,7 @@ New in this release: <Badge text="Beta" variant="tip" />
 
 Leave a blank line between a component's tags and Markdown content inside it, as in the example.
 
-What Speicher does with the rest of MDX:
+What speicher.md does with the rest of MDX:
 
 - `import` and `export` lines at the top of the file are ignored.
 - An unknown component, such as a custom `<Chart>`, is left out, but the content between its tags is shown. The sync warns about it.
@@ -251,7 +251,7 @@ What Speicher does with the rest of MDX:
 
 ## Coming from Docusaurus or Starlight
 
-You can point Speicher at an existing Docusaurus or Starlight `docs/` folder with `ingest_root` and keep writing as before:
+You can point speicher.md at an existing Docusaurus or Starlight `docs/` folder with `ingest_root` and keep writing as before:
 
 - `sidebar_position` (Docusaurus) and `sidebar.order` (Starlight) in the frontmatter set the order of pages. They are only used in folders where no file has a number prefix. If a folder mixes both, the prefixes win and the sync warns.
 - `:::note`-style admonitions and Starlight's components work as described above.

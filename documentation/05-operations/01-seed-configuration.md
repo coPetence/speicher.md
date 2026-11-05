@@ -8,7 +8,7 @@ Instead of claiming the instance and configuring it in the browser, you can star
 
 ## How seeding works
 
-When Speicher starts and its database holds no configuration yet, it reads the file at `SPEICHER_CONFIG` and stores it as configuration version 1. The web process logs:
+When speicher.md starts and its database holds no configuration yet, it reads the file at `SPEICHER_CONFIG` and stores it as configuration version 1. The web process logs:
 
 ```
 web-1  | {"level":"info","ctx":"config","msg":"adopted the config file as instance config version 1","path":"/etc/speicher/speicher.instance.yaml"}
@@ -17,11 +17,11 @@ web-1  | {"level":"info","ctx":"config","msg":"adopted the config file as instan
 From then on, the database holds the configuration and the file is no longer read:
 
 - Change the configuration in the dashboard under `/-/config`. Editing the file has no effect.
-- If the file is missing, Speicher serves the claim page as usual.
-- If the file is invalid, for example because of a typo in a key or an unset `${VAR}`, Speicher stores nothing and reports the error.
+- If the file is missing, speicher.md serves the claim page as usual.
+- If the file is invalid, for example because of a typo in a key or an unset `${VAR}`, speicher.md stores nothing and reports the error.
 
 :::note
-This is different from `SPEICHER_CONFIG_SOURCE=file`, where the file stays the configuration for good. It is then read-only in the dashboard, and you restart Speicher to apply changes.
+This is different from `SPEICHER_CONFIG_SOURCE=file`, where the file stays the configuration for good. It is then read-only in the dashboard, and you restart speicher.md to apply changes.
 :::
 
 ## 1. Write the file
@@ -50,7 +50,7 @@ admins:
     - email: you@example.com
 ```
 
-- Register Speicher with your provider first, as its guide in [Set up the instance](../01-quick-start/02-setup-instance.md#1-add-an-identity-provider) explains.
+- Register speicher.md with your provider first, as its guide in [Set up the instance](../01-quick-start/02-setup-instance.md#1-add-an-identity-provider) explains.
 - `groups` is optional here, but repositories grant access to these names, so it's convenient to define them now.
 - Every other key is listed in the [instance configuration reference](../06-reference/03-instance-configuration.md).
 
@@ -91,7 +91,7 @@ Look for the `adopted the config file` line. Because the file names an administr
 
 ## Seeding again
 
-Speicher seeds only into an empty database. To start over from the file, remove the database volume, which deletes everything the instance has stored:
+speicher.md seeds only into an empty database. To start over from the file, remove the database volume, which deletes everything the instance has stored:
 
 ```sh
 docker compose down

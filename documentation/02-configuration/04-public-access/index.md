@@ -47,11 +47,11 @@ Visitors who are not signed in can:
 - see public pages in the navigation and in search results, and nothing else
 - use the MCP server with an AI assistant, limited to public pages. When no repository is public, the MCP server asks every caller to sign in.
 
-When at least one repository is public, `robots.txt` allows search engines to crawl the public pages and points them to `sitemap.xml`. The sitemap lists every public page. It needs `SPEICHER_PUBLIC_URL` to be set, since Speicher does not build absolute URLs from the request. When no repository is public, `robots.txt` blocks all crawlers and there is no sitemap.
+When at least one repository is public, `robots.txt` allows search engines to crawl the public pages and points them to `sitemap.xml`. The sitemap lists every public page. It needs `SPEICHER_PUBLIC_URL` to be set, since speicher.md does not build absolute URLs from the request. When no repository is public, `robots.txt` blocks all crawlers and there is no sitemap.
 
 ## Caching and rate limiting
 
-Pages that visitors who are not signed in receive are marked as cacheable, so a CDN or proxy in front of Speicher can serve them. Pages for signed-in people are never cached.
+Pages that visitors who are not signed in receive are marked as cacheable, so a CDN or proxy in front of speicher.md can serve them. Pages for signed-in people are never cached.
 
 Requests from visitors who are not signed in are rate-limited per IP address when they carry query parameters, as a search does. Plain page views are not counted. People who are signed in are never limited.
 

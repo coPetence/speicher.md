@@ -46,7 +46,7 @@ export function sendRoot(
   });
   sendHtml(res, (nonce) =>
     renderPage(body, {
-      title: 'Speicher',
+      title: 'speicher.md',
       nonce,
       // Not the tree island: its router would turn a card into a fragment swap
       // onto a page whose tree this one never had. The root's own island does

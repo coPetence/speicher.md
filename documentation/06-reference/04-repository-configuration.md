@@ -156,7 +156,7 @@ Whether pages are indexed automatically.
 
 **Type:** boolean
 
-Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in Speicher's own search. Once turned off, a subfolder cannot turn it back on.
+Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in speicher.md's own search. Once turned off, a subfolder cannot turn it back on.
 
 ## sync
 

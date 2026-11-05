@@ -21,8 +21,8 @@ Under **Branding → Logos** you can upload three images:
 | Favicon                    | PNG or SVG       | 1 MB       | The browser tab                                           |
 
 - The favicon must be square. A PNG favicon must be at least 32×32 pixels.
-- SVG files may not contain scripts, event handlers, embedded HTML, entities, or references to anything outside the file, such as external images or stylesheets. Speicher refuses such a file when you upload it.
-- Speicher checks the file's actual content, so a file whose extension does not match its format is refused.
+- SVG files may not contain scripts, event handlers, embedded HTML, entities, or references to anything outside the file, such as external images or stylesheets. speicher.md refuses such a file when you upload it.
+- speicher.md checks the file's actual content, so a file whose extension does not match its format is refused.
 
 With a logo, the name is still shown beside it. If your logo already contains the name, turn off **Show name** (`brand.show_name`). **Name alignment** (`brand.name_align`) decides whether the name is centred on the logo's height or sits on its bottom edge.
 
@@ -34,7 +34,7 @@ Uploaded images are stored in the database, and the configuration refers to them
 
 ## Template
 
-A template sets the overall look of every page. Choose it under **Theme** (`theme.template`). Speicher ships four:
+A template sets the overall look of every page. Choose it under **Theme** (`theme.template`). speicher.md ships four:
 
 - `default`
 - `blueprint`
@@ -56,7 +56,7 @@ The dashboard shows a preview of each one before you save. Every template has a 
 | `serif`  | A serif font                       |
 | `mono`   | A monospace font                   |
 
-Each value uses fonts already installed on the reader's device. Speicher loads no web fonts, so you cannot choose a font by name.
+Each value uses fonts already installed on the reader's device. speicher.md loads no web fonts, so you cannot choose a font by name.
 
 ## Colours
 
@@ -68,7 +68,7 @@ Three colours make most of the difference:
 - **Body text** (`fg`)
 - **Accent** (`accent`): links, focus rings and highlights. Use your brand colour here.
 
-If you leave **Quiet text**, **Rules and borders** and **Panels** empty, Speicher mixes them from the background and text colours, so they stay in tune when you change those two. The other colours cover search highlights, the warning strip, the five callout types and syntax highlighting in code blocks.
+If you leave **Quiet text**, **Rules and borders** and **Panels** empty, speicher.md mixes them from the background and text colours, so they stay in tune when you change those two. The other colours cover search highlights, the warning strip, the five callout types and syntax highlighting in code blocks.
 
 Colours are hex values with three or six digits, such as `#0b5fff` or `#fff`.
 
@@ -80,7 +80,7 @@ The palette applies to the documentation only, not to the dashboard. If you choo
 
 ## Attribution
 
-At the bottom of every page, Speicher shows `Published with speicher.md`, linking to the Speicher website. Turn it off with **Show "Published with `speicher.md`"** (`attribution: false`). The text itself cannot be changed.
+At the bottom of every page, speicher.md shows `Published with speicher.md`, linking to the speicher.md website. Turn it off with **Show "Published with `speicher.md`"** (`attribution: false`). The text itself cannot be changed.
 
 ## Configuration file
 
@@ -149,6 +149,6 @@ Every colour key is listed under `theme.palette` in the [instance configuration 
 <!-- prettier-ignore-start -->
 | Key | Type | Default | Required | Description |
 | --- | --- | --- | --- | --- |
-| `attribution` | boolean | `true` |  | Whether pages show `Published with speicher.md` at the bottom, linking to the Speicher website. The text cannot be changed. Example: `false`. |
+| `attribution` | boolean | `true` |  | Whether pages show `Published with speicher.md` at the bottom, linking to the speicher.md website. The text cannot be changed. Example: `false`. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

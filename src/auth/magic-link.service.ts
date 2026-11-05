@@ -87,13 +87,17 @@ export class MagicLinkService {
     if (namesFirstAdmin) {
       await this.mailer.send(
         address,
-        'Become the Speicher administrator',
+        'Become the speicher.md administrator',
         `Sign in to become the first administrator of this instance: ${link}\n\n` +
           `Open it in the browser you set up the instance in. ${expiry}`,
       );
       return;
     }
-    await this.mailer.send(address, 'Your Speicher sign-in link', `Sign in: ${link}\n\n${expiry}`);
+    await this.mailer.send(
+      address,
+      'Your speicher.md sign-in link',
+      `Sign in: ${link}\n\n${expiry}`,
+    );
   }
 
   /**

@@ -1,8 +1,8 @@
 <div class="spr-welcome">
   <span class="spr-welcome-mark"><%~ it.mark_icon %></span>
-  <h1>Welcome to Speicher.md</h1>
+  <h1>Welcome to speicher.md</h1>
   <p>
-    Speicher.md shares the Markdown files in your Git repositories, from documentation to notes in your Obsidian vault. People can sign in with the accounts they already have, such as GitHub, Microsoft Entra ID or Google, and will see only the files you have granted them access to. You can use Speicher.md to share your documentation with the world, or to share your private notes with your team.
+    speicher.md shares the Markdown files in your Git repositories, from documentation to notes in your Obsidian vault. People can sign in with the accounts they already have, such as GitHub, Microsoft Entra ID or Google, and will see only the files you have granted them access to. You can use speicher.md to share your documentation with the world, or to share your private notes with your team.
   </p>
   <% if (it.finished) { %>
   <%~ include('@note', { level: 'ok', html: md('The setup of this instance is complete. All settings remain available under [Configuration](/-/config).') }) %>

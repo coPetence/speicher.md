@@ -48,7 +48,7 @@ When you're done, commit and push the file.
 
 ## 3. Give the content source access to the repository
 
-Speicher reads the repository through the content source you added [during setup](02-setup-instance.md#3-add-a-content-source). Make sure that source covers this repository:
+speicher.md reads the repository through the content source you added [during setup](02-setup-instance.md#3-add-a-content-source). Make sure that source covers this repository:
 
 - **GitHub App:** the App must be installed on the repository. If you installed it on selected repositories only, add this one, as described in [Install the App](../02-configuration/03-content-sources/01-github/index.md#3-install-the-app).
 - **Plain git remote:** the source reads only the repositories listed in it. Add this one by its remote URL, as described in [Add a repository](../02-configuration/03-content-sources/02-plain-git-remote/index.md#2-add-a-repository).

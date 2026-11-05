@@ -1,7 +1,7 @@
 <h1>Claim this instance</h1>
 
 <p class="spr-empty">
-  This Speicher instance has not been configured. To become its administrator,
+  This speicher.md instance has not been configured. To become its administrator,
   run the command below from the shell on the host this instance is running on:
 </p>
 

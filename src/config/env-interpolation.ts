@@ -17,7 +17,7 @@ export function interpolateEnv<T>(value: T, env: NodeJS.ProcessEnv = process.env
       problem('config.env-missing', null, {
         text: 'Config uses unset or empty environment variables.',
         dashboard:
-          'Config uses unset or empty environment variables. Set them where Speicher runs, or replace the references with values here.',
+          'Config uses unset or empty environment variables. Set them where speicher.md runs, or replace the references with values here.',
       }),
       [...missing].sort().map((n) =>
         problem('env.unset', null, {

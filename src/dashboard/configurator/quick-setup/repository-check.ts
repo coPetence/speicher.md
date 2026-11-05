@@ -173,7 +173,7 @@ export function starterConfig(groups: string[]): string {
   return [
     'version: 1',
     '',
-    '# Who may read this repository. Every name is a group of your Speicher.md instance',
+    '# Who may read this repository. Every name is a group of your speicher.md instance',
     'access:',
     `  groups: [${groups.length > 0 ? groups.join(', ') : 'readers'}]`,
     '',
