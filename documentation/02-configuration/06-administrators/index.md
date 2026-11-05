@@ -42,7 +42,7 @@ admins:
       note: Sam Lee, platform team
 ```
 
-Each group must be one of the instance's [groups](../../01-quick-start/02-setup-instance.md#3-create-groups), and each person needs a `provider`, unless the instance has only one provider or sets `auth.default_provider`.
+Each group must be one of the instance's [groups](../../01-quick-start/02-setup-instance.md#2-create-groups), and each person needs a `provider`, unless the instance has only one provider or sets `auth.default_provider`.
 
 From the host, you can also add a person with the CLI:
 
@@ -60,14 +60,14 @@ The check only looks at the configuration. It cannot tell whether an administrat
 
 ## The first administrator
 
-A new instance has no administrator. The first one signs in during setup, as described in [Set up the instance](../../01-quick-start/02-setup-instance.md#5-become-the-first-administrator).
+A new instance has no administrator. The first one signs in during setup, as described in [Set up the instance](../../01-quick-start/02-setup-instance.md#4-become-the-first-administrator).
 
 ## Locked out
 
 If no administrator can sign in anymore, use the CLI on the host:
 
 - If an administrator is configured but cannot sign in, add yourself with `speicher admin add`, as shown above.
-- If no administrator is configured at all, for example after rolling back the configuration, run `speicher reopen-claim-window` and [claim the instance](../../01-quick-start/02-setup-instance.md#1-claim-the-instance) again.
+- If no administrator is configured at all, for example after rolling back the configuration, run `speicher reopen-claim-window` and [claim the instance](../../01-quick-start/04-self-hosted-manual.md#4-claim-the-instance) again.
 
 ## Administrators of one repository
 

@@ -50,7 +50,7 @@ admins:
     - email: you@example.com
 ```
 
-- Register Speicher with your provider first, as its guide in [Set up the instance](../01-quick-start/02-setup-instance.md#2-add-an-identity-provider) explains.
+- Register Speicher with your provider first, as its guide in [Set up the instance](../01-quick-start/02-setup-instance.md#1-add-an-identity-provider) explains.
 - `groups` is optional here, but repositories grant access to these names, so it's convenient to define them now.
 - Every other key is listed in the [instance configuration reference](../06-reference/03-instance-configuration.md).
 

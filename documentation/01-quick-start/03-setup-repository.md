@@ -53,7 +53,7 @@ Speicher reads the repository through the content source you added [during setup
 - **GitHub App:** the App must be installed on the repository. If you installed it on selected repositories only, add this one, as described in [Install the App](../02-configuration/03-content-sources/01-github/index.md#3-install-the-app).
 - **Plain git remote:** the source reads only the repositories listed in it. Add this one by its remote URL, as described in [Add a repository](../02-configuration/03-content-sources/02-plain-git-remote/index.md#2-add-a-repository).
 
-If you have no content source yet, add one first, as described in [Add a content source](02-setup-instance.md#4-add-a-content-source).
+If you have no content source yet, add one first, as described in [Add a content source](02-setup-instance.md#3-add-a-content-source).
 
 ## 4. Wait for the first sync
 
@@ -68,4 +68,4 @@ After signing in, the members of the groups listed under `access` in `.speicher.
 ## Next steps
 
 - [Access](../03-repository/02-access.md): narrow access in individual folders with their own `.speicher.yaml`, grant individual people access until a set date, or make pages publicly available without sign-in.
-- [Connect an AI assistant](../04-ai-assistants/01-index.mdx) to chat with your documentation.
+- [Connect an AI assistant](../04-ai-assistants/index.mdx) to chat with your documentation.

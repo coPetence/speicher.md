@@ -58,7 +58,7 @@ You can end the connection from either side:
 ## Troubleshooting
 
 **ChatGPT asks you to connect again every day.**
-Your identity provider has no directory lookup, so connections end after the session lifetime. See [How long a connection lasts](./#how-long-a-connection-lasts).
+Your identity provider has no directory lookup, so connections end after the session lifetime. See [How long a connection lasts](index.mdx#how-long-does-a-connection-last).
 
 **ChatGPT cannot find a page you can open in the browser.**
 Make sure you signed in with the same account in step 2. ChatGPT only sees what that account can see.

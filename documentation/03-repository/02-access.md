@@ -15,7 +15,7 @@ version: 1
 access: [staff]
 ```
 
-The names are Speicher's own group names, which an administrator maps to groups of your identity provider. See [Create groups](../01-quick-start/02-setup-instance.md#3-create-groups).
+The names are Speicher's own group names, which an administrator maps to groups of your identity provider. See [Create groups](../01-quick-start/02-setup-instance.md#2-create-groups).
 
 The list above is a shorthand. The full form also lets you grant access to [individual people](#granting-access-to-individual-people):
 
