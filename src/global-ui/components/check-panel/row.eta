@@ -9,5 +9,9 @@
         <a class="spr-setup-file-action" href="<%= repo.create_href %>" title="Create .speicher.yaml" data-spr-config-file-action="<%= repo.create_action %>" data-spr-config-file-repository="<%= repo.name %>"><%~ it.createIcon %>Create</a>
         <% } else if (repo.create_href) { %>
         <a class="spr-ready-action" href="<%= repo.create_href %>">Create .speicher.yaml</a>
+        <% } else if (repo.edit_href && it.inPlace) { %>
+        <a class="spr-setup-file-action" href="<%= repo.edit_href %>" target="_blank" rel="noopener" title="Edit .speicher.yaml on GitHub"><%~ it.editIcon %>Edit<%~ it.externalIcon %></a>
+        <% } else if (repo.edit_href) { %>
+        <a class="spr-ready-action" href="<%= repo.edit_href %>" target="_blank" rel="noopener">Edit .speicher.yaml<%~ it.externalIcon || '' %></a>
         <% } %>
       </li>

@@ -43,7 +43,7 @@
         </div>
         <template data-spr-add-rows>
           <% source.found.forEach(function (repo) { %>
-          <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state], inPlace: true, createIcon: it.addIcon }) %>
+          <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state], inPlace: true, createIcon: it.addIcon, editIcon: it.editIcon, externalIcon: it.externalIcon }) %>
           <% }) %>
         </template>
       </div>

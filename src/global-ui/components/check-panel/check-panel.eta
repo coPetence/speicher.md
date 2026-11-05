@@ -34,7 +34,7 @@
     </p>
     <ul class="spr-check-list">
       <% check.repositories.forEach(function (repo) { %>
-      <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state] }) %>
+      <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state], externalIcon: it.externalIcon }) %>
       <% }) %>
     </ul>
     <% if (check.more) { %>
