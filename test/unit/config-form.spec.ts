@@ -2733,6 +2733,48 @@ describe("a GitHub identity provider's App setup", () => {
     expect(directoryChoice(FULL, 'hub')).toBeUndefined();
   });
 
+  const requiredPaths = (yaml: string, id: string) =>
+    allFields([sectionOf(loadDocument(yaml), id)!])
+      .filter((field) => field.required)
+      .map((field) => field.path);
+
+  it.each([
+    ['assets:\n  driver: filesystem\n', ['assets.path']],
+    ['assets:\n  driver: s3\n', ['assets.bucket', 'assets.region']],
+    [
+      'assets:\n  driver: azure\n  auth: key\n',
+      ['assets.account', 'assets.container', 'assets.account_key'],
+    ],
+    [
+      'assets:\n  driver: azure\n  auth: connection_string\n',
+      ['assets.account', 'assets.container', 'assets.connection_string'],
+    ],
+    [
+      'assets:\n  driver: azure\n  auth: managed_identity\n',
+      ['assets.account', 'assets.container'],
+    ],
+  ])('marks what the driver needs as required for %j', (yaml, expected) => {
+    expect(requiredPaths(yaml, 'storage')).toEqual(expected);
+  });
+
+  it('marks the fields of semantic retrieval that the schema requires', () => {
+    expect(requiredPaths('', 'embedding')).toEqual([
+      'embedding.base_url',
+      'embedding.model',
+      'embedding.dimensions',
+    ]);
+  });
+
+  it('marks the App id and private key of a GitHub source as required', () => {
+    const yaml = 'forges:\n  gh:\n    type: github\n    app_id: "1"\n';
+    expect(requiredPaths(yaml, 'sources/gh')).toEqual([
+      'forges.gh.app_id',
+      'forges.gh.private_key',
+    ]);
+    const section = sectionOf(loadDocument(yaml), 'sources/gh')!;
+    expect(section.cards.find((card) => card.title === 'GitHub App')?.required).toBe(true);
+  });
+
   it('marks the GitHub App card and its client id and secret as required', () => {
     const section = sectionOf(loadDocument(FULL), 'identity/hub')!;
     expect(section.cards.find((card) => card.title === 'GitHub App')?.required).toBe(true);

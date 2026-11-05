@@ -1,6 +1,6 @@
 <% const f = it.field %>
     <% if (f.help) { %><div class="spr-field-head"><% } %>
     <label for="f-<%= f.path %>">
-      <%= f.label %><% if (f.required) { %><span class="spr-required" aria-hidden="true">*</span><span class="spr-clipped"> (required)</span><% } %>
+      <%= f.label %><% if (f.required) { %><%~ include('@config-fields/required-mark') %><% } %>
     </label>
     <% if (f.help) { %><%~ include('@info', { field: f }) %></div><% } %>

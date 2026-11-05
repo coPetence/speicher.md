@@ -221,6 +221,7 @@ function referenceFields(root: Obj, name: string, index: number, others: string[
   const stored = scalarString(at(root, path));
   return [
     selectField(root, path, 'groups.<key>.<index>.group', 'Group', {
+      required: true,
       options: (others.includes(stored) || stored === '' ? others : [stored, ...others]).map(
         (other) => ({ value: other, label: other }),
       ),

@@ -63,8 +63,9 @@ export function appCard(root: Obj, id: string): Card {
   const p = (key: string) => `forges.<key>.${key}`;
 
   const credentials: CardItem[] = [
-    textField(root, [...base, 'app_id'], p('app_id'), 'App id'),
+    textField(root, [...base, 'app_id'], p('app_id'), 'App id', { required: true }),
     secretField(root, [...base, 'private_key'], p('private_key'), 'Private key', {
+      required: true,
       help: `${SECRET_HELP}\n\nThe App's .pem file can also be chosen with the button or dropped onto the field.`,
       wide: true,
       upload: {
@@ -87,6 +88,7 @@ export function appCard(root: Obj, id: string): Card {
     const hasSecret = scalarString(at(root, [...base, 'webhook_secret'])) !== '';
     return {
       title: 'GitHub App',
+      required: true,
       subtitle:
         'You can find these values in the settings of your GitHub App, under Developer settings → GitHub Apps.',
       removeOp: null,
@@ -112,6 +114,7 @@ export function appCard(root: Obj, id: string): Card {
   );
   return {
     title: 'GitHub App',
+    required: true,
     subtitle: '',
     removeOp: null,
     notes: [],

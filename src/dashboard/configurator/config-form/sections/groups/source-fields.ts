@@ -67,6 +67,7 @@ export function matchFields(root: Obj, name: string, index: number, provider: st
     textField(root, [...base, 'id'], p('id'), 'Provider group id', {
       placeholder: matchPlaceholder(root, provider),
       inapplicable: magicLink,
+      required: !magicLink,
       // Link to Entra portal for this group
       link: portalLinkFor(root, provider, scalarString(at(root, [...base, 'id']))),
     }),
@@ -74,6 +75,7 @@ export function matchFields(root: Obj, name: string, index: number, provider: st
       // Domain matching only applies to magic-link providers
       placeholder: 'example.com',
       inapplicable: !magicLink,
+      required: magicLink,
     }),
   ];
 }
@@ -87,10 +89,12 @@ export function personFields(root: Obj, name: string, index: number): Field[] {
     // Subject field shown when a subject is already stored
     textField(root, [...base, 'subject'], p('subject'), 'Directory subject', {
       inapplicable: !bySubject,
+      required: bySubject,
     }),
     textField(root, [...base, 'email'], p('email'), 'Email address', {
       placeholder: 'alice@example.com',
       inapplicable: bySubject,
+      required: !bySubject,
     }),
   ];
 }

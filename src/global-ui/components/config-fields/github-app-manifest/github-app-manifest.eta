@@ -22,7 +22,7 @@
     <% } %>
     <div class="spr-field spr-field-text"<% if (account) { %> data-spr-shown-with="<%= account.name %>" data-spr-shown-when="org"<% } %>>
       <div class="spr-field-head">
-        <label for="<%= inputId %>"><%= owner.label %></label>
+        <label for="<%= inputId %>"><%= owner.label %><% if (account) { %><%~ include('@config-fields/required-mark') %><% } %></label>
         <%~ include('@info', { field: owner }) %>
       </div>
       <input

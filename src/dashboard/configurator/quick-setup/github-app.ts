@@ -82,6 +82,7 @@ function githubAppStarter(setup: GithubAppSetup): QuickStarter {
           label: 'Organization',
           help: 'The GitHub organization that owns the App. You need to be an owner of it, or an App manager.',
           placeholder: 'acme',
+          required: true,
           shownWhen: { field: choice.name, values: withOrganization },
         },
       ],

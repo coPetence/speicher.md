@@ -1009,9 +1009,22 @@ describe('the identity section', () => {
 
   it("explains a group's short id in the add popup", async () => {
     const index = await open('groups');
-    expect(index.html).toMatch(/<label for="add-name">\s*Short id\s*<\/label>/);
+    expect(index.html).toMatch(
+      /<label for="add-name">\s*Short id<span class="spr-required" aria-hidden="true">\*<\/span>/,
+    );
     expect(index.html).not.toContain('Internal name');
     expect(noteAt(index.html, 'help-add-name', GROUP_ID_HELP)).toBe(true);
+  });
+
+  it('marks the required fields of the add modals and of a row', async () => {
+    const mark = '<span class="spr-required" aria-hidden="true">*</span>';
+    const group = (await open('groups/engineering')).html;
+    expect(group).toContain(`Provider group id${mark}`);
+    expect(group).toContain(`Provider${mark}`);
+    expect(group).toContain(`Email addresses${mark}`);
+    expect(group).not.toContain(`Note${mark}`);
+
+    expect((await open('sources')).html).toContain(`Organization${mark}`);
   });
 
   it('creates the provider the Add tile was filled in for', async () => {
@@ -2308,7 +2321,9 @@ describe('the groups section', () => {
 
   it('asks a source for the one thing its provider can match on', async () => {
     const { html, body } = await open('groups/engineering');
-    expect(html).toContain('<label for="f-groups.engineering.0.id">Provider group id</label>');
+    expect(html).toContain(
+      '<label for="f-groups.engineering.0.id">Provider group id<span class="spr-required" aria-hidden="true">*</span>',
+    );
     expect(html).toMatch(/name="groups.engineering.0.id"[^>]*placeholder="group identifier"/);
     expect(html).toContain('<input type="hidden" name="groups.engineering.0.domain" value="">');
     expect(html).not.toContain('for="f-groups.engineering.0.domain"');
