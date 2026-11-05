@@ -118,7 +118,7 @@ jobs:
 
           docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate up > /tmp/up 2>&1
           cat /tmp/up
-          docker run --rm --network host -e SPEICHER_DATABASE_URL "$REF" speicher migrate status > /tmp/status 2>&1
+          docker run --rm --network host -e SPEICHER_DATABASE_URL -e SPEICHER_LOG_FORMAT=json "$REF" speicher migrate status > /tmp/status 2>&1
           cat /tmp/status
 
           grep -q "$LAST" /tmp/up || { echo "expected $LAST in the applied list" >&2; exit 1; }
