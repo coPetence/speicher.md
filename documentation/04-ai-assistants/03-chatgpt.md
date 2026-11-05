@@ -8,14 +8,14 @@ In ChatGPT on the web, open **Plugins**, select the plus button and choose **Add
 
 - **Name:** give the MCP server a descriptive name (e.g. `Company Docs`).
 - **Description:** optional, but we recommend to fill it because ChatGPT uses it to determine when to use the MCP Server (e.g. `Our internal documentation: handbook, specifications and guides.`).
-- **Connection:** keep **Server URL** selected and enter your Speicher address followed by `/mcp` or `/mcp-public`:
+- **Connection:** keep **Server URL** selected and enter your Speicher address followed by `/mcp` or `/mcp/public`:
 
 ```
 https://<hostname>/mcp
 ```
 
 ```
-https://<hostname>/mcp-public
+https://<hostname>/mcp/public
 ```
 
 Use `/mcp` if you want ChatGPT to see pages that require authentication, or `/mcp/public` if you want it to see only public pages.
