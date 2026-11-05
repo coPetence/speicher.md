@@ -31,6 +31,7 @@ import { LoadedInstanceConfig } from './parser';
 import {
   AnalyticsConfig,
   AssetsConfig,
+  autolinkExcludedDomains,
   BrandNameAlign,
   ConfigSource,
   EmbeddingConfig,
@@ -294,6 +295,10 @@ export class ConfigService {
 
   get faviconType(): string {
     return this.brandIcon?.mediaType ?? 'image/svg+xml';
+  }
+
+  get autolinkExcludedDomains(): ReadonlySet<string> {
+    return new Set(autolinkExcludedDomains(this.instance));
   }
 
   get graph(): Required<GraphConfig> {

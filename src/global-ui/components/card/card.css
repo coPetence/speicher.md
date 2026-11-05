@@ -47,6 +47,7 @@
   .spr-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    container-type: inline-size;
     gap: var(--spr-space-5);
     margin-block: var(--spr-space-5);
   }

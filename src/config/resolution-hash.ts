@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { InstanceConfig, SYNC_DEFAULTS, providerType } from './types';
+import { InstanceConfig, SYNC_DEFAULTS, autolinkExcludedDomains, providerType } from './types';
 
 /**
  * computeResolutionHash hashes the part of the config that decides who may read
@@ -41,6 +41,7 @@ export function computeResolutionHash(
     };
   }
 
+  const excludedDomains = autolinkExcludedDomains(config);
   const subset = {
     default_provider: config.auth?.default_provider ?? null,
     providers,
@@ -58,6 +59,7 @@ export function computeResolutionHash(
       retrieval: { indexable: config.defaults?.retrieval?.indexable ?? true },
     },
     admins: config.admins,
+    autolink: excludedDomains.length > 0 ? excludedDomains : undefined,
   };
 
   return createHash('sha256').update(stableStringify(subset)).digest('hex');

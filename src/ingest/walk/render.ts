@@ -47,6 +47,8 @@ export interface RenderContext {
   repos?: RepoLookup; // Resolver for cross-repo targets
 
   ownRepo: RepoRef; // The repository being rendered
+
+  unlinkedDomains: ReadonlySet<string>;
 }
 
 export async function renderPages(
@@ -68,6 +70,7 @@ export async function renderPages(
     repoIds: new Map(),
     repos: options.repos,
     ownRepo: options.repo,
+    unlinkedDomains: options.config.autolinkExcludedDomains,
   };
   const content: RenderedContent = { documents: [], edges: [], terms: [] };
   for (const file of scan.files) {
@@ -91,6 +94,7 @@ async function renderPage(
   const rendered = renderMarkdown(file.body, {
     resolveLink: (target, kind) => resolvePageLink(ctx, file, dir, links, target, kind),
     mdx: MDX_EXTENSION.test(file.sourcePath),
+    unlinkedDomains: ctx.unlinkedDomains,
   });
 
   let html = rendered.html;

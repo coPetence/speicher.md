@@ -662,6 +662,18 @@ Ranks a search result higher when other results of the same search link to it. I
 
 The most entries shown in each list of the related column. Between 1 and 50.
 
+## autolink
+
+**Type:** object
+
+Web addresses that are written in a page automatically become links. Changing this setting rebuilds every repository.
+
+### `autolink.exclude_domains`
+
+**Type:** list of string
+
+The domains that will not be automatically converted to links, for example `speicher.md`. A subdomain such as `docs.speicher.md` needs its own entry. A link written with `https://` or as a Markdown link will stay a link.
+
 ## auth
 
 **Type:** object
