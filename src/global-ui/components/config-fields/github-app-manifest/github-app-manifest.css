@@ -10,6 +10,30 @@
     flex: 0 1 18rem;
   }
 
+  /* One under the other, as the add modal asks them */
+  .spr-github-app-manifest-account {
+    flex-direction: column;
+    align-items: stretch;
+    max-inline-size: 24rem;
+  }
+
+  .spr-github-app-manifest-account > .spr-field {
+    flex: none;
+  }
+
+  .spr-github-app-manifest-account > .spr-field[hidden] {
+    display: none;
+  }
+
+  .spr-github-app-manifest-account > .spr-quick-choice {
+    margin-top: 0;
+  }
+
+  .spr-github-app-manifest-account > .spr-github-app-create {
+    justify-content: center;
+    margin-top: var(--spr-space-2);
+  }
+
   .spr-github-app-create {
     display: inline-flex;
     align-items: center;

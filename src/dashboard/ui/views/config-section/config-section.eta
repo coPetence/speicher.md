@@ -108,7 +108,7 @@
 %>
   <details class="spr-modal spr-index-add"<%= it.openKind ? ' open' : '' %>>
     <summary><%~ it.add_icon || '+' %><span><%= pageAdd.label %></span></summary>
-    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
+    <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addErrorField: it.add_error_field, addValues: it.add_values, externalIcon: it.external_icon }) %>
   </details>
 <%
     }
@@ -155,13 +155,13 @@
 <input type="hidden" name="<%= control.name %>" value="<%= control.value %>">
 <% }) } %>
 
-<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon } %>
+<% const fieldPage = { optionMarks: it.option_marks, badgeIcons: it.badge_icons, hostKeyNotes: it.host_key_notes, removeIcon: it.remove_icon, addIcon: it.add_icon, warnIcon: it.warn_icon, externalIcon: it.external_icon } %>
 <% if (it.section.tables) { it.section.tables.forEach(function (table) { %>
 <%
   // Place Add above rows or below the empty state; bulk removal moves it when the last row is removed
   const collection = table.bulkRemoveOp.slice(table.bulkRemoveOp.indexOf(':') + 1);
   const addRow = it.editable && table.add
-    ? include('@add-row-panel', { add: table.add, collection: collection, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon })
+    ? include('@add-row-panel', { add: table.add, collection: collection, open: it.creating && table.entries.length === 0, optionMarks: it.option_marks, chevronIcon: it.chevron_icon, kindIcons: it.kind_icons, addIcon: it.add_icon, searchIcon: it.search_icon })
     : '';
 %>
 <% if (table.title || table.entries.length > 0) { %>
@@ -417,7 +417,7 @@
   <section class="spr-tile spr-tile-add">
     <details class="spr-modal"<%= it.openKind ? ' open' : '' %>>
       <summary aria-label="<%= pageAdd.label %>"><%~ it.add_icon || '+' %></summary>
-      <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addValues: it.add_values, externalIcon: it.external_icon }) %>
+      <%~ include('@add-panel', { add: pageAdd, openKind: it.openKind, optionMarks: it.option_marks, quickAction: it.quick_action, addError: it.add_error, addErrorField: it.add_error_field, addValues: it.add_values, externalIcon: it.external_icon }) %>
     </details>
   </section>
   <% } %>

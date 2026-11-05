@@ -2545,6 +2545,51 @@ describe('Enter in a field', () => {
 
     expect(pressSave()).toBe(true);
   });
+
+  describe('of an add modal', () => {
+    function renderModal(): void {
+      document.body.innerHTML = `
+        <main>
+          <div class="spr-modal-panel spr-add-panel">
+            <input id="add-name" name="add" type="text" value="github-3">
+            <div class="spr-quick-setup" data-spr-shown-with="kind" data-spr-shown-when="github">
+              <label><input type="radio" name="account" value="org" checked></label>
+              <div class="spr-quick-field"><input id="org" type="text"></div>
+              <div class="spr-quick-field" hidden><input id="other" type="text"></div>
+            </div>
+          </div>
+        </main>`;
+      run();
+    }
+
+    it('goes on to the next field that is shown, without submitting', () => {
+      renderModal();
+
+      expect(press('#add-name')).toBe(false);
+      expect(document.activeElement).toBe(document.querySelector('#org'));
+    });
+
+    it('submits from the last field that is shown', () => {
+      renderModal();
+
+      expect(press('#org')).toBe(true);
+      expect(document.activeElement).toBe(document.querySelector('#org'));
+    });
+
+    it('submits from the short id when no other field is shown', () => {
+      renderModal();
+      document.querySelector('#org')?.closest('.spr-quick-field')?.setAttribute('hidden', '');
+
+      expect(press('#add-name')).toBe(true);
+    });
+
+    it('waits out an input method that is still composing', () => {
+      renderModal();
+
+      expect(press('#add-name', { key: 'Enter', isComposing: true })).toBe(true);
+      expect(document.activeElement).toBe(document.querySelector('#add-name'));
+    });
+  });
 });
 
 describe('a pick list', () => {

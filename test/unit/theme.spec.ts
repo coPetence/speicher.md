@@ -1064,13 +1064,14 @@ describe('the admin stylesheet', () => {
     expect(new Set(classes).size).toBeGreaterThan(8);
   });
 
-  it('gives every operational page the same width', () => {
-    const reader = /padding-inline:([^;]*);/.exec(declarationsOfBase('.spr-main'))?.[1]?.trim();
+  it('gives every operational page the same width, from the left edge', () => {
     const admin = /padding-inline:([^;]*);/
       .exec(declarationsOf('.spr-pane > .spr-main'))?.[1]
-      ?.trim();
-    expect(reader).toContain('--spr-measure');
-    expect(admin).toBe(reader?.replace('--spr-measure', '--spr-measure-wide'));
+      ?.replace(/\s+/g, ' ')
+      .trim();
+    expect(admin).toBe(
+      'var(--spr-gutter) max(var(--spr-gutter), calc(100% - var(--spr-gutter) - var(--spr-measure-wide)))',
+    );
   });
 
   // The reader's reserved related-column track is keyed on a shell attribute

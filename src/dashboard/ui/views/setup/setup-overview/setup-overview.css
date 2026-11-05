@@ -5,6 +5,10 @@
     align-content: center;
   }
 
+  .spr-pane > .spr-main:has(> .spr-welcome) {
+    padding-inline: var(--spr-gutter);
+  }
+
   .spr-welcome {
     display: grid;
     justify-items: center;

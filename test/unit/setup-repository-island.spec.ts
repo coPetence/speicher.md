@@ -152,4 +152,77 @@ describe('the next step of the repositories page', () => {
       'no-grant',
     );
   });
+
+  it('does not check again when the tab is shown again', async () => {
+    document.body.innerHTML = page(region(fix('no-grant')), row('acme/handbook', 'ok'));
+    run();
+    answer(
+      page(
+        region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+        row('acme/handbook', 'ok', false),
+      ),
+    );
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+
+    expect(fetchMock).not.toHaveBeenCalledWith(CHECK, expect.anything());
+  });
+
+  describe('Refresh button', () => {
+    const REFRESH = `
+      <form action="/-/repositories" data-spr-refresh>
+        <input type="hidden" name="check" value="1">
+        <input type="hidden" name="fresh" value="1">
+        <button type="submit"><svg></svg><span>Refresh</span></button>
+      </form>`;
+    const button = () => document.querySelector('[data-spr-refresh] button') as HTMLButtonElement;
+    const icon = () => button().querySelector('svg') as SVGElement;
+
+    function pending(): (html: string) => void {
+      let finish: (value: { ok: boolean; text: () => Promise<string> }) => void = () => {};
+      fetchMock.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+      return (html) => finish({ ok: true, text: async () => html });
+    }
+
+    it('runs the checks in place, asking GitHub for everything, and shows the run', async () => {
+      document.body.innerHTML = `${REFRESH}${page(region(''), row('acme/handbook', 'ok'))}`;
+      const finish = pending();
+      run();
+
+      const submit = new Event('submit', { bubbles: true, cancelable: true });
+      document.querySelector('[data-spr-refresh]')?.dispatchEvent(submit);
+      await flush();
+      expect(submit.defaultPrevented).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith('/-/repositories?check=1&fresh=1', expect.anything());
+      expect(button().disabled).toBe(true);
+      expect(button().textContent).toBe('Refreshing…');
+      expect(icon().classList.contains('spr-spin')).toBe(true);
+
+      finish(page(region(fix('no-grant')), row('acme/wiki', 'never synced')));
+      await flush();
+      expect(document.querySelector('[data-spr-repo-row="acme/wiki"]')).not.toBeNull();
+      expect(button().disabled).toBe(false);
+      expect(button().textContent).toBe('Refresh');
+      expect(icon().classList.contains('spr-spin')).toBe(false);
+    });
+
+    it('shows the check the page starts with too, and stops when it fails', async () => {
+      document.body.innerHTML = `${REFRESH}${page(
+        region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+        row('acme/handbook', 'ok', false),
+      )}`;
+      let fail: (reason: Error) => void = () => {};
+      fetchMock.mockReturnValueOnce(new Promise((_, reject) => (fail = reject)));
+      run();
+      await flush();
+      expect(button().textContent).toBe('Refreshing…');
+      expect(icon().classList.contains('spr-spin')).toBe(true);
+
+      fail(new Error('offline'));
+      await flush();
+      expect(button().textContent).toBe('Refresh');
+      expect(button().disabled).toBe(false);
+    });
+  });
 });

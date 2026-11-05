@@ -17,6 +17,7 @@ import { DashboardResponder, wantsJson } from '../respond';
 import { sendConfig } from '../ui/views/config-overview/config-overview';
 import { isConfigSection, isConfigSubsection } from './config-form/fields';
 import { entryHrefFor, isMemberId, memberSectionId } from './config-form/members';
+import type { Card } from './config-form/model';
 import { readUploads } from './config-form/upload';
 import { pickVersion, redirectTo, sendSection } from './config-http';
 import { SectionChecks } from './config-page/checks';
@@ -89,6 +90,7 @@ export class ConfigController {
       if (!draft) return this.respond.notFound(req, res);
       payload = draft;
     }
+    if (req.query.setup === 'manual') pickManualSetup(payload.section?.cards ?? []);
 
     const version = pickVersion(saved, null);
     const row = version === null ? null : await configVersionAt(caller.tenantId, version);
@@ -136,12 +138,16 @@ export class ConfigController {
     @Query('q') q?: string,
     // Not sent to the view — triggers storage or mail checks
     @Query('check') check?: string,
+    @Query('setup') setup?: string,
   ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
     if (!isConfigSection(sectionId)) return this.respond.notFound(req, res);
 
     const href = typeof add === 'string' ? entryHrefFor(sectionId, add, kind ?? '') : null;
+    if (href && setup === 'manual') {
+      return redirectTo(res, `${href}${href.includes('?') ? '&' : '?'}setup=manual`);
+    }
     if (href) return redirectTo(res, href);
 
     const state = await this.page.state(caller);
@@ -241,5 +247,21 @@ export class ConfigController {
     status?: number,
   ): void {
     sendSection(this.respond, req, res, caller, sectionId, payload, status);
+  }
+}
+
+/**
+ * pickManualSetup opens every switch between creating an App and entering its details on entering them.
+ *
+ * @param cards the cards of the page
+ */
+function pickManualSetup(cards: Card[]): void {
+  for (const card of cards) {
+    if (card.shownWhen === 'manual') card.hidden = false;
+    for (const item of card.items) {
+      if (item.kind !== 'choice') continue;
+      if (item.options.some((option) => option.value === 'manual')) item.selected = 'manual';
+    }
+    pickManualSetup(card.cards);
   }
 }

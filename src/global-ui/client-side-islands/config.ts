@@ -16,6 +16,7 @@ import { mountPickedFileNames } from './configurator/picked-file-name';
 import { mountFileDrops } from './configurator/drop-in-field';
 import { mountReshapeSubmits } from './configurator/reshape-submits-form';
 import { mountEnterLeavesField } from './configurator/enter-leaves-field';
+import { mountEnterNextField } from './configurator/enter-next-field';
 import { mountModals } from './configurator/modal-focus-and-escape';
 import { mountWalkthroughs } from './configurator/walkthrough';
 import { mountDropdowns } from './configurator/picture-dropdown';
@@ -47,6 +48,7 @@ function mount(): void {
   mountFileDrops();
   mountReshapeSubmits();
   mountEnterLeavesField();
+  mountEnterNextField();
   mountChecks();
   mountDeferredPanels();
 

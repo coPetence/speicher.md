@@ -148,7 +148,7 @@ export function sendConfigSection(
               ]),
             )
           : {},
-        check_again_href: payload.check ? sourceCheckPath(payload.check.id) : '',
+        check_again_href: payload.check ? `${sourceCheckPath(payload.check.id)}?fresh=1` : '',
         expiry_icon: renderInlineIcon('calendar-clock', 'spr-icon'),
         add_icon: renderInlineIcon('plus', 'spr-icon'),
         chevron_icon: renderInlineIcon('chevron-right', 'spr-icon'),

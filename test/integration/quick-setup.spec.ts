@@ -248,7 +248,11 @@ describe('the add modal of the identity providers', () => {
     expect(page.text).toContain(githubProviderStarter.setup.submitLabel);
     // Beside the main button, for every kind set up in one go
     expect(page.text).toMatch(
-      /class="spr-quick-manual"\s+data-spr-shown-with="kind"\s+data-spr-shown-when="github magic-link"/,
+      /class="spr-quick-manual"\s+name="setup"\s+value="manual"\s+data-spr-shown-with="kind"\s+data-spr-shown-when="github magic-link"/,
+    );
+    // Enter in a field presses the first submit button, which must be the main one
+    expect(page.text.indexOf('data-spr-modal-submit')).toBeLessThan(
+      page.text.indexOf('class="spr-quick-manual"'),
     );
   });
 
@@ -426,7 +430,11 @@ describe('setting up a GitHub identity provider from the add modal', () => {
       'quick:github:audience': 'org',
       'quick:github:org': '  ',
     }).expect(400);
-    expect(response.text).toContain('Name the organization the App is created on.');
+    // Under the field it is about, which is marked, rather than above the form
+    expect(response.text).toMatch(
+      /name="quick:github:org"[\s\S]*?aria-invalid="true"[\s\S]*?<p class="spr-field-problem"[^>]*>Name the organization the App is created on\.<\/p>/,
+    );
+    expect(response.text).not.toContain('spr-add-error');
     expect(response.text).toMatch(/<details class="spr-modal[^"]*" open>/);
     expect(response.text).toContain('value="octo"');
     expect(github).not.toHaveBeenCalled();
@@ -450,6 +458,8 @@ describe('setting up a GitHub identity provider from the add modal', () => {
       'quick:github:audience': 'me',
     }).expect(400);
     expect(response.text).toContain('The provider &quot;entra&quot; already exists');
+    expect(response.text).toContain('aria-describedby="add-name-problem"');
+    expect(response.text).not.toContain('spr-add-error');
     expect(response.headers['set-cookie'] ?? []).not.toContainEqual(
       expect.stringContaining(GITHUB_APP_FORM_COOKIE),
     );
@@ -601,6 +611,19 @@ describe('setting up a GitHub content source from the add modal', () => {
       /App installed on <strong>acme<\/strong>, with access to <a class="spr-ready-link spr-ready-inline" href="https:\/\/github.com\/organizations\/acme\/settings\/installations\/5" target="_blank" rel="noopener">3 selected repositories<svg/,
     );
     expect(page.text).not.toContain(`href="${INSTALL_URL}"`);
+  });
+
+  it('keeps who added each source in the list behind a refused modal', async () => {
+    await createOnGithub('sources', 'team');
+
+    const refused = await create('sources', {
+      kind: 'github',
+      add: 'other',
+      'quick:github:account': 'org',
+      'quick:github:org': '',
+    }).expect(400);
+
+    expect(refused.text).toMatch(/>team<\/a>[\s\S]*?spr-cell-quiet">ops@copetence\.test</);
   });
 
   it('says so when the installation reads every repository', async () => {
@@ -793,6 +816,18 @@ describe('the next step of the repositories page', () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
+  it('offers a Refresh button that asks GitHub for everything, also once the check has run', async () => {
+    await createOnGithub('sources', 'team');
+    const refresh =
+      /<form[^>]*action="\/-\/repositories" data-spr-refresh>\s*<input type="hidden" name="check" value="1">\s*<input type="hidden" name="fresh" value="1">[\s\S]*?<button type="submit" class="spr-setup-refresh">[\s\S]*?<span>Refresh<\/span><\/button>/;
+
+    expect((await ready('/-/repositories').expect(200)).text).toMatch(refresh);
+
+    const checked = await ready('/-/repositories?check=1').expect(200);
+    expect(checked.text).toMatch(refresh);
+    expect(checked.text).not.toContain('data-spr-check-href');
+  });
+
   it('asks to install the App when it is not installed, and nothing else', async () => {
     await createOnGithub('sources', 'team');
     const page = await ready('/-/repositories?check=1').expect(200);
@@ -839,6 +874,13 @@ describe('a check that asks GitHub', () => {
     const run = await ready('/-/config/sources/team/check?run=1').expect(200);
     expect(run.text).toContain('data-spr-defer-key="check:team">');
     expect(run.text).toContain('data-spr-repo-state="unpublished"');
+
+    // Check again keeps asking GitHub for everything through the deferred run
+    expect(run.text).toContain('<a href="/-/config/sources/team/check?fresh=1">Check again</a>');
+    const again = await ready('/-/config/sources/team/check?fresh=1').expect(200);
+    expect(again.text).toContain(
+      'data-spr-defer="/-/config/sources/team/check?run=1&amp;fresh=1" aria-busy="true"',
+    );
   });
 });
 

@@ -11,7 +11,7 @@
     <h2 class="spr-modal-title">
       <%= add.label %>
     </h2>
-    <% if (it.addError) { %>
+    <% if (it.addError && !it.addErrorField) { %>
     <%~ include('@note', { level: 'fail', html: md(it.addError), role: 'alert', className: 'spr-add-error' }) %>
     <% } %>
     <% if (add.typeLabel) { %>
@@ -70,7 +70,11 @@
       title="<%= add.nameHint %>"
       spellcheck="false"
       autocomplete="off"
+      <%~ it.addErrorField === 'add' ? 'aria-invalid="true" aria-describedby="add-name-problem"' : '' %>
     >
+    <% } %>
+    <% if (it.addErrorField === 'add') { %>
+    <p class="spr-field-problem" id="add-name-problem" role="alert"><%~ md(it.addError) %></p>
     <% } %>
     <% if (quick) { %>
     <% add.typeOptions.filter(function (option) { return option.quickSetup; }).forEach(function (option) { %>
@@ -131,7 +135,11 @@
           placeholder="<%= field.placeholder || '' %>"
           spellcheck="false"
           autocomplete="off"
+          <%~ name === it.addErrorField ? 'aria-invalid="true" aria-describedby="' + inputId + '-problem"' : '' %>
         >
+        <% if (name === it.addErrorField) { %>
+        <p class="spr-field-problem" id="<%= inputId %>-problem" role="alert"><%~ md(it.addError) %></p>
+        <% } %>
       </div>
       <% } %>
       <% }) %>
@@ -139,20 +147,6 @@
     <% }) %>
     <% } %>
     <div class="spr-modal-actions">
-      <% if (quick) { %>
-      <% /* The way the modal worked before, the page of the new member with every field, for each kind set up in one go */ %>
-      <%
-        const quickKinds = add.typeOptions.filter(function (option) { return option.quickSetup; }).map(function (option) { return option.value; });
-      %>
-      <button
-        type="submit"
-        form="add-member"
-        class="spr-quick-manual"
-        data-spr-shown-with="kind"
-        data-spr-shown-when="<%= quickKinds.join(' ') %>"
-        <%= quickKinds.includes(pickedKind.value) ? '' : 'hidden' %>
-      >Configure manually</button>
-      <% } %>
       <button
         type="submit"
         form="add-member"
@@ -167,5 +161,21 @@
         <%= add.label %>
         <% } %>
       </button>
+      <% if (quick) { %>
+      <% /* The way the modal worked before, the page of the new member with every field, for each kind set up in one go */ %>
+      <%
+        const quickKinds = add.typeOptions.filter(function (option) { return option.quickSetup; }).map(function (option) { return option.value; });
+      %>
+      <button
+        type="submit"
+        form="add-member"
+        class="spr-quick-manual"
+        name="setup"
+        value="manual"
+        data-spr-shown-with="kind"
+        data-spr-shown-when="<%= quickKinds.join(' ') %>"
+        <%= quickKinds.includes(pickedKind.value) ? '' : 'hidden' %>
+      >Configure manually</button>
+      <% } %>
     </div>
   </div>

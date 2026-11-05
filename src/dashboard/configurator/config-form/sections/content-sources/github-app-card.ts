@@ -9,6 +9,7 @@ import { webhookPath, webhookUrl } from '../../../../../webhooks/webhook-url';
 import type { CardItem, Obj } from '../../config-fields';
 import {
   SECRET_HELP,
+  SOURCE_ACCOUNT,
   at,
   choice,
   githubAppLinksItem,
@@ -106,6 +107,8 @@ export function appCard(root: Obj, id: string): Card {
     `/-/config/${memberSectionId('sources', id)}/github-app/manifest`,
     scalarString(at(root, [...base, 'default_repository_owner'])),
     webhookNote(webhookUrl(id) ?? '', scalarString(at(root, [...base, 'base_url'])), WEBHOOK),
+    'github-app',
+    SOURCE_ACCOUNT,
   );
   return {
     title: 'GitHub App',

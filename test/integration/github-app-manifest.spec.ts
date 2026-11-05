@@ -122,7 +122,9 @@ function postForm(path: string, body: FormBody) {
  * the start set.
  */
 function startFlow(id: string, body: FormBody, section = 'sources', appSegment = 'github-app') {
-  const posted = postForm(`/-/config/${section}/${id}/${appSegment}/manifest`, body);
+  const account = body['github-app:owner'] ? 'org' : 'personal';
+  const asked = 'github-app:account' in body ? { ...body, 'github-app:account': account } : body;
+  const posted = postForm(`/-/config/${section}/${id}/${appSegment}/manifest`, asked);
   return {
     expect: async (status: number): Promise<request.Response> => {
       if (status !== 200) return posted.expect(status);
@@ -286,6 +288,53 @@ describe('creating the GitHub App of a new source from a manifest', () => {
     expect(manifestPostUrl(response.text).pathname).toBe('/settings/apps/new');
   });
 
+  it('asks whose account the App goes on, as the add modal does', async () => {
+    const page = await request(app.getHttpServer())
+      .get('/-/config/sources/team?kind=github')
+      .set('cookie', ops)
+      .expect(200);
+
+    expect(page.text).toContain('<legend>Which repositories do you want to sync</legend>');
+    expect(page.text).toMatch(/name="github-app:account" value="org" checked/);
+    expect(page.text).toContain('data-spr-shown-with="github-app:account"');
+    expect(page.text).toContain('Continue on GitHub<svg');
+    expect(page.text).not.toContain('Create the App on GitHub');
+  });
+
+  it('refuses an organization without a name, as the add modal does', async () => {
+    const refused = await postForm('/-/config/sources/team/github-app/manifest', {
+      ...(await openNewSource('team')),
+      'github-app:account': 'org',
+      'github-app:owner': ' ',
+    }).expect(400);
+    expect(refused.text).toContain('Name the organization the App is created on.');
+  });
+
+  it('forgets the organization typed before the personal account was picked', async () => {
+    const posted = await postForm('/-/config/sources/team/github-app/manifest', {
+      ...(await openNewSource('team')),
+      'github-app:account': 'personal',
+      'github-app:owner': 'acme',
+    }).expect(303);
+    const response = await followHandoff(posted);
+    expect(manifestPostUrl(response.text).pathname).toBe('/settings/apps/new');
+  });
+
+  it('opens on entering the details when the add modal was left with Configure manually', async () => {
+    const redirected = await request(app.getHttpServer())
+      .get('/-/config/sources?add=team&kind=github&setup=manual')
+      .set('cookie', ops)
+      .expect(303);
+    expect(redirected.headers.location).toBe('/-/config/sources/team?kind=github&setup=manual');
+
+    const manual = await request(app.getHttpServer())
+      .get(redirected.headers.location)
+      .set('cookie', ops)
+      .expect(200);
+    expect(manual.text).toMatch(/value="manual"\s+checked/);
+    expect(manual.text).not.toMatch(/value="create"\s+checked/);
+  });
+
   it('saves the source with the App and the values typed on the page, then installs the App', async () => {
     const { state, cookie } = await started('team', {
       ...(await openNewSource('team')),
@@ -386,10 +435,10 @@ describe('creating the GitHub App of a new source from a manifest', () => {
   });
 
   it('posts nothing to GitHub from a hand-off cookie that was changed', async () => {
-    const posted = await postForm(
-      '/-/config/sources/team/github-app/manifest',
-      await openNewSource('team'),
-    ).expect(303);
+    const posted = await postForm('/-/config/sources/team/github-app/manifest', {
+      ...(await openNewSource('team')),
+      'github-app:account': 'personal',
+    }).expect(303);
     const handoff = ([] as string[])
       .concat(posted.headers['set-cookie'] ?? [])
       .find((each) => each.startsWith(`${GITHUB_APP_HANDOFF_COOKIE}=`))!

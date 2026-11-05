@@ -175,6 +175,41 @@
     gap: var(--spr-space-2);
   }
 
+  .spr-setup-refresh-form {
+    margin: 0;
+  }
+
+  .spr-setup-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spr-space-2);
+    padding: var(--spr-space-2) var(--spr-space-4);
+    border: var(--spr-border) solid var(--spr-accent);
+    border-radius: var(--spr-radius);
+    background: var(--spr-accent);
+    color: var(--spr-bg);
+    font: inherit;
+    font-weight: var(--spr-weight-strong);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .spr-setup-refresh:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+  }
+
+  .spr-setup-refresh:disabled {
+    opacity: 0.7;
+    cursor: progress;
+  }
+
+  .spr-setup-refresh .spr-icon {
+    width: 1em;
+    height: 1em;
+    margin: 0;
+  }
+
   .spr-setup-file-action {
     display: inline-flex;
     align-items: center;

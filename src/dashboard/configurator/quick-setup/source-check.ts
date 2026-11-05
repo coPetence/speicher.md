@@ -24,6 +24,7 @@ import {
   missingGroups,
   publicRepoRef,
 } from './repository-check';
+import { APP_DETAILS_MS, sourceMemory } from './source-memory';
 
 export type SourceCheck = Pick<CheckModal, 'problem' | 'repositories' | 'more'> & {
   missing: MissingGroup[];
@@ -39,6 +40,7 @@ export type SourceCheck = Pick<CheckModal, 'problem' | 'repositories' | 'more'> 
  * @param known the instance's groups
  * @param fetchImpl reaches GitHub
  * @param back where the modal that creates a `.speicher.yaml` leads back to
+ * @param fresh whether to ask GitHub for everything, rather than what changed since the last check
  */
 export async function checkSource(
   sourceId: string,
@@ -46,16 +48,22 @@ export async function checkSource(
   known: KnownGroups,
   fetchImpl: typeof fetch,
   back: ConfigFileBack = 'check',
+  fresh = false,
 ): Promise<SourceCheck> {
   const appId = String(forge.app_id);
   const privateKey = String(forge.private_key);
   const { api, web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
   const log = rootLogger.child('config.quick-setup');
   const nothing = { repositories: [], more: false, missing: [] };
+  const memory = sourceMemory(api, appId, privateKey, fetchImpl, fresh);
   // What the check was doing, so a failure says where it stopped
   let step = 'look up the App';
   try {
-    const app = await lookupGithubApp(api, appId, privateKey, fetchImpl);
+    if (!memory.app || memory.app.until <= Date.now()) {
+      const details = await lookupGithubApp(api, appId, privateKey, fetchImpl);
+      memory.app = { ...details, until: Date.now() + APP_DETAILS_MS };
+    }
+    const app = memory.app;
     step = `find the App's installation on ${app.owner.accountName}`;
     const installation = await installationOn(
       api,
@@ -63,6 +71,7 @@ export async function checkSource(
       privateKey,
       app.owner.accountName,
       fetchImpl,
+      memory.minter,
     );
     if (!installation) {
       return {
@@ -75,7 +84,14 @@ export async function checkSource(
       };
     }
     step = 'list the repositories the App reads';
-    const read = await repositoryConfigs(api, installation.token, isConfigPath, fetchImpl);
+    const read = await repositoryConfigs(
+      api,
+      installation.token,
+      isConfigPath,
+      fetchImpl,
+      undefined,
+      memory.repositories,
+    );
     for (const repo of read.repositories) {
       if (repo.files !== null) continue;
       log.warn('could not read the .speicher.yaml files of a repository', {
@@ -108,6 +124,37 @@ export async function checkSource(
     });
     return { ...nothing, problem: { text: `Could not ${step}: ${message}.` } };
   }
+}
+
+/**
+ * rememberedRows returns what the last check of a source found, judged by the groups of now, without asking GitHub.
+ * It returns none when the source was not checked yet.
+ *
+ * @param sourceId the source's short id
+ * @param forge the source as stored, with its App
+ * @param known the instance's groups
+ * @param fetchImpl reaches GitHub, which keeps the memory of the source apart
+ * @param back where the modal that creates a `.speicher.yaml` leads back to
+ */
+export function rememberedRows(
+  sourceId: string,
+  forge: Record<string, unknown>,
+  known: KnownGroups,
+  fetchImpl: typeof fetch,
+  back: ConfigFileBack,
+): CheckRow[] {
+  const { api, web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+  const memory = sourceMemory(api, String(forge.app_id), String(forge.private_key), fetchImpl);
+  return [...memory.repositories.values()].map(({ repository }) =>
+    checkRow(
+      repository,
+      repository.files ? checkRepository(repository.files, known) : null,
+      web,
+      sourceId,
+      back,
+      known,
+    ),
+  );
 }
 
 /**

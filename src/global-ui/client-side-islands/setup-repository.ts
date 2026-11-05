@@ -9,8 +9,9 @@
  * or a discovery is queued or running. It takes the sync and readable cells of
  * every row, and the `.speicher.yaml` cells of the rows no check has filled. A
  * page without the checks cannot say the next step, so the checks run again
- * when a row changed or the tab is shown again, e.g. back from GitHub. The
- * refresh stops once the administrator can read a repository
+ * when a row changed. The Refresh button runs them whenever the person asks,
+ * and shows every run. The refresh stops once the administrator can read a
+ * repository
  *
  * The filter box narrows the table as on the sync status page, and narrows the
  * rows the checks and the refresh add too
@@ -29,6 +30,7 @@ const ROWS = '[data-spr-repository-table] > tbody';
 const REPOSITORY_ROWS = `${ROWS} > tr[data-spr-repo-row]`;
 const SWAPPED = ['[data-spr-setup-region="group"]', '.spr-guide'];
 const DONE = '[data-spr-readable]';
+const REFRESH = 'form[data-spr-refresh]';
 
 // Narrows the rows again after rows were added or swapped; none when the server narrowed the page
 let refilter: (() => void) | null = null;
@@ -37,9 +39,28 @@ let checking = false;
 export function mountRepositoryStep(): void {
   if (!document.querySelector(STEP)) return;
   refilter = mountFilter('[data-spr-repository-table]');
+  mountRefreshButton();
   void check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref);
   mountRefresh();
   mountConfigFilePicker();
+}
+
+function mountRefreshButton(): void {
+  const form = document.querySelector<HTMLFormElement>(REFRESH);
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const query = new URLSearchParams([...new FormData(form)] as [string, string][]);
+    void check(`${form.getAttribute('action')}?${query}`);
+  });
+}
+
+function showChecking(running: boolean): void {
+  const button = document.querySelector<HTMLButtonElement>(`${REFRESH} button`);
+  if (!button) return;
+  button.disabled = running;
+  button.querySelector('svg')?.classList.toggle('spr-spin', running);
+  const label = button.querySelector('span');
+  if (label) label.textContent = running ? 'Refreshing…' : 'Refresh';
 }
 
 /**
@@ -98,6 +119,7 @@ function mountConfigFilePicker(): void {
 async function check(href: string | undefined): Promise<void> {
   if (!href || checking) return;
   checking = true;
+  showChecking(true);
   try {
     const fresh = await page(href);
     const next = fresh.querySelector(FIX);
@@ -124,6 +146,7 @@ async function check(href: string | undefined): Promise<void> {
     }
   } finally {
     checking = false;
+    showChecking(false);
   }
 }
 
@@ -144,24 +167,19 @@ function mountRefresh(): void {
     window.clearTimeout(timer);
     if (document.hidden || document.querySelector(DONE)) return;
     const busy = document.querySelector(STEP)?.hasAttribute('data-spr-busy') === true;
-    timer = window.setTimeout(() => void refresh(false), busy ? BUSY_REFRESH_MS : REFRESH_MS);
+    timer = window.setTimeout(() => void refresh(), busy ? BUSY_REFRESH_MS : REFRESH_MS);
   };
 
-  const refresh = async (shown: boolean): Promise<void> => {
+  const refresh = async (): Promise<void> => {
     try {
       const fresh = await page(window.location.pathname + window.location.search);
       const changed = swap(fresh);
       const next = fresh.querySelector<HTMLElement>(FIX);
       const href = next?.dataset.sprCheckHref;
       const current = document.querySelector(FIX);
-      if (next && !href) {
+      if (next && !next.querySelector('[data-spr-setup-fix="checking"]')) {
         replaceFix(next);
-      } else if (
-        shown ||
-        changed ||
-        current?.hasAttribute('data-spr-check-href') ||
-        current?.hasAttribute('data-spr-blocked')
-      ) {
+      } else if (changed || current?.hasAttribute('data-spr-blocked')) {
         await check(href);
       }
     } catch {
@@ -172,7 +190,7 @@ function mountRefresh(): void {
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) window.clearTimeout(timer);
-    else void refresh(true);
+    else void refresh();
   });
 
   schedule();

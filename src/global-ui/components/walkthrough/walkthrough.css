@@ -236,14 +236,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .spr-walkthrough-kind-name {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spr-space-2);
-  }
-
   /* A file as an editor shows it: its name above its lines */
   .spr-walkthrough-file {
     max-width: 32rem;
@@ -255,11 +247,19 @@
   }
 
   .spr-walkthrough-file-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spr-space-3);
     padding: var(--spr-space-2) var(--spr-space-4);
     border-bottom: var(--spr-border) solid var(--spr-line);
     color: var(--spr-muted);
     font-family: var(--spr-font-mono);
     font-size: var(--spr-font-size-label);
+  }
+
+  .spr-walkthrough-file-name > .spr-badge {
+    font-family: var(--spr-font-body);
   }
 
   .spr-walkthrough-file > pre {
@@ -316,6 +316,40 @@
     display: grid;
     gap: var(--spr-space-1);
     padding-inline-start: var(--spr-space-5);
+  }
+
+  .spr-walkthrough-options {
+    display: grid;
+    gap: var(--spr-space-4);
+    margin-block-start: var(--spr-space-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .spr-walkthrough-options > li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--spr-space-4);
+  }
+
+  .spr-walkthrough-options > li > svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .spr-walkthrough-option-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spr-space-2);
+    margin: 0;
+    color: var(--spr-fg);
+    font-weight: var(--spr-weight-strong);
+  }
+
+  .spr-walkthrough-option-text {
+    margin: 0;
   }
 
   .spr-walkthrough-faq {

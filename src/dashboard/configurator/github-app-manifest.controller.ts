@@ -75,11 +75,15 @@ export class GithubAppManifestController {
       }
       if (uploads.refusal) throw new GithubAppManifestError(uploads.refusal);
       const target = targetOf(member, baseUrl);
+      const account = submitted(body, `${app}:account`);
+      const owner = account === 'personal' ? '' : (submitted(body, `${app}:owner`) ?? '').trim();
+      if (account === 'org' && owner === '') {
+        throw new GithubAppManifestError('Name the organization the App is created on.');
+      }
       const started = await this.manifests.start(
         caller.tenantId,
         target,
-        // Each App on a page has its own organization field
-        (submitted(body, `${app}:owner`) ?? '').trim(),
+        owner,
         originOf(req),
         carryForm(body, uploads),
       );

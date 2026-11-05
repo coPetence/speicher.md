@@ -23,6 +23,7 @@ import {
   checkSource,
   configFileTarget,
   githubSourceOf,
+  rememberedRows,
 } from '../configurator/quick-setup/source-check';
 import { DashboardResponder } from '../respond';
 import { StatusService } from '../status/status.service';
@@ -32,7 +33,7 @@ import {
 } from '../ui/views/setup/setup-administrator/setup-administrator';
 import { sendSetup } from '../ui/views/setup/setup-overview/setup-overview';
 import { sendSetupRepository } from '../ui/views/setup/setup-repository/setup-repository';
-import { nextFix } from './repository-fix';
+import { BLOCKING_FIXES, nextFix } from './repository-fix';
 import { repositoryMatchText, repositoryTable } from './repository-table';
 import { SetupService } from './setup.service';
 import { REPOSITORY_STEP_PATH, SETUP_LATER_COOKIE } from './steps';
@@ -94,6 +95,7 @@ export class SetupWizardController {
 
     // The checks ask GitHub, so the page answers at once and asks for them at the check address
     const checking = req.query.check === '1';
+    const fresh = req.query.fresh === '1';
     const configFile = this.configFileModal(req);
     const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const github = new Map<string, Record<string, unknown>>();
@@ -115,13 +117,21 @@ export class SetupWizardController {
             await Promise.all(
               [...github].map(
                 async ([id, forge]) =>
-                  [id, await checkSource(id, forge, this.config, this.fetchImpl, 'setup')] as const,
+                  [
+                    id,
+                    await checkSource(id, forge, this.config, this.fetchImpl, 'setup', fresh),
+                  ] as const,
               ),
             ),
           )
         : null;
     const found = new Map<string, CheckRow[]>(
-      [...(checks ?? [])].map(([id, check]) => [id, check.repositories]),
+      checks
+        ? [...checks].map(([id, check]) => [id, check.repositories])
+        : [...github].map(([id, forge]) => [
+            id,
+            rememberedRows(id, forge, this.config, this.fetchImpl, 'setup'),
+          ]),
     );
     const rows = repositoryTable(status.repos, readable, found, copies);
     const busy = discovering.length > 0 || rows.some((row) => row.sync?.activity);
@@ -146,6 +156,7 @@ export class SetupWizardController {
       allowsPublic: (repository) => this.config.allowsPublic(publicRepoRef(repository)),
     });
     const address = new URLSearchParams({ check: '1', ...(query ? { q: query } : {}) });
+    const blocked = fix !== null && BLOCKING_FIXES.includes(fix.id);
 
     // The groups to grant are the ones the administrator is in, or every group while they are in none
     const groups =
@@ -154,7 +165,8 @@ export class SetupWizardController {
       finished,
       me,
       fix,
-      check_href: fix?.id === 'checking' ? `${REPOSITORY_STEP_PATH}?${address}` : null,
+      check_href: checks === null && !blocked ? `${REPOSITORY_STEP_PATH}?${address}` : null,
+      can_refresh: github.size > 0,
       query,
       config_file: configFile,
       picker:

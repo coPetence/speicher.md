@@ -638,11 +638,9 @@ describe('the walkthrough of a config page', () => {
     expect(opened(page.text)).toBe(true);
     expect(page.text).toContain('How signing in works');
     expect(page.text).toMatch(
-      /GitHub<\/span>\s*<span\s+class="spr-badge spr-badge-ok"[^>]*>recommended/,
+      /spr-walkthrough-option-name">GitHub\s*<span\s+class="spr-badge spr-badge-ok"[^>]*>recommended/,
     );
-    expect(page.text).toContain(
-      'Since this is the easiest to set up, we recommend it if you are not setting up Speicher.md for an organization.',
-    );
+    expect(page.text).toContain('This is the easiest provider to set up.');
   });
 
   it('does not open by itself over a modal the address opens', async () => {
@@ -735,7 +733,7 @@ describe('the walkthrough of a config page', () => {
     const previews = [
       ...first.text.matchAll(/<div class="spr-walkthrough-preview" inert aria-hidden="true">/g),
     ];
-    expect(previews).toHaveLength(4);
+    expect(previews).toHaveLength(3);
     expect(first.text).toContain('access: [<mark>sales</mark>]');
     // Beside the heading, as on the config pages
     expect(first.text).toMatch(/Repositories<\/h1>\s*<details class="spr-modal spr-walkthrough"/);

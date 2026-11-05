@@ -1749,10 +1749,10 @@ describe('the groups section', () => {
       /<div class="spr-empty-state" data-spr-rows-empty="groups\.client-acme">\s*<svg class="spr-empty-art"[\s\S]*?<p class="spr-empty">No members yet\.<\/p>/,
     );
     expect(draft.html).toContain(emptyStateArt('groups'));
-    // With no row yet, Add members sits under the empty state, and nothing is offered
-    // that needs a member: no head over a list, and no administrator access
+    // With no row yet, Add members sits under the empty state and is open, and nothing is
+    // offered that needs a member: no head over a list, and no administrator access
     expect(draft.html).toMatch(
-      /<p class="spr-empty">[^<]*<\/p>\s*<details class="spr-modal spr-index-add" data-spr-rows-add="groups\.client-acme">/,
+      /<p class="spr-empty">[^<]*<\/p>\s*<details class="spr-modal spr-index-add" data-spr-rows-add="groups\.client-acme" open>/,
     );
     expect(draft.html).not.toContain('class="spr-table-head"');
     expect(draft.html).toMatch(/data-spr-shown-with-rows="groups\.client-acme" hidden/);
@@ -1800,7 +1800,7 @@ describe('the groups section', () => {
     expect(fresh.html).toContain('name="admins.groups"');
     expect(fresh.html).toMatch(/data-spr-shown-with-rows="groups\.engineering"\s*>/);
     expect(fresh.html).toMatch(
-      /<div class="spr-table-actions">[\s\S]*?data-spr-rows-add="groups\.engineering"/,
+      /<div class="spr-table-actions">[\s\S]*?data-spr-rows-add="groups\.engineering">/,
     );
 
     await post('groups/engineering', {

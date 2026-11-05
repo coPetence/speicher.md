@@ -7,8 +7,6 @@ import { renderInlineIcon } from '../../content-reader/icons';
 import { readerScheme, THEME_COOKIE } from '../../content-reader/views';
 import { guidedThroughSetup } from '../respond';
 import { renderInlineMark } from '../ui/provider-marks';
-import { SYNCING_ICON } from '../ui/views/sync-status/repo-status/repo-status';
-import { QUEUED_ICON } from '../ui/views/sync-status/status-overview/status-overview';
 import { Walkthrough, walkthroughCookie, walkthroughOf } from './walkthroughs';
 
 // How long a walkthrough that opened by itself stays shut on later visits
@@ -58,9 +56,6 @@ export function walkthroughView(req: Request, res: Response, id: string): Walkth
       chevron_down: renderInlineIcon('chevron-down', 'spr-icon'),
       arrow_down: renderInlineIcon('arrow-down', 'spr-icon'),
       external: renderInlineIcon('external-link', 'spr-icon'),
-      // As on the sync status page
-      queued: renderInlineIcon(QUEUED_ICON, 'spr-icon'),
-      syncing: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
       github: renderInlineMark('github', 'spr-icon'),
       marks: Object.fromEntries(
         ['github', 'git', 'microsoft', 'openid', 'mail'].map((mark) => [
