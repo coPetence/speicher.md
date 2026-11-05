@@ -4,9 +4,9 @@ icon: bug
 
 # Troubleshooting
 
-## Port 3000 already in use
+## Port 32168 already in use
 
-By default speicher runs on port 3000. If that port is already in use on your system you can change the port mapping of the `web` service in your docker compose file.
+By default Speicher is published on port 32168 of the host. If that port is already in use on your system, change the host side of the port mapping of the `web` service in your docker compose file, for example `'8080:3000'`, and update `SPEICHER_PUBLIC_URL` to match. Keep `3000` on the right: that is the port inside the container.
 If you are using a reverse proxy you also need to change the port mapping in the reverse proxy configuration.
 
 ---

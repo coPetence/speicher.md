@@ -4,7 +4,7 @@ icon: network
 
 # Reverse proxy and TLS
 
-Speicher serves plain HTTP on port 3000. This page sets up a proxy, to serve HTTPS, for the Docker Compose file from the [quick start guide](../01-quick-start/01-self-hosted.md). There are two options to set up the proxy:
+Speicher serves plain HTTP on port 3000 inside its container; the quick start publishes it on port 32168 of the host. This page sets up a proxy, to serve HTTPS, for the Docker Compose file from the [quick start guide](../01-quick-start/01-self-hosted.md). There are two options to set up the proxy:
 
 - [Caddy in the Compose file](#caddy-in-the-compose-file) gets and renews certificates by itself. Use it if you do not plan to run any other services on the same server.
 - [nginx on the host](#nginx-on-the-host), if you already run nginx there or want to use it for other services as well.
@@ -82,7 +82,7 @@ Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-For
 
    ```yaml
    ports:
-     - '127.0.0.1:3000:3000'
+     - '127.0.0.1:32168:3000'
    ```
 
 2. Get a certificate for your domain, for example with Certbot.
@@ -105,7 +105,7 @@ Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-For
        ssl_certificate_key /etc/letsencrypt/live/docs.example.com/privkey.pem;
 
        location / {
-           proxy_pass http://127.0.0.1:3000;
+           proxy_pass http://127.0.0.1:32168;
            proxy_set_header Host              $host;
            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
            proxy_set_header X-Forwarded-Proto $scheme;
@@ -124,9 +124,9 @@ Speicher takes the client IP from `X-Forwarded-For` and the protocol from `X-For
 
 Any reverse proxy works if it:
 
-- serves HTTPS and forwards to port 3000 over HTTP
+- serves HTTPS and forwards to Speicher over HTTP
 - sends `X-Forwarded-For` and `X-Forwarded-Proto`, and passes on the original `Host` header
-- is the only thing that can reach port 3000
+- is the only thing that can reach Speicher's port
 
 Speicher uses no WebSockets or long-lived connections, so the proxy needs no special timeouts.
 
@@ -163,7 +163,7 @@ If you use the [GitHub App](../02-configuration/03-content-sources/01-github/ind
 | `linklocal`             | `169.254.0.0/16` and `fe80::/10`                                                                               |
 | an IP address or subnet | that address only, for example the proxy's Docker network `172.18.0.0/16`                                      |
 
-In Docker, requests reach Speicher from a private Docker network address, even when the proxy runs on the same host, so the default `loopback` does not work there. With `uniquelocal`, make sure only the proxy can reach port 3000, as both setups above do. Otherwise anyone on your network could send forged headers.
+In Docker, requests reach Speicher from a private Docker network address, even when the proxy runs on the same host, so the default `loopback` does not work there. With `uniquelocal`, make sure only the proxy can reach Speicher's port, as both setups above do. Otherwise anyone on your network could send forged headers.
 
 ## Settings
 

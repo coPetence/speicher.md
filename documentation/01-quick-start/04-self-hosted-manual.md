@@ -8,7 +8,7 @@ title: Manual Setup Self-hosting
 ## Prerequisites
 
 - **Docker** with the **Compose plugin**. [How to install](https://docs.docker.com/engine/install/)
-- **Port 3000** is not in use on your machine. If it is taken, do [use a different port](../reference/troubleshooting#port-3000-already-in-use)
+- **Port 32168** is not in use on your machine. If it is taken, do [use a different port](../reference/troubleshooting#port-32168-already-in-use)
 
 ## 1. Create the compose file
 
@@ -19,7 +19,7 @@ x-speicher: &speicher
   image: ghcr.io/copetence/speicher.md:latest
   environment:
     SPEICHER_DATABASE_URL: postgres://speicher:${POSTGRES_PASSWORD}@db:5432/speicher
-    SPEICHER_PUBLIC_URL: http://localhost:3000
+    SPEICHER_PUBLIC_URL: http://localhost:32168
   volumes:
     - speicher-data:/var/lib/speicher
   restart: unless-stopped
@@ -52,7 +52,7 @@ services:
   web:
     <<: *speicher
     ports:
-      - '3000:3000'
+      - '32168:3000'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -88,7 +88,7 @@ docker compose up -d
 
 ## 3. Open it in your browser
 
-Open [http://localhost:3000](http://localhost:3000), or the address of your server.
+Open [http://localhost:32168](http://localhost:32168), or the address of your server.
 
 ## 4. Claim the instance
 

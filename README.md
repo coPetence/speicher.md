@@ -21,7 +21,7 @@ curl -fsSL \
 
 The installation script creates a directory `speicher/` in your home directory, downloads the latest release of speicher.md, and starts it with Docker Compose. It also generates a random database password and writes it to a `.env` file in the same directory.
 
-When the script finishes, open [http://localhost:3000](http://localhost:3000) in your browser, or the address of your server.
+When the script finishes, open [http://localhost:32168](http://localhost:32168) in your browser, or the address of your server.
 
 **[Continue with setting up the instance →](https://docs.speicher.md/quick-start/setup-instance)**
 
