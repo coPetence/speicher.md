@@ -4,14 +4,14 @@ icon: folder-git-2
 
 # GitHub as a content source
 
-Speicher reads repositories on GitHub through a GitHub App. The App gives Speicher read access to the repositories you install it on, and tells Speicher about every push, so pages update shortly after a change.
+speicher.md reads repositories on GitHub through a GitHub App. The App gives speicher.md read access to the repositories you install it on, and tells speicher.md about every push, so pages update shortly after a change.
 
 ## 0. Before you start
 
-- Speicher must be reachable from GitHub for webhooks to work. Set [`SPEICHER_PUBLIC_URL`](../../../06-reference/02-environment-variables.md) to the public address of your instance first. GitHub does not accept a webhook on `localhost`; an App created there has no webhook, and Speicher picks up changes on its regular schedule instead (see [step 4](#4-how-repositories-are-synced)).
+- speicher.md must be reachable from GitHub for webhooks to work. Set [`SPEICHER_PUBLIC_URL`](../../../06-reference/02-environment-variables.md) to the public address of your instance first. GitHub does not accept a webhook on `localhost`; an App created there has no webhook, and speicher.md picks up changes on its regular schedule instead (see [step 4](#4-how-repositories-are-synced)).
 - Decide where the App lives. Create it under the **organization** that owns your documentation repositories. An App created under a personal account can only be installed on that account's repositories, unless you make it public.
 
-## 1. Add a GitHub source in Speicher
+## 1. Add a GitHub source in speicher.md
 
 In the dashboard, go to **Configuration → Content sources**, choose **Add a source** and select **GitHub App**. Give the source a short id, for example `github`.
 
@@ -21,11 +21,11 @@ If you use GitHub Enterprise Server, enter its address as **Base URL**, for exam
 
 There are two ways to create the App.
 
-### Let Speicher create it (recommended)
+### Let speicher.md create it (recommended)
 
 Choose **Create on GitHub**, enter the organization the App should belong to (leave it empty for your personal account), and continue. GitHub shows you the App with everything filled in: its name, permissions, webhook URL and events. Confirm it there.
 
-GitHub then sends you back to Speicher, which saves the App's id, private key and webhook secret, and forwards you to the App's installation page on GitHub. Continue with [step 3](#3-install-the-app).
+GitHub then sends you back to speicher.md, which saves the App's id, private key and webhook secret, and forwards you to the App's installation page on GitHub. Continue with [step 3](#3-install-the-app).
 
 <!-- screenshot: the "Create on GitHub" choice on a new GitHub source -->
 
@@ -33,9 +33,9 @@ GitHub then sends you back to Speicher, which saves the App's id, private key an
 
 Choose **Enter manually**. In GitHub, go to **Organization Settings → Developer settings → GitHub Apps → New GitHub App** and fill in:
 
-- **Homepage URL**: the address of your Speicher instance.
-- **Webhook URL**: the URL Speicher shows under **Webhook URL**. It has the form `https://<your-host>/-/hooks/forge/<source-id>`.
-- **Webhook secret**: a long random string. You enter the same value in Speicher.
+- **Homepage URL**: the address of your speicher.md instance.
+- **Webhook URL**: the URL speicher.md shows under **Webhook URL**. It has the form `https://<your-host>/-/hooks/forge/<source-id>`.
+- **Webhook secret**: a long random string. You enter the same value in speicher.md.
 - **Repository permissions**:
 
   | Permission    | Access         | Used for                                               |
@@ -49,7 +49,7 @@ Choose **Enter manually**. In GitHub, go to **Organization Settings → Develope
 
 Create the App, then generate a private key at the bottom of its settings page. GitHub downloads it as a `.pem` file.
 
-Back in Speicher, enter:
+Back in speicher.md, enter:
 
 - **App id**: shown at the top of the App's settings page.
 - **Private key**: paste the content of the `.pem` file, or drop the file onto the field.
@@ -58,12 +58,12 @@ Back in Speicher, enter:
 Save the configuration.
 
 :::note
-Without a webhook secret, Speicher rejects every webhook delivery and only notices changes on its regular schedule.
+Without a webhook secret, speicher.md rejects every webhook delivery and only notices changes on its regular schedule.
 :::
 
 ## 3. Install the App
 
-On the App's page on GitHub, choose **Install** and select the account or organization. You can give it access to all repositories, or only to selected ones. Speicher can only see the repositories the App is installed on.
+On the App's page on GitHub, choose **Install** and select the account or organization. You can give it access to all repositories, or only to selected ones. speicher.md can only see the repositories the App is installed on.
 
 Only repositories with a `.speicher.yaml` at their root are published. The others are skipped, so installing the App on all repositories publishes nothing by itself. See [Publish your first repository](../../../01-quick-start/03-setup-repository.md) for the file.
 
@@ -72,9 +72,9 @@ Only repositories with a `.speicher.yaml` at their root are published. The other
 
 ## 4. How repositories are synced
 
-- **New repositories**: when you install the App or add a repository to its installation, GitHub notifies Speicher and the repository is picked up right away. Speicher also looks for new repositories every 6 hours (`SPEICHER_DISCOVER_INTERVAL`).
-- **Changes**: a push to the repository's default branch triggers a sync. Pushes to other branches are ignored. In addition, Speicher checks every repository against GitHub every 15 minutes (`SPEICHER_RECONCILE_INTERVAL`), which catches anything a missed webhook left out.
-- **Pull requests**: when a pull request is opened or updated, Speicher checks the `.speicher.yaml` files it contains and reports the result as a check named `speicher` on the pull request.
+- **New repositories**: when you install the App or add a repository to its installation, GitHub notifies speicher.md and the repository is picked up right away. speicher.md also looks for new repositories every 6 hours (`SPEICHER_DISCOVER_INTERVAL`).
+- **Changes**: a push to the repository's default branch triggers a sync. Pushes to other branches are ignored. In addition, speicher.md checks every repository against GitHub every 15 minutes (`SPEICHER_RECONCILE_INTERVAL`), which catches anything a missed webhook left out.
+- **Pull requests**: when a pull request is opened or updated, speicher.md checks the `.speicher.yaml` files it contains and reports the result as a check named `speicher` on the pull request.
 - **Renamed repositories** are followed. Repositories that are deleted, archived or transferred, or that are removed from the App's installation, are taken offline.
 
 To sync a repository immediately, run:
@@ -119,14 +119,14 @@ forges:
 | `forges.<id>.primary` | boolean | `false` |  | Whether this source's id is left out of its repositories' URLs. Only one source can be primary; when there is only one source, it is primary. Repositories of other sources are served under `/<source-id>/…`. |
 | `forges.<id>.default_repository_owner` | string |  |  | The user or organization whose name is left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Repositories of other owners keep the owner in their URL. |
 | `forges.<id>.base_url` | string (uri) |  |  | GitHub only. The address of your GitHub Enterprise Server, for example `https://github.example.com`. Leave it empty for GitHub.com. |
-| `forges.<id>.webhook_secret` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | GitHub only. The secret of the GitHub App's webhook. Without it, Speicher rejects webhook deliveries and picks up changes only on its regular schedule. |
+| `forges.<id>.webhook_secret` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | GitHub only. The secret of the GitHub App's webhook. Without it, speicher.md rejects webhook deliveries and picks up changes only on its regular schedule. |
 | `forges.<id>.app_id` | string |  | if `type: github` | GitHub only. The id of the GitHub App, shown at the top of the App's settings page. |
 | `forges.<id>.private_key` | string |  | if `type: github` | GitHub only. The private key of the GitHub App, the content of the `.pem` file GitHub generates. |
 | `forges.<id>.token` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | gitlab / gitea / forgejo |
-| `forges.<id>.poll_interval` | string | `1h` |  | Git only. How often Speicher checks each repository of this source for new commits, for example `15m`. Repositories can override it. |
-| `forges.<id>.known_hosts` | string |  |  | Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; Speicher connects only to servers listed here. |
+| `forges.<id>.poll_interval` | string | `1h` |  | Git only. How often speicher.md checks each repository of this source for new commits, for example `15m`. Repositories can override it. |
+| `forges.<id>.known_hosts` | string |  |  | Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; speicher.md connects only to servers listed here. |
 | `forges.<id>.repos` | list of object |  | if `type: git` | Git only. The repositories this source serves. They are listed here because a plain git server cannot be asked for them. |
-| `forges.<id>.repos[].id` | string |  | yes | Identifies the repository within this source. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes. |
+| `forges.<id>.repos[].id` | string |  | yes | Identifies the repository within this source. Choose it once and keep it: speicher.md uses it to recognize the repository when its URL or slug changes. |
 | `forges.<id>.repos[].url` | string |  | yes | The remote URL: `https://host/owner/repo.git` with a `token`, or `ssh://user@host/owner/repo.git` with a `deploy_key`. `http://` and `git://` URLs are refused. |
 | `forges.<id>.repos[].slug` | string |  |  | The repository's name in URLs. Defaults to `id`. If you change it, the old URLs redirect to the new ones. |
 | `forges.<id>.repos[].branch` | string |  |  | The branch to publish. Defaults to the repository's default branch. |

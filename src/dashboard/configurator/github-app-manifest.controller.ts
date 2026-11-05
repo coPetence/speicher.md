@@ -184,7 +184,7 @@ export class GithubAppManifestController {
       if (target.member === 'new' && configState.doc?.hasIn(target.path)) {
         const noun = nounOf(section);
         throw new GithubAppManifestError(
-          `The ${noun} "${member}" already exists, so Speicher did not take over the App GitHub created. To create the App for a new ${noun}, start again with another short id.`,
+          `The ${noun} "${member}" already exists, so speicher.md did not take over the App GitHub created. To create the App for a new ${noun}, start again with another short id.`,
         );
       }
       const app = await this.manifests.convert(target, code);

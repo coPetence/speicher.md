@@ -50,7 +50,7 @@ export function repoCard(root: Obj, forgeId: string, index: number): Card {
       ...textField(root, [...base, 'id'], p('id'), 'Repository id', {
         pattern: REPO_ID_PATTERN,
         patternHint: REPO_ID_HINT,
-        help: 'The repository id identifies this repository within the content source. It is used as the URL slug when the URL slug field is empty. If you leave it empty, Speicher uses the name of the repository in the remote URL when you save, for example `docs` for `ssh://git@example.com/owner/docs.git`.',
+        help: 'The repository id identifies this repository within the content source. It is used as the URL slug when the URL slug field is empty. If you leave it empty, speicher.md uses the name of the repository in the remote URL when you save, for example `docs` for `ssh://git@example.com/owner/docs.git`.',
       }),
       // A repository without an id gets the name of the repository in its remote URL.
       // repository-id-from-url.ts fills it in the same way while the URL is typed

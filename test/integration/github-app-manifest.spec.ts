@@ -504,7 +504,7 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
     expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
     const manifest = manifestOf(response.text);
     // Named after the host of this instance, which answers the test on 127.0.0.1
-    expect(manifest.name).toBe('127.0.0.1 Speicher.md');
+    expect(manifest.name).toBe('127.0.0.1 speicher.md');
     expect(manifest.callback_urls?.[0]).toMatch(/\/api\/auth\/github\/callback$/);
     expect(manifest.redirect_url).toMatch(
       /\/-\/config\/identity\/octo\/github-app\/manifest\/callback$/,
@@ -614,7 +614,7 @@ describe('creating the directory App of an identity provider from a manifest', (
 
     expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
     const manifest = manifestOf(response.text);
-    expect(manifest.name).toBe('Speicher.md Directory');
+    expect(manifest.name).toBe('speicher.md Directory');
     expect(manifest.default_permissions).toEqual({ members: 'read' });
     expect(manifest.callback_urls).toBeUndefined();
     expect(manifest.redirect_url).toMatch(

@@ -34,7 +34,7 @@ export const repositories: PickListProvider = {
   },
   unknown: {
     level: 'warn',
-    text: 'Speicher does not know this repository. It may have been renamed or removed.',
+    text: 'speicher.md does not know this repository. It may have been renamed or removed.',
   },
 };
 

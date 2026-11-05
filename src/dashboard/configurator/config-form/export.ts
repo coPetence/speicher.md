@@ -7,7 +7,7 @@ import { allFields } from './model';
 import { problem } from '../../../common/config-problems';
 
 /** Header used to identify and replace previous export headers */
-export const EXPORT_HEADER = '# Speicher instance configuration export';
+export const EXPORT_HEADER = '# speicher.md instance configuration export';
 
 export interface ConfigExport {
   yaml: string;

@@ -1,6 +1,6 @@
 <h1>Link report</h1>
 
-<p class="spr-empty">Every link Speicher resolved at ingest, asked again now.</p>
+<p class="spr-empty">Every link speicher.md resolved at ingest, asked again now.</p>
 
 <%~ include('@stats', { tiles: it.tiles }) %>
 

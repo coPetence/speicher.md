@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://speicher.md/schema/frontmatter.json",
-  "title": "Speicher page frontmatter",
+  "title": "speicher.md page frontmatter",
   "description": "YAML frontmatter in a content file. Stripped before rendering, never emitted as content. Parsed with YAML 1.2 core schema. Frontmatter NEVER affects access \u2014 an `access` key is rejected, not warned.",
   "type": "object",
   "additionalProperties": false,

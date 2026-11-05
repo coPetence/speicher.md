@@ -52,7 +52,7 @@ docker compose exec web speicher admin add --provider entra --email jane@acme.ex
 
 ## Nobody can lock everyone out
 
-Speicher refuses to save a configuration that leaves nobody as administrator. That happens when there is no person under `admins.users`, and every group under `admins.groups` has no members, because it is not mapped to a provider group or a person.
+speicher.md refuses to save a configuration that leaves nobody as administrator. That happens when there is no person under `admins.users`, and every group under `admins.groups` has no members, because it is not mapped to a provider group or a person.
 
 :::note
 The check only looks at the configuration. It cannot tell whether an administrator can still sign in, for example after leaving the company. Keep at least two administrators.

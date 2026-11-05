@@ -94,7 +94,7 @@ export function nextFix(input: FixInput): RepositoryFix | null {
         id: 'source',
         waits: false,
         title: 'Add a content source',
-        text: 'A content source is the location from which Speicher.md reads your repositories.',
+        text: 'A content source is the location from which speicher.md reads your repositories.',
         action: { label: 'Open content sources', href: '/-/config/sources' },
       };
     }
@@ -130,7 +130,7 @@ function fixOfSources(
     return {
       id: 'check-failed',
       waits: false,
-      title: `Speicher.md could not check the repositories of ${id}`,
+      title: `speicher.md could not check the repositories of ${id}`,
       text: check.problem.text,
       action: {
         label: 'Open the content source',
@@ -159,8 +159,8 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
       return {
         id: 'discovering',
         waits: true,
-        title: 'Speicher.md is looking for your repositories',
-        text: `Speicher.md is discovering the repositories of ${input.discovering.join(', ')}.`,
+        title: 'speicher.md is looking for your repositories',
+        text: `speicher.md is discovering the repositories of ${input.discovering.join(', ')}.`,
       };
     }
     const unchecked = input.sources.find((id) => !input.checks?.has(id));
@@ -179,8 +179,8 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
     return {
       id: 'not-found',
       waits: true,
-      title: 'Speicher.md is looking for your repositories',
-      text: 'Speicher.md has not found a repository yet. It will check the content sources regularly.',
+      title: 'speicher.md is looking for your repositories',
+      text: 'speicher.md has not found a repository yet. It will check the content sources regularly.',
     };
   }
 
@@ -219,7 +219,7 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
     return {
       id: 'syncing',
       waits: true,
-      title: `Speicher.md is syncing ${granted.name}`,
+      title: `speicher.md is syncing ${granted.name}`,
       text: `${publishes(granted) ? 'Its `.speicher.yaml` grants everyone read access.' : 'Its `.speicher.yaml` grants one of your groups read access.'} You can read it once the sync is done.`,
     };
   }
@@ -321,7 +321,7 @@ function fixOfPublic(input: FixInput, row: RepositoryTableRow): RepositoryFix {
         : {
             disabled:
               input.discovering.length > 0
-                ? 'Speicher.md is synchronizing the repository. You can add it once that is done.'
+                ? 'speicher.md is synchronizing the repository. You can add it once that is done.'
                 : 'You can add the repository once it is synchronized.',
           }),
     },
@@ -335,15 +335,15 @@ function fixOfUnregistered(input: FixInput, row: RepositoryTableRow): Repository
     return {
       id: 'discovering',
       waits: true,
-      title: `Speicher.md is synchronizing ${row.name}`,
-      text: `Speicher.md is checking ${input.discovering.join(', ')} for new repositories.`,
+      title: `speicher.md is synchronizing ${row.name}`,
+      text: `speicher.md is checking ${input.discovering.join(', ')} for new repositories.`,
     };
   }
   return {
     id: 'discover',
     waits: false,
     title: `${row.name} is not synchronized yet`,
-    text: 'Speicher.md synchronizes a repository when it changes, for example with a new commit, and on a regular schedule. Start the synchronization now.',
+    text: 'speicher.md synchronizes a repository when it changes, for example with a new commit, and on a regular schedule. Start the synchronization now.',
     action: discoverAction(),
   };
 }

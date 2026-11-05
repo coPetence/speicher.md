@@ -8,7 +8,7 @@ export function readingSection(root: Obj): SectionSource {
   return {
     ...sectionHead('reading'),
     blurb:
-      'When Speicher ingests a repository, it records which pages link to each other and which tags each page has. This link graph powers the reading features below. Switching a feature off hides it for readers right away, without a new ingest. Find out more in our [documentation](https://docs.speicher.md/configuration/reading-experience)',
+      'When speicher.md ingests a repository, it records which pages link to each other and which tags each page has. This link graph powers the reading features below. Switching a feature off hides it for readers right away, without a new ingest. Find out more in our [documentation](https://docs.speicher.md/configuration/reading-experience)',
     fields: [
       booleanField(root, ['graph', 'enabled'], 'graph.enabled', 'Link graph', {
         fallback: true,

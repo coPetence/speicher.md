@@ -42,7 +42,7 @@ To fix this emit **groups assigned to the application** instead of all security 
 
 ## 3. Configure the provider
 
-In the Speicher Dashboard go to **Configuration → Identity Providers** and create a new Entra ID provider:
+In the speicher.md Dashboard go to **Configuration → Identity Providers** and create a new Entra ID provider:
 
 ![Screenshot: Add Entra ID Provider](./assets/add-entra-id-provider.png)
 
@@ -50,7 +50,7 @@ In the Entra Application Overview you should be able to see the `Application (cl
 
 ![Screenshot: Entra ID Application Overview](./assets/entra-application-overview.png)
 
-Now go to the **Entra App Registration → Certificates & secrets** and create a new `Client Secret`. Copy the Secret Value into the Client Secret Field in Speicher.
+Now go to the **Entra App Registration → Certificates & secrets** and create a new `Client Secret`. Copy the Secret Value into the Client Secret Field in speicher.md.
 
 ![Screenshot: Client Secret Entra ID](./assets/entra-client-secret.png)
 
@@ -62,13 +62,13 @@ Under **Who should see this provider?**, choose **Only these domains** and list 
 Example: if someone enters a `@copetence.de` address on the sign-in page, they are sent straight to the identity providers configured for this email domain.
 Use it to show users only the sign-in options they are actually meant to use. If you leave it empty, the provider is available to all users.
 
-![Screenshot: Speicher Entra ID Config](./assets/speicher-entra-id-config.png)
+![Screenshot: speicher.md Entra ID Config](./assets/speicher-entra-id-config.png)
 
 ---
 
 ## Directory Lookup
 
-Speicher can read your Entra ID directory through Microsoft Graph. This is an optional feature which enhances the Entra ID functionalities.
+speicher.md can read your Entra ID directory through Microsoft Graph. This is an optional feature which enhances the Entra ID functionalities.
 
 ### What a directory lookup adds
 

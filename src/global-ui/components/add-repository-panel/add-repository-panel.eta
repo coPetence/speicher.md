@@ -27,7 +27,7 @@
         <% } else if (installation) { %>
         <p class="spr-check-summary">This GitHub App can only read selected repositories. To add a repository, select it under Repository access on GitHub and save.</p>
         <% } else if (source.github) { %>
-        <p class="spr-check-summary">Speicher.md could not find an installation of this GitHub App.</p>
+        <p class="spr-check-summary">speicher.md could not find an installation of this GitHub App.</p>
         <% } else { %>
         <p class="spr-check-summary">You can add repositories on the page of this content source.</p>
         <% } %>

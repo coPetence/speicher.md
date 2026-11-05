@@ -198,7 +198,7 @@ describe('approval lands on the browser that asked, and on no other', () => {
     expect(await setup.pending(harness.tenantId)).toHaveLength(0);
 
     const wizard = await agent.get('/-/setup').expect(200);
-    expect(wizard.text).toContain('Welcome to Speicher.md');
+    expect(wizard.text).toContain('Welcome to speicher.md');
 
     const config = await agent.get('/-/config').expect(200);
     expect(config.text).toContain('Identity');

@@ -26,7 +26,7 @@ import { noWebhookSecretNote, webhookNote, webhookUrlItem } from '../github-webh
 const WEBHOOK: WebhookWording = {
   subject: 'source',
   app: 'your GitHub App',
-  without: 'Speicher picks up changes on its regular schedule instead of right away',
+  without: 'speicher.md picks up changes on its regular schedule instead of right away',
   events: '',
   secretLabel: 'Webhook secret',
 };

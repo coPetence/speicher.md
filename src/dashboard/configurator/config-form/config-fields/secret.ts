@@ -9,8 +9,8 @@ import { at, baseField } from './base';
 
 export const SECRET_HELP =
   'Enter a secret or an environment variable reference like `${MY_SECRET}`. ' +
-  'If self-hosting, set the variable where Speicher runs (e.g. in Docker Compose) ' +
-  'and restart Speicher. Variable names must not start with `SPEICHER_`.';
+  'If self-hosting, set the variable where speicher.md runs (e.g. in Docker Compose) ' +
+  'and restart speicher.md. Variable names must not start with `SPEICHER_`.';
 
 // Matches `${ENV_VAR}` references
 const PLACEHOLDER = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/;

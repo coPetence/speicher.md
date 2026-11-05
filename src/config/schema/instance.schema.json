@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://speicher.md/schema/instance.json",
-  "title": "Speicher instance config",
+  "title": "speicher.md instance config",
   "description": "Admin-controlled. Never lives in a content repo. Only this file may use ${VAR} interpolation.",
   "type": "object",
   "required": ["version"],
@@ -299,12 +299,12 @@
     "attribution": {
       "type": "boolean",
       "default": true,
-      "description": "Whether pages show `Published with speicher.md` at the bottom, linking to the Speicher website. The text cannot be changed.",
+      "description": "Whether pages show `Published with speicher.md` at the bottom, linking to the speicher.md website. The text cannot be changed.",
       "examples": [false]
     },
     "graph": {
       "type": "object",
-      "description": "Features built from the links between pages: the related column, hover previews, tags and link-weighted search. Speicher records links on every sync, so changes apply right away. A reader only sees links between pages they can read.",
+      "description": "Features built from the links between pages: the related column, hover previews, tags and link-weighted search. speicher.md records links on every sync, so changes apply right away. A reader only sees links between pages they can read.",
       "additionalProperties": false,
       "properties": {
         "enabled": {
@@ -421,7 +421,7 @@
           "default": "6h"
         },
         "expiry_warning": {
-          "description": "How long before an individual grant ends Speicher starts warning about it, for example `7d`.",
+          "description": "How long before an individual grant ends speicher.md starts warning about it, for example `7d`.",
           "$ref": "#/$defs/duration",
           "default": "14d"
         }
@@ -429,12 +429,12 @@
     },
     "embedding": {
       "type": "object",
-      "description": "Connects an embedding model for semantic search. Any endpoint that offers the OpenAI embeddings API works, such as OpenAI, Azure OpenAI or Ollama. Speicher only creates embeddings and never generates text. Changes apply after a restart.",
+      "description": "Connects an embedding model for semantic search. Any endpoint that offers the OpenAI embeddings API works, such as OpenAI, Azure OpenAI or Ollama. speicher.md only creates embeddings and never generates text. Changes apply after a restart.",
       "required": ["base_url", "model", "dimensions"],
       "additionalProperties": false,
       "properties": {
         "base_url": {
-          "description": "The endpoint's address without `/embeddings`, for example `https://api.openai.com/v1`. Speicher appends `/embeddings`.",
+          "description": "The endpoint's address without `/embeddings`, for example `https://api.openai.com/v1`. speicher.md appends `/embeddings`.",
           "type": "string",
           "format": "uri"
         },
@@ -523,7 +523,7 @@
     },
     "groups": {
       "type": "object",
-      "description": "References another Speicher group by its internal name. All members of the referenced groups will be members of this group.",
+      "description": "References another speicher.md group by its internal name. All members of the referenced groups will be members of this group.",
       "propertyNames": {
         "$ref": "#/$defs/internalName"
       },
@@ -702,16 +702,16 @@
           "description": "The name the sign-in page shows for this provider, for example `Google`. Defaults to the provider's id."
         },
         "issuer": {
-          "description": "The address of the provider's OpenID Connect server, for example `https://accounts.google.com`. Speicher reads the provider's settings from `<issuer>/.well-known/openid-configuration`, and refuses an issuer that does not name a single tenant or realm.",
+          "description": "The address of the provider's OpenID Connect server, for example `https://accounts.google.com`. speicher.md reads the provider's settings from `<issuer>/.well-known/openid-configuration`, and refuses an issuer that does not name a single tenant or realm.",
           "type": "string",
           "format": "uri"
         },
         "client_id": {
-          "description": "The client id of the application you registered for Speicher at the provider.",
+          "description": "The client id of the application you registered for speicher.md at the provider.",
           "type": "string"
         },
         "client_secret": {
-          "description": "The client secret of that application. Leave it out only if the provider registered Speicher as a public client.",
+          "description": "The client secret of that application. Leave it out only if the provider registered speicher.md as a public client.",
           "type": "string"
         },
         "subject_claim": {
@@ -747,7 +747,7 @@
           "description": "If you have a directory configured, this is how long a connection persists while not used. Without a directory, a connection ends with `session_ttl`."
         },
         "directory": {
-          "description": "Optional read access to the provider's directory. Speicher uses it to resolve email grants to people, count group members and notice people who have left.",
+          "description": "Optional read access to the provider's directory. speicher.md uses it to resolve email grants to people, count group members and notice people who have left.",
           "$ref": "#/$defs/directory"
         }
       }
@@ -887,7 +887,7 @@
         },
         "webhook_secret": {
           "type": "string",
-          "description": "GitHub only. The secret of the GitHub App's webhook. Without it, Speicher rejects webhook deliveries and picks up changes only on its regular schedule."
+          "description": "GitHub only. The secret of the GitHub App's webhook. Without it, speicher.md rejects webhook deliveries and picks up changes only on its regular schedule."
         },
         "app_id": {
           "type": "string",
@@ -904,11 +904,11 @@
         "poll_interval": {
           "$ref": "#/$defs/duration",
           "default": "1h",
-          "description": "Git only. How often Speicher checks each repository of this source for new commits, for example `15m`. Repositories can override it."
+          "description": "Git only. How often speicher.md checks each repository of this source for new commits, for example `15m`. Repositories can override it."
         },
         "known_hosts": {
           "type": "string",
-          "description": "Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; Speicher connects only to servers listed here."
+          "description": "Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; speicher.md connects only to servers listed here."
         },
         "repos": {
           "type": "array",
@@ -965,7 +965,7 @@
       "properties": {
         "id": {
           "$ref": "#/$defs/repoId",
-          "description": "Identifies the repository within this source. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes."
+          "description": "Identifies the repository within this source. Choose it once and keep it: speicher.md uses it to recognize the repository when its URL or slug changes."
         },
         "url": {
           "type": "string",
@@ -1138,7 +1138,7 @@
             },
             "public": {
               "type": "boolean",
-              "description": "Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by Speicher.md."
+              "description": "Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by speicher.md."
             }
           }
         }
@@ -1179,7 +1179,7 @@
           "description": "github. This secret is used to sign the webhook deliveries of the App."
         },
         "cache_ttl": {
-          "description": "How long directory answers are cached before Speicher asks again.",
+          "description": "How long directory answers are cached before speicher.md asks again.",
           "$ref": "#/$defs/duration",
           "default": "1h"
         }

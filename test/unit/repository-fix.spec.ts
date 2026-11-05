@@ -174,7 +174,7 @@ describe('the next step of the repositories page', () => {
     expect(fix).toMatchObject({
       id: 'syncing',
       waits: true,
-      title: 'Speicher.md is syncing acme/wiki',
+      title: 'speicher.md is syncing acme/wiki',
     });
   });
 

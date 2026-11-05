@@ -152,18 +152,18 @@ describe("a directory App's manifest", () => {
 });
 
 describe("an identity provider App's name", () => {
-  it('is the hostname of this instance, then Speicher.md', () => {
-    expect(signInAppName('https://docs.acme.example:8443/')).toBe('docs.acme.example Speicher.md');
-    expect(signInAppName('http://localhost:3000')).toBe('localhost Speicher.md');
+  it('is the hostname of this instance, then speicher.md', () => {
+    expect(signInAppName('https://docs.acme.example:8443/')).toBe('docs.acme.example speicher.md');
+    expect(signInAppName('http://localhost:3000')).toBe('localhost speicher.md');
   });
 
   it("shortens a long hostname to fit GitHub's limit of 34 characters", () => {
     const name = signInAppName('https://documentation.copetence.example');
     expect(name.length).toBeLessThanOrEqual(34);
-    expect(name.endsWith(' Speicher.md')).toBe(true);
+    expect(name.endsWith(' speicher.md')).toBe(true);
   });
 
-  it('is Speicher.md alone when the address cannot be read', () => {
-    expect(signInAppName('not a url')).toBe('Speicher.md');
+  it('is speicher.md alone when the address cannot be read', () => {
+    expect(signInAppName('not a url')).toBe('speicher.md');
   });
 });

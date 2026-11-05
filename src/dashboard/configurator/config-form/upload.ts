@@ -160,7 +160,7 @@ const OPENSSH_KEY =
   /-----BEGIN OPENSSH PRIVATE KEY-----([\s\S]*?)-----END OPENSSH PRIVATE KEY-----/;
 
 const SSH_PASSPHRASE_REFUSAL =
-  'That key is protected by a passphrase, and Speicher can only use keys without passphrases. To remove the passphrase, run `ssh-keygen -p -f <file>` and leave the new passphrase empty.';
+  'That key is protected by a passphrase, and speicher.md can only use keys without passphrases. To remove the passphrase, run `ssh-keygen -p -f <file>` and leave the new passphrase empty.';
 
 /**
  * Reads a private SSH key, such as a deploy key created with `ssh-keygen`, refusing
@@ -197,7 +197,7 @@ function readSshPrivateKey(bytes: Buffer): { value: string; refusal: null } | { 
     ) {
       return {
         refusal:
-          'The chosen file starts like a private SSH key, but its content is damaged, so Speicher cannot read it. Choose the original file that `ssh-keygen` created, or create a new key.',
+          'The chosen file starts like a private SSH key, but its content is damaged, so speicher.md cannot read it. Choose the original file that `ssh-keygen` created, or create a new key.',
       };
     }
     const length = blob.readUInt32BE(magic.length);

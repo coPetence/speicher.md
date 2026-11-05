@@ -32,7 +32,7 @@ export function sendTag(
   });
   sendHtml(res, (nonce) =>
     renderPage(body, {
-      title: `Tagged “${tag}” - Speicher`,
+      title: `Tagged “${tag}” - speicher.md`,
       nonce,
       sprite: renderSprite(results.map(iconOf)),
       article: true,

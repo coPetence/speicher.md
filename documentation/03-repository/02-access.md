@@ -15,7 +15,7 @@ version: 1
 access: [staff]
 ```
 
-The names are Speicher's own group names, which an administrator maps to groups of your identity provider. See [Create groups](../01-quick-start/02-setup-instance.md#2-create-groups).
+The names are speicher.md's own group names, which an administrator maps to groups of your identity provider. See [Create groups](../01-quick-start/02-setup-instance.md#2-create-groups).
 
 The list above is a shorthand. The full form also lets you grant access to [individual people](#granting-access-to-individual-people):
 
@@ -84,12 +84,12 @@ access:
 
 Each grant names a person in exactly one of two ways:
 
-- **`email`**: matched against the email address the identity provider reports when the person signs in. If the provider has a directory configured, Speicher looks the address up during each sync and stores the person's subject id instead.
+- **`email`**: matched against the email address the identity provider reports when the person signs in. If the provider has a directory configured, speicher.md looks the address up during each sync and stores the person's subject id instead.
 - **`subject`** with a **`note`**: the person's permanent id at the identity provider. It never changes and is never reused for someone else, so it is the safer choice. The note records who it is, since the id itself means nothing to a reader.
 
 **`provider`** names the identity provider the person signs in with, by the short id it has in the instance configuration. You can leave it out when the instance has only one provider, or when an administrator has set `auth.default_provider`. Otherwise the grant is rejected.
 
-**`until`** is a date such as `2027-03-31`. The grant is valid until the end of that day (UTC). After that, Speicher syncs the repository again and drops the grant.
+**`until`** is a date such as `2027-03-31`. The grant is valid until the end of that day (UTC). After that, speicher.md syncs the repository again and drops the grant.
 
 ## Making pages public
 

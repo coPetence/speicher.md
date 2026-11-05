@@ -85,7 +85,7 @@ export function validateConfigFile(
       source: options.source,
       line: parsed.lineOf('content_branch') ?? undefined,
       message:
-        '`content_branch` is reserved and rejected in v1. Speicher tracks the forge default ' +
+        '`content_branch` is reserved and rejected in v1. speicher.md tracks the forge default ' +
         'branch; a repo that needs to publish from elsewhere changes its default branch.',
     });
     return null;

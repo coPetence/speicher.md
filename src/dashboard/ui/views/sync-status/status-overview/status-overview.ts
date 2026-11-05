@@ -138,7 +138,7 @@ export function sendStatus(
         discovering_note:
           data.instance && data.instance.discovering.length > 0
             ? {
-                text: `Speicher.md is checking ${listed(data.instance.discovering)} for new repositories, and syncs all existing repositories.`,
+                text: `speicher.md is checking ${listed(data.instance.discovering)} for new repositories, and syncs all existing repositories.`,
               }
             : null,
       }),

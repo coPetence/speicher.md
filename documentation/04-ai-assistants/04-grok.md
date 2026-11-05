@@ -1,9 +1,9 @@
 # Grok
 
-You can connect Speicher to Grok as a custom connector. Grok can then search and read your documentation in a chat, with exactly the access you have yourself. Custom connectors work with a standard Grok account.
+You can connect speicher.md to Grok as a custom connector. Grok can then search and read your documentation in a chat, with exactly the access you have yourself. Custom connectors work with a standard Grok account.
 
 :::caution[Not in the Grok mobile app]
-The Grok mobile app does not support MCP connectors. Add and use the Speicher connector in Grok on the web instead.
+The Grok mobile app does not support MCP connectors. Add and use the speicher.md connector in Grok on the web instead.
 :::
 
 :::info[Grok Business and Enterprise]
@@ -15,7 +15,7 @@ On Grok Business and Enterprise, a team admin adds the connector for the whole t
 In Grok, open **Plugins** in the sidebar and stay on the **Connectors** tab, or go straight to [grok.com/connectors](https://grok.com/connectors). Click **New Connector** and choose **Custom** (_Add your own custom connector_) at the top of the list.
 
 - **Name:** what the connector is called in Grok, for example `Company Docs`.
-- **Server URL:** your Speicher address followed by `/mcp` or `/mcp/public`. For example:
+- **Server URL:** your speicher.md address followed by `/mcp` or `/mcp/public`. For example:
 
 ```
 https://<hostname>/mcp
@@ -33,17 +33,17 @@ Click **Add Connector**.
 
 ## 2. Sign in and connect
 
-Grok opens Speicher to authorize the connection:
+Grok opens speicher.md to authorize the connection:
 
-1. Sign in to Speicher as usual.
-2. Speicher shows **Connect Grok**. Click **Connect**.
+1. Sign in to speicher.md as usual.
+2. speicher.md shows **Connect Grok**. Click **Connect**.
 3. You are sent back to Grok (`grok.com`). The connector is now connected.
 
-![Speicher: Connect Grok screen](./assets/grok-connect-screen.png)
+![speicher.md: Connect Grok screen](./assets/grok-connect-screen.png)
 
 ## 3. Use it in a chat
 
-Grok makes Speicher's tools available in your conversations. Ask about your documentation, for example:
+Grok makes speicher.md's tools available in your conversations. Ask about your documentation, for example:
 
 - _"Search our docs for how to request a new laptop."_
 - _"Read the onboarding page in the handbook and summarise the first week."_
@@ -51,7 +51,7 @@ Grok makes Speicher's tools available in your conversations. Ask about your docu
 
 ## Disconnecting
 
-To end the connection from Speicher, open **Connected applications** (`/-/connections`) and click **Disconnect** next to Grok. Your connectors in Grok are listed on [grok.com/connectors](https://grok.com/connectors).
+To end the connection from speicher.md, open **Connected applications** (`/-/connections`) and click **Disconnect** next to Grok. Your connectors in Grok are listed on [grok.com/connectors](https://grok.com/connectors).
 
 ## Troubleshooting
 

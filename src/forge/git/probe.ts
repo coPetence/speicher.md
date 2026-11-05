@@ -137,13 +137,13 @@ const FAILURES: { code: RemoteCode; pattern: RegExp; label: string; detail: stri
     pattern: /Could not resolve host/,
     code: 'remote.host-unknown',
     label: 'Server not found',
-    detail: 'Speicher cannot resolve the server in the remote URL. Check the remote URL.',
+    detail: 'speicher.md cannot resolve the server in the remote URL. Check the remote URL.',
   },
   {
     pattern: /Connection refused|Couldn't connect to server|Failed to connect to/,
     code: 'remote.connection-refused',
     label: 'Cannot connect',
-    detail: 'Speicher cannot connect to the server. Check the remote URL and its port.',
+    detail: 'speicher.md cannot connect to the server. Check the remote URL and its port.',
   },
   {
     pattern:

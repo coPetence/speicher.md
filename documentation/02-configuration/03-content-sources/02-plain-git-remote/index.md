@@ -4,32 +4,32 @@ icon: folder-git-2
 
 # Plain git remote as a content source
 
-A plain git remote works with any git server: GitLab, Gitea, Forgejo, Bitbucket, or your own. Speicher fetches each repository with git itself, so it needs no API of the host. In exchange, you list the repositories yourself, and Speicher checks them for changes on a schedule instead of being notified.
+A plain git remote works with any git server: GitLab, Gitea, Forgejo, Bitbucket, or your own. speicher.md fetches each repository with git itself, so it needs no API of the host. In exchange, you list the repositories yourself, and speicher.md checks them for changes on a schedule instead of being notified.
 
 For repositories on GitHub, [a GitHub App](../01-github/index.md) is the better choice: it finds repositories by itself and updates pages right after a push.
 
-## 1. Add a plain git source in Speicher
+## 1. Add a plain git source in speicher.md
 
 In the dashboard, go to **Configuration → Content sources**, choose **Add a source** and select **Plain git remote**. Give the source a short id, for example `gitlab`.
 
 ## 2. Add a repository
 
-Choose **Add a repository** and enter its **Remote URL**. Speicher accepts:
+Choose **Add a repository** and enter its **Remote URL**. speicher.md accepts:
 
 - `https://` URLs, for example `https://gitlab.com/acme/handbook.git`
 - `ssh://` URLs, for example `ssh://git@gitlab.example.com/acme/handbook.git`
-- the short SSH form git hosts show, for example `git@gitlab.example.com:acme/handbook.git`. Speicher saves it as an `ssh://` URL.
+- the short SSH form git hosts show, for example `git@gitlab.example.com:acme/handbook.git`. speicher.md saves it as an `ssh://` URL.
 
-Plain `http://` and `git://` URLs are refused, because neither lets Speicher verify the server.
+Plain `http://` and `git://` URLs are refused, because neither lets speicher.md verify the server.
 
 The other fields are optional:
 
-- **Repository id**: identifies the repository within this source. If you leave it empty, Speicher uses the repository's name from the URL, for example `handbook`. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes.
-- **URL slug**: the repository's name in Speicher's URLs. Defaults to the id. If you change it later, the old URLs redirect to the new ones.
+- **Repository id**: identifies the repository within this source. If you leave it empty, speicher.md uses the repository's name from the URL, for example `handbook`. Choose it once and keep it: speicher.md uses it to recognize the repository when its URL or slug changes.
+- **URL slug**: the repository's name in speicher.md's URLs. Defaults to the id. If you change it later, the old URLs redirect to the new ones.
 - **Branch**: the branch to publish. Defaults to the repository's default branch.
 - **Poll interval**: overrides the source's interval for this repository.
 
-Then choose how Speicher signs in to the server: an access token over HTTPS, or a deploy key over SSH.
+Then choose how speicher.md signs in to the server: an access token over HTTPS, or a deploy key over SSH.
 
 ### Over HTTPS, with an access token
 
@@ -52,15 +52,15 @@ Create a key pair without a passphrase:
 ssh-keygen -t ed25519 -N "" -f speicher-deploy-key
 ```
 
-Add `speicher-deploy-key.pub` to the repository on your git host as a **read-only deploy key**. Paste the content of `speicher-deploy-key` into **Deploy key** in Speicher, or drop the file onto the field. Speicher refuses a key protected by a passphrase, and a public key pasted by mistake.
+Add `speicher-deploy-key.pub` to the repository on your git host as a **read-only deploy key**. Paste the content of `speicher-deploy-key` into **Deploy key** in speicher.md, or drop the file onto the field. speicher.md refuses a key protected by a passphrase, and a public key pasted by mistake.
 
 <!-- screenshot: a repository card with the SSH option and deploy key -->
 
 ## 3. Trust the server's host key (SSH only)
 
-Before Speicher connects to an SSH server, it needs that server's host key, so it can tell the real server from an impostor. As soon as a repository uses an `ssh://` URL, the **Security** card asks for **Known hosts**.
+Before speicher.md connects to an SSH server, it needs that server's host key, so it can tell the real server from an impostor. As soon as a repository uses an `ssh://` URL, the **Security** card asks for **Known hosts**.
 
-Press **Fetch host keys**. Speicher asks the server for its keys and shows their fingerprints. **Compare the fingerprints with the ones the server's administrator publishes** before you save. For example, GitLab.com and GitHub list theirs in their documentation. Speicher never connects to a server whose key is not listed.
+Press **Fetch host keys**. speicher.md asks the server for its keys and shows their fingerprints. **Compare the fingerprints with the ones the server's administrator publishes** before you save. For example, GitLab.com and GitHub list theirs in their documentation. speicher.md never connects to a server whose key is not listed.
 
 You can also paste `known_hosts` lines yourself, for example the output of `ssh-keyscan gitlab.example.com`.
 
@@ -68,7 +68,7 @@ You can also paste `known_hosts` lines yourself, for example the output of `ssh-
 
 ## 4. Set the poll interval
 
-Speicher has no webhooks for plain git remotes. It checks each repository for new commits once per **Poll interval**, which is 1 hour by default. A shorter interval publishes changes sooner and fetches more often. Repositories are spread across the interval, so they are not all fetched at once.
+speicher.md has no webhooks for plain git remotes. It checks each repository for new commits once per **Poll interval**, which is 1 hour by default. A shorter interval publishes changes sooner and fetches more often. Repositories are spread across the interval, so they are not all fetched at once.
 
 To sync a repository right away, run:
 
@@ -116,14 +116,14 @@ forges:
 | `forges.<id>.primary` | boolean | `false` |  | Whether this source's id is left out of its repositories' URLs. Only one source can be primary; when there is only one source, it is primary. Repositories of other sources are served under `/<source-id>/…`. |
 | `forges.<id>.default_repository_owner` | string |  |  | The user or organization whose name is left out of the URL, so its repositories are served at `/<repo>` instead of `/<owner>/<repo>`. Repositories of other owners keep the owner in their URL. |
 | `forges.<id>.base_url` | string (uri) |  |  | GitHub only. The address of your GitHub Enterprise Server, for example `https://github.example.com`. Leave it empty for GitHub.com. |
-| `forges.<id>.webhook_secret` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | GitHub only. The secret of the GitHub App's webhook. Without it, Speicher rejects webhook deliveries and picks up changes only on its regular schedule. |
+| `forges.<id>.webhook_secret` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | GitHub only. The secret of the GitHub App's webhook. Without it, speicher.md rejects webhook deliveries and picks up changes only on its regular schedule. |
 | `forges.<id>.app_id` | string |  | if `type: github` | GitHub only. The id of the GitHub App, shown at the top of the App's settings page. |
 | `forges.<id>.private_key` | string |  | if `type: github` | GitHub only. The private key of the GitHub App, the content of the `.pem` file GitHub generates. |
 | `forges.<id>.token` | string |  | if `type` is `gitlab`, `gitea`, `forgejo` | gitlab / gitea / forgejo |
-| `forges.<id>.poll_interval` | string | `1h` |  | Git only. How often Speicher checks each repository of this source for new commits, for example `15m`. Repositories can override it. |
-| `forges.<id>.known_hosts` | string |  |  | Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; Speicher connects only to servers listed here. |
+| `forges.<id>.poll_interval` | string | `1h` |  | Git only. How often speicher.md checks each repository of this source for new commits, for example `15m`. Repositories can override it. |
+| `forges.<id>.known_hosts` | string |  |  | Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; speicher.md connects only to servers listed here. |
 | `forges.<id>.repos` | list of object |  | if `type: git` | Git only. The repositories this source serves. They are listed here because a plain git server cannot be asked for them. |
-| `forges.<id>.repos[].id` | string |  | yes | Identifies the repository within this source. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes. |
+| `forges.<id>.repos[].id` | string |  | yes | Identifies the repository within this source. Choose it once and keep it: speicher.md uses it to recognize the repository when its URL or slug changes. |
 | `forges.<id>.repos[].url` | string |  | yes | The remote URL: `https://host/owner/repo.git` with a `token`, or `ssh://user@host/owner/repo.git` with a `deploy_key`. `http://` and `git://` URLs are refused. |
 | `forges.<id>.repos[].slug` | string |  |  | The repository's name in URLs. Defaults to `id`. If you change it, the old URLs redirect to the new ones. |
 | `forges.<id>.repos[].branch` | string |  |  | The branch to publish. Defaults to the repository's default branch. |

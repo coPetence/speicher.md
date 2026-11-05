@@ -291,7 +291,7 @@ export class IngestService {
       sha,
       findings: [],
       stats: emptyStats(),
-      authorSummary: `✗ speicher — sync failed\n  ${message}\n  Serving the previous version until this is fixed.`,
+      authorSummary: `✗ speicher.md — sync failed\n  ${message}\n  Serving the previous version until this is fixed.`,
     };
   }
 

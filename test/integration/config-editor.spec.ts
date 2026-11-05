@@ -3788,7 +3788,7 @@ describe('the public repositories', () => {
     }).expect(200);
 
     expect(rowsOf(res.text)).toEqual(['copetence/speicher-docs', 'old-team/renamed']);
-    expect(res.text).toContain('Speicher does not know this repository.');
+    expect(res.text).toContain('speicher.md does not know this repository.');
   });
 
   it('takes the entry out on Remove, and stores nothing until Save', async () => {

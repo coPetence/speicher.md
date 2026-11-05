@@ -75,7 +75,7 @@ describe('the attribution', () => {
       },
     );
     expect(page).not.toContain('spr-attribution');
-    expect(page).not.toContain('speicher.md');
+    expect(page).not.toContain('Published with');
   });
 
   it('is in the shell, below `<main>`', () => {

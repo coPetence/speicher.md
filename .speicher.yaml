@@ -13,5 +13,5 @@ sync:
   include: ['**/*.md', '**/*.mdx']
 
 display:
-  title: 'Speicher.md Documentation'
+  title: 'speicher.md Documentation'
   cover: .github/assets/docs-cover.png

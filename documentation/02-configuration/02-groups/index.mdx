@@ -4,7 +4,7 @@ icon: users
 
 # Groups
 
-Repositories never grant access to external providers directly. They use Speicher’s internal group names (like `staff` or `engineering`).
+Repositories never grant access to external providers directly. They use speicher.md’s internal group names (like `staff` or `engineering`).
 
 - A repository's `.speicher.yaml` for example contains `access: [staff]`.
 - An administrator decides what `staff` means (an Entra group, a GitHub team, an email domain, specific people, or a mix of these).
@@ -86,7 +86,7 @@ The group name `public` is reserved. It automatically includes everyone, includi
 
 ## Important Exceptions & Limitations
 
-- **Group Cache Sync:** External provider groups are read when the user signs in. If a user leaves a group at the provider, Speicher updates its access at the next sign-in. If a `directory` is configured, Speicher refreshes group memberships when the cache expires (default: 1 hour).
+- **Group Cache Sync:** External provider groups are read when the user signs in. If a user leaves a group at the provider, speicher.md updates its access at the next sign-in. If a `directory` is configured, speicher.md refreshes group memberships when the cache expires (default: 1 hour).
 - **Entra Limit:** Users in more than ~200 Entra groups do not receive a group claim and will resolve to zero groups.
 - **Renaming Groups:** Renaming a group in the dashboard does **not** update `.speicher.yaml` files. Update your repositories first to avoid `unknown group` errors.
 
@@ -98,7 +98,7 @@ The group name `public` is reserved. It automatically includes everyone, includi
 <!-- prettier-ignore-start -->
 | Key | Type | Default | Required | Description |
 | --- | --- | --- | --- | --- |
-| `groups` | map |  |  | References another Speicher group by its internal name. All members of the referenced groups will be members of this group. |
+| `groups` | map |  |  | References another speicher.md group by its internal name. All members of the referenced groups will be members of this group. |
 | `groups.<name>` | list of object |  |  |  |
 | `groups.<name>[]` | object |  |  | The source of a group membership. Can be a directory group id, an email domain for a magic-link provider, one persons email, or a reference to another group by its internal name. Exactly one of the five keys must be present. Set exactly one of: `provider` + `id`, `provider` + `domain`, `provider` + `subject`, `provider` + `email`, `group`. |
 | `groups.<name>[].provider` | string |  |  | Short ID of the identity provider you want to reference. |

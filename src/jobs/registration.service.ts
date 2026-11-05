@@ -352,7 +352,7 @@ export class RegistrationService {
         title:
           rejections.length === 0
             ? 'Configuration valid'
-            : `speicher — ${rejections.length} problem(s)`,
+            : `speicher.md — ${rejections.length} problem(s)`,
         summary: await this.checkSummary(directory, walk.findings.toAuthorText(), walk),
       });
     } catch (err) {

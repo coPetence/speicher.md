@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://speicher.md/schema/speicher.json",
-  "title": "Speicher repo / folder config (.speicher.yaml)",
+  "title": "speicher.md repo / folder config (.speicher.yaml)",
   "description": "One schema covers both, because both use the same filename and an editor can only bind one schema to it. Root-only keys are optional here and enforced positionally by the pull-request check: `version` and `ingest_root` are rejected in a folder config. ${VAR} interpolation is never permitted in this file. `content_branch` is reserved and rejected in v1 \u2014 branch support is not implemented.",
   "type": "object",
   "additionalProperties": false,
@@ -94,7 +94,7 @@
       "properties": {
         "indexable": {
           "type": "boolean",
-          "description": "Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in Speicher's own search. Once turned off, a subfolder cannot turn it back on."
+          "description": "Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in speicher.md's own search. Once turned off, a subfolder cannot turn it back on."
         }
       }
     },

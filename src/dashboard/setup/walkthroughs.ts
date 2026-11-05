@@ -63,9 +63,9 @@ const WALKTHROUGHS: Walkthrough[] = [
               'Yes, you could for example add an Identity provider of an external organization you want to share documents with, in addition to your own Identity Provider.',
           },
           {
-            question: 'What does Speicher.md learn about a person?',
+            question: 'What does speicher.md learn about a person?',
             answer:
-              'When a person signs in, the identity provider passes on the following claims to Speicher.md:',
+              'When a person signs in, the identity provider passes on the following claims to speicher.md:',
             points: [
               'a permanent id of their account',
               'their email address',
@@ -110,12 +110,12 @@ const WALKTHROUGHS: Walkthrough[] = [
     slides: [
       {
         title: 'What is a .speicher.yaml file?',
-        text: 'Speicher.md publishes a Git repository once it has a `.speicher.yaml` file at its root. The file configures how the repository is published, for example its title and who may read it.',
+        text: 'speicher.md publishes a Git repository once it has a `.speicher.yaml` file at its root. The file configures how the repository is published, for example its title and who may read it.',
         preview: 'speicher-yaml',
       },
       {
         title: 'What is a group?',
-        text: 'A group is a named set of people in Speicher.md, identified by its short id, for example `engineering`. A group is used to manage access to repositories. In the `.speicher.yaml` file of a repository, the `access` key lists the groups (by their short id) whose members may read it',
+        text: 'A group is a named set of people in speicher.md, identified by its short id, for example `engineering`. A group is used to manage access to repositories. In the `.speicher.yaml` file of a repository, the `access` key lists the groups (by their short id) whose members may read it',
         preview: 'group-add',
       },
       {
@@ -147,12 +147,12 @@ const WALKTHROUGHS: Walkthrough[] = [
     slides: [
       {
         title: 'What is a content source?',
-        text: 'A content source is a place Speicher.md reads Git repositories from, for example GitHub or a plain git remote. Speicher.md clones each repository of a source and publishes it once it has a `.speicher.yaml` file at its root. Repositories without this file are skipped.',
+        text: 'A content source is a place speicher.md reads Git repositories from, for example GitHub or a plain git remote. speicher.md clones each repository of a source and publishes it once it has a `.speicher.yaml` file at its root. Repositories without this file are skipped.',
         preview: 'source-repositories',
       },
       {
         title: 'Creating the GitHub App',
-        text: 'Speicher.md needs a GitHub App to clone your repositories and to be notified about each push. This App is separate from the App of a GitHub identity provider, which signs people in and reads their teams but has no access to repositories. Speicher.md creates the App with its permissions and webhook already filled in, and you only need to confirm the creation of the app on GitHub.',
+        text: 'speicher.md needs a GitHub App to clone your repositories and to be notified about each push. This App is separate from the App of a GitHub identity provider, which signs people in and reads their teams but has no access to repositories. speicher.md creates the App with its permissions and webhook already filled in, and you only need to confirm the creation of the app on GitHub.',
         preview: 'source-account',
       },
       {
@@ -164,13 +164,13 @@ const WALKTHROUGHS: Walkthrough[] = [
               'You can install the App on all repositories of your account, or only on the ones you select.',
           },
           {
-            question: 'What can Speicher.md access?',
-            answer: 'Speicher.md has read access to all the repositories the App is installed on.',
+            question: 'What can speicher.md access?',
+            answer: 'speicher.md has read access to all the repositories the App is installed on.',
           },
           {
-            question: 'When does Speicher.md synchronize a repository?',
+            question: 'When does speicher.md synchronize a repository?',
             answer:
-              'For each push to the default branch of a repository, GitHub notifies Speicher.md, which then synchronizes the repository.',
+              'For each push to the default branch of a repository, GitHub notifies speicher.md, which then synchronizes the repository.',
           },
         ],
         preview: 'source-install',
@@ -183,7 +183,7 @@ const WALKTHROUGHS: Walkthrough[] = [
     slides: [
       {
         title: 'When is a repository published?',
-        text: 'Speicher.md publishes a repository once a content source has access to it and it has a `.speicher.yaml` file at its root. Each Markdown file of the repository becomes a page at `/<owner>/<repository>/…`.',
+        text: 'speicher.md publishes a repository once a content source has access to it and it has a `.speicher.yaml` file at its root. Each Markdown file of the repository becomes a page at `/<owner>/<repository>/…`.',
         preview: 'source-repositories',
       },
       {

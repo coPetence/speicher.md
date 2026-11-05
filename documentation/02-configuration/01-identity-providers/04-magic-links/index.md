@@ -4,23 +4,23 @@ icon: key-round
 
 # Magic links
 
-With a magic-link provider, people sign in with their email address instead of an account at an identity provider. Speicher emails them a link, and opening the link signs them in. This suits guests and external collaborators who have no account in your organization's identity provider.
+With a magic-link provider, people sign in with their email address instead of an account at an identity provider. speicher.md emails them a link, and opening the link signs them in. This suits guests and external collaborators who have no account in your organization's identity provider.
 
 ## 0. Before you start
 
-Magic links need a [mail transport](../../08-mail-transport/index.md). Configure it first. Speicher refuses a magic-link provider while no mail transport is configured.
+Magic links need a [mail transport](../../08-mail-transport/index.md). Configure it first. speicher.md refuses a magic-link provider while no mail transport is configured.
 
 ## How signing in works
 
 1. On the sign-in page, the person chooses the provider, enters their email address and selects **Email me a link**.
-2. Speicher emails a link that can be used once and expires after 15 minutes.
+2. speicher.md emails a link that can be used once and expires after 15 minutes.
 3. The person opens the link in the same browser and is signed in.
 
 The page always answers "If this address is registered, a sign-in link has been sent", whether or not a link was sent. That way, nobody can find out which addresses have access by trying them.
 
 ## Who receives a link
 
-Speicher only sends a link to an address that already has access to something. The address must be granted at least one page, directly or through a group, or be a maintainer of a repository or an administrator. For everyone else, nothing is sent.
+speicher.md only sends a link to an address that already has access to something. The address must be granted at least one page, directly or through a group, or be a maintainer of a repository or an administrator. For everyone else, nothing is sent.
 
 You grant access to magic-link users the same way as to anyone else:
 
@@ -46,7 +46,7 @@ For a magic-link provider, a person's subject is their email address in lowercas
 
 Requests are limited to 5 links per address and 20 requests per IP address, each per 15 minutes. Requests beyond that are ignored without notice.
 
-## 1. Add the provider in Speicher
+## 1. Add the provider in speicher.md
 
 In the dashboard, go to **Configuration → Identity Providers**, add a provider and choose **Magic link (email)**. Give it a short id, for example `guests`, and a **Display name**, which is what the sign-in page shows, for example `Email link`.
 

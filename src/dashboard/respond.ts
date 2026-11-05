@@ -194,7 +194,7 @@ export function renderDashboardPage(
   const progress = page.progress ? renderSetupProgress(page.progress) : { html: '', icons: [] };
 
   return renderPage(page.body, {
-    title: `${page.title} - Speicher`,
+    title: `${page.title} - speicher.md`,
     nonce: page.nonce,
 
     nav: nav.html,

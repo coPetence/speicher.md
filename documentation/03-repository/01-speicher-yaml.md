@@ -9,7 +9,7 @@ Every repository speicher.md should sync needs a `.speicher.yaml` file at its ro
 ## Where to put the file
 
 - **Repository root (required):** a repository without is not synced. Also put it at the root even when you publish only a subfolder.
-- **Any folder** that Speicher publishes. Its settings apply to that folder and everything below it.
+- **Any folder** that speicher.md publishes. Its settings apply to that folder and everything below it.
 
 ## Example
 
@@ -35,7 +35,7 @@ display:
 
 ## `ingest_root`
 
-Syncd only one folder of the repository. With `ingest_root: <folder>`, Speicher reads nothing outside `<folder>/`, and URLs start below it: `docs/guides/setup.md` is served as `/guides/setup`.
+Syncd only one folder of the repository. With `ingest_root: <folder>`, speicher.md reads nothing outside `<folder>/`, and URLs start below it: `docs/guides/setup.md` is served as `/guides/setup`.
 
 The folder must exist in the repository. Write it without a leading slash.
 
@@ -73,7 +73,7 @@ A folder's name comes from the first of these that exists:
 
 ### `cover`
 
-An image shown on the repository's or folder's card in listings. Without one, Speicher draws a pattern instead.
+An image shown on the repository's or folder's card in listings. Without one, speicher.md draws a pattern instead.
 
 - The path is relative to the `.speicher.yaml` it is written in, and must point to a file inside the repository. It may be outside `ingest_root`.
 - SVG images are not allowed.
@@ -88,7 +88,7 @@ Set `indexable: false` to keep pages out of places that index them automatically
 - They are left out of the sitemap.
 - Public pages tell search engines not to index them.
 
-The pages can still be read as usual, and they still appear in Speicher's own search.
+The pages can still be read as usual, and they still appear in speicher.md's own search.
 
 `indexable` can only be turned off. Once a folder sets it to `false`, a subfolder cannot set it back to `true`. A single page can also turn it off with `indexable: false` in its frontmatter.
 
@@ -114,7 +114,7 @@ A folder's `.speicher.yaml` only needs the keys it changes. Everything else is i
 
 ## When a file has a problem
 
-Speicher checks every `.speicher.yaml` when it syncs a commit. **Sync status** in the dashboard lists each problem with its file and line.
+speicher.md checks every `.speicher.yaml` when it syncs a commit. **Sync status** in the dashboard lists each problem with its file and line.
 
 - **An unknown key** is reported as a warning and ignored.
 - **An invalid root file** stops the whole commit. Readers keep seeing the pages from the last successful sync.
@@ -181,6 +181,6 @@ Every key of `.speicher.yaml` is listed under [Repository configuration](../06-r
 | Key | Type | Default | Required | Description |
 | --- | --- | --- | --- | --- |
 | `retrieval` | object |  |  | Whether pages are indexed automatically. |
-| `retrieval.indexable` | boolean |  |  | Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in Speicher's own search. Once turned off, a subfolder cannot turn it back on. |
+| `retrieval.indexable` | boolean |  |  | Set to `false` to leave these pages out of AI assistant search, the sitemap and search engines. Pages can still be read and found in speicher.md's own search. Once turned off, a subfolder cannot turn it back on. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

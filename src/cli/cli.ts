@@ -41,7 +41,7 @@ export function usage(format: OutputFormat = PLAIN): string {
       `  ${highlight(invocation(name, command), format)}\n${wrap(command.summary, 6, format)}\n`,
   );
   return [
-    wrap('speicher cli is a tool for managing a Speicher instance', 0, format),
+    wrap('speicher cli is a tool for managing a speicher.md instance', 0, format),
     '',
     `${highlightTitle('Usage:', format)} speicher <command> [options]`,
     '',

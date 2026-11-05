@@ -283,7 +283,7 @@ describe('a width asked for from a model', () => {
 });
 
 const GITHUB_APP_STORED =
-  'Speicher writes it when it creates the GitHub App, and the card links to the App from it';
+  'speicher.md writes it when it creates the GitHub App, and the card links to the App from it';
 
 const OMITTED_FROM_FORM: Record<string, string> = {
   'auth.providers.<key>.type':

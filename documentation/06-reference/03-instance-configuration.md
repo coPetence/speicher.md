@@ -618,13 +618,13 @@ Whether the uploaded wallpaper is shown in every theme. When this is turned off,
 
 **Type:** boolean · **Default:** `true`
 
-Whether pages show `Published with speicher.md` at the bottom, linking to the Speicher website. The text cannot be changed. Example: `false`.
+Whether pages show `Published with speicher.md` at the bottom, linking to the speicher.md website. The text cannot be changed. Example: `false`.
 
 ## graph
 
 **Type:** object
 
-Features built from the links between pages: the related column, hover previews, tags and link-weighted search. Speicher records links on every sync, so changes apply right away. A reader only sees links between pages they can read.
+Features built from the links between pages: the related column, hover previews, tags and link-weighted search. speicher.md records links on every sync, so changes apply right away. A reader only sees links between pages they can read.
 
 ### `graph.enabled`
 
@@ -700,19 +700,19 @@ The name the sign-in page shows for this provider, for example `Google`. Default
 
 **Type:** string (uri) · **Required**
 
-The address of the provider's OpenID Connect server, for example `https://accounts.google.com`. Speicher reads the provider's settings from `<issuer>/.well-known/openid-configuration`, and refuses an issuer that does not name a single tenant or realm.
+The address of the provider's OpenID Connect server, for example `https://accounts.google.com`. speicher.md reads the provider's settings from `<issuer>/.well-known/openid-configuration`, and refuses an issuer that does not name a single tenant or realm.
 
 #### `auth.providers.<id>.client_id`
 
 **Type:** string · **Required**
 
-The client id of the application you registered for Speicher at the provider.
+The client id of the application you registered for speicher.md at the provider.
 
 #### `auth.providers.<id>.client_secret`
 
 **Type:** string
 
-The client secret of that application. Leave it out only if the provider registered Speicher as a public client.
+The client secret of that application. Leave it out only if the provider registered speicher.md as a public client.
 
 #### `auth.providers.<id>.subject_claim`
 
@@ -754,7 +754,7 @@ If you have a directory configured, this is how long a connection persists while
 
 **Type:** object
 
-Optional read access to the provider's directory. Speicher uses it to resolve email grants to people, count group members and notice people who have left.
+Optional read access to the provider's directory. speicher.md uses it to resolve email grants to people, count group members and notice people who have left.
 
 #### `auth.providers.<id>.directory.type`
 
@@ -802,7 +802,7 @@ github. This secret is used to sign the webhook deliveries of the App.
 
 **Type:** string · **Default:** `1h`
 
-How long directory answers are cached before Speicher asks again.
+How long directory answers are cached before speicher.md asks again.
 
 ### `auth.providers.<id>` with `type: magic-link`
 
@@ -938,7 +938,7 @@ github. This secret is used to sign the webhook deliveries of the App.
 
 **Type:** string · **Default:** `1h`
 
-How long directory answers are cached before Speicher asks again.
+How long directory answers are cached before speicher.md asks again.
 
 #### `auth.providers.<id>.app`
 
@@ -972,7 +972,7 @@ The GitHub account the App belongs to.
 
 **Type:** boolean
 
-Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by Speicher.md.
+Whether anyone with a GitHub account can sign in with the App. A private App takes only the members of the account it belongs to. Absent when the App was not created by speicher.md.
 
 ## admins
 
@@ -1032,7 +1032,7 @@ Optional for admins; mandatory for content grants.
 
 **Type:** map
 
-References another Speicher group by its internal name. All members of the referenced groups will be members of this group.
+References another speicher.md group by its internal name. All members of the referenced groups will be members of this group.
 
 ### `groups.<name>`
 
@@ -1142,7 +1142,7 @@ GitHub only. The address of your GitHub Enterprise Server, for example `https://
 
 **Type:** string · **Required if** `type` is `gitlab`, `gitea`, `forgejo`
 
-GitHub only. The secret of the GitHub App's webhook. Without it, Speicher rejects webhook deliveries and picks up changes only on its regular schedule.
+GitHub only. The secret of the GitHub App's webhook. Without it, speicher.md rejects webhook deliveries and picks up changes only on its regular schedule.
 
 ### `forges.<id>.app_id`
 
@@ -1166,13 +1166,13 @@ gitlab / gitea / forgejo
 
 **Type:** string · **Default:** `1h`
 
-Git only. How often Speicher checks each repository of this source for new commits, for example `15m`. Repositories can override it.
+Git only. How often speicher.md checks each repository of this source for new commits, for example `15m`. Repositories can override it.
 
 ### `forges.<id>.known_hosts`
 
 **Type:** string
 
-Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; Speicher connects only to servers listed here.
+Git only. The SSH host keys of the servers the `ssh://` repositories are fetched from, as `known_hosts` lines. Required as soon as one repository uses an `ssh://` URL; speicher.md connects only to servers listed here.
 
 ### `forges.<id>.repos`
 
@@ -1184,7 +1184,7 @@ Git only. The repositories this source serves. They are listed here because a pl
 
 **Type:** string · **Required**
 
-Identifies the repository within this source. Choose it once and keep it: Speicher uses it to recognize the repository when its URL or slug changes.
+Identifies the repository within this source. Choose it once and keep it: speicher.md uses it to recognize the repository when its URL or slug changes.
 
 ### `forges.<id>.repos[].url`
 

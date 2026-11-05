@@ -15,13 +15,13 @@ import { appCard, appSetupName, hasGithubApp } from './github-app-card';
 
 function forgeBlurb(type: string): string {
   if (type === 'git') {
-    return 'A plain git remote is any Git repository Speicher can clone over SSH or HTTPS. Add each repository below.';
+    return 'A plain git remote is any Git repository speicher.md can clone over SSH or HTTPS. Add each repository below.';
   }
   if (type === 'github') {
     // TODO: the linked page does not exist yet; replace the placeholder once it is written
-    return 'A GitHub source reads its repositories through a GitHub App. Speicher can create the App on GitHub for you. To find out how to create the App yourself and which Webhook URL to enter, read [Creating a GitHub App](https://docs.speicher.md/placeholder/github-app).';
+    return 'A GitHub source reads its repositories through a GitHub App. speicher.md can create the App on GitHub for you. To find out how to create the App yourself and which Webhook URL to enter, read [Creating a GitHub App](https://docs.speicher.md/placeholder/github-app).';
   }
-  return 'Speicher cannot read from this kind of source yet. To use its repositories now, add them as a plain git remote instead.';
+  return 'speicher.md cannot read from this kind of source yet. To use its repositories now, add them as a plain git remote instead.';
 }
 
 /**
