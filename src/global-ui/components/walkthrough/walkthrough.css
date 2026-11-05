@@ -352,7 +352,7 @@
     transition: rotate 150ms ease;
   }
 
-  .spr-walkthrough-question[open] > summary .spr-icon {
+  .spr-walkthrough-question[open] > summary > svg {
     rotate: 180deg;
   }
 
