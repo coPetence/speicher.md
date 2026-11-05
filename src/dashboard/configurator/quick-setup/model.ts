@@ -28,6 +28,7 @@ export type QuickField =
       label: string;
       help?: string;
       placeholder?: string;
+      required?: boolean;
       shownWhen?: ShownWhen;
     };
 

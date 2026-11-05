@@ -64,11 +64,11 @@ export function storageSection(root: Obj): SectionSource {
 
   if (driver === 's3') {
     fields.push(
-      textField(root, ['assets', 'bucket'], 'assets.bucket', 'Bucket'),
+      textField(root, ['assets', 'bucket'], 'assets.bucket', 'Bucket', { required: true }),
       urlField(root, ['assets', 'endpoint'], 'assets.endpoint', 'Endpoint', {
         help: 'For non-AWS providers such as Hetzner Object Storage or MinIO.',
       }),
-      textField(root, ['assets', 'region'], 'assets.region', 'Region'),
+      textField(root, ['assets', 'region'], 'assets.region', 'Region', { required: true }),
       textField(root, ['assets', 'access_key_id'], 'assets.access_key_id', 'Access key id'),
       secretField(
         root,
@@ -83,8 +83,11 @@ export function storageSection(root: Obj): SectionSource {
   } else if (driver === 'azure') {
     const auth = scalarString(at(root, ['assets', 'auth'])) || AZURE_AUTH_DEFAULT;
     fields.push(
-      textField(root, ['assets', 'account'], 'assets.account', 'Storage account'),
+      textField(root, ['assets', 'account'], 'assets.account', 'Storage account', {
+        required: true,
+      }),
       textField(root, ['assets', 'container'], 'assets.container', 'Container', {
+        required: true,
         help:
           'This instance never creates it. A data-plane role cannot, so the ' +
           'container is made once, by whoever owns the account.',
@@ -109,6 +112,7 @@ export function storageSection(root: Obj): SectionSource {
           'assets.connection_string',
           'Connection string',
           {
+            required: true,
             help: SECRET_HELP,
           },
         ),
@@ -116,6 +120,7 @@ export function storageSection(root: Obj): SectionSource {
     } else if (auth === 'key') {
       fields.push(
         secretField(root, ['assets', 'account_key'], 'assets.account_key', 'Account key', {
+          required: true,
           help:
             'A shared secret granting the whole account. A managed identity grants ' +
             'a role on one container instead, and cannot be copied out of the ' +
@@ -148,6 +153,7 @@ export function storageSection(root: Obj): SectionSource {
   } else {
     fields.push(
       textField(root, ['assets', 'path'], 'assets.path', 'Volume path', {
+        required: true,
         placeholder: './var/assets',
         help: 'A single replica, or a volume every replica can write.',
       }),
@@ -204,15 +210,18 @@ export function embeddingSection(root: Obj): SectionSource {
       'answers, this returns the chunks a caller is allowed to see.',
     fields: [
       urlField(root, ['embedding', 'base_url'], 'embedding.base_url', 'Endpoint', {
+        required: true,
         placeholder: 'https://api.openai.com/v1',
       }),
       secretField(root, ['embedding', 'api_key'], 'embedding.api_key', 'API key', {
         help: SECRET_HELP,
       }),
       embeddingModelField(root, ['embedding', 'model'], 'embedding.model', 'Model', {
+        required: true,
         dimensionsPath: 'embedding.dimensions',
       }),
       numberField(root, ['embedding', 'dimensions'], 'embedding.dimensions', 'Dimensions', {
+        required: true,
         help:
           'Must match the pgvector column width. Checked by a probe at startup. Filled in ' +
           'from the endpoint when the model is entered, while this box is empty.',

@@ -240,7 +240,7 @@
                const invalid = fieldProblems.length > 0; %>
             <div class="spr-row-edit-field<%= invalid ? ' spr-field-invalid' : '' %>"<% if (invalid) { %> data-spr-problem="<%= fieldProblems.map(function (p) { return p.code; }).join(' ') %>"<% } %>>
               <span class="spr-row-edit-label">
-                <label for="f-<%= f.path %>"><%= f.label %></label>
+                <label for="f-<%= f.path %>"><%= f.label %><% if (f.required) { %><%~ include('@config-fields/required-mark') %><% } %></label>
                 <% if (f.help) { %><%~ include('@info', { field: { path: f.path, label: f.label, help: f.help } }) %><% } %>
                 <% if (f.link) { %><span class="spr-row-edit-link"><%~ md(f.link) %></span><% } %>
               </span>

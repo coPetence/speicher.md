@@ -46,7 +46,7 @@
           const matchesProblem = problems(held, 'matches', 'pm-' + add.op + '-' + kind.value);
         %>
         <div class="spr-add-row-panel" data-spr-shown-with="<%= kindName %>" data-spr-shown-when="<%= kind.value %>">
-          <% if (!kind.multiple) { %><label for="n-<%= add.op %>-<%= kind.value %>"><%= kind.nameLabel %></label><% } %>
+          <% if (!kind.multiple) { %><label for="n-<%= add.op %>-<%= kind.value %>"><%= kind.nameLabel %><%~ include('@config-fields/required-mark') %></label><% } %>
           <% /*
             A provider is picked from the picture dropdown, which draws each logo
             beside its name and the chosen one on the closed control: an
@@ -89,7 +89,7 @@
           <% /* Hidden by the stylesheet until a provider is picked */ %>
           <div class="spr-add-row-matches">
             <div class="spr-add-label">
-              <label for="m-<%= add.op %>-<%= kind.value %>"><%= kind.matches.label %></label>
+              <label for="m-<%= add.op %>-<%= kind.value %>"><%= kind.matches.label %><%~ include('@config-fields/required-mark') %></label>
               <%~ include('@info', { field: { path: add.op + '-' + kind.value + '-matches', label: kind.matches.label, help: kind.matches.help } }) %>
             </div>
             <textarea
