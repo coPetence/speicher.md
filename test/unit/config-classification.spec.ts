@@ -66,6 +66,9 @@ const SAMPLE_EDIT: Record<string, (config: InstanceConfig) => void> = {
   defaults: (c) => {
     c.defaults = { sync: { include: ['**/*.mdx'] }, retrieval: { indexable: false } };
   },
+  autolink: (c) => {
+    c.autolink = { exclude_domains: ['speicher.md'] };
+  },
 };
 
 function edited(key: string): InstanceConfig {

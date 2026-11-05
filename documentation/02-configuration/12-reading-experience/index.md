@@ -48,6 +48,19 @@ Tags only group pages. They never change who can read a page.
 
 **Link-weighted search** (`graph.search_boost`) ranks a search result higher when other results of the same search link to it. Pages that are central to a topic come first. It only changes the order of results, never which results appear.
 
+## Domains without automatic links
+
+Web addresses that are written in a page automatically become links, even without `https://` in front. This also happens to a name that looks like a web address, such as `speicher.md`.
+
+**Domains without automatic links** (`autolink.exclude_domains`) lists the domains that will not be automatically converted to links. Enter one domain per line:
+
+- A subdomain needs its own entry: `speicher.md` does not cover `docs.speicher.md`.
+- An address with a path is not converted either: `speicher.md` also covers `speicher.md/pricing`.
+- A link written with `https://` or as a Markdown link will stay a link.
+- An email address will stay a link.
+
+Links are created when a repository is synced, so changing this setting rebuilds every repository.
+
 ## Configuration file
 
 ```yaml
@@ -58,6 +71,9 @@ graph:
   previews: true
   terms: false
   search_boost: true
+autolink:
+  exclude_domains:
+    - speicher.md
 ```
 
 ## Settings
@@ -73,5 +89,14 @@ graph:
 | `graph.terms` | boolean | `true` |  | Shows a page's frontmatter `tags` as chips, each leading to a list of the pages with that tag that the reader can open. |
 | `graph.search_boost` | boolean | `true` |  | Ranks a search result higher when other results of the same search link to it. It changes only the order of results. |
 | `graph.related_limit` | integer | `8` |  | The most entries shown in each list of the related column. Between 1 and 50. |
+<!-- prettier-ignore-end -->
+<!-- /generated -->
+
+<!-- generated: schema instance#/properties/autolink -->
+<!-- prettier-ignore-start -->
+| Key | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `autolink` | object |  |  | Web addresses that are written in a page automatically become links. Changing this setting rebuilds every repository. |
+| `autolink.exclude_domains` | list of string |  |  | The domains that will not be automatically converted to links, for example `speicher.md`. A subdomain such as `docs.speicher.md` needs its own entry. A link written with `https://` or as a Markdown link will stay a link. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

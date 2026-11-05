@@ -341,6 +341,21 @@
         }
       }
     },
+    "autolink": {
+      "type": "object",
+      "description": "Web addresses that are written in a page automatically become links. Changing this setting rebuilds every repository.",
+      "additionalProperties": false,
+      "properties": {
+        "exclude_domains": {
+          "type": "array",
+          "description": "The domains that will not be automatically converted to links, for example `speicher.md`. A subdomain such as `docs.speicher.md` needs its own entry. A link written with `https://` or as a Markdown link will stay a link.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+          }
+        }
+      }
+    },
     "analytics": {
       "type": "object",
       "description": "Counts page reads and searches without results. Off by default. Stores no identities: unique readers are an estimate that cannot be traced back to a person.",

@@ -104,6 +104,11 @@ export const CONFIG_KEY_EFFECTS: Record<string, KeyEffect> = {
     requiresRestart: false,
     note: 'read at ingest, and they decide what is walked and what is indexable',
   },
+  autolink: {
+    affectsResolution: true,
+    requiresRestart: false,
+    note: 'read at ingest, and stored pages hold the links it decides',
+  },
 };
 
 /** The process can hot-reload config changes without restart */

@@ -448,7 +448,10 @@ describe('one section at a time', () => {
   it('gives every feature of the link graph its own card, switched in its header', () => {
     const reading = buildSections(loadDocument(FULL)).find((s) => s.id === 'reading')!;
 
-    expect(reading.fields.map((f) => f.schemaPath)).toEqual(['graph.enabled']);
+    expect(reading.fields.map((f) => f.schemaPath)).toEqual([
+      'graph.enabled',
+      'autolink.exclude_domains',
+    ]);
     expect(reading.cards.map((card) => fieldsOf(card.items).map((f) => f.schemaPath))).toEqual([
       ['graph.related', 'graph.related_limit'],
       ['graph.previews'],

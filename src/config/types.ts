@@ -237,6 +237,21 @@ export interface GraphConfig {
   related_limit?: number;
 }
 
+export interface AutolinkConfig {
+  exclude_domains?: string[];
+}
+
+/**
+ * autolinkExcludedDomains returns the domains that stay plain text when a page names them without a link, in lower
+ * case and sorted.
+ *
+ * @param config the instance config
+ */
+export function autolinkExcludedDomains(config: InstanceConfig): string[] {
+  const domains = config.autolink?.exclude_domains ?? [];
+  return [...new Set(domains.map((domain) => domain.toLowerCase()))].sort();
+}
+
 export interface AnalyticsConfig {
   enabled?: boolean;
   // Daily, weekly and monthly bucket timezone; defaults to UTC
@@ -284,6 +299,7 @@ export interface InstanceConfig {
   // Site-wide branding, not per-repo
   brand?: BrandConfig;
   graph?: GraphConfig;
+  autolink?: AutolinkConfig;
   // Analytics tracking and Plausible-style public beacon
   analytics?: AnalyticsConfig;
   notify?: NotifyConfig;

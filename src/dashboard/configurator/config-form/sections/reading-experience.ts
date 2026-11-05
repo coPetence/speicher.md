@@ -1,5 +1,5 @@
 import type { Obj } from '../config-fields';
-import { booleanField, numberField } from '../config-fields';
+import { booleanField, linesField, numberField } from '../config-fields';
 import type { Card } from '../model';
 import type { SectionSource } from './registry';
 import { sectionHead } from './registry';
@@ -14,6 +14,19 @@ export function readingSection(root: Obj): SectionSource {
         fallback: true,
         help: 'The link graph switch turns all of the features below on or off at once.',
       }),
+      linesField(
+        root,
+        ['autolink', 'exclude_domains'],
+        'autolink.exclude_domains',
+        'Domains without automatic links',
+        {
+          trailing: true,
+          wide: true,
+          rows: 7,
+          placeholder: 'speicher.md',
+          help: 'Web addresses that are written in a page automatically become links. The domains in this list will not be automatically converted to links, for example `speicher.md`. Enter one domain per line. A subdomain such as `docs.speicher.md` needs its own line. A link written with `https://` or as a Markdown link will stay a link. Changing this setting rebuilds every repository.',
+        },
+      ),
     ],
     cards: [relatedCard(root), previewsCard(root), tagsCard(root), searchCard(root)],
     cardGrid: true,

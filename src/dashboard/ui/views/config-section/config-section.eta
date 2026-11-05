@@ -79,7 +79,7 @@
     <% } %>
 
     <% if (it.verdict.rebuild) { %>
-    <%~ include('@note', { level: 'warn', html: md('This changes how access resolves, so saving enqueues a **full rebuild** of every repository.') }) %>
+    <%~ include('@note', { level: 'warn', html: md('This changes the stored values for each page, so saving enqueues a **full rebuild** of every repository.') }) %>
     <% } %>
   <% } %>
 </section>
@@ -459,11 +459,14 @@
 <% addsBefore(index).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 <%~ include('@card', { ...fieldPage, card: card, editable: it.editable, depth: 1, removeIcon: it.remove_icon, landing: it.landing ? it.landing.path : '' }) %>
 <% }) %>
-<% if (it.section.cardGrid) { %></div><% } %>
+<% if (it.section.cardGrid) { %>
+<% trailing.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
+</div>
+<% } %>
 
 <% cardAdds.filter(function (a) { return a.beforeCard === undefined || a.beforeCard >= it.section.cards.length }).forEach(function (add) { %><%~ include('@add', { add: add, landing: it.landing ? it.landing.path : '' }) %><% }) %>
 
-<% if (trailing.length > 0) { %>
+<% if (trailing.length > 0 && !it.section.cardGrid) { %>
 <div class="spr-fields">
   <% trailing.forEach(function (f) { %><%~ include('@field', { ...fieldPage, field: f, editable: it.editable }) %><% }) %>
 </div>

@@ -73,6 +73,43 @@ export function stripLeadingH1(html: string): string {
 /** Render environment with heading deduplication state */
 interface RenderEnv extends MdxEnv {
   headings: Map<string, number>;
+  unlinkedDomains?: ReadonlySet<string>;
+}
+
+/** Turns an address that linkify found in plain text back into text when its domain is excluded */
+function unlinkExcludedDomains(state: MarkdownIt.StateCore): void {
+  const excluded = (state.env as RenderEnv).unlinkedDomains;
+  if (!excluded?.size) return;
+
+  for (const inline of state.tokens) {
+    if (inline.type !== 'inline' || !inline.children) continue;
+    let unlinking = false;
+    inline.children = inline.children.filter((token, index, children) => {
+      if (token.type === 'link_open' && isExcludedAutolink(token, children[index + 1], excluded)) {
+        unlinking = true;
+        return false;
+      }
+      if (token.type === 'link_close' && unlinking) {
+        unlinking = false;
+        return false;
+      }
+      return true;
+    });
+  }
+}
+
+// An address written with its scheme was meant as a link, and an email address has no domain to look up
+function isExcludedAutolink(
+  open: MarkdownIt.Token,
+  label: MarkdownIt.Token | undefined,
+  excluded: ReadonlySet<string>,
+): boolean {
+  if (open.markup !== 'linkify' || isAbsolute(label?.content ?? '')) return false;
+  try {
+    return excluded.has(new URL(open.attrGet('href') ?? '').hostname);
+  } catch {
+    return false;
+  }
 }
 
 const HEADING_ID = /[ \t]*\{#([^\s{}]+)\}[ \t]*$/;
@@ -146,6 +183,7 @@ function createParser(mdx: boolean): MarkdownIt {
   if (mdx) installMdx(md);
   md.core.ruler.after('block', 'drop_empty_thead', dropEmptyHeaderRow);
   md.core.ruler.after('inline', 'heading_ids', headingIds);
+  md.core.ruler.after('linkify', 'unlink_excluded_domains', unlinkExcludedDomains);
   md.renderer.rules.heading_open = renderHeadingOpen;
   return md;
 }
@@ -229,6 +267,7 @@ export interface RenderOptions {
   resolveExternalImage?: (url: string) => string | null;
   /** Parse as MDX (`installMdx`). Decided by the file's extension, never its content. */
   mdx?: boolean;
+  unlinkedDomains?: ReadonlySet<string>;
 }
 
 export interface RenderResult {
@@ -295,7 +334,11 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): Ren
   const brokenLinks: string[] = [];
   const blockedImages: string[] = [];
 
-  const env: RenderEnv = { headings: new Map<string, number>(), mdx: emptyMdxDropped() };
+  const env: RenderEnv = {
+    headings: new Map<string, number>(),
+    mdx: emptyMdxDropped(),
+    unlinkedDomains: options.unlinkedDomains,
+  };
   const rendered = (options.mdx ? mdxMarkdown : markdown).render(source, env);
 
   const sanitized = sanitizeHtml(rendered, {
