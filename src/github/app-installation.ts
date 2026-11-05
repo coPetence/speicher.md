@@ -124,17 +124,15 @@ export async function repositoryConfigs(
   token: string,
   isConfigPath: (path: string) => boolean,
   fetchImpl: typeof fetch = fetch,
-  limits = { repositories: PAGE_SIZE, files: 50 },
+  limits = { repositories: PAGE_SIZE * MAX_PAGES, files: 50 },
   remembered = new Map<string, RememberedFiles>(),
   isMisnamedPath: (path: string) => boolean = () => false,
 ): Promise<{ repositories: RepositoryFiles[]; more: boolean }> {
-  const listed = await get<{
-    total_count?: number;
-    repositories?: { full_name?: string; default_branch?: string; pushed_at?: string | null }[];
-  }>(fetchImpl, `${api}/installation/repositories?per_page=${limits.repositories}`, token);
-  const repositories = (listed.repositories ?? []).filter(
-    (repo): repo is { full_name: string; default_branch?: string; pushed_at?: string | null } =>
-      typeof repo.full_name === 'string',
+  const { repositories, total } = await listedRepositories(
+    api,
+    token,
+    limits.repositories,
+    fetchImpl,
   );
 
   const listedNames = new Set(repositories.map((repo) => repo.full_name));
@@ -178,7 +176,37 @@ export async function repositoryConfigs(
       };
     }
   });
-  return { repositories: read, more: (listed.total_count ?? 0) > repositories.length };
+  return { repositories: read, more: total > repositories.length };
+}
+
+interface ListedRepository {
+  full_name: string;
+  default_branch?: string;
+  pushed_at?: string | null;
+}
+
+/** The repositories an installation reads, page by page up to a limit, and how many it reads in all */
+async function listedRepositories(
+  api: string,
+  token: string,
+  limit: number,
+  fetchImpl: typeof fetch,
+): Promise<{ repositories: ListedRepository[]; total: number }> {
+  const repositories: ListedRepository[] = [];
+  let total = 0;
+  for (let page = 1; page <= MAX_PAGES && repositories.length < limit; page += 1) {
+    const listed = await get<{
+      total_count?: number;
+      repositories?: { full_name?: string; default_branch?: string; pushed_at?: string | null }[];
+    }>(fetchImpl, `${api}/installation/repositories?per_page=${PAGE_SIZE}&page=${page}`, token);
+    const batch = listed.repositories ?? [];
+    total = listed.total_count ?? 0;
+    repositories.push(
+      ...batch.filter((repo): repo is ListedRepository => typeof repo.full_name === 'string'),
+    );
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return { repositories: repositories.slice(0, limit), total };
 }
 
 /** The paths of a repository's files on a branch; none for a repository that has no commit yet */

@@ -896,12 +896,10 @@ describe('the modal that adds a repository', () => {
     repos = { handbook: {} };
     lookup.mockClear();
 
-    const page = await ready('/-/repositories?installations=1').expect(200);
+    await ready('/-/repositories?installations=1').expect(200);
 
-    expect(page.text).toContain('data-spr-add-open');
     const asked = lookup.mock.calls.map(([input]) => String(input));
-    expect(asked.some((url) => url.includes('/git/trees/'))).toBe(false);
-    expect(asked.some((url) => url.endsWith('/installation/repositories?per_page=100'))).toBe(false);
+    expect(asked.filter((url) => /git\/trees|installation\/repositories/.test(url))).toEqual([]);
   });
 
   it('comes back from GitHub on the repositories page once the installation changed', async () => {

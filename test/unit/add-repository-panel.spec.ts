@@ -34,6 +34,7 @@ const panel = (sources: AddRepositorySource[]) =>
     sources,
     checkHref: '/-/repositories?check=1',
     addIcon: '+',
+    editIcon: '',
     externalIcon: '',
     syncingIcon: '',
     checkIcons: {},
@@ -45,6 +46,40 @@ const source = (id: string, github: boolean, found: CheckRow[] = []) =>
     found.map((each) => row(each.name, id)),
     new Map([[id, found]]),
   )[0];
+
+describe('a row of a checked repository', () => {
+  const edit = 'https://github.com/acme/wiki/edit/main/.speicher.yaml';
+  const present: CheckRow = {
+    name: 'acme/wiki',
+    href: 'https://github.com/acme/wiki',
+    state: 'ready',
+    text: 'Readable by staff',
+    edit_href: edit,
+  };
+
+  it('offers to edit a file that is present, as the table does in the add modal', () => {
+    const html = panel([source('gh', true, [present])]);
+
+    expect(html).toMatch(
+      /spr-setup-file-action" href="[^"]*\/edit\/main\/\.speicher\.yaml" target="_blank"[^>]*>Edit<\/a>/,
+    );
+    expect(html).not.toContain('>+Create');
+  });
+
+  it('offers to edit it in the check of a source too', () => {
+    const html = renderComponent('@check-panel/row', { repo: present, icon: '' });
+
+    expect(html).toContain(`href="${edit}" target="_blank"`);
+    expect(html).toContain('Edit .speicher.yaml');
+  });
+
+  it('offers nothing to edit when there is no file on the root of the repository', () => {
+    const repo = { ...present, edit_href: undefined };
+    const html = renderComponent('@check-panel/row', { repo, icon: '' });
+
+    expect(html).not.toContain('Edit');
+  });
+});
 
 describe('the sources of the modal that adds a repository', () => {
   it('knows the repositories of each source, whatever the filter of the table', () => {

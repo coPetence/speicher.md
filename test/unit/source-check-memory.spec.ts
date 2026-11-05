@@ -45,13 +45,17 @@ function github(repositories: Record<string, Repository>) {
       });
     }
     if (path === '/installation/repositories') {
+      const size = Number(url.searchParams.get('per_page'));
+      const from = (Number(url.searchParams.get('page')) - 1) * size;
       return json({
         total_count: Object.keys(repositories).length,
-        repositories: Object.entries(repositories).map(([name, repo]) => ({
-          full_name: name,
-          default_branch: 'main',
-          pushed_at: repo.pushed_at,
-        })),
+        repositories: Object.entries(repositories)
+          .slice(from, from + size)
+          .map(([name, repo]) => ({
+            full_name: name,
+            default_branch: 'main',
+            pushed_at: repo.pushed_at,
+          })),
       });
     }
     const name = /^\/repos\/([^/]+\/[^/]+)\//.exec(path)?.[1] ?? '';
@@ -189,6 +193,24 @@ describe('a check of a source that was checked before', () => {
       selection: 'all',
     });
     expect(asked).toEqual([]);
+  });
+
+  it('reads the repositories past the first page of GitHub', async () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 111 }, (_, index) => [
+        `acme/repo-${index}`,
+        { files: { '.speicher.yaml': CONFIG } },
+      ]),
+    );
+    const { asked, fetchImpl } = github(many);
+
+    const checked = await check(fetchImpl);
+
+    expect(checked.repositories).toHaveLength(111);
+    expect(checked.repositories[110]).toMatchObject({ name: 'acme/repo-110', state: 'ready' });
+    expect(checked.repositories[110].edit_href).toContain('/edit/main/.speicher.yaml');
+    expect(checked.more).toBe(false);
+    expect(asked.filter((path) => path === '/installation/repositories')).toHaveLength(2);
   });
 
   it('looks up the installation without reading a repository, and only once', async () => {
