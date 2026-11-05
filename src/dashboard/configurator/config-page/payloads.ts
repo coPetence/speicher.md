@@ -87,6 +87,7 @@ export interface ConfigSectionPayload extends ConfigCommon {
   openKind: string;
   // Why the add modal's quick setup was refused, shown in the reopened modal
   add_error?: string;
+  add_error_field?: string;
   // What the add modal held when its quick setup was refused, by field name
   add_values?: Record<string, string>;
   // What a quick setup did and what is left, shown as a modal over the list the member joined

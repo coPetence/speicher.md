@@ -4,8 +4,18 @@
     padding: 0;
   }
 
+  /* Only the list scrolls, so the title and the buttons stay in view */
   .spr-modal-panel.spr-check-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     width: min(38rem, calc(100vw - var(--spr-space-8) * 2));
+    overflow: hidden;
+  }
+
+  .spr-check-panel > .spr-ready-foot {
+    flex: none;
+    align-self: stretch;
   }
 
   .spr-check-summary {
@@ -23,11 +33,15 @@
 
   .spr-check-list {
     display: grid;
+    flex: 0 1 auto;
+    align-self: stretch;
     justify-self: stretch;
     gap: var(--spr-space-2);
+    min-height: 0;
     margin: 0;
     padding: 0;
     list-style: none;
+    overflow-y: auto;
   }
 
   .spr-check-row {

@@ -50,7 +50,7 @@ export interface QuickSetup {
 export type QuickStart =
   | { kind: 'github-app'; target: ManifestTarget; owner: string; public: boolean }
   | { kind: 'save' }
-  | { kind: 'refused'; message: string };
+  | { kind: 'refused'; message: string; field?: string };
 
 /** One line of a ready page */
 export interface ReadyStep {

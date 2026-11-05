@@ -1,6 +1,5 @@
 export type WalkthroughPreview =
   | 'idp-sign-in'
-  | 'idp-kinds'
   | 'idp-github'
   | 'speicher-yaml'
   | 'group-add'
@@ -12,8 +11,7 @@ export type WalkthroughPreview =
   | 'source-account'
   | 'source-install'
   | 'repository-access'
-  | 'repository-folders'
-  | 'repository-sync';
+  | 'repository-folders';
 
 export interface WalkthroughSlide {
   title: string;
@@ -21,8 +19,16 @@ export interface WalkthroughSlide {
   text?: string;
   // A list under the text, each point in markdown
   points?: string[];
+  options?: WalkthroughOption[];
   faq?: WalkthroughQuestion[];
-  preview: WalkthroughPreview;
+  preview?: WalkthroughPreview;
+}
+
+export interface WalkthroughOption {
+  mark: 'github' | 'microsoft' | 'openid' | 'mail';
+  name: string;
+  text: string;
+  recommended?: boolean;
 }
 
 export interface WalkthroughQuestion {
@@ -72,13 +78,29 @@ const WALKTHROUGHS: Walkthrough[] = [
       {
         title: 'Which identity provider fits?',
         text: 'Choose the provider your readers already have an account with:',
-        points: [
-          '**GitHub**: GitHub accounts and teams. Since this is the easiest to set up, we recommend it if you are not setting up Speicher.md for an organization.',
-          '**Microsoft Entra ID**: the Microsoft accounts and groups of your organization.',
-          '**OpenID Connect**: any other provider, such as Google, Keycloak or Okta.',
-          '**Magic link (email)**: a sign-in link by email (requires a mail transport).',
+        options: [
+          {
+            mark: 'github',
+            name: 'GitHub',
+            text: 'GitHub accounts and teams. This is the easiest provider to set up.',
+            recommended: true,
+          },
+          {
+            mark: 'microsoft',
+            name: 'Microsoft Entra ID',
+            text: 'The Microsoft accounts and groups of your organization.',
+          },
+          {
+            mark: 'openid',
+            name: 'OpenID Connect',
+            text: 'Any other provider, such as Google, Keycloak or Okta.',
+          },
+          {
+            mark: 'mail',
+            name: 'Magic link (email)',
+            text: 'A sign-in link by email. This requires a mail transport.',
+          },
         ],
-        preview: 'idp-kinds',
       },
     ],
   },
@@ -178,11 +200,6 @@ const WALKTHROUGHS: Walkthrough[] = [
         title: 'Access in folders',
         text: 'Each folder can have its own `.speicher.yaml` file. Its `access` conditions can only narrow the access of the folder (e.g. the root folder must have the most privileges): a reader needs to be allowed at every level, from the root of the repository down to the folder.',
         preview: 'repository-folders',
-      },
-      {
-        title: 'How a repository is synchronized',
-        text: 'Speicher.md synchronizes a repository when it changes, for example with a new commit, and on a regular schedule. The **Sync** column shows the state of each repository.',
-        preview: 'repository-sync',
       },
     ],
   },

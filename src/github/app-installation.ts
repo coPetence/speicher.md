@@ -58,6 +58,7 @@ export async function installationAccess(
  * @param privateKey the App's private key
  * @param account the account the App is installed on
  * @param fetchImpl how GitHub is reached
+ * @param minter mints the installation token, and keeps it for a caller that passes the same one again
  */
 export async function installationOn(
   api: string,
@@ -65,8 +66,8 @@ export async function installationOn(
   privateKey: string,
   account: string,
   fetchImpl: typeof fetch = fetch,
+  minter = new GithubTokenMinter(appId, privateKey, api, fetchImpl),
 ): Promise<{ installationId: string; selection: 'all' | 'selected'; token: string } | null> {
-  const minter = new GithubTokenMinter(appId, privateKey, api, fetchImpl);
   const jwt = await minter.appJwt();
 
   let found: { id?: number; repository_selection?: string } | undefined;
@@ -100,15 +101,21 @@ export interface RepositoryFiles {
   truncated: boolean;
 }
 
+export interface RememberedFiles {
+  pushedAt: string;
+  repository: RepositoryFiles;
+}
+
 /**
  * repositoryConfigs reads the `.speicher.yaml` files of the repositories an installation can read, as they are on
- * each repository's default branch.
+ * each repository's default branch. A repository with no push since it was remembered is not read again.
  *
  * @param api the GitHub API base
  * @param token an installation token
  * @param isConfigPath which paths are `.speicher.yaml` files
  * @param fetchImpl how GitHub is reached
  * @param limits how many repositories, and files of each, are read at most
+ * @param remembered the repositories read earlier, by name
  */
 export async function repositoryConfigs(
   api: string,
@@ -116,18 +123,29 @@ export async function repositoryConfigs(
   isConfigPath: (path: string) => boolean,
   fetchImpl: typeof fetch = fetch,
   limits = { repositories: PAGE_SIZE, files: 50 },
+  remembered = new Map<string, RememberedFiles>(),
 ): Promise<{ repositories: RepositoryFiles[]; more: boolean }> {
   const listed = await get<{
     total_count?: number;
-    repositories?: { full_name?: string; default_branch?: string }[];
+    repositories?: { full_name?: string; default_branch?: string; pushed_at?: string | null }[];
   }>(fetchImpl, `${api}/installation/repositories?per_page=${limits.repositories}`, token);
   const repositories = (listed.repositories ?? []).filter(
-    (repo): repo is { full_name: string; default_branch?: string } =>
+    (repo): repo is { full_name: string; default_branch?: string; pushed_at?: string | null } =>
       typeof repo.full_name === 'string',
   );
 
-  const read = await inBatches(repositories, 5, async (repo) => {
+  const listedNames = new Set(repositories.map((repo) => repo.full_name));
+  for (const name of remembered.keys()) {
+    if (!listedNames.has(name)) remembered.delete(name);
+  }
+
+  const read = await inBatches(repositories, 5, async (repo): Promise<RepositoryFiles> => {
     const branch = repo.default_branch ?? 'main';
+    const pushedAt = repo.pushed_at;
+    const earlier = remembered.get(repo.full_name);
+    if (pushedAt && earlier?.pushedAt === pushedAt && earlier.repository.defaultBranch === branch) {
+      return earlier.repository;
+    }
     try {
       const paths = await treePaths(api, token, repo.full_name, branch, fetchImpl);
       const configs = paths.filter(isConfigPath);
@@ -137,12 +155,14 @@ export async function repositoryConfigs(
           raw: await rawFile(api, token, repo.full_name, path, branch, fetchImpl),
         })),
       );
-      return {
+      const repository = {
         fullName: repo.full_name,
         defaultBranch: branch,
         files,
         truncated: configs.length > limits.files,
       };
+      if (pushedAt) remembered.set(repo.full_name, { pushedAt, repository });
+      return repository;
     } catch (err) {
       return {
         fullName: repo.full_name,

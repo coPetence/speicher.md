@@ -13,6 +13,7 @@ import {
 } from '../../../github/app-links';
 import { InstallationAccess, installationAccess } from '../../../github/app-installation';
 import { githubHosts } from '../../../github/hosts';
+import { SOURCE_ACCOUNT } from '../config-form/config-fields/github-app-manifest';
 import {
   ManifestTarget,
   contentSourceTarget,
@@ -91,12 +92,17 @@ function githubAppStarter(setup: GithubAppSetup): QuickStarter {
         choice.placements.find((each) => each.value === input[choice.name]) ?? choice.placements[0];
       const owner = placement.organization ? (input[ORG_FIELD] ?? '').trim() : '';
       if (placement.organization && owner === '') {
-        return { kind: 'refused', message: 'Name the organization the App is created on.' };
+        return {
+          kind: 'refused',
+          message: 'Name the organization the App is created on.',
+          field: ORG_FIELD,
+        };
       }
       if (placement.organization && !GITHUB_LOGIN.test(owner)) {
         return {
           kind: 'refused',
           message: `"${owner}" is not a GitHub organization name. It has letters, digits and single hyphens between them.`,
+          field: ORG_FIELD,
         };
       }
       return {
@@ -278,11 +284,11 @@ export const githubSourceStarter = githubAppStarter({
   section: 'sources',
   choice: {
     name: 'account',
-    label: 'Which repositories do you want to sync',
+    label: SOURCE_ACCOUNT.label,
     layout: 'list',
     placements: [
-      { value: 'org', label: 'From an organization', organization: true, public: false },
-      { value: 'personal', label: 'From my personal account', organization: false, public: false },
+      { value: 'org', label: SOURCE_ACCOUNT.organization, organization: true, public: false },
+      { value: 'personal', label: SOURCE_ACCOUNT.personal, organization: false, public: false },
     ],
   },
   target: (id) => contentSourceTarget(id),

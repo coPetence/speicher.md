@@ -26,9 +26,14 @@
 </div>
 <%
   }
-  function kindTile(mark, label, recommended) {
+  function kindTile(mark, label) {
 %>
-<span class="spr-tile spr-setup-kind"><%~ icons.marks[mark] %><span class="spr-walkthrough-kind-name"><span><%= label %></span><% if (recommended) { %><%~ include('@badge', { level: 'ok', label: 'recommended' }) %><% } %></span></span>
+<span class="spr-tile spr-setup-kind"><%~ icons.marks[mark] %><span><%= label %></span></span>
+<%
+  }
+  function fileName(name) {
+%>
+<div class="spr-walkthrough-file-name"><span><%= name %></span><%~ include('@badge', { level: 'idle', label: 'example' }) %></div>
 <%
   }
   function signIn(mark, name) {
@@ -71,6 +76,19 @@
           <% slide.points.forEach(function (point) { %><li><%~ md(point) %></li><% }) %>
         </ul>
         <% } %>
+        <% if (slide.options && slide.options.length) { %>
+        <ul class="spr-walkthrough-text spr-walkthrough-options">
+          <% slide.options.forEach(function (option) { %>
+          <li>
+            <%~ icons.marks[option.mark] %>
+            <div>
+              <p class="spr-walkthrough-option-name"><%= option.name %><% if (option.recommended) { %><%~ include('@badge', { level: 'ok', label: 'recommended' }) %><% } %></p>
+              <p class="spr-walkthrough-option-text"><%~ md(option.text) %></p>
+            </div>
+          </li>
+          <% }) %>
+        </ul>
+        <% } %>
         <% if (slide.faq && slide.faq.length) { %>
         <% /* One shared name, so opening a question closes the one that was open */ %>
         <div class="spr-walkthrough-faq">
@@ -88,6 +106,7 @@
         </div>
         <% } %>
       </div>
+      <% if (slide.preview) { %>
       <div class="spr-walkthrough-preview" inert aria-hidden="true">
         <% if (slide.preview === 'idp-sign-in') { %>
         <div class="spr-walkthrough-browser">
@@ -109,13 +128,6 @@
             </ul>
           </div>
         </div>
-        <% } else if (slide.preview === 'idp-kinds') { %>
-        <div class="spr-tiles spr-setup-kinds spr-walkthrough-kinds">
-          <% kindTile('github', 'GitHub', true) %>
-          <% kindTile('microsoft', 'Microsoft Entra ID', false) %>
-          <% kindTile('openid', 'OpenID Connect', false) %>
-          <% kindTile('mail', 'Magic link (email)', false) %>
-        </div>
         <% } else if (slide.preview === 'idp-github') { %>
         <div class="spr-walkthrough-window">
           <p class="spr-walkthrough-window-title">Who should be able to sign in</p>
@@ -129,7 +141,7 @@
         <% } else if (slide.preview === 'speicher-yaml') { %>
         <% /* A repository with its file at the root, and what the file says */ %>
         <div class="spr-walkthrough-file">
-          <div class="spr-walkthrough-file-name">acme/handbook / .speicher.yaml</div>
+          <% fileName('acme/handbook / .speicher.yaml') %>
           <pre><code>version: 1
 
 display:
@@ -147,7 +159,7 @@ access: [engineering]</code></pre>
         </div>
         <span class="spr-walkthrough-leads"><%~ icons.arrow_down %></span>
         <div class="spr-walkthrough-file">
-          <div class="spr-walkthrough-file-name">.speicher.yaml</div>
+          <% fileName('.speicher.yaml') %>
           <pre><code>version: 1
 access: [<mark>engineering</mark>]</code></pre>
         </div>
@@ -174,8 +186,8 @@ access: [<mark>engineering</mark>]</code></pre>
         </table>
         <% } else if (slide.preview === 'source-kinds') { %>
         <div class="spr-tiles spr-setup-kinds spr-walkthrough-kinds">
-          <% kindTile('github', 'GitHub App', false) %>
-          <% kindTile('git', 'Plain git remote', false) %>
+          <% kindTile('github', 'GitHub App') %>
+          <% kindTile('git', 'Plain git remote') %>
         </div>
         <% } else if (slide.preview === 'source-account') { %>
         <div class="spr-walkthrough-window">
@@ -197,7 +209,7 @@ access: [<mark>engineering</mark>]</code></pre>
         </picture>
         <% } else if (slide.preview === 'repository-access') { %>
         <div class="spr-walkthrough-file">
-          <div class="spr-walkthrough-file-name">acme/handbook / .speicher.yaml</div>
+          <% fileName('acme/handbook / .speicher.yaml') %>
           <pre><code>version: 1
 
 <mark>access</mark>:
@@ -209,27 +221,16 @@ access: [<mark>engineering</mark>]</code></pre>
         <% } else if (slide.preview === 'repository-folders') { %>
         <% /* A folder narrows what the root grants: sales reads the whole repository, staff all but sales/ */ %>
         <div class="spr-walkthrough-file">
-          <div class="spr-walkthrough-file-name">acme/handbook</div>
+          <% fileName('acme/handbook') %>
           <pre><code>├── .speicher.yaml    access: [staff, sales]
 ├── onboarding.md
 └── sales/
     ├── .speicher.yaml  access: [<mark>sales</mark>]
     └── pricing.md</code></pre>
         </div>
-        <% } else if (slide.preview === 'repository-sync') { %>
-        <% /* The Sync column of the repositories page, as the sync status draws it */ %>
-        <table class="spr-table spr-walkthrough-table">
-          <thead>
-            <tr><th scope="col">Repository</th><th scope="col">Sync</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">acme/handbook</th><td><%~ include('@badge', { level: 'ok', label: 'ok' }) %></td></tr>
-            <tr><th scope="row">acme/wiki</th><td><%~ include('@badge', { level: 'ok', label: 'ok' }) %><span class="spr-activity"><%~ icons.syncing %>syncing</span></td></tr>
-            <tr><th scope="row">acme/website</th><td><%~ include('@badge', { level: 'fail', label: 'failed' }) %></td></tr>
-          </tbody>
-        </table>
         <% } %>
       </div>
+      <% } %>
     </section>
     <% }) %>
     <div class="spr-ready-foot spr-walkthrough-foot">

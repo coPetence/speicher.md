@@ -1,10 +1,26 @@
 <%
   const item = it.item;
+  const account = item.account;
   const inputId = 'f-' + item.ownerName.replace(/[^a-z0-9]+/gi, '-');
-  const owner = { path: item.ownerName, label: 'Organization', help: 'The GitHub organization for which the app should be created. Leave it empty to create the App on your personal account.' };
+  const owner = {
+    path: item.ownerName,
+    label: 'Organization',
+    help: account
+      ? 'The GitHub organization that owns the App. You need to be an owner of it, or an App manager.'
+      : 'The GitHub organization for which the app should be created. Leave it empty to create the App on your personal account.',
+  };
 %>
-  <div class="spr-github-app-manifest">
-    <div class="spr-field spr-field-text">
+  <div class="spr-github-app-manifest<%= account ? ' spr-github-app-manifest-account' : '' %>">
+    <% if (account) { %>
+    <fieldset class="spr-quick-choice">
+      <legend><%= account.label %></legend>
+      <div class="spr-quick-options" role="radiogroup" aria-label="<%= account.label %>">
+        <label><input type="radio" name="<%= account.name %>" value="org" checked data-spr-transient <%= it.editable ? '' : 'disabled' %>><%= account.organization %></label>
+        <label><input type="radio" name="<%= account.name %>" value="personal" data-spr-transient <%= it.editable ? '' : 'disabled' %>><%= account.personal %></label>
+      </div>
+    </fieldset>
+    <% } %>
+    <div class="spr-field spr-field-text"<% if (account) { %> data-spr-shown-with="<%= account.name %>" data-spr-shown-when="org"<% } %>>
       <div class="spr-field-head">
         <label for="<%= inputId %>"><%= owner.label %></label>
         <%~ include('@info', { field: owner }) %>
@@ -14,7 +30,7 @@
         name="<%= item.ownerName %>"
         type="text"
         value="<%= item.owner %>"
-        placeholder=""
+        placeholder="<%= account ? 'acme' : '' %>"
         spellcheck="false"
         autocomplete="off"
         data-spr-transient
@@ -28,8 +44,12 @@
       formnovalidate
       <%= it.editable ? '' : 'disabled' %>
     >
+      <% if (account) { %>
+      Continue on GitHub<%~ it.externalIcon || '' %>
+      <% } else { %>
       <svg class="spr-icon" aria-hidden="true"><use href="#m-github"></use></svg>
       Create the App on GitHub
+      <% } %>
     </button>
   </div>
   <% if (item.note) { %>

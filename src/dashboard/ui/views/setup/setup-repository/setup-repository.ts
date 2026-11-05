@@ -8,7 +8,7 @@ import { BLOCKING_FIXES, RepositoryFix } from '../../../../setup/repository-fix'
 import { RepositoryTableRow, repositoryMatchText } from '../../../../setup/repository-table';
 import { REPOSITORY_SECTION_ID } from '../../../../setup/setup-sections';
 import { walkthroughView } from '../../../../setup/walkthrough-view';
-import { SYNCING_ICON } from '../../sync-status/repo-status/repo-status';
+import { SYNCING_ICON, SYNC_ICON } from '../../sync-status/repo-status/repo-status';
 import { QUEUED_ICON, STATE_DISPLAY } from '../../sync-status/status-overview/status-overview';
 
 export interface RepositoryPayload {
@@ -16,6 +16,7 @@ export interface RepositoryPayload {
   me: { name: string; provider: string; groups: string[] } | null;
   fix: RepositoryFix | null;
   check_href: string | null;
+  can_refresh: boolean;
   query: string;
   config_file: ConfigFileModal | null;
   picker: ConfigFileModal | null;
@@ -85,6 +86,7 @@ export function sendSetupRepository(
         state_display: STATE_DISPLAY,
         syncing_icon: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
         queued_icon: renderInlineIcon(QUEUED_ICON, 'spr-icon'),
+        refresh_icon: renderInlineIcon(SYNC_ICON, 'spr-icon'),
       }),
   });
 }

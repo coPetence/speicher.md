@@ -48,7 +48,8 @@
     gap: var(--spr-space-2);
   }
 
-  .spr-modal-panel .spr-quick-options > label {
+  .spr-modal-panel .spr-quick-options > label,
+  .spr-github-app-manifest .spr-quick-options > label {
     display: flex;
     align-items: center;
     gap: var(--spr-space-2);
@@ -93,6 +94,7 @@
 
   /* The manual way, as a link at the start of the button row: the modal's main button is the quick one */
   .spr-modal-panel .spr-modal-actions > .spr-quick-manual {
+    order: -1;
     margin-inline-end: auto;
     padding: 0;
     border: 0;
@@ -108,6 +110,11 @@
 
   .spr-add-error {
     margin: 0;
+  }
+
+  .spr-modal-panel.spr-add-panel input[aria-invalid='true'] {
+    border-color: var(--spr-status-fail);
+    box-shadow: 0 0 0 1px var(--spr-status-fail);
   }
 
   /* The modal's main button in the accent, as the group row modal's Add button is */

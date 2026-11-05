@@ -113,24 +113,29 @@ export class QuickSetupController {
         submitted(body, quickFieldName(kind, field.name)) ?? '',
       ]),
     );
-    const refuse = (message: string) => {
+    const refuse = async (message: string, field?: string): Promise<void> => {
       payload.add_error = message;
+      payload.add_error_field = field;
       payload.add_values = {
         [ID_FIELD]: id,
         ...Object.fromEntries(
           Object.entries(input).map(([name, value]) => [quickFieldName(kind, name), value]),
         ),
       };
+      await stampEntryOrigins(caller.tenantId, payload);
       sendSection(this.respond, req, res, caller, section, payload, 400);
     };
 
     const noun = nounOf(section);
     if (!isMemberId(section, id)) {
-      return refuse(`"${id}" is not a short id. ${payload.section.addOps[0]?.nameHint ?? ''}`);
+      return refuse(
+        `"${id}" is not a short id. ${payload.section.addOps[0]?.nameHint ?? ''}`,
+        ID_FIELD,
+      );
     }
     const member = memberOf(memberSectionId(section, id));
     if (!member || (state.doc && memberExists(state.doc, member))) {
-      return refuse(`The ${noun} "${id}" already exists. Pick another short id.`);
+      return refuse(`The ${noun} "${id}" already exists. Pick another short id.`, ID_FIELD);
     }
     if (offered.unavailable) return refuse(offered.unavailable);
 
@@ -144,7 +149,7 @@ export class QuickSetupController {
     const start = starter.start(id, input);
     switch (start.kind) {
       case 'refused':
-        return refuse(start.message);
+        return refuse(start.message, start.field && quickFieldName(kind, start.field));
       case 'github-app':
         try {
           const started = await this.manifests.start(
@@ -252,13 +257,13 @@ export class QuickSetupController {
         ...modal,
         repositories: [],
         more: false,
-        pending: { href: withRun(sourceCheckPath(id)) },
+        pending: { href: withRun(sourceCheckPath(id), askedFresh(req)) },
         primary: done,
       };
       return sendSection(this.respond, req, res, caller, section, payload);
     }
 
-    const checked = await this.checkRepositories(id, forge);
+    const checked = await this.checkRepositories(id, forge, askedFresh(req));
     payload.check = {
       ...modal,
       problem: checked.problem,
@@ -494,8 +499,9 @@ export class QuickSetupController {
   private async checkRepositories(
     sourceId: string,
     forge: Record<string, unknown>,
+    fresh = false,
   ): Promise<SourceCheck> {
-    return checkSource(sourceId, forge, this.config, this.fetchImpl);
+    return checkSource(sourceId, forge, this.config, this.fetchImpl, 'check', fresh);
   }
 
   /**
@@ -618,11 +624,16 @@ function ranNow(req: Request): boolean {
   return req.query.run === '1';
 }
 
+function askedFresh(req: Request): boolean {
+  return req.query.fresh === '1';
+}
+
 /**
  * withRun returns the address a deferred modal runs at.
  *
  * @param path the modal's own address
+ * @param fresh whether the run asks GitHub for everything
  */
-function withRun(path: string): string {
-  return `${path}?run=1`;
+function withRun(path: string, fresh = false): string {
+  return `${path}?run=1${fresh ? '&fresh=1' : ''}`;
 }
