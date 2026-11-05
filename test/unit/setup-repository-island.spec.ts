@@ -95,6 +95,29 @@ describe('the next step of the repositories page', () => {
     );
   });
 
+  it('puts the rows in the order of the check, for new and for known rows', async () => {
+    document.body.innerHTML = page(
+      region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+      `${row('acme/alpha', 'not published', false)}${row('acme/zebra', 'ok', false)}`,
+    );
+    answer(
+      page(
+        region(fix('done')),
+        `${row('acme/new', 'never synced')}${row('acme/zebra', 'ok')}${row('acme/alpha', 'not published')}`,
+      ),
+    );
+
+    run();
+    await flush();
+
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-spr-repo-row]'));
+    expect(rows.map((each) => each.dataset.sprRepoRow)).toEqual([
+      'acme/new',
+      'acme/zebra',
+      'acme/alpha',
+    ]);
+  });
+
   it('offers to check again when the check does not finish', async () => {
     document.body.innerHTML = page(
       region(

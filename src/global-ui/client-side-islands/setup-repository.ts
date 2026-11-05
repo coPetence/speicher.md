@@ -144,6 +144,7 @@ async function runCheck(href: string): Promise<boolean> {
       if (current) current.replaceWith(document.importNode(row, true));
       else append(row);
     }
+    putInOrder(fresh);
     replaceFix(next);
     takeSources(fresh);
     refilter?.();
@@ -161,6 +162,15 @@ async function runCheck(href: string): Promise<boolean> {
     return false;
   } finally {
     showChecking(false);
+  }
+}
+
+// The rows in the order the server sorted them, which what the check found may have changed
+function putInOrder(fresh: Document): void {
+  const body = document.querySelector(ROWS);
+  for (const row of fresh.querySelectorAll<HTMLElement>(REPOSITORY_ROWS)) {
+    const current = rowNamed(row.dataset.sprRepoRow ?? '');
+    if (current) body?.append(current);
   }
 }
 

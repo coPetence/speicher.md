@@ -18,6 +18,71 @@ const synced = (slug: string, state: RepoStatus['state']): RepoStatus => ({
 });
 
 describe('the table of the repository step', () => {
+  const keys = (rows: ReturnType<typeof repositoryTable>) => rows.map((row) => row.key);
+
+  it('lists the repositories with a file first, whatever their sync says, each group by name', () => {
+    const rows = repositoryTable(
+      [
+        synced('zebra', 'ok'),
+        synced('alpha', 'unpublished'),
+        synced('broken', 'failed'),
+        synced('beta', 'unpublished'),
+      ],
+      [],
+      new Map(),
+      new Set(),
+    );
+
+    expect(keys(rows)).toEqual(['acme/broken', 'acme/zebra', 'acme/alpha', 'acme/beta']);
+  });
+
+  it('moves a repository up once a check finds its file, before the next sync', () => {
+    const rows = repositoryTable(
+      [synced('alpha', 'unpublished'), synced('beta', 'ok')],
+      [],
+      new Map([
+        [
+          'gh',
+          [
+            {
+              name: 'acme/alpha',
+              href: 'https://github.com/acme/alpha',
+              state: 'ready' as const,
+              text: 'Readable by staff',
+              readers: 'staff',
+            },
+          ],
+        ],
+      ]),
+      new Set(),
+    );
+
+    expect(keys(rows)).toEqual(['acme/alpha', 'acme/beta']);
+  });
+
+  it('is in the same order whether the rows came from a sync or from a check', () => {
+    const missing = (name: string) => ({
+      name,
+      href: `https://github.com/${name}`,
+      state: 'unpublished' as const,
+      text: 'Not published: it has no `.speicher.yaml` yet',
+    });
+    const fromSync = repositoryTable(
+      [synced('handbook', 'ok'), synced('alpha', 'unpublished')],
+      [],
+      new Map(),
+      new Set(),
+    );
+    const fromCheck = repositoryTable(
+      [synced('handbook', 'ok')],
+      [],
+      new Map([['gh', [missing('acme/alpha')]]]),
+      new Set(),
+    );
+
+    expect(keys(fromCheck)).toEqual(keys(fromSync));
+  });
+
   it('is one row per repository, whatever case GitHub spells its name in', () => {
     const rows = repositoryTable(
       [synced('handbook', 'ok'), synced('wiki', 'unpublished')],
@@ -111,8 +176,8 @@ describe('the table of the repository step', () => {
       new Set(),
     );
     expect(rows.map((row) => [row.name, row.sync.state])).toEqual([
-      ['acme/Empty', 'unpublished'],
       ['acme/Ready', 'never-synced'],
+      ['acme/Empty', 'unpublished'],
     ]);
   });
 });
