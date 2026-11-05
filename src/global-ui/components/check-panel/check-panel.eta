@@ -34,16 +34,7 @@
     </p>
     <ul class="spr-check-list">
       <% check.repositories.forEach(function (repo) { %>
-      <li class="spr-check-row spr-check-<%= repo.state %>" data-spr-repo-state="<%= repo.state %>">
-        <span class="spr-check-mark"><%~ it.checkIcons[repo.state] || '' %></span>
-        <span class="spr-check-text">
-          <a class="spr-check-name" href="<%= repo.href %>" target="_blank" rel="noopener"><%= repo.name %></a>
-          <span class="spr-check-found"><%~ md(repo.text) %></span>
-        </span>
-        <% if (repo.create_href) { %>
-        <a class="spr-ready-action" href="<%= repo.create_href %>">Create .speicher.yaml</a>
-        <% } %>
-      </li>
+      <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state] }) %>
       <% }) %>
     </ul>
     <% if (check.more) { %>

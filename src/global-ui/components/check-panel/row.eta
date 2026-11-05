@@ -1,0 +1,13 @@
+<% const repo = it.repo; %>
+      <li class="spr-check-row spr-check-<%= repo.state %>" data-spr-repo-state="<%= repo.state %>"<% if (repo.key) { %> data-spr-add-key="<%= repo.key %>"<% } %>>
+        <span class="spr-check-mark"><%~ it.icon || '' %></span>
+        <span class="spr-check-text">
+          <a class="spr-check-name" href="<%= repo.href %>" target="_blank" rel="noopener"><%= repo.name %></a>
+          <span class="spr-check-found"><%~ md(repo.text) %></span>
+        </span>
+        <% if (repo.create_href && it.inPlace) { %>
+        <a class="spr-setup-file-action" href="<%= repo.create_href %>" title="Create .speicher.yaml" data-spr-config-file-action="<%= repo.create_action %>" data-spr-config-file-repository="<%= repo.name %>"><%~ it.createIcon %>Create</a>
+        <% } else if (repo.create_href) { %>
+        <a class="spr-ready-action" href="<%= repo.create_href %>">Create .speicher.yaml</a>
+        <% } %>
+      </li>

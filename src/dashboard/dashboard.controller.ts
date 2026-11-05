@@ -99,18 +99,20 @@ export class DashboardController {
   }
 
   /**
-   * Queues discovery for every configured forge, and a sync of every repo it has registered
+   * Queues discovery for every configured forge, and a sync of every repo it has registered.
+   * With a `source` in the body, queues only the discovery of that forge.
    */
   @Post('discover')
   async discoverForges(
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: { back?: unknown },
+    @Body() body: { back?: unknown; source?: unknown },
   ): Promise<void> {
     const caller = callerOf(req);
     if (!caller.isAdmin) return this.respond.notFound(req, res);
 
-    const forges = this.config.forgeIds;
+    const source = typeof body?.source === 'string' ? body.source : null;
+    const forges = this.config.forgeIds.filter((id) => source === null || id === source);
     if (forges.length === 0) return this.respond.notFound(req, res);
 
     for (const forgeKey of forges) {
@@ -122,7 +124,7 @@ export class DashboardController {
       });
     }
 
-    const repoIds = await this.repo.repoIdsOf(caller.tenantId, forges);
+    const repoIds = source === null ? await this.repo.repoIdsOf(caller.tenantId, forges) : [];
     for (const repoId of repoIds) {
       await this.queue.enqueue({
         tenantId: caller.tenantId,

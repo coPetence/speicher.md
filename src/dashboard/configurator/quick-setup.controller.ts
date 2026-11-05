@@ -186,6 +186,11 @@ export class QuickSetupController {
     const node = member && state.doc ? state.doc.getIn(memberPath(member), true) : undefined;
     if (!state.doc || !isMap(node)) return this.respond.notFound(req, res);
 
+    // GitHub lands here after the repositories of an installation changed
+    if (section === 'sources' && req.query.setup_action === 'update') {
+      return redirectTo(res, REPOSITORY_STEP_PATH);
+    }
+
     const root = state.doc.toJS() as Obj;
     const starter = quickStarterOf(section, kindOf(section, root, id));
     // A member set up on its page has nothing to list

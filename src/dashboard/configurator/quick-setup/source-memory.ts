@@ -4,9 +4,16 @@ import { GithubTokenMinter } from '../../../github/tokens';
 
 export const APP_DETAILS_MS = 60 * 60 * 1000;
 
+export interface SourceInstallation {
+  href: string;
+  account: string;
+  selection: 'all' | 'selected';
+}
+
 export interface SourceMemory {
   minter: GithubTokenMinter;
   app: { slug: string; owner: GithubAppOwner; until: number } | null;
+  installation?: SourceInstallation | null;
   repositories: Map<string, RememberedFiles>;
 }
 

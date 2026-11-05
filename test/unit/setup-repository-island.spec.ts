@@ -225,4 +225,334 @@ describe('the next step of the repositories page', () => {
       expect(button().disabled).toBe(false);
     });
   });
+
+  describe('Add repository modal', () => {
+    const PENDING = 'spr-add-repository';
+    const DISCOVER = '/-/discover';
+    const OPEN = '<a href="#github" data-spr-add-open>Open on GitHub</a>';
+    const CHECK_NOW = '<button type="button" data-spr-add-check>Check</button>';
+
+    const repository = (name: string, create = false) => ({
+      key: name,
+      name,
+      href: `https://github.com/${name}`,
+      ...(create ? { create_href: `/create/${name}`, create_action: `/post/${name}` } : {}),
+    });
+
+    const rows = (known: ReturnType<typeof repository>[]) =>
+      known
+        .map(
+          (each) => `<li data-spr-add-key="${each.key}">
+            <a href="${each.href}">${each.name}</a>
+            ${
+              each.create_action
+                ? `<a href="${each.create_href}" data-spr-config-file-action="${each.create_action}"
+                      data-spr-config-file-repository="${each.name}">Create .speicher.yaml</a>`
+                : ''
+            }
+          </li>`,
+        )
+        .join('');
+
+    const panel = (id: string, known: ReturnType<typeof repository>[], action = OPEN) =>
+      `<div data-spr-add-source="${id}" data-spr-known="${known.map((each) => each.key).join(' ')}">
+        ${action}
+        <template data-spr-add-rows>${rows(known)}</template>
+      </div>`;
+
+    const modal = (panels: string, pick = '') => `
+      <details class="spr-modal" data-spr-add-repository data-spr-check-address="${CHECK}">
+        <summary>Add repository</summary>
+        <h2 data-spr-add-title>Add a repository</h2>
+        <div data-spr-add-start>
+          ${pick}
+          ${panels}
+        </div>
+        <div data-spr-add-result hidden>
+          <p data-spr-add-looking>Looking</p>
+          <p data-spr-add-status hidden></p>
+          <ul data-spr-add-found hidden></ul>
+          <button type="button" data-spr-add-check>Check again</button>
+        </div>
+      </details>`;
+
+    const details = () => document.querySelector('[data-spr-add-repository]') as HTMLDetailsElement;
+    const title = () => document.querySelector('[data-spr-add-title]') as HTMLElement;
+    const start = () => document.querySelector('[data-spr-add-start]') as HTMLElement;
+    const result = () => document.querySelector('[data-spr-add-result]') as HTMLElement;
+    const looking = () => document.querySelector('[data-spr-add-looking]') as HTMLElement;
+    const status = () => document.querySelector('[data-spr-add-status]') as HTMLElement;
+    const found = () => document.querySelector('[data-spr-add-found]') as HTMLElement;
+    const again = () =>
+      document.querySelector('[data-spr-add-result] [data-spr-add-check]') as HTMLButtonElement;
+    const discovers = () => fetchMock.mock.calls.filter(([href]) => href === DISCOVER);
+
+    function leftForGithub(keys: string[], source = 'gh', at = Date.now()): void {
+      sessionStorage.setItem(PENDING, JSON.stringify({ source, keys, at }));
+    }
+
+    function shown(panels: string, pick = ''): void {
+      document.body.innerHTML = page(`${region('')}${modal(panels, pick)}`, '');
+    }
+
+    const checked = (panels: string) => page(`${region('')}${modal(panels)}`, '');
+
+    beforeEach(() => {
+      sessionStorage.clear();
+    });
+
+    it('saves the repositories of the source when it leaves for GitHub', () => {
+      shown(panel('gh', [repository('acme/handbook')]));
+      run();
+
+      const open = document.querySelector('[data-spr-add-open]') as HTMLAnchorElement;
+      open.addEventListener('click', (event) => event.preventDefault());
+      open.click();
+
+      expect(JSON.parse(sessionStorage.getItem(PENDING) ?? '')).toMatchObject({
+        source: 'gh',
+        keys: ['acme/handbook'],
+      });
+    });
+
+    it('opens again after GitHub, and offers to create the file of a new repository', async () => {
+      leftForGithub(['acme/handbook']);
+      shown(panel('gh', [repository('acme/handbook')]));
+      answer(checked(panel('gh', [repository('acme/handbook'), repository('acme/wiki', true)])));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+
+      run();
+      await flush();
+
+      expect(details().open).toBe(true);
+      expect(start().hidden).toBe(true);
+      expect(result().hidden).toBe(false);
+      expect(title().textContent).toBe('New repositories');
+      expect(looking().hidden).toBe(true);
+      expect(status().textContent).toContain('a new repository in gh');
+      expect(found().hidden).toBe(false);
+      const items = found().querySelectorAll('li');
+      expect(items).toHaveLength(1);
+      expect(items[0].querySelector('a')?.getAttribute('href')).toBe(
+        'https://github.com/acme/wiki',
+      );
+      const create = items[0].querySelector<HTMLAnchorElement>('[data-spr-config-file-action]');
+      expect(create?.dataset.sprConfigFileAction).toBe('/post/acme/wiki');
+      expect(create?.dataset.sprConfigFileRepository).toBe('acme/wiki');
+      expect(sessionStorage.getItem(PENDING)).toBeNull();
+
+      expect(discovers()).toHaveLength(1);
+      const [, sent] = discovers()[0] as [string, { body: URLSearchParams }];
+      expect(sent.body.get('source')).toBe('gh');
+    });
+
+    it('offers to check again when nothing is new, and asks for no discovery', async () => {
+      leftForGithub(['acme/handbook']);
+      shown(panel('gh', [repository('acme/handbook')]));
+      answer(checked(panel('gh', [repository('acme/handbook')])));
+
+      run();
+      await flush();
+
+      expect(status().textContent).toContain('no new repository in gh');
+      expect(result().hidden).toBe(false);
+      expect(found().hidden).toBe(true);
+      expect(discovers()).toHaveLength(0);
+    });
+
+    it('still finds a repository on a second look', async () => {
+      leftForGithub(['acme/handbook']);
+      shown(panel('gh', [repository('acme/handbook')]));
+      answer(checked(panel('gh', [repository('acme/handbook')])));
+      run();
+      await flush();
+
+      answer(checked(panel('gh', [repository('acme/handbook'), repository('acme/wiki')])));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+      again().click();
+      await flush();
+
+      expect(status().textContent).toContain('a new repository in gh');
+      expect(found().querySelectorAll('li')).toHaveLength(1);
+    });
+
+    it('says so when the check does not finish', async () => {
+      leftForGithub(['acme/handbook']);
+      shown(panel('gh', [repository('acme/handbook')]));
+      fetchMock.mockRejectedValueOnce(new Error('offline'));
+
+      run();
+      await flush();
+
+      expect(status().textContent).toContain('could not finish');
+      expect(again().disabled).toBe(false);
+      expect(discovers()).toHaveLength(0);
+    });
+
+    it('stays closed for an entry that is too old', async () => {
+      leftForGithub(['acme/handbook'], 'gh', Date.now() - 60 * 60 * 1000);
+      shown(panel('gh', [repository('acme/handbook')]));
+
+      run();
+      await flush();
+
+      expect(details().open).toBe(false);
+      expect(sessionStorage.getItem(PENDING)).toBeNull();
+    });
+
+    it('opens on the source it left from', async () => {
+      leftForGithub([], 'second');
+      const pick = `<select data-spr-add-source-pick>
+        <option value="first">first</option><option value="second">second</option>
+      </select>`;
+      shown(`${panel('first', [])}${panel('second', [])}`, pick);
+      answer(checked(`${panel('first', [])}${panel('second', [repository('acme/wiki')])}`));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+
+      run();
+      await flush();
+
+      const panels = document.querySelectorAll<HTMLElement>('[data-spr-add-source]');
+      expect(panels[0].hidden).toBe(true);
+      expect(panels[1].hidden).toBe(false);
+      expect(status().textContent).toContain('a new repository in second');
+    });
+
+    it('checks on request when the App reads every repository', async () => {
+      shown(panel('gh', [repository('acme/handbook')], CHECK_NOW));
+      run();
+      await flush();
+      expect(start().hidden).toBe(false);
+      expect(result().hidden).toBe(true);
+
+      const known = [repository('acme/handbook'), repository('acme/wiki')];
+      answer(checked(panel('gh', known, CHECK_NOW)));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+      details().open = true;
+      (document.querySelector('[data-spr-add-source] [data-spr-add-check]') as HTMLElement).click();
+      await flush();
+
+      expect(result().hidden).toBe(false);
+      expect(status().textContent).toContain('a new repository in gh');
+    });
+
+    it('shows only the source that is picked', () => {
+      const pick = `<select data-spr-add-source-pick>
+        <option value="first">first</option><option value="second">second</option>
+      </select>`;
+      shown(`${panel('first', [])}${panel('second', [])}`, pick);
+      run();
+
+      const panels = document.querySelectorAll<HTMLElement>('[data-spr-add-source]');
+      expect(panels[0].hidden).toBe(false);
+      expect(panels[1].hidden).toBe(true);
+
+      const select = document.querySelector('select') as HTMLSelectElement;
+      select.value = 'second';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+
+      expect(panels[0].hidden).toBe(true);
+      expect(panels[1].hidden).toBe(false);
+    });
+
+    it('goes back to its first screen when it is closed', async () => {
+      leftForGithub([]);
+      shown(panel('gh', []));
+      answer(checked(panel('gh', [repository('acme/wiki')])));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+      run();
+      await flush();
+      expect(result().hidden).toBe(false);
+
+      details().open = false;
+      details().dispatchEvent(new Event('toggle'));
+
+      expect(start().hidden).toBe(false);
+      expect(result().hidden).toBe(true);
+      expect(title().textContent).toBe('Add a repository');
+      expect(found().children).toHaveLength(0);
+    });
+
+    describe('a source the page was drawn without its installation', () => {
+      const LOOKUP = '/-/repositories?installations=1';
+      const looked = (panels: string) =>
+        modal(panels).replace(
+          'data-spr-add-repository ',
+          `data-spr-add-repository data-spr-lookup-address="${LOOKUP}" `,
+        );
+      const asking = `<div data-spr-add-source="gh" data-spr-known="" data-spr-add-pending>
+        <p data-spr-add-lookup>Looking up the GitHub App…</p>
+        <template data-spr-add-rows></template>
+      </div>`;
+
+      it('asks for it before the checks, and offers GitHub without waiting for them', async () => {
+        document.body.innerHTML = page(
+          `${region('', ` data-spr-check-href="${CHECK}"`)}${looked(asking)}`,
+          '',
+        );
+        answer(checked(panel('gh', [])));
+        let finish: (value: unknown) => void = () => {};
+        fetchMock.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+
+        run();
+        await flush();
+
+        expect(fetchMock.mock.calls[0][0]).toBe(LOOKUP);
+        expect(fetchMock.mock.calls[1][0]).toBe(CHECK);
+        expect(document.querySelector('[data-spr-add-open]')).not.toBeNull();
+        expect(document.querySelector('[data-spr-add-pending]')).toBeNull();
+
+        finish({ ok: true, text: async () => checked(panel('gh', [])) });
+        await flush();
+      });
+
+      it('asks for nothing when the page knows every installation', async () => {
+        document.body.innerHTML = page(`${region('')}${looked(panel('gh', []))}`, '');
+
+        run();
+        await flush();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+      });
+
+      it('says so when the lookup fails, rather than looking forever', async () => {
+        document.body.innerHTML = page(`${region('')}${looked(asking)}`, '');
+        fetchMock.mockRejectedValueOnce(new Error('offline'));
+
+        run();
+        await flush();
+
+        expect(document.querySelector('[data-spr-add-lookup]')?.textContent).toContain('reload');
+      });
+    });
+
+    it('takes what a check knows of the source, which the page drew without it', async () => {
+      document.body.innerHTML = page(
+        `${region('', ` data-spr-check-href="${CHECK}"`)}${modal(panel('gh', [], ''))}`,
+        '',
+      );
+      expect(document.querySelector('[data-spr-add-open]')).toBeNull();
+      answer(checked(panel('gh', [])));
+
+      run();
+      await flush();
+
+      expect(document.querySelector('[data-spr-add-open]')).not.toBeNull();
+    });
+
+    it('gives way to the modal of a new .speicher.yaml', async () => {
+      leftForGithub([]);
+      shown(panel('gh', []));
+      answer(checked(panel('gh', [repository('acme/wiki', true)])));
+      fetchMock.mockResolvedValueOnce({ ok: true });
+      run();
+      await flush();
+
+      const create = found().querySelector('[data-spr-config-file-action]') as HTMLAnchorElement;
+      create.addEventListener('click', (event) => event.preventDefault());
+      create.click();
+
+      expect(details().open).toBe(false);
+    });
+  });
 });

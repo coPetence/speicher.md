@@ -23,6 +23,8 @@ import {
   checkSource,
   configFileTarget,
   githubSourceOf,
+  lookUpInstallation,
+  rememberedInstallation,
   rememberedRows,
 } from '../configurator/quick-setup/source-check';
 import { DashboardResponder } from '../respond';
@@ -34,7 +36,7 @@ import {
 import { sendSetup } from '../ui/views/setup/setup-overview/setup-overview';
 import { sendSetupRepository } from '../ui/views/setup/setup-repository/setup-repository';
 import { BLOCKING_FIXES, nextFix } from './repository-fix';
-import { repositoryMatchText, repositoryTable } from './repository-table';
+import { addRepositorySources, repositoryMatchText, repositoryTable } from './repository-table';
 import { SetupService } from './setup.service';
 import { REPOSITORY_STEP_PATH, SETUP_LATER_COOKIE } from './steps';
 
@@ -125,6 +127,12 @@ export class SetupWizardController {
             ),
           )
         : null;
+    // Far quicker than the checks, so the modal that adds a repository need not wait for them
+    if (req.query.installations === '1') {
+      await Promise.all(
+        [...github].map(([id, forge]) => lookUpInstallation(id, forge, this.fetchImpl)),
+      );
+    }
     const found = new Map<string, CheckRow[]>(
       checks
         ? [...checks].map(([id, check]) => [id, check.repositories])
@@ -167,6 +175,20 @@ export class SetupWizardController {
       fix,
       check_href: checks === null && !blocked ? `${REPOSITORY_STEP_PATH}?${address}` : null,
       can_refresh: github.size > 0,
+      add_check_href: `${REPOSITORY_STEP_PATH}?${address}`,
+      add_lookup_href: `${REPOSITORY_STEP_PATH}?installations=1`,
+      add_sources: addRepositorySources(
+        this.config.forgeIds.map((id) => {
+          const forge = github.get(id);
+          return {
+            id,
+            github: forge !== undefined,
+            installation: forge ? rememberedInstallation(forge, this.fetchImpl) : null,
+          };
+        }),
+        rows,
+        found,
+      ),
       query,
       config_file: configFile,
       picker:

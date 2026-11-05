@@ -184,19 +184,17 @@
     align-items: center;
     gap: var(--spr-space-2);
     padding: var(--spr-space-2) var(--spr-space-4);
-    border: var(--spr-border) solid var(--spr-accent);
+    border: var(--spr-border) solid var(--spr-line);
     border-radius: var(--spr-radius);
-    background: var(--spr-accent);
-    color: var(--spr-bg);
+    background: none;
+    color: var(--spr-fg);
     font: inherit;
-    font-weight: var(--spr-weight-strong);
     white-space: nowrap;
     cursor: pointer;
   }
 
   .spr-setup-refresh:hover:not(:disabled) {
-    border-color: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
-    background: color-mix(in oklab, var(--spr-accent) 85%, var(--spr-fg));
+    border-color: var(--spr-accent);
   }
 
   .spr-setup-refresh:disabled {
@@ -208,6 +206,57 @@
     width: 1em;
     height: 1em;
     margin: 0;
+  }
+
+  .spr-modal-panel.spr-check-panel.spr-add-repository {
+    gap: var(--spr-space-5);
+    width: min(34rem, calc(100vw - var(--spr-space-8) * 2));
+  }
+
+  .spr-add-repository [hidden] {
+    display: none;
+  }
+
+  .spr-add-repository-screen {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spr-space-5);
+    align-self: stretch;
+    min-height: 0;
+  }
+
+  .spr-add-repository-pick {
+    display: grid;
+    gap: var(--spr-space-2);
+  }
+
+  .spr-add-repository-pick .spr-select,
+  .spr-add-repository-pick select {
+    width: 100%;
+  }
+
+  .spr-add-repository .spr-check-summary {
+    font-size: inherit;
+    line-height: 1.5;
+  }
+
+  .spr-add-repository-screen > .spr-ready-foot {
+    flex: none;
+    margin-top: 0;
+    font-size: inherit;
+  }
+
+  .spr-add-repository-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--spr-accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .spr-add-repository-link:hover:not(:disabled) {
+    text-decoration: underline;
   }
 
   .spr-setup-file-action {

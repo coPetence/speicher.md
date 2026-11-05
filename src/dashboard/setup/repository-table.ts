@@ -1,5 +1,7 @@
 import { slugify } from '../../common/slug';
+import { memberSectionId } from '../configurator/config-form/members';
 import type { CheckRow } from '../configurator/config-page/payloads';
+import type { SourceInstallation } from '../configurator/quick-setup/source-memory';
 import type { RepoStatus } from '../status/status.types';
 import type { Level } from '../ui/levels';
 
@@ -35,6 +37,39 @@ export interface RepositoryTableRow {
   // As on the sync status page
   sync: Pick<RepoStatus, 'state' | 'activity' | 'last_error'>;
   readable: boolean;
+}
+
+export interface AddRepositorySource {
+  id: string;
+  config_href: string;
+  github: boolean;
+  // Undefined until GitHub was asked
+  installation?: SourceInstallation | null;
+  known: string[];
+  found: (CheckRow & { key: string })[];
+}
+
+/**
+ * addRepositorySources returns the content sources of the modal that adds a repository.
+ *
+ * @param sources the content sources, with what a check knows of their App
+ * @param rows every row of the repository step, before any filter
+ * @param checks what the checks of GitHub sources found, by source
+ */
+export function addRepositorySources(
+  sources: Pick<AddRepositorySource, 'id' | 'github' | 'installation'>[],
+  rows: RepositoryTableRow[],
+  checks: Map<string, CheckRow[]>,
+): AddRepositorySource[] {
+  return sources.map((source) => ({
+    ...source,
+    config_href: `/-/config/${memberSectionId('sources', source.id)}`,
+    known: rows.filter((row) => row.source === source.id).map((row) => row.key),
+    found: (checks.get(source.id) ?? []).map((check) => ({
+      ...check,
+      key: repositoryKey(check.name),
+    })),
+  }));
 }
 
 /**

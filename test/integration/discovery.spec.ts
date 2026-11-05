@@ -552,6 +552,26 @@ describe('a redelivery an operator asked for', () => {
     expect(Number(row.count)).toBe(1);
   });
 
+  it('queues only the discovery of one source when it names that source', async () => {
+    await clearDiscoverJobs();
+
+    await request(app.getHttpServer())
+      .post('/-/discover')
+      .set('cookie', admin)
+      .set('accept', 'application/json')
+      .type('form')
+      .send({ source: 'gh' })
+      .expect(200, { discovering: ['gh'], syncing: 0 });
+    expect(await discoverJobs()).toBe(1);
+
+    await request(app.getHttpServer())
+      .post('/-/discover')
+      .set('cookie', admin)
+      .type('form')
+      .send({ source: 'nowhere' })
+      .expect(404);
+  });
+
   it('leads back to the repositories page when it was started there', async () => {
     const discovered = await request(app.getHttpServer())
       .post('/-/discover')

@@ -19,6 +19,7 @@
  * The card `[data-spr-repository-step]` acts as a mount guard
  */
 
+import { lookUpSources, mountAddRepository, takeSources } from './add-repository';
 import { mountFilter } from './filter';
 
 const REFRESH_MS = 10_000;
@@ -34,15 +35,19 @@ const REFRESH = 'form[data-spr-refresh]';
 
 // Narrows the rows again after rows were added or swapped; none when the server narrowed the page
 let refilter: (() => void) | null = null;
-let checking = false;
+let running: Promise<boolean> | null = null;
 
 export function mountRepositoryStep(): void {
   if (!document.querySelector(STEP)) return;
   refilter = mountFilter('[data-spr-repository-table]');
   mountRefreshButton();
-  void check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref);
+  // In this order, so the checks reuse the App and the token the lookup asked GitHub for
+  void lookUpSources(page).then(() =>
+    check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref),
+  );
   mountRefresh();
   mountConfigFilePicker();
+  mountAddRepository(check);
 }
 
 function mountRefreshButton(): void {
@@ -112,13 +117,20 @@ function mountConfigFilePicker(): void {
 }
 
 /**
- * Runs the checks of the GitHub sources at their address, and puts the next step and the rows they found in place
+ * Runs the checks of the GitHub sources at their address, and puts the next step and the rows they found in place.
+ * A caller that asks during a run gets the answer of that run.
  *
  * @param href the check address, or undefined when the page has no checks to run
  */
-async function check(href: string | undefined): Promise<void> {
-  if (!href || checking) return;
-  checking = true;
+function check(href: string | undefined): Promise<boolean> {
+  if (!href) return Promise.resolve(false);
+  running ??= runCheck(href).finally(() => {
+    running = null;
+  });
+  return running;
+}
+
+async function runCheck(href: string): Promise<boolean> {
   showChecking(true);
   try {
     const fresh = await page(href);
@@ -133,7 +145,9 @@ async function check(href: string | undefined): Promise<void> {
       else append(row);
     }
     replaceFix(next);
+    takeSources(fresh);
     refilter?.();
+    return true;
   } catch {
     // Offer to run the check by loading its page
     const note = document.querySelector(`${FIX} .spr-setup-fix-note`);
@@ -144,8 +158,8 @@ async function check(href: string | undefined): Promise<void> {
       note.textContent = 'The check did not finish. ';
       note.append(again);
     }
+    return false;
   } finally {
-    checking = false;
     showChecking(false);
   }
 }
