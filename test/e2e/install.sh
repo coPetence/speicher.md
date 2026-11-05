@@ -43,7 +43,8 @@ done
 id=$(compose ps -a -q migrate)
 [ "$(docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' "$id")" = "exited 0" ] ||
   fail "migrate did not exit with 0"
-compose exec -T web speicher migrate status | grep -q '"pending":\[\]' || fail "migrations are pending"
+# exits with 1 while migrations are pending, whatever the log format
+status=$(compose exec -T web speicher migrate status 2>&1) || fail "migrations are pending: $status"
 echo "web and worker running, migrate exited 0, no pending migrations"
 
 step "Claim page and its assets"
