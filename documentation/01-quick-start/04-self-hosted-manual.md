@@ -92,7 +92,7 @@ Open [http://localhost:32168](http://localhost:32168), or the address of your se
 
 ## 4. Claim the instance
 
-The claim page shows a code, such as `QUIET-HERON-4015`. To approve it, run this in the directory of your `docker-compose.yaml`, with your code:
+The claim page shows a code, such as `GRANTIG-DACKEL-4015`. To approve it, run this in the directory of your `docker-compose.yaml`, with your code:
 
 ```sh
 docker compose exec web speicher claim <YOUR-CODE>

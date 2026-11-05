@@ -12,9 +12,9 @@ To start from a prepared `speicher.instance.yaml` instead, see [Seed the configu
 
 People sign in to Speicher through an identity provider; Speicher itself stores no passwords. On the setup page, choose a provider and follow its guide:
 
+- [GitHub](../02-configuration/01-identity-providers/01-github/index.md)
 - [Microsoft Entra ID](../02-configuration/01-identity-providers/02-entra-id/index.mdx)
 - [OpenID Connect](../02-configuration/01-identity-providers/05-oidc/index.md), for any other provider that supports it, such as Google, Keycloak or Okta
-- [GitHub](../02-configuration/01-identity-providers/01-github/index.md)
 - [Magic links](../02-configuration/01-identity-providers/04-magic-links/index.md), which sign people in through a link sent by email. They need a [mail transport](../02-configuration/08-mail-transport/index.md).
 
 ## 2. Create groups
