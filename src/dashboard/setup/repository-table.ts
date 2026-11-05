@@ -73,7 +73,8 @@ export function addRepositorySources(
 }
 
 /**
- * repositoryTable returns the rows of the repository step, by name.
+ * repositoryTable returns the rows of the repository step: the repositories with a `.speicher.yaml` first, each group
+ * by name.
  *
  * @param status the repositories as the sync status has them
  * @param readable the names of the repositories the administrator can read a page of
@@ -138,7 +139,13 @@ export function repositoryTable(
       });
     }
   }
-  return [...rows.values()].sort((a, b) => a.key.localeCompare(b.key));
+  return [...rows.values()].sort(
+    (a, b) => Number(hasNoFile(a)) - Number(hasNoFile(b)) || a.key.localeCompare(b.key),
+  );
+}
+
+function hasNoFile(row: RepositoryTableRow): boolean {
+  return row.file.label === 'missing';
 }
 
 /**
