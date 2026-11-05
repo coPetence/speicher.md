@@ -864,6 +864,59 @@ describe('the next step of the repositories page', () => {
   });
 });
 
+describe('the modal that adds a repository', () => {
+  it('leads to the installation in the same tab when the App reads picked repositories', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];
+    repos = { handbook: {} };
+
+    const page = await ready('/-/repositories?check=1').expect(200);
+
+    expect(page.text).toContain('<span>Add repository</span>');
+    expect(page.text).toMatch(
+      /href="https:\/\/github.com\/organizations\/acme\/settings\/installations\/5" data-spr-add-open>Open on GitHub/,
+    );
+    expect(page.text).toContain('data-spr-add-key="acme/handbook"');
+    expect(page.text).toMatch(/data-spr-known="[^"]*acme\/handbook/);
+  });
+
+  it('has nothing to open on GitHub when the App reads every repository', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'all' }];
+
+    const page = await ready('/-/repositories?check=1').expect(200);
+
+    expect(page.text).toContain('can already read every repository on <strong>acme</strong>');
+    expect(page.text).not.toContain('data-spr-add-open');
+  });
+
+  it('finds the installation without reading a single repository', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];
+    repos = { handbook: {} };
+    lookup.mockClear();
+
+    const page = await ready('/-/repositories?installations=1').expect(200);
+
+    expect(page.text).toContain('data-spr-add-open');
+    const asked = lookup.mock.calls.map(([input]) => String(input));
+    expect(asked.some((url) => url.includes('/git/trees/'))).toBe(false);
+    expect(asked.some((url) => url.endsWith('/installation/repositories?per_page=100'))).toBe(false);
+  });
+
+  it('comes back from GitHub on the repositories page once the installation changed', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];
+
+    const back = await ready(
+      '/-/config/sources/team/ready?installation_id=5&setup_action=update',
+    ).expect(303);
+
+    expect(back.headers.location).toBe('/-/repositories');
+    await ready('/-/config/sources/team/ready?installation_id=5&setup_action=install').expect(200);
+  });
+});
+
 describe('a check that asks GitHub', () => {
   it('answers at once with a pending modal, and asks GitHub only at the address it runs at', async () => {
     await createOnGithub('sources', 'team');

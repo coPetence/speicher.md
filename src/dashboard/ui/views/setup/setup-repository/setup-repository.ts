@@ -5,9 +5,14 @@ import { escapeHtml, renderTemplate } from '../../../../../content-reader/views'
 import type { ConfigFileModal } from '../../../../configurator/config-page/payloads';
 import { DashboardResponder, guidedThroughSetup } from '../../../../respond';
 import { BLOCKING_FIXES, RepositoryFix } from '../../../../setup/repository-fix';
-import { RepositoryTableRow, repositoryMatchText } from '../../../../setup/repository-table';
+import {
+  AddRepositorySource,
+  RepositoryTableRow,
+  repositoryMatchText,
+} from '../../../../setup/repository-table';
 import { REPOSITORY_SECTION_ID } from '../../../../setup/setup-sections';
 import { walkthroughView } from '../../../../setup/walkthrough-view';
+import { CHECK_ICONS } from '../../config-section/config-section';
 import { SYNCING_ICON, SYNC_ICON } from '../../sync-status/repo-status/repo-status';
 import { QUEUED_ICON, STATE_DISPLAY } from '../../sync-status/status-overview/status-overview';
 
@@ -17,6 +22,11 @@ export interface RepositoryPayload {
   fix: RepositoryFix | null;
   check_href: string | null;
   can_refresh: boolean;
+  // Where the modal that adds a repository runs the checks
+  add_check_href: string;
+  // Where the modal asks for the installations of the sources
+  add_lookup_href: string;
+  add_sources: AddRepositorySource[];
   query: string;
   config_file: ConfigFileModal | null;
   picker: ConfigFileModal | null;
@@ -87,6 +97,12 @@ export function sendSetupRepository(
         syncing_icon: renderInlineIcon(SYNCING_ICON, 'spr-icon spr-spin'),
         queued_icon: renderInlineIcon(QUEUED_ICON, 'spr-icon'),
         refresh_icon: renderInlineIcon(SYNC_ICON, 'spr-icon'),
+        check_icons: Object.fromEntries(
+          Object.entries(CHECK_ICONS).map(([state, icon]) => [
+            state,
+            renderInlineIcon(icon, 'spr-icon'),
+          ]),
+        ),
       }),
   });
 }

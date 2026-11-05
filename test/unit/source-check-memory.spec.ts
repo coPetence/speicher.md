@@ -2,6 +2,8 @@ import { generateKeyPairSync } from 'node:crypto';
 
 import {
   checkSource,
+  lookUpInstallation,
+  rememberedInstallation,
   rememberedRows,
 } from '../../src/dashboard/configurator/quick-setup/source-check';
 
@@ -172,5 +174,55 @@ describe('a check of a source that was checked before', () => {
     await check(fetchImpl);
 
     expect(asked).toContain('/repos/acme/wiki/git/trees/main');
+  });
+
+  it('remembers the installation it found, and asks GitHub for nothing to say so', async () => {
+    const { asked, fetchImpl } = github({});
+    expect(rememberedInstallation(forge, fetchImpl)).toBeUndefined();
+
+    await check(fetchImpl);
+    asked.length = 0;
+
+    expect(rememberedInstallation(forge, fetchImpl)).toEqual({
+      href: 'https://github.com/settings/installations/5',
+      account: 'acme',
+      selection: 'all',
+    });
+    expect(asked).toEqual([]);
+  });
+
+  it('looks up the installation without reading a repository, and only once', async () => {
+    const { asked, fetchImpl } = github({
+      'acme/handbook': { pushed_at: '2026-11-01T10:00:00Z', files: { '.speicher.yaml': CONFIG } },
+    });
+
+    await lookUpInstallation('gh', forge, fetchImpl);
+
+    expect(rememberedInstallation(forge, fetchImpl)?.selection).toBe('all');
+    expect(asked).toEqual(['/app', '/app/installations', expect.stringContaining('access_tokens')]);
+    expect(asked.join(' ')).not.toContain('/repos/');
+
+    asked.length = 0;
+    await lookUpInstallation('gh', forge, fetchImpl);
+    expect(asked).toEqual([]);
+  });
+
+  it('gives the check what the lookup asked GitHub for', async () => {
+    const { asked, fetchImpl } = github({});
+    await lookUpInstallation('gh', forge, fetchImpl);
+    asked.length = 0;
+
+    await check(fetchImpl);
+
+    expect(asked).not.toContain('/app');
+    expect(asked.join(' ')).not.toContain('access_tokens');
+  });
+
+  it('stops looking once GitHub cannot be asked', async () => {
+    const fetchImpl = (async () => new Response('', { status: 502 })) as unknown as typeof fetch;
+
+    await lookUpInstallation('gh', forge, fetchImpl);
+
+    expect(rememberedInstallation(forge, fetchImpl)).toBeNull();
   });
 });

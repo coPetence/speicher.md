@@ -96,6 +96,9 @@
         <button type="submit" class="spr-setup-refresh"><%~ it.refresh_icon %><span>Refresh</span></button>
       </form>
       <% } %>
+      <% if (it.add_sources.length > 0) { %>
+      <%~ include('@add-repository-panel', { sources: it.add_sources, checkHref: it.add_check_href, lookupHref: it.add_lookup_href, addIcon: it.create_icon, externalIcon: it.external_icon, syncingIcon: it.syncing_icon, checkIcons: it.check_icons }) %>
+      <% } %>
     </div>
   </header>
 

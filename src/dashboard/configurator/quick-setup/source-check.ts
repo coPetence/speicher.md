@@ -26,7 +26,15 @@ import {
   missingGroups,
   publicRepoRef,
 } from './repository-check';
-import { APP_DETAILS_MS, sourceMemory } from './source-memory';
+import { APP_DETAILS_MS, SourceInstallation, SourceMemory, sourceMemory } from './source-memory';
+
+interface GithubReach {
+  api: string;
+  web: string;
+  appId: string;
+  privateKey: string;
+  fetchImpl: typeof fetch;
+}
 
 export type SourceCheck = Pick<CheckModal, 'problem' | 'repositories' | 'more'> & {
   missing: MissingGroup[];
@@ -58,23 +66,13 @@ export async function checkSource(
   const log = rootLogger.child('config.quick-setup');
   const nothing = { repositories: [], more: false, missing: [] };
   const memory = sourceMemory(api, appId, privateKey, fetchImpl, fresh);
+  const reach = { api, web, appId, privateKey, fetchImpl };
   // What the check was doing, so a failure says where it stopped
   let step = 'look up the App';
   try {
-    if (!memory.app || memory.app.until <= Date.now()) {
-      const details = await lookupGithubApp(api, appId, privateKey, fetchImpl);
-      memory.app = { ...details, until: Date.now() + APP_DETAILS_MS };
-    }
-    const app = memory.app;
+    const app = await appOf(memory, reach);
     step = `find the App's installation on ${app.owner.accountName}`;
-    const installation = await installationOn(
-      api,
-      appId,
-      privateKey,
-      app.owner.accountName,
-      fetchImpl,
-      memory.minter,
-    );
+    const installation = await installationOf(memory, app, reach);
     if (!installation) {
       return {
         ...nothing,
@@ -117,6 +115,7 @@ export async function checkSource(
       installation_href: installationUrl(web, app.owner, installation.installationId),
     };
   } catch (err) {
+    memory.installation ??= null;
     const message = (err as Error).message;
     log.warn('could not check the repositories of a source', {
       source: sourceId,
@@ -158,6 +157,87 @@ export function rememberedRows(
       known,
     ),
   );
+}
+
+/**
+ * rememberedInstallation returns the installation GitHub named for a source, without asking GitHub. It returns null
+ * when the App has none, and undefined when GitHub was not asked yet.
+ *
+ * @param forge the source as stored, with its App
+ * @param fetchImpl reaches GitHub, which keeps the memory of the source apart
+ */
+export function rememberedInstallation(
+  forge: Record<string, unknown>,
+  fetchImpl: typeof fetch,
+): SourceInstallation | null | undefined {
+  const { api } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+  return sourceMemory(api, String(forge.app_id), String(forge.private_key), fetchImpl).installation;
+}
+
+/**
+ * lookUpInstallation asks GitHub for the installation of a source's App and remembers it, without reading any
+ * repository. It asks nothing when the installation is already known.
+ *
+ * @param sourceId the source's short id
+ * @param forge the source as stored, with its App
+ * @param fetchImpl reaches GitHub
+ */
+export async function lookUpInstallation(
+  sourceId: string,
+  forge: Record<string, unknown>,
+  fetchImpl: typeof fetch,
+): Promise<void> {
+  const appId = String(forge.app_id);
+  const privateKey = String(forge.private_key);
+  const { api, web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+  const memory = sourceMemory(api, appId, privateKey, fetchImpl);
+  if (memory.installation !== undefined) return;
+  const reach = { api, web, appId, privateKey, fetchImpl };
+  try {
+    await installationOf(memory, await appOf(memory, reach), reach);
+  } catch (err) {
+    memory.installation = null;
+    rootLogger.child('config.quick-setup').warn('could not look up the installation of a source', {
+      source: sourceId,
+      api,
+      code: err instanceof CodedError ? err.code : undefined,
+      error: (err as Error).message,
+    });
+  }
+}
+
+// The App of a source, from memory while it is recent
+async function appOf(
+  memory: SourceMemory,
+  { api, appId, privateKey, fetchImpl }: GithubReach,
+): Promise<NonNullable<SourceMemory['app']>> {
+  if (!memory.app || memory.app.until <= Date.now()) {
+    const details = await lookupGithubApp(api, appId, privateKey, fetchImpl);
+    memory.app = { ...details, until: Date.now() + APP_DETAILS_MS };
+  }
+  return memory.app;
+}
+
+// The installation of a source's App, which is remembered for the modal that adds a repository
+async function installationOf(
+  memory: SourceMemory,
+  app: NonNullable<SourceMemory['app']>,
+  { api, web, appId, privateKey, fetchImpl }: GithubReach,
+): Promise<Awaited<ReturnType<typeof installationOn>>> {
+  const installation = await installationOn(
+    api,
+    appId,
+    privateKey,
+    app.owner.accountName,
+    fetchImpl,
+    memory.minter,
+  );
+  memory.installation = installation && {
+    href: installationUrl(web, app.owner, installation.installationId),
+    account: app.owner.accountName,
+    selection: installation.selection,
+  };
+  return installation;
 }
 
 /**

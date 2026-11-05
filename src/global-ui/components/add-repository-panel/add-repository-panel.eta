@@ -1,0 +1,62 @@
+<% const sources = it.sources; %>
+<details class="spr-modal spr-index-add" data-spr-add-repository data-spr-check-address="<%= it.checkHref %>" data-spr-lookup-address="<%= it.lookupHref %>">
+  <summary><%~ it.addIcon %><span>Add repository</span></summary>
+  <div class="spr-modal-panel spr-check-panel spr-add-repository" role="dialog" aria-labelledby="add-repository-title">
+    <h2 class="spr-modal-title" id="add-repository-title" data-spr-add-title>Add a repository</h2>
+    <div class="spr-add-repository-screen" data-spr-add-start>
+      <% if (sources.length > 1) { %>
+      <div class="spr-add-repository-pick">
+        <label for="add-repository-source">Content source</label>
+        <%~ include('@select', {
+          attributes: { id: 'add-repository-source', 'data-spr-add-source-pick': true },
+          options: sources.map(function (source) { return { value: source.id, label: source.id }; }),
+        }) %>
+      </div>
+      <% } %>
+      <% sources.forEach(function (source, index) { %>
+      <%
+        const installation = source.installation;
+        const everything = installation && installation.selection === 'all';
+        const pending = source.github && installation === undefined;
+      %>
+      <div class="spr-add-repository-screen" data-spr-add-source="<%= source.id %>" data-spr-known="<%= source.known.join(' ') %>"<%= pending ? ' data-spr-add-pending' : '' %><%= index > 0 ? ' hidden' : '' %>>
+        <% if (pending) { %>
+        <p class="spr-check-summary spr-pending" data-spr-add-lookup><%~ it.syncingIcon %>Looking up the GitHub App…</p>
+        <% } else if (everything) { %>
+        <p class="spr-check-summary">This GitHub App can already read every repository on <strong><%= installation.account %></strong>. A new repository appears here by itself.</p>
+        <% } else if (installation) { %>
+        <p class="spr-check-summary">This GitHub App can only read selected repositories. To add a repository, select it under Repository access on GitHub and save.</p>
+        <% } else if (source.github) { %>
+        <p class="spr-check-summary">Speicher.md could not find an installation of this GitHub App.</p>
+        <% } else { %>
+        <p class="spr-check-summary">You can add repositories on the page of this content source.</p>
+        <% } %>
+        <div class="spr-ready-foot">
+          <button type="button" class="spr-add-repository-link" data-spr-modal-cancel>Close</button>
+          <% if (everything) { %>
+          <button type="button" class="spr-ready-action spr-ready-next" data-spr-add-check>Check for new repositories</button>
+          <% } else if (installation) { %>
+          <a class="spr-ready-action spr-ready-next" href="<%= installation.href %>" data-spr-add-open>Open on GitHub<%~ it.externalIcon %></a>
+          <% } else if (!pending) { %>
+          <a class="spr-ready-action spr-ready-next" href="<%= source.config_href %>">Open the content source</a>
+          <% } %>
+        </div>
+        <template data-spr-add-rows>
+          <% source.found.forEach(function (repo) { %>
+          <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state], inPlace: true, createIcon: it.addIcon }) %>
+          <% }) %>
+        </template>
+      </div>
+      <% }) %>
+    </div>
+    <div class="spr-add-repository-screen" data-spr-add-result hidden>
+      <p class="spr-check-summary spr-pending" data-spr-add-looking><%~ it.syncingIcon %>Looking for new repositories…</p>
+      <p class="spr-check-summary" role="status" data-spr-add-status hidden></p>
+      <ul class="spr-check-list" data-spr-add-found hidden></ul>
+      <div class="spr-ready-foot">
+        <button type="button" class="spr-add-repository-link" data-spr-add-check>Check again</button>
+        <button type="button" class="spr-ready-action spr-ready-next" data-spr-modal-cancel>Done</button>
+      </div>
+    </div>
+  </div>
+</details>
