@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Writes docker-compose.yaml, .env and, for HTTPS with Caddy, a Caddyfile into the
-# install directory, then starts the containers. Running it again in the same
-# directory keeps the database password, so the existing database stays readable.
-# The release workflow replaces __VERSION__ with the released version.
+#
+# '███████╗██████╗ ███████╗██╗ ██████╗██╗  ██╗███████╗██████╗'
+# '██╔════╝██╔══██╗██╔════╝██║██╔════╝██║  ██║██╔════╝██╔══██╗'
+# '███████╗██████╔╝█████╗  ██║██║     ███████║█████╗  ██████╔╝         ╻'
+# '╚════██║██╔═══╝ ██╔══╝  ██║██║     ██╔══██║██╔══╝  ██╔══██╗   ┏┳┓ ┏━┫'
+# '███████║██║     ███████╗██║╚██████╗██║  ██║███████╗██║  ██║ ▪ ╹╹╹ ┗━┛'
+# '╚══════╝╚═╝     ╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝'
+#
+# INSTALLATION SCRIPT
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "This installer needs bash (on Alpine: apk add bash). Run it with: bash install.sh" >&2
@@ -136,7 +141,7 @@ warn() {
   shift
   for line in "$@"; do printf '    %s\n' "$line" >&2; done
 }
-die() {
+exit_with_error() {
   printf '\n  %s%s error:%s %s\n' "$RED$BOLD" "$G_ERROR" "$RESET" "$*" >&2
   exit 1
 }
@@ -166,29 +171,34 @@ banner() {
 
 usage() {
   cat <<EOF
-Sets up a Speicher instance with Docker Compose.
+Sets up Speicher locally or on a public domain.
 
-Usage: bash install.sh [flags]
+OPTIONS:
+  Deployment & Networking:
+    -m, --mode <mode>         Deployment mode:
+                              * local   - Accessible only on this machine via HTTP (localhost)
+                              * public  - Accessible via a public domain over HTTPS
+                              (default: local)
+    -o, --domain <domain>     Domain name for public mode (e.g., docs.example.com)
+    -p, --port <port>         Port on the host machine (default: 32168; ignored when using Caddy)
 
-Without flags, the script asks for everything it needs. With --yes, it asks
-nothing and uses the flags and defaults.
+  Reverse Proxy & SSL:
+    --caddy, --no-caddy       Enable or disable automatic HTTPS via Caddy reverse proxy 
+                              (default: enabled)
+    --acme-email <email>      Contact email for Let's Encrypt certificate notices (optional)
 
-  --dir <path>          install directory (default: ./speicher)
-  --mode <mode>         local   reachable on this machine only, over http://localhost
-                        public  reachable on a domain, over HTTPS
-  --domain <domain>     domain for public mode, e.g. docs.example.com
-  --caddy, --no-caddy   in public mode, let Caddy get HTTPS certificates (default),
-                        or bring your own reverse proxy
-  --acme-email <email>  email for Let's Encrypt notices (optional, with Caddy)
-  --port <port>         port on the host (default: 3000; not used with Caddy)
-  --image-tag <tag>     image tag of ${IMAGE} (default: $(default_image_tag))
-  --no-start            write the files, but do not start the containers
-  --overwrite           replace existing files in the install directory, after
-                        backing them up
-  -y, --yes             ask no questions
-  -h, --help            show this help
+  Installation & Files:
+    -d, --dir <path>          Target installation directory (default: ./speicher)
+    --image-tag <tag>         Docker image tag to deploy (default: $(default_image_tag))
+    --no-start                Generate configuration files only; do not start containers
+    --overwrite               Replace existing files in the install directory (creates a backup first)
 
-Set NO_COLOR=1 for output without colors.
+  Control & Help:
+    -y, --yes                 Non-interactive mode; skip prompts and use flags/defaults
+    -h, --help                Display this help message and exit
+
+ENVIRONMENT VARIABLES:
+  NO_COLOR=1                  Disable colored output in the terminal
 EOF
 }
 
@@ -360,8 +370,6 @@ valid_port() {
   [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
-# Succeeds when something on this host listens on the TCP port
-# Not lsof: BusyBox's ignores its arguments and always succeeds
 port_in_use() {
   if command -v ss >/dev/null 2>&1; then
     ss -Hltn "sport = :$1" 2>/dev/null | grep -q .
@@ -372,15 +380,15 @@ port_in_use() {
 
 check_docker() {
   command -v docker >/dev/null 2>&1 ||
-    die "Docker is not installed. Install it first: https://docs.docker.com/engine/install/"
+    exit_with_error "Docker is not installed. Install it first: https://docs.docker.com/engine/install/"
   docker compose version >/dev/null 2>&1 ||
-    die "The Docker Compose plugin is missing. Install it first: https://docs.docker.com/compose/install/"
+    exit_with_error "The Docker Compose plugin is missing. Install it first: https://docs.docker.com/compose/install/"
   docker info >/dev/null 2>&1 ||
-    die "Cannot reach the Docker daemon. Start Docker, or run the script as a user who may use Docker."
+    exit_with_error "Cannot reach the Docker daemon. Start Docker, or run the script as a user who may use Docker."
   ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null) with Compose version $(docker compose version --short 2>/dev/null)"
 }
 
-# Runs before anything is asked or written, so a missing tool stops the script early
+# Runs checks before starting installation: dependencies, Docker, ports...
 check_dependencies() {
   step "Checking dependencies"
   local tool missing=""
@@ -388,7 +396,7 @@ check_dependencies() {
     command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
   done
   command -v openssl >/dev/null 2>&1 || command -v od >/dev/null 2>&1 || missing="$missing openssl"
-  [ -z "$missing" ] || die "These required tools are missing:$missing. Install them with your package manager."
+  [ -z "$missing" ] || exit_with_error "These required tools are missing:$missing. Install them with your package manager."
   command -v ss >/dev/null 2>&1 ||
     warn "ss is not installed, so the port check only sees services on 127.0.0.1." \
       "For a full check, install iproute2 (on Alpine: apk add iproute2)."
@@ -435,7 +443,7 @@ parse_flags() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --dir | --mode | --domain | --acme-email | --port | --image-tag)
-        [ $# -ge 2 ] || die "$1 needs a value"
+        [ $# -ge 2 ] || exit_with_error "$1 needs a value"
         case "$1" in
           --dir) DIR=$2 ;;
           --mode) MODE=$2 ;;
@@ -452,24 +460,24 @@ parse_flags() {
       --overwrite) OVERWRITE=true && shift ;;
       -y | --yes) ASSUME_YES=true && shift ;;
       -h | --help) usage && exit 0 ;;
-      *) die "unknown flag: $1 (see --help)" ;;
+      *) exit_with_error "unknown flag: $1 (see --help)" ;;
     esac
   done
 
   case "$MODE" in
     "" | local | public) ;;
-    *) die "--mode is local or public, not $MODE" ;;
+    *) exit_with_error "--mode is local or public, not $MODE" ;;
   esac
-  [ -z "$PORT" ] || valid_port "$PORT" || die "--port must be a number from 1 to 65535"
-  [ -z "$DOMAIN" ] || valid_domain "$DOMAIN" || die "--domain must be a domain like docs.example.com, without http:// or a path"
-  if $ASSUME_YES && [ "$MODE" = public ] && [ -z "$DOMAIN" ]; then die "--mode public needs --domain"; fi
-  if ! $ASSUME_YES && ! has_tty; then die "no terminal to ask questions on; run with --yes and flags (see --help)"; fi
+  [ -z "$PORT" ] || valid_port "$PORT" || exit_with_error "--port must be a number from 1 to 65535"
+  [ -z "$DOMAIN" ] || valid_domain "$DOMAIN" || exit_with_error "--domain must be a domain like docs.example.com, without http:// or a path"
+  if $ASSUME_YES && [ "$MODE" = public ] && [ -z "$DOMAIN" ]; then exit_with_error "--mode public needs --domain"; fi
+  if ! $ASSUME_YES && ! has_tty; then exit_with_error "no terminal to ask questions on; run with --yes and flags (see --help)"; fi
 }
 
 ask_directory() {
   step "Install directory"
   [ -n "$DIR" ] || ask DIR "Where should Speicher be installed?" "./speicher"
-  [ -n "$DIR" ] || die "the install directory must not be empty"
+  [ -n "$DIR" ] || exit_with_error "the install directory must not be empty"
   mkdir -p "$DIR"
   DIR=$(cd "$DIR" && pwd)
 
@@ -478,7 +486,7 @@ ask_directory() {
     if $OVERWRITE; then
       choice=1
     elif $ASSUME_YES; then
-      die "$DIR already has a docker-compose.yaml; pass --overwrite to replace it"
+      exit_with_error "$DIR already has a docker-compose.yaml; run with --overwrite to replace it"
     else
       info ""
       choose choice "$DIR already has a docker-compose.yaml. What should happen?" 3 \
@@ -531,10 +539,10 @@ ask_mode() {
   fi
 
   if [ "$CADDY" = no ] && [ -z "$PORT" ]; then
-    local suggestion=3000
+    local suggestion=32168
     if ! $ASSUME_YES; then
-      while port_in_use "$suggestion" && [ "$suggestion" -lt 3100 ]; do suggestion=$((suggestion + 1)); done
-      [ "$suggestion" = 3000 ] || info "${MUTED}Port 3000 is in use; $suggestion is free.${RESET}"
+      while port_in_use "$suggestion" && [ "$suggestion" -lt 32268 ]; do suggestion=$((suggestion + 1)); done
+      [ "$suggestion" = 32168 ] || info "${MUTED}Port 32168 is in use; $suggestion is free.${RESET}"
     fi
     while true; do
       ask PORT "Port on this machine" "$suggestion"
@@ -558,7 +566,7 @@ read_existing() {
   [ -z "$ignored" ] || warn "The existing files are kept, so these flags have no effect:$ignored" \
     "Choose to write a new docker-compose.yaml to apply them."
 
-  [ -n "$(env_get POSTGRES_PASSWORD)" ] || die "$DIR/.env has no POSTGRES_PASSWORD"
+  [ -n "$(env_get POSTGRES_PASSWORD)" ] || exit_with_error "$DIR/.env has no POSTGRES_PASSWORD"
   IMAGE_TAG=$(env_get SPEICHER_IMAGE_TAG)
   IMAGE_TAG=${IMAGE_TAG:-$(default_image_tag)}
   MODE=local
@@ -571,8 +579,9 @@ read_existing() {
       ;;
   esac
   if grep -q '^  caddy:' "$DIR/docker-compose.yaml"; then CADDY=yes; fi
-  PORT=$(sed -n "s/^ *- '\(127\.0\.0\.1:\)\{0,1\}\([0-9]*\):3000'$/\2/p" "$DIR/docker-compose.yaml" | head -n 1)
-  PORT=${PORT:-3000}
+  # The host port of the web service, whatever port Speicher listens on inside the container
+  PORT=$(sed -n "/^  web:/,/^  [a-z]/s/^ *- '\(127\.0\.0\.1:\)\{0,1\}\([0-9]*\):[0-9]*'$/\2/p" "$DIR/docker-compose.yaml" | head -n 1)
+  PORT=${PORT:-32168}
 }
 
 public_url() {
@@ -619,7 +628,7 @@ write_file() {
   tmp=$(mktemp "$target.XXXXXX")
   if cat >"$tmp" && chmod "$mode" "$tmp" && mv "$tmp" "$target"; then return; fi
   rm -f "$tmp"
-  die "could not write $target"
+  exit_with_error "could not write $target"
 }
 
 backup() {
@@ -802,7 +811,7 @@ write_files() {
 
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     docker compose --project-directory "$DIR" config -q ||
-      die "Docker Compose rejects the written docker-compose.yaml"
+      exit_with_error "Docker Compose rejects the written docker-compose.yaml"
   fi
 }
 
@@ -831,7 +840,7 @@ ensure_database_password() {
   warn "The database was created with a different password than the one in .env." \
     "Restore the old .env to keep the data, or delete the database to start over."
   ask_yes_no "Delete the old database and start with an empty one?" n ||
-    die "Not starting. Restore the old .env, or delete the database with: docker compose down && docker volume rm $volume"
+    exit_with_error "Not starting. Restore the old .env, or delete the database with: docker compose down && docker volume rm $volume"
   compose down --remove-orphans
   docker volume rm "$volume" >/dev/null
   compose up -d --wait db
@@ -841,7 +850,7 @@ ensure_database_password() {
 speicher_ready() {
   # Asks from inside the web container, so it works before DNS or the certificate is ready
   compose exec -T web node -e \
-    "fetch('http://127.0.0.1:3000/-/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" \
+    "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/-/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" \
     >/dev/null 2>&1
 }
 
@@ -856,7 +865,7 @@ wait_until_ready() {
       warn "Speicher is not ready after ${READY_TIMEOUT}s. The last log lines:"
       compose ps >&2 || true
       compose logs --tail 50 migrate web >&2 || true
-      die "Speicher did not start. Fix the error above, then run: docker compose up -d"
+      exit_with_error "Speicher did not start. Fix the error above, then run: docker compose up -d"
     fi
     if $CURSOR_UI; then
       printf '\r\033[2K  %s%s%s Starting the containers %s%ss%s' \
@@ -892,9 +901,7 @@ open_browser() {
   fi
 }
 
-# Succeeds while no administrator has signed in, so the instance can still be claimed.
-# Asks about a code that cannot exist, which `speicher claim` answers by saying
-# whether the instance is closed before it looks the code up.
+# Checks if the claim page is still open, by trying to claim with a code that doesn' exist.
 claim_window_open() {
   local output
   output=$(compose exec -T -e SPEICHER_LOG_LEVEL=warn web speicher claim NONE-WAITING-0000 2>&1) || true
@@ -942,7 +949,7 @@ claim_instance() {
     info "Open $(link "$url") in your browser."
     tunnel_hint
   fi
-  info "The claim page shows a code like QUIET-HERON-4471 to approve your session."
+  info "The claim page shows a code to approve your session."
   info ""
   while true; do
     ask code "Code or command from the claim page, Enter to skip"
@@ -982,7 +989,7 @@ next_steps() {
       info ""
       cmd "cd $DIR && docker compose up -d"
       info ""
-      info "Then open $(link "$url") and claim the instance with a command like:"
+      info "Then open $(link "$url") and claim the instance with the like:"
       info ""
       cmd "docker compose exec web speicher claim <CODE>"
       tunnel_hint
@@ -1014,11 +1021,9 @@ main() {
   if [ "$START" = yes ]; then
     check_start
     start
-    # Someone has to read the code off the browser, so only when asking questions
     $ASSUME_YES || claim_instance
   fi
   next_steps
 }
 
-# Called on the last line, so a partly downloaded script does nothing
 main "$@"

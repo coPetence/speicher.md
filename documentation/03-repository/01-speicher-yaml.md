@@ -4,18 +4,14 @@ icon: sliders-horizontal
 
 # The `.speicher.yaml` file
 
-Every repository Speicher publishes has a `.speicher.yaml` file at its root. It says who may read the repository, which files to publish, and how the repository is shown. Folders can have their own `.speicher.yaml` to change these settings for everything below them.
+Every repository speicher.md should sync needs a `.speicher.yaml` file at its root. It is used to define who can access a repository, which files to publish, and how the repository is shown. Folders can have their own `.speicher.yaml` to change these settings for everything below them.
 
-This page covers everything except who may read what, which is explained in [Access](02-access.md).
+## Where to put the file
 
-## Where the file goes
+- **Repository root (required):** a repository without is not synced. Also put it at the root even when you publish only a subfolder.
+- **Any folder** that Speicher publishes. Its settings apply to that folder and everything below it.
 
-- **At the repository root.** This file is required: a repository without one is not published. It stays at the root even when you publish only a subfolder with `ingest_root`.
-- **In any folder** that Speicher publishes. Its settings apply to that folder and everything below it.
-
-The file can also be named `.speicher.yml`. If a folder has both, Speicher uses `.speicher.yaml` and reports the other as ignored.
-
-## A complete example
+## Example
 
 ```yaml
 version: 1
@@ -23,7 +19,8 @@ version: 1
 access:
   groups: [staff]
 
-# Publish only the docs/ folder
+# Syncs only the docs/ folder
+# Everything outside is ignored
 ingest_root: docs
 
 # Which files to download from the repository
@@ -36,21 +33,15 @@ display:
   cover: cover.png
 ```
 
-## `version`
-
-Always `version: 1`. It is required in the root file. A folder file can leave it out.
-
 ## `ingest_root`
 
-Publishes only one folder of the repository. With `ingest_root: docs`, Speicher reads nothing outside `docs/`, and URLs start below it: `docs/guides/setup.md` is served as `/guides/setup`.
+Syncd only one folder of the repository. With `ingest_root: <folder>`, Speicher reads nothing outside `<folder>/`, and URLs start below it: `docs/guides/setup.md` is served as `/guides/setup`.
 
 The folder must exist in the repository. Write it without a leading slash.
 
 ## Choosing files with `sync`
 
-`sync.include` and `sync.exclude` are lists of glob patterns that determine which files will be downloaded from the git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. A file is downloaded when it matches an `include` pattern and no `exclude` pattern. Apart from these files, Speicher only downloads the `.speicher.yaml` files and the covers for the folders.
-
-Unless you or your administrator change them, these are the patterns:
+`sync.include` and `sync.exclude` are lists of glob patterns that choose which files become pages. A file is published when it matches an `include` pattern and no `exclude` pattern.
 
 ```yaml
 sync:
@@ -59,16 +50,14 @@ sync:
   exclude: ['**/README.md']
 ```
 
-- Patterns are written from `ingest_root`, not from the folder of the `.speicher.yaml` they are in. With `ingest_root: docs`, you exclude the folder `docs/guides/old/` with `guides/old/**`.
-- Patterns are case-sensitive: `**/README.md` does not exclude `readme.md`, and `**/*.png` does not include `diagram.PNG`.
-- If you set your own `include` in a `.speicher.yaml`, it replaces the `include` from every level above it: the instance defaults, the root `.speicher.yaml` and the `.speicher.yaml` of each parent folder. Make sure to list the image formats your pages use as well, otherwise their images are not downloaded.
-- A link to a file that is not downloaded is reported as a broken link.
-- A page with `draft: true` in its frontmatter is never published, whatever the patterns say.
+:::tip
+A page with `draft: true` in its frontmatter is never published.
+:::
 
-In a folder's `.speicher.yaml`:
+In a nested folder's `.speicher.yaml`:
 
 - `include` **replaces** the inherited list.
-- `exclude` **adds** to the inherited list. A folder cannot remove an exclusion it inherited.
+- `exclude` **adds** to the inherited list. (A folder cannot remove an exclusion it inherited)
 
 ## `display`
 

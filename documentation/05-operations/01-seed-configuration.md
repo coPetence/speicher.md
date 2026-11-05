@@ -65,7 +65,7 @@ x-speicher: &speicher
   image: ghcr.io/copetence/speicher.md:latest
   environment:
     SPEICHER_DATABASE_URL: postgres://speicher:${POSTGRES_PASSWORD}@db:5432/speicher
-    SPEICHER_PUBLIC_URL: http://localhost:3000
+    SPEICHER_PUBLIC_URL: http://localhost:32168
     SPEICHER_CONFIG: /etc/speicher/speicher.instance.yaml
     OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
   volumes:

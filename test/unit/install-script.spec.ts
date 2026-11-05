@@ -67,13 +67,13 @@ function readEnv(dir: string): Record<string, string> {
 }
 
 describe('install.sh local setup', () => {
-  it('publishes port 3000 on all interfaces and runs every service on the image', () => {
+  it('publishes port 32168 on all interfaces and runs every service on the image', () => {
     const dir = join(root, 'speicher');
     installInto(dir, ['--mode', 'local']);
 
     const compose = readCompose(dir);
     expect(Object.keys(compose.services).sort()).toEqual(['db', 'migrate', 'web', 'worker']);
-    expect(compose.services.web.ports).toEqual(['3000:3000']);
+    expect(compose.services.web.ports).toEqual(['32168:3000']);
     for (const name of ['migrate', 'web', 'worker']) {
       expect(compose.services[name].image).toBe(IMAGE);
       expect(compose.services[name].environment).not.toHaveProperty('SPEICHER_TRUST_PROXY');
@@ -164,7 +164,7 @@ describe('install.sh in a directory with an earlier install', () => {
 
     const result = install(['--dir', dir, '--mode', 'public', '--domain', 'docs.example.com']);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('pass --overwrite to replace it');
+    expect(result.stderr).toContain('run with --overwrite to replace it');
     expect(readFileSync(join(dir, 'docker-compose.yaml'), 'utf8')).toBe(before);
   });
 
@@ -211,7 +211,7 @@ describe('install.sh flags it refuses before writing anything', () => {
   it('prints the usage for --help', () => {
     const result = install(['--help']);
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('Usage: bash install.sh [flags]');
+    expect(result.stdout).toContain('Sets up Speicher locally or on a public domain.');
   });
 });
 
