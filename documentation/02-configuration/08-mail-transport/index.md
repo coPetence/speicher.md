@@ -29,7 +29,7 @@ In the dashboard, go to **Configuration → Mail transport** and fill in:
 
 - **SMTP host** and **Port**
 - **Username** and **Password**
-- **From**: optional, the sender, as an address or as `Name <address>`, for example `Docs <docs@example.com>`
+- **From** (optional): the sender, as an address or as `Name <address>`, for example `Docs <docs@example.com>`
 - **Reply-to**: optional, where replies go if not to the sender
 
 Then select **Check the connection**. Speicher connects to the server and signs in, and shows **Connected and signed in** (or **Connected** without a username) if that worked, or the error if it did not. No email is sent.
