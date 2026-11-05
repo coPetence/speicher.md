@@ -8,7 +8,7 @@ title: Manual Setup Self-hosting
 ## Prerequisites
 
 - **Docker** with the **Compose plugin**. [How to install](https://docs.docker.com/engine/install/)
-- **Port 32168** is not in use on your machine. If it is taken, do [use a different port](../reference/troubleshooting#port-32168-already-in-use)
+- **Port 32168** is not in use on your machine. If it is taken, do [use a different port](../06-reference/08-troubleshooting.md#port-32168-already-in-use)
 
 ## 1. Create the compose file
 
@@ -101,7 +101,7 @@ docker compose exec web speicher claim <YOUR-CODE>
 Within a few seconds, the browser opens the setup page.
 
 :::note
-The claimed browser is a temporary administrator. It can configure the instance until you [become the first administrator](02-setup-instance.md/#4-become-the-first-administrator). After that, the instance can no longer be claimed.
+The claimed browser is a temporary administrator. It can configure the instance until you [become the first administrator](02-setup-instance.md#4-become-the-first-administrator). After that, the instance can no longer be claimed.
 :::
 
 **[Continue with setting up the instance →](02-setup-instance.md)**

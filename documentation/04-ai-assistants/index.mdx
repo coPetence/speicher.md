@@ -35,13 +35,13 @@ Each person connects their own assistant:
 
 Step-by-step guides for some assistant:
 
-- [Claude / Anthropic](./claude)
-- [ChatGPT / OpenAI](./chatgpt)
-- [Grok / xAI](./grok)
+- [Claude / Anthropic](02-claude.md)
+- [ChatGPT / OpenAI](03-chatgpt.md)
+- [Grok / xAI](04-grok.md)
 
 ## How long does a connection last?
 
-How long a connection lasts depends on whether the identity provider has a [directory lookup](../configuration/identity-providers/entra-id/#directory-lookup) configured.
+How long a connection lasts depends on whether the identity provider has a [directory lookup](../02-configuration/01-identity-providers/02-entra-id/index.mdx#directory-lookup) configured.
 
 **With a directory lookup:**
 
@@ -72,7 +72,7 @@ Check that the connector uses the `/mcp` address, not `/mcp/public`. If it does,
 The instance must be reachable over HTTPS from the internet.
 
 **The assistant has to be reconnected every day.**
-The identity provider has no directory lookup. See [How long a connection lasts](#how-long-a-connection-lasts).
+The identity provider has no directory lookup. See [How long a connection lasts](#how-long-does-a-connection-last).
 
 **The assistant cannot find a page you can see.**
 Check that you connected the assistant with the same account you use in the browser.

@@ -20,7 +20,7 @@ Speicher reads three things from the sign-in token:
 
 Not every provider sends groups. **Google sends none.** With Google, you add people to a Speicher group one by one, by email address or subject, instead of mapping a Google group. A provider without groups works fine otherwise.
 
-An OpenID Connect provider can also sign in the [first administrator](../../../01-quick-start/02-setup-instance.md#5-become-the-first-administrator) of a new instance.
+An OpenID Connect provider can also sign in the [first administrator](../../../01-quick-start/02-setup-instance.md#4-become-the-first-administrator) of a new instance.
 
 ## 1. Register Speicher with your provider
 

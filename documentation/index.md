@@ -8,15 +8,15 @@ speicher.md is a self-hosted documentation platform for sharing docs with people
 
 ## Get started
 
-1. [Self-host Speicher](quick-start/self-hosted.md) with Docker Compose.
-2. [Set up the instance](quick-start/setup-instance.md): claim it, add an identity provider and become its administrator.
-3. [Publish your first repository](quick-start/-setup-repository.md).
+1. [Self-host Speicher](01-quick-start/01-self-hosted.md) with Docker Compose.
+2. [Set up the instance](01-quick-start/02-setup-instance.md): claim it, add an identity provider and become its administrator.
+3. [Publish your first repository](01-quick-start/03-setup-repository.md).
 
 ## Write documentation
 
-- [The `.speicher.yaml` file](repository/speicher-yaml.md) chooses which files are published and how they are shown.
-- [Access](repository/access.md) explains who can read what, down to single folders.
-- [Markdown syntax](repository/markdown-syntax.md) lists everything you can write, from callouts and wikilinks to MDX components.
+- [The `.speicher.yaml` file](03-repository/01-speicher-yaml.md) chooses which files are published and how they are shown.
+- [Access](03-repository/02-access.md) explains who can read what, down to single folders.
+- [Markdown syntax](03-repository/03-markdown-syntax.md) lists everything you can write, from callouts and wikilinks to MDX components.
 
 ## Configure the instance
 

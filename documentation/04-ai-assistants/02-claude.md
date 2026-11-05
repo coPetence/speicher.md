@@ -2,7 +2,7 @@
 
 You can connect Speicher to Claude as a custom connector. Claude can then search and read your documentation in any chat, with exactly the access you have yourself.
 
-Your Speicher administrator must have set up the instance for AI assistants first. See [Before you start](./#before-you-start).
+Your Speicher administrator must have set up the instance for AI assistants first. See [AI assistants](index.mdx).
 
 ## 1. Add the connector
 
@@ -68,7 +68,7 @@ You can end the connection from either side:
 Claude needs a public HTTPS address. A `localhost` or intranet address does not work.
 
 **Claude asks you to connect again every day.**
-Your identity provider has no directory lookup, so connections end after the session lifetime. See [How long a connection lasts](./#how-long-a-connection-lasts).
+Your identity provider has no directory lookup, so connections end after the session lifetime. See [How long a connection lasts](index.mdx#how-long-does-a-connection-last).
 
 **Claude cannot find a page you can open in the browser.**
 Make sure you signed in with the same account in step 3. Claude only sees what that account can see.
