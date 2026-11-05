@@ -25,7 +25,7 @@ When the script finishes, open [http://localhost:32168](http://localhost:32168) 
 
 **[Continue with setting up the instance →](https://docs.speicher.md/quick-start/setup-instance)**
 
-Other links:
+Additional configuration options:
 
 - [Manual installation](https://docs.speicher.md/quick-start/self-hosted-manual): If you prefer to set up the instance without the installation script
 - [Reverse proxy and TLS](https://docs.speicher.md/operations/reverse-proxy-and-tls): If you want to run the instance on a server with HTTPS
@@ -45,9 +45,9 @@ Some things that make speicher.md unique:
 
 ## Maintainers & contact
 
-speicher.md is built and maintained by [coPetence GmbH](https://copetence.de), a software consultancy based in Germany. We can help with your self-hosted instance, commercial licensing, or custom features and integrations.
+speicher.md is built and maintained by [coPetence GmbH](https://copetence.de), a software consultancy based in Germany. We are happy to help with your self-hosted instance, commercial licensing, or custom features and integrations.
 
-Reach us at [speicher-md@copetence.de](mailto:speicher-md@copetence.de).
+Just write us an email at: [speicher-md@copetence.de](mailto:speicher-md@copetence.de).
 
 ## License
 

@@ -917,7 +917,7 @@ tunnel_hint() {
   TUNNEL_SHOWN=true
   info ""
   info "On a server without a browser, forward the port to your own computer by running"
-  info "this there, and keep it open while you use Speicher:"
+  info "the following, and keep it open while you use Speicher:"
   info ""
   cmd "ssh -NL $PORT:localhost:$PORT $(id -un)@<server-ip>"
   info ""
@@ -989,7 +989,7 @@ next_steps() {
       info ""
       cmd "cd $DIR && docker compose up -d"
       info ""
-      info "Then open $(link "$url") and claim the instance with the like:"
+      info "Then open $(link "$url") and claim the instance with the command:"
       info ""
       cmd "docker compose exec web speicher claim <CODE>"
       tunnel_hint
