@@ -8,7 +8,7 @@ title: Self-hosting
 ## Prerequisites
 
 - **Docker** with the **Compose plugin**. [How to install](https://docs.docker.com/engine/install/)
-- **Port 32168** is not in use on your machine. If it is taken, do [use a different port](../06-reference/08-troubleshooting.md#port-32168-already-in-use)
+- **Port 32168** is not in use on your machine. If it is taken, [use a different port](../06-reference/08-troubleshooting.md#port-32168-already-in-use)
 
 ## Install speicher.md
 

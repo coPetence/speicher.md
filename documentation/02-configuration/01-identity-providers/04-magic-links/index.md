@@ -8,7 +8,7 @@ With a magic-link provider, people sign in with their email address instead of a
 
 ## 0. Before you start
 
-- Magic links need a [mail transport](../../08-mail-transport/index.md). Configure it first. Speicher refuses a magic-link provider while no mail transport is configured.
+Magic links need a [mail transport](../../08-mail-transport/index.md). Configure it first. Speicher refuses a magic-link provider while no mail transport is configured.
 
 ## How signing in works
 
