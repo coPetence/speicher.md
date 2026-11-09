@@ -26,7 +26,15 @@ admins:
 function git(args: string[], cwd: string): string {
   return execFileSync(
     'git',
-    ['-c', 'user.email=fixture@speicher.test', '-c', 'user.name=Fixture', ...args],
+    [
+      '-c',
+      'user.email=fixture@speicher.test',
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'commit.gpgsign=false',
+      ...args,
+    ],
     { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } },
   ).trim();
 }
@@ -66,7 +74,7 @@ async function downloaded(files: Record<string, string>, instance = INSTANCE): P
 }
 
 describe('the files a sync downloads', () => {
-  it('are Markdown and images by default, without READMEs or code', async () => {
+  it('are Markdown by default, without READMEs, images or code', async () => {
     expect(
       await downloaded({
         '.speicher.yaml': 'version: 1\n',
@@ -79,14 +87,7 @@ describe('the files a sync downloads', () => {
         'img/scan.bmp': 'bmp',
         'src/main.ts': 'export {};\n',
       }),
-    ).toEqual([
-      '.speicher.yaml',
-      'guide.md',
-      'img/diagram.png',
-      'img/logo.svg',
-      'img/photo.jpg',
-      'intro.mdx',
-    ]);
+    ).toEqual(['.speicher.yaml', 'guide.md', 'intro.mdx']);
   });
 
   it('follow the instance defaults until the root config sets its own include', async () => {
@@ -124,11 +125,11 @@ describe('the files a sync downloads', () => {
         '.speicher.yaml': 'version: 1\n',
         'guides/.speicher.yaml': "sync:\n  include: ['**/*.md']\n  exclude: ['guides/old/**']\n",
         'guides/setup.md': '# Setup\n',
-        'guides/shot.png': 'png',
+        'guides/intro.mdx': '# Intro\n',
         'guides/old/legacy.md': '# Legacy\n',
-        'other/shot.png': 'png',
+        'other/intro.mdx': '# Intro\n',
       }),
-    ).toEqual(['.speicher.yaml', 'guides/.speicher.yaml', 'guides/setup.md', 'other/shot.png']);
+    ).toEqual(['.speicher.yaml', 'guides/.speicher.yaml', 'guides/setup.md', 'other/intro.mdx']);
   });
 
   it('leave out everything below a folder config that does not validate', async () => {

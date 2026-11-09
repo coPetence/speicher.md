@@ -7,12 +7,17 @@
  *
  * register() enforces the max asset size limit and prevents path traversal
  * via symlink resolution
+ *
+ * All files that are referenced by pages are registered, even if they do not match `sync.include`
  */
 
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { resolve } from 'node:path';
 
+import micromatch from 'micromatch';
+
+import type { CommitTree } from '../../forge/git';
 import { ResolvedConfig } from '../cascade';
 import { IngestedAsset } from '../ingested';
 import {
@@ -35,7 +40,10 @@ import { ScanState } from './state';
 export class AssetRegistry {
   private readonly assets = new Map<string, IngestedAsset>();
 
-  constructor(private readonly scan: ScanState) {}
+  constructor(
+    private readonly scan: ScanState,
+    private readonly commit?: CommitTree,
+  ) {}
 
   /** Registered assets as an array */
   collected(): IngestedAsset[] {
@@ -45,6 +53,26 @@ export class AssetRegistry {
   /** Slug path for a registered asset, or null */
   slugFor(repoRelativePath: string): string | null {
     return this.assets.get(repoRelativePath)?.slugPath ?? null;
+  }
+
+  /**
+   * Downloads the linked files that are not in the working tree yet
+   */
+  async fetchLinked(repoRelativePaths: string[]): Promise<void> {
+    if (!this.commit) return;
+    const { workingTree, ingestRoot } = this.scan.root;
+    const inCommit = new Set(this.commit.paths);
+    const wanted: string[] = [];
+    for (const path of new Set(repoRelativePaths)) {
+      if (!inCommit.has(path)) continue;
+      if ((await fs.lstat(resolve(workingTree, path)).catch(() => null)) !== null) continue;
+      const owning = resolvedForRepoDir(this.scan, dirOf(path));
+      if (owning === null) continue;
+      const inside = relativeToIngestRoot(ingestRoot, path);
+      if (inside !== null && micromatch.isMatch(inside, owning.exclude)) continue;
+      wanted.push(path);
+    }
+    await this.commit.checkout(wanted);
   }
 
   /**
@@ -59,6 +87,9 @@ export class AssetRegistry {
     if (existing) return existing.slugPath;
 
     const { workingTree, ingestRoot, findings, maxAssetBytes } = this.scan.root;
+
+    const owning = resolvedForRepoDir(this.scan, dirOf(repoRelativePath));
+    if (owning === null) return null;
 
     const absolute = resolve(workingTree, repoRelativePath);
 
@@ -77,9 +108,6 @@ export class AssetRegistry {
       });
       return null;
     }
-
-    const dirPath = repoRelativePath.split('/').slice(0, -1).join('/');
-    const owning = resolvedForRepoDir(this.scan, dirPath);
 
     const bytes = await fs.readFile(real);
     const slugPath = assetSlugPath(repoRelativePath, ingestRoot);
@@ -133,14 +161,22 @@ function assetSlugPath(repoRelativePath: string, ingestRoot: string): string {
   return inside === null ? `_repo/${slugAssetPath(repoRelativePath)}` : slugAssetPath(inside);
 }
 
-/** ResolvedConfig for the directory owning an asset, falling back to the repo root */
-function resolvedForRepoDir(scan: ScanState, repoRelativeDir: string): ResolvedConfig {
+function resolvedForRepoDir(scan: ScanState, repoRelativeDir: string): ResolvedConfig | null {
   const inside = relativeToIngestRoot(scan.root.ingestRoot, repoRelativeDir);
   if (inside === null) return scan.root.resolved;
-  const slugPath = inside
+  const slugs = inside
     .split('/')
     .filter(Boolean)
-    .map((part) => slugForDirectory(part).slug)
-    .join('/');
-  return scan.dirs.get(slugPath)?.resolved ?? scan.root.resolved;
+    .map((part) => slugForDirectory(part).slug);
+  for (let depth = slugs.length; depth > 0; depth--) {
+    const slugPath = slugs.slice(0, depth).join('/');
+    if (scan.failedSubtrees.includes(slugPath)) return null;
+    const dir = scan.dirs.get(slugPath);
+    if (dir) return dir.resolved;
+  }
+  return scan.root.resolved;
+}
+
+function dirOf(repoRelativePath: string): string {
+  return repoRelativePath.split('/').slice(0, -1).join('/');
 }

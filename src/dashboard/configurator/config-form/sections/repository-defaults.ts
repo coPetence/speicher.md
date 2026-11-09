@@ -8,7 +8,7 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
   return {
     ...sectionHead('defaults'),
     blurb:
-      'speicher.md ingests only Markdown files (`.md` and `.mdx`) from a repository. The include and exclude lists below decide which of those files are ingested.',
+      'speicher.md ingests Markdown files and images from a repository. The include and exclude lists below decide which Markdown files become pages. Images are downloaded when a page links to them, unless the exclude list matches them.',
     twoColumns: true,
     fields: [
       textField(
@@ -21,9 +21,9 @@ export function repositoryDefaultsSection(root: Obj): SectionSource {
         },
       ),
       linesField(root, ['defaults', 'sync', 'include'], 'defaults.sync.include', 'Include', {
-        help: 'The include list selects the files that speicher.md copies from a repository. The Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. Files that do not match any pattern are not downloaded. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
+        help: 'The include list selects the Markdown files that speicher.md publishes as pages. Images and other files are downloaded when a page links to them, so they do not need to be listed. Write one pattern per line. It is used for limiting the ingest to part of a repository, for example `docs/**/*.md`. A repository that sets its own `sync.include` in `.speicher.yaml` replaces this list.',
         fallback: SYNC_DEFAULTS.include,
-        placeholder: '**/*.md\n**/*.mdx\n**/*.png\ndocs/**/*.md',
+        placeholder: '**/*.md\n**/*.mdx\ndocs/**/*.md',
         rows: 6,
         inColumn: true,
         startsRow: true,

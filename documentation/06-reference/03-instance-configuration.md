@@ -1254,13 +1254,13 @@ Starting values for every repository. A repository's root `.speicher.yaml` chang
 
 **Type:** list of string
 
-The include list determines which files will be downloaded from every git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. It defaults to `.md`, `.mdx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` and `.svg` files. A repository that sets its own `sync.include` replaces this list.
+The include list determines which Markdown files become pages in every git repository. Images and other files are downloaded when a page links to them, so they do not need to be listed. It defaults to `.md` and `.mdx` files. A repository that sets its own `sync.include` replaces this list.
 
 ### `defaults.sync.exclude`
 
 **Type:** list of string
 
-The exclude list determines which files will not be downloaded from any git repository, even when the include list selects them. It defaults to `**/README.md`. A repository that sets its own `sync.exclude` adds to this list.
+The exclude list determines which files will not be downloaded from any git repository, even when the include list selects them or a page links to them. It defaults to `**/README.md`. A repository that sets its own `sync.exclude` adds to this list.
 
 ### `defaults.retrieval`
 

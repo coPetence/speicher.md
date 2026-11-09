@@ -9,9 +9,6 @@ ingest_root: documentation
 maintainers:
   groups: [speicher-docs-maintainers]
 
-sync:
-  include: ['**/*.md', '**/*.mdx']
-
 display:
   title: 'speicher.md Documentation'
   cover: .github/assets/docs-cover.png

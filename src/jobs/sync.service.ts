@@ -84,20 +84,24 @@ export class SyncService {
 
     const workingTree = await makeTempDir(remote.forgeRepoId);
     try {
-      const commit = await driver.checkout(remote, head, workingTree, (tree) =>
-        this.ingest.selectFiles(tree),
-      );
+      // Ingests inside the checkout, so pages can still download the files they link to
+      let result: SyncResult | undefined;
+      const commit = await driver.checkout(remote, head, workingTree, async (tree) => {
+        await this.ingest.selectFiles(tree);
 
-      if (remote.defaultBranch && repo.branch !== remote.defaultBranch) {
-        await Repo.update({ branch: remote.defaultBranch }, { where: { id: repoId } });
-      }
+        if (remote.defaultBranch && repo.branch !== remote.defaultBranch) {
+          await Repo.update({ branch: remote.defaultBranch }, { where: { id: repoId } });
+        }
 
-      const result = await this.ingest.syncRepo(repoId, {
-        workingTree,
-        sha: head,
-        trigger,
-        directory: await this.forges.directoryFor(driver.key),
+        result = await this.ingest.syncRepo(repoId, {
+          workingTree,
+          sha: head,
+          trigger,
+          directory: await this.forges.directoryFor(driver.key),
+          commit: tree,
+        });
       });
+      if (!result) throw new Error(`checking out ${head} did not sync it`);
 
       await this.report(repo, remote, head, result, commit.authorEmail);
       return result;

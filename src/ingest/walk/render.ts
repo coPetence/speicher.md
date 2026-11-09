@@ -2,6 +2,7 @@
  * Converts scanned files into ingested documents, edges and terms
  *
  * Each file is rendered through markdown with link resolution
+ * Renders all pages and then registers the referenced assets
  * Assets in rendered HTML are registered and given slug paths
  * Cross-repository links resolve against RepoLookup when present
  */
@@ -17,6 +18,7 @@ import { MDX_EXTENSION } from '../paths';
 import { AssetRegistry, collectPendingAssets, replacePendingAsset } from './assets';
 import { reportLinkFindings } from './link-findings';
 import {
+  PageLinks,
   addressPolicy,
   buildEdges,
   emptyPageLinks,
@@ -72,9 +74,12 @@ export async function renderPages(
     ownRepo: options.repo,
     unlinkedDomains: options.config.autolinkExcludedDomains,
   };
+  const drafts = scan.files.map((file) => draftPage(ctx, file));
+  await assets.fetchLinked(drafts.flatMap((draft) => draft.pendingAssets));
+
   const content: RenderedContent = { documents: [], edges: [], terms: [] };
-  for (const file of scan.files) {
-    const page = await renderPage(ctx, file);
+  for (const draft of drafts) {
+    const page = await renderPage(ctx, draft);
     content.documents.push(page.document);
     content.edges.push(...page.edges);
     content.terms.push(...page.terms);
@@ -82,23 +87,36 @@ export async function renderPages(
   return content;
 }
 
-/** Render a scanned file into an ingested document with edges and terms */
-async function renderPage(
-  ctx: RenderContext,
-  file: ScannedFile,
-): Promise<{ document: IngestedDocument; edges: IngestedEdge[]; terms: IngestedTerm[] }> {
-  const findings = ctx.scan.root.findings;
+/** Rendered page (assets not registered yet) */
+interface PageDraft {
+  file: ScannedFile;
+  dir: string;
+  links: PageLinks;
+  rendered: RenderResult;
+  pendingAssets: string[];
+}
+
+/** Render a scanned file's markdown, leaving its assets as pending placeholders */
+function draftPage(ctx: RenderContext, file: ScannedFile): PageDraft {
   const dir = file.sourcePath.split('/').slice(0, -1).join('/');
   const links = emptyPageLinks();
-
   const rendered = renderMarkdown(file.body, {
     resolveLink: (target, kind) => resolvePageLink(ctx, file, dir, links, target, kind),
     mdx: MDX_EXTENSION.test(file.sourcePath),
     unlinkedDomains: ctx.unlinkedDomains,
   });
+  return { file, dir, links, rendered, pendingAssets: collectPendingAssets(rendered.html) };
+}
+
+/** Register assets from the drafts and then create the documents */
+async function renderPage(
+  ctx: RenderContext,
+  { file, dir, links, rendered, pendingAssets }: PageDraft,
+): Promise<{ document: IngestedDocument; edges: IngestedEdge[]; terms: IngestedTerm[] }> {
+  const findings = ctx.scan.root.findings;
 
   let html = rendered.html;
-  for (const repoRelative of collectPendingAssets(html)) {
+  for (const repoRelative of pendingAssets) {
     const slugPath = await ctx.assets.register(repoRelative, file.sourcePath);
     html = replacePendingAsset(html, repoRelative, slugPath);
     if (slugPath === null) links.broken.push(repoRelative);

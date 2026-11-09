@@ -1,4 +1,5 @@
 import { ConfigService, RepoRef } from '../../config/config.service';
+import type { CommitTree } from '../../forge/git';
 import { FindingList } from '../findings';
 import { DirectoryLookup } from '../grants';
 import {
@@ -46,6 +47,7 @@ export interface WalkOptions {
   now?: Date;
   expiryWarningMs?: number;
   maxAssetBytes?: number;
+  commit?: CommitTree;
 }
 
 export async function walkRepo(options: WalkOptions): Promise<WalkResult> {
@@ -58,7 +60,7 @@ export async function walkRepo(options: WalkOptions): Promise<WalkResult> {
 
   applyImportedOrdering(scan);
 
-  const assets = new AssetRegistry(scan);
+  const assets = new AssetRegistry(scan, options.commit);
   const covers = await resolveFolderCovers(scan, assets);
   const content = await renderPages(scan, assets, covers, options);
   const folders = buildFolders(scan, content.documents, covers);

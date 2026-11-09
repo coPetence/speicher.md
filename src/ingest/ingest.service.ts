@@ -38,6 +38,7 @@ export interface SyncOptions {
   trigger?: 'webhook' | 'reconciler' | 'manual' | 'grant-review' | 'rebuild';
   directory?: DirectoryLookup; // Directory service for resolving grant subjects
   now?: Date; // Overrideable clock, for testing or forced grant re-evaluation
+  commit?: CommitTree; // Commit the working tree came from, for downloading linked files
 }
 
 /**
@@ -124,6 +125,7 @@ export class IngestService {
         repos: this.repoLookup(repo.tenant_id),
         now: options.now,
         expiryWarningMs: parseDurationWithFallback(this.config.notify.expiry_warning, '14d'),
+        commit: options.commit,
       });
 
       const written = await writeWalk({

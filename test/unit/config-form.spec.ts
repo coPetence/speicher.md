@@ -1154,9 +1154,7 @@ describe('the include and exclude lists', () => {
     );
 
   it('show the built-in globs while nothing is stored', () => {
-    expect(listAt('version: 1', 'defaults.sync.include').value).toBe(
-      '**/*.md\n**/*.mdx\n**/*.png\n**/*.jpg\n**/*.jpeg\n**/*.gif\n**/*.webp\n**/*.avif\n**/*.svg',
-    );
+    expect(listAt('version: 1', 'defaults.sync.include').value).toBe('**/*.md\n**/*.mdx');
     expect(listAt('version: 1', 'defaults.sync.exclude').value).toBe('**/README.md');
   });
 

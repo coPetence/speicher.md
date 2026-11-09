@@ -28,7 +28,7 @@ import { ForgeDriver, RemoteInstallation } from '../forge/driver';
 import { ForgeRegistry } from '../forge/registry';
 import { DirectoryLookup } from '../ingest/grants';
 import { checkoutIncludedFiles } from '../ingest/select';
-import { walkRepo } from '../ingest/walk/walk';
+import { WalkResult, walkRepo } from '../ingest/walk/walk';
 
 @Injectable()
 export class RegistrationService {
@@ -334,17 +334,20 @@ export class RegistrationService {
 
     const workingTree = await makeTempDir(`pr-${remote.forgeRepoId}`);
     try {
-      await driver.checkout(remote, sha, workingTree, (tree) =>
-        checkoutIncludedFiles(tree, this.config),
-      );
       const directory = await this.forges.directoryFor(driver.key);
-      const walk = await walkRepo({
-        workingTree,
-        config: this.config,
-        repo: { namespace: repo.namespace, slug: repo.slug },
-        // Directory lookups are only available when the forge is backed by one
-        directory,
+      let walk: WalkResult | undefined;
+      await driver.checkout(remote, sha, workingTree, async (tree) => {
+        await checkoutIncludedFiles(tree, this.config);
+        walk = await walkRepo({
+          workingTree,
+          config: this.config,
+          repo: { namespace: repo.namespace, slug: repo.slug },
+          // Directory lookups are only available when the forge is backed by one
+          directory,
+          commit: tree,
+        });
       });
+      if (!walk) throw new Error(`checking out ${sha} did not walk it`);
       const rejections = walk.findings.rejections;
 
       await driver.reportCheck(remote, sha, {

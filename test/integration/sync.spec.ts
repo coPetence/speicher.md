@@ -430,25 +430,28 @@ describe('a repo with nothing to publish', () => {
 });
 
 describe('a repo whose include leaves out what a page links to', () => {
-  it('publishes the included image and reports the left out file as a broken link', async () => {
+  it('downloads the linked files and reports only the excluded one as a broken link', async () => {
     const fixture = await buildFixture({
       forgeRepoId: '90006',
       slug: 'linked',
       branch: 'main',
       files: {
-        '.speicher.yaml': `${REPO_CONFIG}sync:\n  include: ['**/*.md', '**/*.png']\n`,
-        'docs/index.md': '# Linked\n\n![Diagram](diagram.png)\n\n![Scan](scan.bmp)\n',
-        'docs/diagram.png': 'png',
+        '.speicher.yaml': `${REPO_CONFIG}sync:\n  include: ['**/*.md']\n  exclude: ['**/*.psd']\n`,
+        'docs/index.md':
+          '# Linked\n\n![Diagram](assets/diagram.png)\n\n![Scan](scan.bmp)\n\n[Source](design.psd)\n',
+        'docs/assets/diagram.png': 'png',
         'docs/scan.bmp': 'bmp',
+        'docs/design.psd': 'psd',
+        'docs/unlinked.png': 'png',
       },
     });
 
     const result = await fixture.sync.syncRepo(fixture.repoId, 'manual');
 
     expect(result?.status).toBe('ok');
-    expect(result?.stats.assets).toBe(1);
+    expect(result?.stats.assets).toBe(2);
     expect(result?.findings.filter((f) => f.code === 'broken-link').map((f) => f.message)).toEqual([
-      'broken internal link "docs/scan.bmp"',
+      'broken internal link "docs/design.psd"',
     ]);
   });
 });

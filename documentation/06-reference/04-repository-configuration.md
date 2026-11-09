@@ -168,12 +168,12 @@ Which Markdown files to publish.
 
 **Type:** list of string
 
-The include list determines which files will be downloaded from the git repository. Markdown files will be displayed as pages in the reader, while other files such as images can be linked from pages. It defaults to `.md`, `.mdx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` and `.svg` files. Patterns start at `ingest_root`: with `ingest_root: docs`, the pattern `guides/*.md` selects `docs/guides/*.md`. In a folder, it replaces the inherited list.
+The include list determines which Markdown files become pages. Images and other files are downloaded when a page links to them, so they do not need to be listed. It defaults to `.md` and `.mdx` files. Patterns start at `ingest_root`: with `ingest_root: docs`, the pattern `guides/*.md` selects `docs/guides/*.md`. In a folder, it replaces the inherited list.
 
 ### `sync.exclude`
 
 **Type:** list of string
 
-The exclude list determines which files will not be downloaded, even when the include list selects them. It defaults to `**/README.md`. Patterns start at `ingest_root`, as in the include list. In a folder, it adds to the inherited list.
+The exclude list determines which files will not be downloaded, even when the include list selects them or a page links to them. It defaults to `**/README.md`. Patterns start at `ingest_root`, as in the include list. In a folder, it adds to the inherited list.
 <!-- prettier-ignore-end -->
 <!-- /generated -->
