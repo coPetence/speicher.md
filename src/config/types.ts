@@ -356,17 +356,7 @@ export function normalizeAccess(access: SpeicherConfig['access']): PrincipalSet 
 }
 
 export const SYNC_DEFAULTS: Required<SyncConfig> = {
-  include: [
-    '**/*.md',
-    '**/*.mdx',
-    '**/*.png',
-    '**/*.jpg',
-    '**/*.jpeg',
-    '**/*.gif',
-    '**/*.webp',
-    '**/*.avif',
-    '**/*.svg',
-  ],
+  include: ['**/*.md', '**/*.mdx'],
   exclude: ['**/README.md'],
 };
 
