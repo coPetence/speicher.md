@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { env } from '../common/env';
+import { secureCookies } from '../common/secure-cookies';
 import { mintToken } from './tokens';
 
 export const BROWSER_BINDING_COOKIE = 'speicher_binding';
@@ -17,7 +17,7 @@ export function bindBrowser(req: Request, res: Response): string {
   const binding = mintToken(16);
   res.cookie(BROWSER_BINDING_COOKIE, binding, {
     httpOnly: true,
-    secure: !env('SPEICHER_INSECURE_COOKIES'),
+    secure: secureCookies(req),
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60_000,

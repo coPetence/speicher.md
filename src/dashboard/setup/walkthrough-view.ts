@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { env } from '../../common/env';
+import { secureCookies } from '../../common/secure-cookies';
 import type { ColourScheme } from '../../config/palette';
 import { islandUrl } from '../../content-reader/assets.controller';
 import { renderInlineIcon } from '../../content-reader/icons';
@@ -39,7 +39,7 @@ export function walkthroughView(req: Request, res: Response, id: string): Walkth
   if (open) {
     res.cookie(cookie, '1', {
       httpOnly: true,
-      secure: !env('SPEICHER_INSECURE_COOKIES'),
+      secure: secureCookies(req),
       sameSite: 'lax',
       path: '/',
       maxAge: WALKTHROUGH_SEEN_MS,

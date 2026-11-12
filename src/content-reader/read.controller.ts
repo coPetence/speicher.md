@@ -115,7 +115,7 @@ export class ReadController {
         await this.sessions.createSetupSession(caller.tenantId, redeemed.code, res);
 
         // Token consumed; redirect to the setup UI proper
-        res.clearCookie(CLAIM_COOKIE, { ...claimCookieOptions(), maxAge: undefined });
+        res.clearCookie(CLAIM_COOKIE, { ...claimCookieOptions(req), maxAge: undefined });
         this.log.info('setup claim redeemed', { code: redeemed.code });
 
         res.redirect(303, '/-/setup');
@@ -130,7 +130,7 @@ export class ReadController {
     if (!claim) {
       const origin = originOf(req);
       const mintedClaim = await this.setup.mintClaim(caller.tenantId, origin);
-      res.cookie(CLAIM_COOKIE, mintedClaim.token, claimCookieOptions());
+      res.cookie(CLAIM_COOKIE, mintedClaim.token, claimCookieOptions(req));
       claim = { code: mintedClaim.code, origin, created_at: new Date() };
     }
 

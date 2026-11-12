@@ -2,17 +2,15 @@ import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import type { CookieOptions, Request, Response } from 'express';
 
 import { safeRedirect } from '../auth/oidc.service';
-import { env } from '../common/env';
+import { secureCookies } from '../common/secure-cookies';
 import { THEME_COOKIE, readerScheme } from './views';
 
 const MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
 
-function cookieOptions(): CookieOptions {
+function cookieOptions(req: Request): CookieOptions {
   return {
-    // Not saved outside HTTPS to keep the cookie from leaking on dev over HTTP
     httpOnly: true,
-    // Not set when SPEICHER_INSECURE_COOKIES is true, which implies HTTP-only dev
-    secure: !env('SPEICHER_INSECURE_COOKIES'),
+    secure: secureCookies(req),
     sameSite: 'lax',
     path: '/',
     maxAge: MAX_AGE_MS,
@@ -34,10 +32,10 @@ export class AppearanceController {
 
     const scheme = readerScheme(body?.scheme);
     if (scheme) {
-      res.cookie(THEME_COOKIE, scheme, cookieOptions());
+      res.cookie(THEME_COOKIE, scheme, cookieOptions(req));
     } else {
       // Invalid or missing scheme clears the cookie, falling back to browser default
-      res.clearCookie(THEME_COOKIE, { ...cookieOptions(), maxAge: undefined });
+      res.clearCookie(THEME_COOKIE, { ...cookieOptions(req), maxAge: undefined });
     }
 
     res.redirect(303, backTo(req));

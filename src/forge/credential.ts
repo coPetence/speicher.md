@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import { userInfo } from 'node:os';
 import { join } from 'node:path';
 
 import { makeTempDir } from '../common/temp-dir';
@@ -49,13 +50,36 @@ export async function withGitCredential<T>(
     const hostsPath = join(dir, 'known_hosts');
     await fs.writeFile(hostsPath, terminated(credential.knownHosts ?? ''), { mode: 0o600 });
 
-    return await run({
-      authenticatedUrl: url,
-      env: { GIT_SSH_COMMAND: sshCommand(keyPath, hostsPath) },
-    });
+    const env: Record<string, string> = { GIT_SSH_COMMAND: sshCommand(keyPath, hostsPath) };
+    if (!hasPasswdEntry()) Object.assign(env, await passwdWrapperEnv(dir));
+
+    return await run({ authenticatedUrl: url, env });
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
+}
+
+function hasPasswdEntry(): boolean {
+  try {
+    userInfo();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function passwdWrapperEnv(dir: string): Promise<Record<string, string>> {
+  const uid = process.getuid?.() ?? 0;
+  const gid = process.getgid?.() ?? 0;
+  const passwdPath = join(dir, 'passwd');
+  const groupPath = join(dir, 'group');
+  await fs.writeFile(passwdPath, `speicher:x:${uid}:${gid}:speicher:${dir}:/usr/sbin/nologin\n`);
+  await fs.writeFile(groupPath, `speicher:x:${gid}:\n`);
+  return {
+    LD_PRELOAD: 'libnss_wrapper.so',
+    NSS_WRAPPER_PASSWD: passwdPath,
+    NSS_WRAPPER_GROUP: groupPath,
+  };
 }
 
 /** Build an SSH command using the supplied key, trusted hosts, and no prompts */

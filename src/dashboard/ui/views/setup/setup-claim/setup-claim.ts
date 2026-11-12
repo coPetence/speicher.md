@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 
+import { env } from '../../../../../common/env';
 import { relativeTime } from '../../../../../common/time';
 import { ConfigService } from '../../../../../config/config.service';
 import { islandUrl, setupStylesheetUrl } from '../../../../../content-reader/assets.controller';
@@ -28,6 +29,7 @@ export function sendSetupClaim(
       renderPage(
         renderTemplate('dashboard/ui/views/setup/setup-claim', {
           code: claim.code,
+          platform: env('SPEICHER_PLATFORM'),
           origin: claim.origin,
           age: relativeTime(claim.created_at),
           copyIcon: renderInlineIcon('copy', 'spr-icon'),

@@ -17,7 +17,7 @@ import { Op } from 'sequelize';
 
 import { CallerIdentity } from '../authz/caller';
 import { parseDurationWithFallback } from '../common/time';
-import { env } from '../common/env';
+import { secureCookies } from '../common/secure-cookies';
 import { SETUP_PROVIDER } from '../common/principals';
 import { ConfigService } from '../config/config.service';
 import { providerType } from '../config/types';
@@ -33,11 +33,10 @@ export class SessionService {
     initModels();
   }
 
-  cookieOptions(maxAgeMs: number): CookieOptions {
+  cookieOptions(req: Request, maxAgeMs: number): CookieOptions {
     return {
       httpOnly: true,
-      // SPEICHER_INSECURE_COOKIES disables secure flag for local dev over HTTP
-      secure: !env('SPEICHER_INSECURE_COOKIES'),
+      secure: secureCookies(req),
       sameSite: 'lax',
       path: '/',
       maxAge: maxAgeMs,
@@ -77,7 +76,7 @@ export class SessionService {
       is_setup: options.isSetup === true,
       expires_at: new Date(Date.now() + ttl),
     });
-    res.cookie(SESSION_COOKIE, token, this.cookieOptions(ttl));
+    res.cookie(SESSION_COOKIE, token, this.cookieOptions(res.req, ttl));
     return token;
   }
 
@@ -148,7 +147,7 @@ export class SessionService {
       await Session.destroy({ where: { token_hash: hashToken(token) } });
     }
     res.clearCookie(SESSION_COOKIE, {
-      ...this.cookieOptions(0),
+      ...this.cookieOptions(req, 0),
       maxAge: undefined,
     });
   }

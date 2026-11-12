@@ -12,7 +12,7 @@ import { callerOf } from '../../auth/caller.middleware';
 import { ResolvedCaller } from '../../authz/caller';
 import { wordingFor } from '../../common/config-problems';
 import { ConfigError, ConfigReadOnlyError } from '../../common/errors';
-import { env } from '../../common/env';
+import { secureCookies } from '../../common/secure-cookies';
 import { ConfigService } from '../../config/config.service';
 import { saveInstanceConfig } from '../../config/loader';
 import { GithubProviderConfig, providerType } from '../../config/types';
@@ -545,7 +545,7 @@ export class QuickSetupController {
     });
     res.cookie(GITHUB_INSTALL_COOKIE, state, {
       httpOnly: true,
-      secure: !env('SPEICHER_INSECURE_COOKIES'),
+      secure: secureCookies(req),
       sameSite: 'lax',
       path: GITHUB_CALLBACK_PATH,
       maxAge: FLOW_TTL_MS,

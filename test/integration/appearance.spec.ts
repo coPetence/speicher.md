@@ -97,6 +97,33 @@ describe('choosing a scheme', () => {
   });
 });
 
+describe('the Secure flag', () => {
+  afterEach(() => {
+    delete process.env.SPEICHER_PUBLIC_URL;
+    delete process.env.SPEICHER_INSECURE_COOKIES;
+  });
+
+  it('is left off over plain HTTP, so a browser on a LAN address keeps the cookie', async () => {
+    expect(themeCookie(await choose('dark'))).not.toContain('Secure');
+  });
+
+  it('is set when a trusted proxy reports HTTPS', async () => {
+    const res = await choose('dark').set('X-Forwarded-Proto', 'https');
+    expect(themeCookie(res)).toContain('Secure');
+  });
+
+  it('is set over plain HTTP when the public URL is HTTPS', async () => {
+    process.env.SPEICHER_PUBLIC_URL = 'https://docs.example.com';
+    expect(themeCookie(await choose('dark'))).toContain('Secure');
+  });
+
+  it('stays off over HTTPS when SPEICHER_INSECURE_COOKIES is set', async () => {
+    process.env.SPEICHER_INSECURE_COOKIES = 'true';
+    const res = await choose('dark').set('X-Forwarded-Proto', 'https');
+    expect(themeCookie(res)).not.toContain('Secure');
+  });
+});
+
 describe('what the answer changes', () => {
   it('is which stylesheet the page links, and nothing the page draws', async () => {
     const plain = (await get('/speicher-docs/getting-started')).text;

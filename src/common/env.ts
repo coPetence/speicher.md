@@ -27,6 +27,8 @@ export type LogFormat = 'json' | 'pretty';
 
 export type Entrypoint = 'web' | 'worker' | 'both';
 
+export type Platform = 'compose' | 'truenas';
+
 /** Display `both` as `web + worker` */
 export function readByLabel(readBy: Entrypoint): string {
   return readBy === 'both' ? 'web + worker' : readBy;
@@ -115,6 +117,15 @@ function asDatabaseAuth(raw: string): DatabaseAuth {
     'SPEICHER_DATABASE_AUTH',
   );
 }
+
+const asPlatform = (raw: string): Platform => {
+  if (raw === 'compose' || raw === 'truenas') return raw;
+  throw new EnvError(
+    'env.invalid-value',
+    `SPEICHER_PLATFORM: expected "compose" or "truenas"; got ${JSON.stringify(raw)}.`,
+    'SPEICHER_PLATFORM',
+  );
+};
 
 export const ENV_REGISTRY = {
   SPEICHER_CONFIG: define({
@@ -264,6 +275,15 @@ export const ENV_REGISTRY = {
     readBy: 'web',
     secret: false,
   }),
+  SPEICHER_PLATFORM: define({
+    description:
+      'The platform setting decides which claim command the claim page shows. Use `compose` for Docker Compose or `truenas` for the TrueNAS app.',
+    parse: asPlatform,
+    fallback: 'compose' as Platform,
+    required: false,
+    readBy: 'web',
+    secret: false,
+  }),
   SPEICHER_TRUST_PROXY: define({
     description:
       'Trusted proxies for client IP and protocol: comma-separated `loopback`, `linklocal`, ' +
@@ -306,7 +326,7 @@ export const ENV_REGISTRY = {
   }),
   SPEICHER_INSECURE_COOKIES: define({
     description:
-      'Remove the Secure cookie flag to allow cookies over HTTP. Development only; never enable in production.',
+      'Remove the Secure cookie flag. Not needed for plain HTTP: without an `https://` public URL, cookies sent over HTTP do not have the secure flag set. Development only; never enable in production.',
     parse: asBoolean,
     fallback: false,
     required: false,

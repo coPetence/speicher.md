@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 
 import { FLOW_TTL_MS } from '../../../../auth/github.service';
-import { env } from '../../../../common/env';
+import { secureCookies } from '../../../../common/secure-cookies';
 import { renderTemplate, sendHtml } from '../../../../content-reader/views';
 import { redirectTo } from '../../../configurator/config-http';
 import {
@@ -34,7 +34,7 @@ export function handOffToGithub(
 ): void {
   const cookie = {
     httpOnly: true,
-    secure: !env('SPEICHER_INSECURE_COOKIES'),
+    secure: secureCookies(res.req),
     sameSite: 'lax',
   } as const;
   res.cookie(GITHUB_APP_FORM_COOKIE, started.sealedForm, {
