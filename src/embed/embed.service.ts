@@ -9,7 +9,6 @@ import { getSequelize } from '../db/sequelize';
 import { toPgTextArray } from '../db/pg-array';
 import { toVectorLiteral } from '../db/vector';
 import { VISIBILITY_TIMEOUT_MS } from '../jobs/queue';
-import { ensureVectorIndex } from './vector-index';
 import { EmbeddingClient, EmbeddingDimensionError, EmbeddingError } from './client';
 
 export const EMBED_BUDGET_MS = Math.floor((VISIBILITY_TIMEOUT_MS * 2) / 3);
@@ -62,8 +61,6 @@ export class EmbedService {
       const vectors = await client.embed(slice.map((chunk) => chunk.text));
       embedded += await this.writeVectors(slice, vectors, client);
     }
-
-    if (embedded > 0) await ensureVectorIndex(client.dimensions, this.sequelize);
 
     this.log.info('embed run finished', { embedded });
     return { embedded, remaining: 0, exhausted: false };

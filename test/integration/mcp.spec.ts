@@ -5,7 +5,7 @@ import { closeSequelize } from '../../src/db/sequelize';
 import { EMBEDDING_CLIENT } from '../../src/embed/embed.module';
 import { EmbedService } from '../../src/embed/embed.service';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
-import { Harness, PrincipalName, createHarness, resetVectorIndex } from '../helpers/harness';
+import { Harness, PrincipalName, createHarness } from '../helpers/harness';
 import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
@@ -212,7 +212,6 @@ describe('search cites the passage it matched', () => {
   let semanticApp: INestApplication;
 
   beforeAll(async () => {
-    await resetVectorIndex();
     const stub = stubEmbeddingClient({ dimensions: DIMENSIONS }, hashingVector);
     const run = await new EmbedService(stub.client).embedPending(harness.tenantId);
     expect(run.embedded).toBeGreaterThan(0);
@@ -226,7 +225,6 @@ describe('search cites the passage it matched', () => {
 
   afterAll(async () => {
     await semanticApp?.close();
-    await resetVectorIndex();
   });
 
   async function semanticSearch(who: PrincipalName, args: Record<string, unknown>) {

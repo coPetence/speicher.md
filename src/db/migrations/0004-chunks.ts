@@ -3,8 +3,8 @@ import { QueryInterface } from 'sequelize';
 export async function up({ context }: { context: QueryInterface }): Promise<void> {
   const q = context.sequelize;
 
-  // A chunk has no principals of its own: it is read through its page. The vector
-  // column gets its width in 0009-vector-index, from the configured model
+  // Chunks do not have principals because they can only be read through a document which carries the principals
+  // The vector column has no fixed width; embedding_dim is used to store width per vector
   await q.query(`
     CREATE TABLE chunks (
       id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -4,7 +4,7 @@ import { EMBED_BUDGET_MS, EmbedService } from '../../src/embed/embed.service';
 import { Forge, Repo } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { STUB_DIMENSIONS, stubEmbeddingClient, vectorFor } from '../helpers/embedding';
-import { Harness, createHarness, resetVectorIndex } from '../helpers/harness';
+import { Harness, createHarness } from '../helpers/harness';
 
 let harness: Harness;
 let repoId: string;
@@ -13,7 +13,6 @@ let tenantId: string;
 beforeAll(async () => {
   harness = await createHarness();
   tenantId = harness.tenantId;
-  await resetVectorIndex();
 
   const forge = await Forge.findOne({ where: { tenant_id: tenantId } });
   const repo = await Repo.create({
@@ -29,7 +28,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await resetVectorIndex();
   await harness?.close();
   await closeSequelize();
 });
@@ -39,7 +37,6 @@ beforeEach(async () => {
     type: QueryTypes.DELETE,
     replacements: { tenantId },
   });
-  await resetVectorIndex();
 });
 
 async function seedChunks(count: number): Promise<void> {

@@ -7,7 +7,7 @@ import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { EmbedService } from '../../src/embed/embed.service';
 import { HybridSearch, KeywordSearch } from '../../src/content-reader/search/search.service';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
-import { Harness, createHarness, resetVectorIndex } from '../helpers/harness';
+import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp, sessionCookieFor } from '../helpers/http';
 
 const DIMENSIONS = 32;
@@ -24,7 +24,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await resetVectorIndex();
   await app?.close();
   await harness?.close();
   await closeSequelize();
@@ -37,7 +36,6 @@ beforeEach(async () => {
       type: QueryTypes.UPDATE,
     },
   );
-  await resetVectorIndex();
 });
 
 async function embedWith(model: string, dimensions = DIMENSIONS) {

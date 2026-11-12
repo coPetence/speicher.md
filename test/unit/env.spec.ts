@@ -128,6 +128,23 @@ describe('env', () => {
     }
   });
 
+  it('signs in to the database with the URL password unless told otherwise', () => {
+    const before = process.env.SPEICHER_DATABASE_AUTH;
+    try {
+      delete process.env.SPEICHER_DATABASE_AUTH;
+      expect(env('SPEICHER_DATABASE_AUTH')).toBe('password');
+      process.env.SPEICHER_DATABASE_AUTH = 'workload_identity';
+      expect(env('SPEICHER_DATABASE_AUTH')).toBe('workload_identity');
+      process.env.SPEICHER_DATABASE_AUTH = 'entra';
+      expect(() => env('SPEICHER_DATABASE_AUTH')).toFailWith('env.invalid-value', {
+        variable: 'SPEICHER_DATABASE_AUTH',
+      });
+    } finally {
+      if (before === undefined) delete process.env.SPEICHER_DATABASE_AUTH;
+      else process.env.SPEICHER_DATABASE_AUTH = before;
+    }
+  });
+
   it('falls back rather than throwing on an unrecognised log level', () => {
     const before = process.env.SPEICHER_LOG_LEVEL;
     process.env.SPEICHER_LOG_LEVEL = 'chatty';
