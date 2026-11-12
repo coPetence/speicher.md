@@ -27,11 +27,12 @@ A `SPEICHER_*` variable that is set but not listed here stops the process from s
 | `SPEICHER_PUBLIC_URL` | — | web + worker | Public instance URL for webhooks, magic links, and the sitemap. Uses the request host if unset. |
 | `SPEICHER_ANON_RATE_LIMIT` | `60` | web | Anonymous requests allowed per minute per client IP. Signed-in users are exempt. Use `0` for no limit. |
 | `SPEICHER_PUBLIC_MAX_AGE` | `60` | web | Cache-Control `max-age` for anonymous responses, in seconds. Use `0` to disable public caching. |
+| `SPEICHER_PLATFORM` | `compose` | web | The platform setting decides which claim command the claim page shows. Use `compose` for Docker Compose or `truenas` for the TrueNAS app. |
 | `SPEICHER_TRUST_PROXY` | `loopback` | web | Trusted proxies for client IP and protocol: comma-separated `loopback`, `linklocal`, `uniquelocal`, IPs, or subnets. Use `uniquelocal` in Docker. No `true` or hop counts. |
 | `SPEICHER_LOG_LEVEL` | `info` | web + worker | Minimum log level: `debug`, `info`, `warn`, or `error`. SQL queries appear only at `debug`. |
 | `SPEICHER_LOG_FORMAT` | `json` | web + worker | Log format: `json` for one JSON object per line, or `pretty` for aligned, coloured text. |
 | `SPEICHER_DEV_LOGIN` | `false` | web | Enable sign-in as any identity without authentication. Development only; never enable in production. |
-| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag to allow cookies over HTTP. Development only; never enable in production. |
+| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag. Not needed for plain HTTP: without an `https://` public URL, cookies sent over HTTP do not have the secure flag set. Development only; never enable in production. |
 | `PORT` | `3000` | web | HTTP server TCP port. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

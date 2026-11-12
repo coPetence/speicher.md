@@ -8,7 +8,7 @@ import { GithubAuthService } from '../../auth/github.service';
 import { MagicLinkService } from '../../auth/magic-link.service';
 import { OidcService } from '../../auth/oidc.service';
 import { emailDomain } from '../../auth/sign-in-routing';
-import { env } from '../../common/env';
+import { secureCookies } from '../../common/secure-cookies';
 import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { providerType } from '../../config/types';
@@ -86,7 +86,7 @@ export class SetupWizardController {
     if (!caller.isAdmin || caller.viaSetup === true) return this.respond.notFound(req, res);
     res.cookie(SETUP_LATER_COOKIE, '1', {
       httpOnly: true,
-      secure: !env('SPEICHER_INSECURE_COOKIES'),
+      secure: secureCookies(req),
       sameSite: 'lax',
       path: '/',
     });

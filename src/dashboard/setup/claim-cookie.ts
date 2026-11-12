@@ -7,17 +7,17 @@
  * Not set to `strict` same-site: the uploader may be redirected from the upload
  * origin, and the cookie needs to survive that cross-origin navigation
  */
-import type { CookieOptions } from 'express';
+import type { CookieOptions, Request } from 'express';
 
-import { env } from '../../common/env';
+import { secureCookies } from '../../common/secure-cookies';
 import { CLAIM_TTL_MS } from './setup.service';
 
 export const CLAIM_COOKIE = 'speicher_claim';
 
-export function claimCookieOptions(): CookieOptions {
+export function claimCookieOptions(req: Request): CookieOptions {
   return {
     httpOnly: true,
-    secure: !env('SPEICHER_INSECURE_COOKIES'),
+    secure: secureCookies(req),
     sameSite: 'lax',
     path: '/',
     maxAge: CLAIM_TTL_MS,

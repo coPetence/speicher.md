@@ -145,6 +145,17 @@ describe('env', () => {
     }
   });
 
+  it('refuses a platform it does not recognise', () => {
+    process.env.SPEICHER_PLATFORM = 'kubernetes';
+    try {
+      expect(() => env('SPEICHER_PLATFORM')).toFailWith('env.invalid-value', {
+        variable: 'SPEICHER_PLATFORM',
+      });
+    } finally {
+      delete process.env.SPEICHER_PLATFORM;
+    }
+  });
+
   it('falls back rather than throwing on an unrecognised log level', () => {
     const before = process.env.SPEICHER_LOG_LEVEL;
     process.env.SPEICHER_LOG_LEVEL = 'chatty';

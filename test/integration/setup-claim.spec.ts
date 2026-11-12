@@ -66,6 +66,22 @@ function codeOn(html: string): string {
   return match[1];
 }
 
+describe('the claim page of the TrueNAS app', () => {
+  afterEach(() => {
+    delete process.env.SPEICHER_PLATFORM;
+  });
+
+  it('sends the reader to the shell of the speicher container, with no docker command', async () => {
+    process.env.SPEICHER_PLATFORM = 'truenas';
+    const { text } = await browser().get('/').expect(200);
+    const command = /<pre class="spr-claim-command"><code>([^<]*)<\/code><\/pre>/.exec(text)?.[1];
+
+    expect(command).toBe(`speicher claim ${codeOn(text)}`);
+    expect(text).toContain('open this app in TrueNAS');
+    expect(text).not.toContain('docker compose');
+  });
+});
+
 describe('the front door of an instance nobody has configured', () => {
   it('offers the claim, and discloses nothing else about the instance', async () => {
     const response = await browser().get('/').expect(200);

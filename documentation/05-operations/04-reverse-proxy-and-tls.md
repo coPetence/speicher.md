@@ -173,7 +173,7 @@ In Docker, requests reach speicher.md from a private Docker network address, eve
 | -------- | ------- | ------- | ----------- |
 | `SPEICHER_PUBLIC_URL` | — | web + worker | Public instance URL for webhooks, magic links, and the sitemap. Uses the request host if unset. |
 | `SPEICHER_TRUST_PROXY` | `loopback` | web | Trusted proxies for client IP and protocol: comma-separated `loopback`, `linklocal`, `uniquelocal`, IPs, or subnets. Use `uniquelocal` in Docker. No `true` or hop counts. |
-| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag to allow cookies over HTTP. Development only; never enable in production. |
+| `SPEICHER_INSECURE_COOKIES` | `false` | web | Remove the Secure cookie flag. Not needed for plain HTTP: without an `https://` public URL, cookies sent over HTTP do not have the secure flag set. Development only; never enable in production. |
 | `PORT` | `3000` | web | HTTP server TCP port. |
 <!-- prettier-ignore-end -->
 <!-- /generated -->

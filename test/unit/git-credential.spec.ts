@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 
 import { GitInvocation, httpsUrl, sshCommand, withGitCredential } from '../../src/forge/credential';
 
@@ -70,6 +71,43 @@ describe('an ssh remote', () => {
   it('carries no credential in the URL, so there is nothing to redact', async () => {
     const { invocation } = await invoke();
     expect(invocation.authenticatedUrl).toBe('ssh://git@git.example.test/ops/handbook.git');
+  });
+});
+
+describe('an ssh remote under a UID without a passwd entry', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('needs no passwd wrapper when the UID has an entry', async () => {
+    await withGitCredential(
+      'ssh://git@git.example.test/ops/handbook.git',
+      { deployKey: KEY, knownHosts: HOSTS },
+      async (invocation) => {
+        expect(invocation.env!.LD_PRELOAD).toBeUndefined();
+      },
+    );
+  });
+
+  it('gives ssh a passwd entry for the current UID', async () => {
+    jest.spyOn(os, 'userInfo').mockImplementation(() => {
+      throw new Error('uv_os_get_passwd returned ENOENT');
+    });
+    let passwd = '';
+    let group = '';
+    let env: Record<string, string> = {};
+    await withGitCredential(
+      'ssh://git@git.example.test/ops/handbook.git',
+      { deployKey: KEY, knownHosts: HOSTS },
+      async (invocation) => {
+        env = invocation.env!;
+        passwd = await fs.readFile(env.NSS_WRAPPER_PASSWD, 'utf8');
+        group = await fs.readFile(env.NSS_WRAPPER_GROUP, 'utf8');
+      },
+    );
+    expect(env.LD_PRELOAD).toBe('libnss_wrapper.so');
+    expect(env.GIT_SSH_COMMAND).toContain('BatchMode=yes');
+    expect(passwd).toMatch(new RegExp(`^speicher:x:${process.getuid!()}:${process.getgid!()}:`));
+    expect(group).toBe(`speicher:x:${process.getgid!()}:\n`);
+    await expect(fs.stat(env.NSS_WRAPPER_PASSWD)).rejects.toThrow();
   });
 });
 

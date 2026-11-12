@@ -1,11 +1,19 @@
 <h1>Claim this instance</h1>
 
+<% if (it.platform === 'truenas') { %>
+<p class="spr-empty">
+  This speicher.md instance has not been configured. To become its administrator,
+  open this app in TrueNAS, open the shell of its <b>speicher</b> container
+  and run the command below:
+</p>
+<% } else { %>
 <p class="spr-empty">
   This speicher.md instance has not been configured. To become its administrator,
   run the command below from the shell on the host this instance is running on:
 </p>
+<% } %>
 
-<% const command = `docker compose exec web speicher claim ${it.code}` %>
+<% const command = it.platform === 'truenas' ? `speicher claim ${it.code}` : `docker compose exec web speicher claim ${it.code}` %>
 <div class="spr-claim-run">
   <pre class="spr-claim-command"><code><%= command %></code></pre>
     <%~ include('@copy', { text: command, label: 'Copy command', copyIcon: it.copyIcon, copiedIcon: it.copiedIcon }) %>
