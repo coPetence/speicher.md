@@ -1,6 +1,6 @@
 import { isLocalhostUrl, isPublicUrl } from '../../src/common/public-url';
 import { appCard } from '../../src/dashboard/configurator/config-form/sections/content-sources/github-app-card';
-import { appManifest, signInAppName } from '../../src/github/app-manifest';
+import { appManifest, appName } from '../../src/github/app-manifest';
 
 describe('whether an address can be reached from the internet', () => {
   it.each([
@@ -101,6 +101,7 @@ describe("a content source App's manifest", () => {
     homepage: 'http://localhost:3000',
     redirectUrl: 'http://localhost:3000/-/config/sources/gh/github-app/manifest/callback',
     setupUrl: 'http://localhost:3000/-/config/sources/gh',
+    sourceId: 'gh',
   };
 
   it('subscribes to the events the source acts on when it has a webhook', () => {
@@ -151,19 +152,49 @@ describe("a directory App's manifest", () => {
   });
 });
 
-describe("an identity provider App's name", () => {
-  it('is the hostname of this instance, then speicher.md', () => {
-    expect(signInAppName('https://docs.acme.example:8443/')).toBe('docs.acme.example speicher.md');
-    expect(signInAppName('http://localhost:3000')).toBe('localhost speicher.md');
+describe("an App's name", () => {
+  it('starts with the hostname of this instance', () => {
+    expect(appName('https://docs.acme.example:8443/', 'timmol2', 'speicher.md')).toBe(
+      'docs.acme.example speicher.md',
+    );
   });
 
-  it("shortens a long hostname to fit GitHub's limit of 34 characters", () => {
-    const name = signInAppName('https://documentation.copetence.example');
-    expect(name.length).toBeLessThanOrEqual(34);
-    expect(name.endsWith(' speicher.md')).toBe(true);
+  it("is the account's on localhost, which many instances share", () => {
+    expect(appName('http://localhost:3000', 'timmol2', 'speicher.md (github2)')).toBe(
+      "timmol2's speicher.md (github2)",
+    );
+    expect(appName('http://127.0.0.1:3000', 'james', 'speicher.md')).toBe("james' speicher.md");
+    expect(appName('http://localhost:3000', undefined, 'speicher.md')).toBe(
+      'localhost speicher.md',
+    );
   });
 
-  it('is speicher.md alone when the address cannot be read', () => {
-    expect(signInAppName('not a url')).toBe('speicher.md');
+  it("shortens the hostname or account to fit GitHub's limit of 34 characters", () => {
+    const host = appName('https://documentation.copetence.example', undefined, 'speicher.md');
+    expect(host.length).toBeLessThanOrEqual(34);
+    expect(host.endsWith(' speicher.md')).toBe(true);
+    const account = appName(
+      'http://localhost',
+      'a-very-long-github-account-name',
+      'speicher.md (gh)',
+    );
+    expect(account.length).toBeLessThanOrEqual(34);
+    expect(account.endsWith("'s speicher.md (gh)")).toBe(true);
+  });
+
+  it('is the label alone when the address cannot be read and no account is known', () => {
+    expect(appName('not a url', undefined, 'speicher.md')).toBe('speicher.md');
+  });
+
+  it('names the content source, so its Apps and the sign-in App differ', () => {
+    const manifest = appManifest({
+      purpose: 'content-source',
+      sourceId: 'github2',
+      account: 'timmol2',
+      homepage: 'http://localhost:3000',
+      redirectUrl: 'http://localhost:3000/callback',
+      setupUrl: 'http://localhost:3000/-/config/sources/github2',
+    });
+    expect(manifest.name).toBe("timmol2's speicher.md (github2)");
   });
 });

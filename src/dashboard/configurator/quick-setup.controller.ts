@@ -47,6 +47,7 @@ import {
   GithubAppManifestError,
   repositoriesConfigFilePath,
   GithubAppManifestService,
+  githubAdminOf,
   readyPath,
   sourceCheckPath,
   sourceConfigFilePath,
@@ -158,6 +159,7 @@ export class QuickSetupController {
             start.owner,
             originOf(req),
             { body: {}, parts: {}, quick: true, public: start.public },
+            githubAdminOf(this.config, caller.identity),
           );
           return handOffToGithub(res, start.target, started, 'modal');
         } catch (err) {

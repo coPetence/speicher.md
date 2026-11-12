@@ -60,6 +60,31 @@ export async function githubRequest(
   }
 }
 
+/**
+ * githubLogin returns the login of a GitHub account, by the account's numeric id.
+ *
+ * @param fetchImpl how GitHub is reached
+ * @param api the GitHub API base, e.g. `https://api.github.com`
+ * @param userId the account's numeric id, e.g. `583231`
+ */
+export async function githubLogin(
+  fetchImpl: typeof fetch,
+  api: string,
+  userId: string,
+): Promise<string> {
+  const url = `${api}/user/${encodeURIComponent(userId)}`;
+  const response = await githubRequest(fetchImpl, url, {
+    headers: githubHeaders(),
+    timeoutMs: 5_000,
+  });
+  if (!response.ok) throw refusedRequest(response, url);
+  const user = (await response.json()) as { login?: unknown };
+  if (typeof user.login !== 'string' || user.login === '') {
+    throw new GithubRequestError('github.request-failed', `No user for ${url}`, url);
+  }
+  return user.login;
+}
+
 /** A GithubRequestError for an answer that is not a success */
 export function refusedRequest(
   response: Response,

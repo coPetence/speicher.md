@@ -7,6 +7,7 @@
  * See https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
  */
 
+import { isLocalhostUrl } from '../common/public-url';
 import { githubHeaders } from './api';
 import type { GithubAppOwner } from './app-links';
 
@@ -61,10 +62,12 @@ interface AppManifestBase {
   redirectUrl: string;
   // Where GitHub sends the browser after the App is installed
   setupUrl: string;
+  account?: string;
 }
 
 export interface ContentSourceAppOptions extends AppManifestBase {
   purpose: 'content-source';
+  sourceId: string;
   // Absent when GitHub cannot reach this instance, so the App is created without a webhook
   webhookUrl?: string;
 }
@@ -91,21 +94,20 @@ export type AppManifestOptions =
 // GitHub refuses an App name that is longer
 const MAX_APP_NAME = 34;
 
-/**
- * signInAppName returns the name of an identity provider's App: the hostname of this instance, then `speicher.md`.
- * A hostname too long for GitHub's limit on App names is shortened.
- *
- * @param homepage the address of this instance
- */
-export function signInAppName(homepage: string): string {
-  const suffix = ' speicher.md';
-  let host: string;
+export function appName(homepage: string, account: string | undefined, label: string): string {
+  let host = '';
   try {
     host = new URL(homepage).hostname;
   } catch {
-    return suffix.trim();
+    // ignore, the homepage is not a valid URL
   }
-  return `${host.slice(0, MAX_APP_NAME - suffix.length)}${suffix}`;
+  const room = MAX_APP_NAME - label.length - 1;
+
+  if (account && (host === '' || isLocalhostUrl(homepage))) {
+    const possessive = account.endsWith('s') ? "'" : "'s";
+    return `${account.slice(0, room - possessive.length)}${possessive} ${label}`;
+  }
+  return host === '' ? label : `${host.slice(0, room)} ${label}`;
 }
 
 /**
@@ -126,7 +128,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
       ...base,
       public: options.public === true,
       ...(options.signInOnInstall ? { request_oauth_on_install: true } : {}),
-      name: signInAppName(options.homepage),
+      name: appName(options.homepage, options.account, 'speicher.md'),
       description: IDENTITY_PROVIDER_DESCRIPTION,
       callback_urls: [options.callbackUrl],
       default_permissions: IDENTITY_PROVIDER_PERMISSIONS,
@@ -137,7 +139,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
     return {
       ...base,
       ...webhookOf(options.webhookUrl, DIRECTORY_EVENTS),
-      name: 'speicher.md Directory',
+      name: appName(options.homepage, options.account, 'speicher.md Directory'),
       description: DIRECTORY_DESCRIPTION,
       default_permissions: DIRECTORY_PERMISSIONS,
     };
@@ -145,7 +147,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   return {
     ...base,
     ...webhookOf(options.webhookUrl, CONTENT_SOURCE_EVENTS),
-    name: 'speicher.md',
+    name: appName(options.homepage, options.account, `speicher.md (${options.sourceId})`),
     description: CONTENT_SOURCE_DESCRIPTION,
     default_permissions: CONTENT_SOURCE_PERMISSIONS,
   };
