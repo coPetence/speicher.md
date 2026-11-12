@@ -12,7 +12,6 @@ import { FilesystemBlobStore } from '../../src/assets/blob-store';
 import { ConfigService } from '../../src/config/config.service';
 import { validateForSave } from '../../src/config/loader';
 import { loadInstanceConfigFromFile } from '../../src/config/parser';
-import { migrateUp } from '../../src/db/migrate';
 import { Forge, Installation, Repo, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { ForgeDriver, RemoteRepo } from '../../src/forge/driver';
@@ -198,7 +197,6 @@ let apiCalls: { installations: number; repositories: number };
 beforeAll(async () => {
   const sequelize = getSequelize();
   initModels(sequelize);
-  await migrateUp(sequelize);
   await truncateAll();
 
   config = new ConfigService(loadInstanceConfigFromFile(process.env.SPEICHER_CONFIG as string));

@@ -85,3 +85,39 @@ export async function ensureDatabase(url = testDatabaseUrl()): Promise<EnsureRes
     await client.end();
   }
 }
+
+/** The role the suite runs as: read and write rows, nothing else */
+export const APP_ROLE = 'speicher_app_test';
+
+/**
+ * The URL the suite runs as: the test database, signed in as `APP_ROLE`.
+ *
+ * The application must work with read/write access alone, so every spec connects
+ * this way, and a statement that needs more — DDL, TRUNCATE — fails the suite.
+ * Migrating and emptying the tables are the owner's, through `ownerDatabaseUrl`.
+ */
+export function appRoleUrl(ownerUrl: string): string {
+  const url = new URL(ownerUrl);
+  url.username = APP_ROLE;
+  url.password = APP_ROLE;
+  return url.toString();
+}
+
+/** The owner URL `test/setup.ts` kept before pointing the app at `APP_ROLE` */
+export function ownerDatabaseUrl(): string {
+  return process.env.TEST_DATABASE_OWNER_URL || testDatabaseUrl();
+}
+
+/** Empty the given tables as the owner, since `APP_ROLE` may not TRUNCATE */
+export async function truncateAsOwner(tables: string[]): Promise<void> {
+  const ownerUrl = ownerDatabaseUrl();
+  assertTestDatabase(decodeURIComponent(new URL(ownerUrl).pathname.replace(/^\//, '')));
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: ownerUrl });
+  await client.connect();
+  try {
+    await client.query(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
+  } finally {
+    await client.end();
+  }
+}

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { toFailWith, toRefuseWith } from './helpers/refuse-with';
-import { testDatabaseUrl } from './helpers/test-database';
+import { appRoleUrl, testDatabaseUrl } from './helpers/test-database';
 
 process.env.SPEICHER_CONFIG ??= resolve(__dirname, 'fixtures/instance.yaml');
 process.env.TEST_ENTRA_CLIENT_ID ??= 'test-entra-client';
@@ -18,7 +18,9 @@ process.env.TEST_GH_PRIVATE_KEY ??= generateKeyPairSync('rsa', {
 }).privateKey;
 process.env.TEST_GH_WEBHOOK_SECRET ??= 'test-webhook-secret';
 process.env.SPEICHER_LOG_LEVEL ??= 'error';
-process.env.SPEICHER_DATABASE_URL ??= testDatabaseUrl();
+// Migrations and truncation run as the owner; everything else as a read/write role
+process.env.TEST_DATABASE_OWNER_URL ??= testDatabaseUrl();
+process.env.SPEICHER_DATABASE_URL = appRoleUrl(process.env.TEST_DATABASE_OWNER_URL);
 process.env.SPEICHER_MIRROR_ROOT ??= mkdtempSync(join(tmpdir(), 'speicher-mirrors-'));
 
 process.env.SPEICHER_ANON_RATE_LIMIT ??= '0';

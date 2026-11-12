@@ -6,11 +6,10 @@ import { ConfigService } from '../../src/config/config.service';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { EMBEDDING_CLIENT } from '../../src/embed/embed.module';
 import { EmbedService } from '../../src/embed/embed.service';
-import { VECTOR_INDEX_NAME } from '../../src/embed/distance';
 import { HybridSearch, KeywordSearch } from '../../src/content-reader/search/search.service';
 import { reembed } from '../../src/embed/reembed';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
-import { Harness, createHarness, resetVectorIndex } from '../helpers/harness';
+import { Harness, createHarness } from '../helpers/harness';
 import { bootTestApp, sessionCookieFor } from '../helpers/http';
 
 const OLD = { model: 'old-model', dimensions: 16 };
@@ -36,24 +35,6 @@ async function counts(): Promise<{ current: number; stale: number; pending: numb
   return harness.reports.embeddingCoverage(harness.tenantId, NEW.model, NEW.dimensions);
 }
 
-async function columnWidth(): Promise<number> {
-  const [row] = await getSequelize().query<{ typmod: number }>(
-    `SELECT a.atttypmod AS typmod FROM pg_attribute a
-       JOIN pg_class c ON c.oid = a.attrelid
-      WHERE c.relname = 'chunks' AND a.attname = 'embedding'`,
-    { type: QueryTypes.SELECT },
-  );
-  return row.typmod;
-}
-
-async function indexPresent(): Promise<boolean> {
-  const rows = await getSequelize().query<{ n: string }>(
-    `SELECT count(*) AS n FROM pg_class WHERE relname = :name AND relkind = 'i'`,
-    { type: QueryTypes.SELECT, replacements: { name: VECTOR_INDEX_NAME } },
-  );
-  return Number(rows[0].n) > 0;
-}
-
 async function embedWithOldModel(): Promise<void> {
   const stub = stubEmbeddingClient(OLD, hashingVector);
   const run = await new EmbedService(stub.client).embedPending(harness.tenantId);
@@ -68,7 +49,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app?.close();
-  await resetVectorIndex();
   await harness?.close();
   await closeSequelize();
 });
@@ -78,7 +58,6 @@ beforeEach(async () => {
     `UPDATE chunks SET embedding = NULL, embedding_model = NULL, embedding_dim = NULL`,
     { type: QueryTypes.UPDATE },
   );
-  await resetVectorIndex();
 });
 
 describe('reembed', () => {
@@ -102,26 +81,18 @@ describe('reembed', () => {
     expect((await counts()).pending).toBe(before.length);
   });
 
-  it('re-types the column and rebuilds the index at the new width', async () => {
+  it('takes a new width without changing the schema', async () => {
     await embedWithOldModel();
-    expect(await columnWidth()).toBe(OLD.dimensions);
-    expect(await indexPresent()).toBe(true);
+    await reembed(harness.tenantId, configFor(NEW));
+    await new EmbedService(stubEmbeddingClient(NEW, hashingVector).client).embedPending(
+      harness.tenantId,
+    );
 
-    const result = await reembed(harness.tenantId, configFor(NEW));
-
-    expect(await columnWidth()).toBe(NEW.dimensions);
-    expect(await indexPresent()).toBe(true);
-    expect(result?.index.status).toBe('created');
-  });
-
-  it('leaves the column alone when only the model name moved', async () => {
-    await embedWithOldModel();
-    const sameWidth = { model: 'renamed-model', dimensions: OLD.dimensions };
-
-    await reembed(harness.tenantId, configFor(sameWidth));
-
-    expect(await columnWidth()).toBe(OLD.dimensions);
-    expect(await indexPresent()).toBe(true);
+    const widths = await getSequelize().query<{ embedding_dim: number }>(
+      `SELECT DISTINCT embedding_dim FROM chunks WHERE embedding IS NOT NULL`,
+      { type: QueryTypes.SELECT },
+    );
+    expect(widths.map((row) => row.embedding_dim)).toEqual([NEW.dimensions]);
   });
 
   it('hands the work to the job rather than doing it', async () => {

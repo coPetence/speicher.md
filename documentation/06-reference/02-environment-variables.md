@@ -12,12 +12,14 @@ A `SPEICHER_*` variable that is set but not listed here stops the process from s
 <!-- prettier-ignore-start -->
 | Variable | Default | Read by | Description |
 | -------- | ------- | ------- | ----------- |
-| `SPEICHER_CONFIG` | `./speicher.instance.yaml` | web + worker | Instance YAML file path. The file must exist when `SPEICHER_CONFIG_SOURCE` is `file`. |
+| `SPEICHER_CONFIG` | `./speicher.instance.yaml` | web + worker | Instance YAML path. Must exist when `SPEICHER_CONFIG_SOURCE` is `file`. |
 | `SPEICHER_CONFIG_SOURCE` | `file` | web + worker | Configuration source: `file` or `database`. File mode is read-only; restart to apply changes. |
 | `SPEICHER_CONFIG_POLL` | `10s` | web + worker | Interval between database configuration checks (e.g. `15m`). Use `0` to disable polling. |
-| `SPEICHER_DATABASE_URL` | `postgres://speicher:speicher@127.0.0.1:55432/speicher` | web + worker | PostgreSQL connection URL. Startup fails if the database is unreachable. |
-| `SPEICHER_DB_POOL` | `10` | web + worker | Maximum number of PostgreSQL connections in the pool. |
-| `SPEICHER_ASSET_PATH` | `./var/assets` | web + worker | Upload directory. Must be writable by the process. |
+| `SPEICHER_DATABASE_URL` | `postgres://speicher:speicher@127.0.0.1:55432/speicher` | web + worker | PostgreSQL URL. Database must be reachable at startup. |
+| `SPEICHER_DATABASE_AUTH` | `password` | web + worker | PostgreSQL authentication: `password` uses the URL password. For Azure Entra tokens, use `managed_identity` or `workload_identity`). |
+| `SPEICHER_DATABASE_CLIENT_ID` | — | web + worker | Entra client ID for a user-assigned managed identity or workload identity app. If unset, uses the system-assigned identity or `AZURE_CLIENT_ID`. |
+| `SPEICHER_DB_POOL` | `10` | web + worker | Maximum PostgreSQL connections in the pool. |
+| `SPEICHER_ASSET_PATH` | `./var/assets` | web + worker | Upload directory. The process needs write access. |
 | `SPEICHER_MIRROR_ROOT` | `./var/mirrors` | worker | Directory into which a sync downloads the data from git. The data is removed after each sync. Must be writable. |
 | `SPEICHER_SYNC_CONCURRENCY` | `4` | worker | Maximum number of repositories to sync at once. |
 | `SPEICHER_RECONCILE_INTERVAL` | `15m` | worker | Interval between remote checks for tracked repositories (e.g. `15m`). Shorter intervals increase load. |

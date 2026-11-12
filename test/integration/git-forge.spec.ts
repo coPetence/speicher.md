@@ -8,7 +8,6 @@ import { QueryTypes } from 'sequelize';
 import { FilesystemBlobStore } from '../../src/assets/blob-store';
 import { ConfigService } from '../../src/config/config.service';
 import { loadInstanceConfig } from '../../src/config/parser';
-import { migrateUp } from '../../src/db/migrate';
 import { Forge, Repo, RepoSlugHistory, initModels } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { RemoteRepo } from '../../src/forge/driver';
@@ -189,7 +188,6 @@ async function slugsOf(repoId: string): Promise<string[]> {
 beforeAll(async () => {
   const sequelize = getSequelize();
   initModels(sequelize);
-  await migrateUp(sequelize);
 });
 
 beforeEach(async () => {

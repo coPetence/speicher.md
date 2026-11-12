@@ -7,7 +7,7 @@ import { EmbedService } from '../../src/embed/embed.service';
 import { DEFAULT_ICONS } from '../../src/content-reader/icons';
 import { HybridSearch, KeywordSearch } from '../../src/content-reader/search/search.service';
 import { hashingVector, stubEmbeddingClient } from '../helpers/embedding';
-import { Harness, PrincipalName, createHarness, resetVectorIndex } from '../helpers/harness';
+import { Harness, PrincipalName, createHarness } from '../helpers/harness';
 import { accessTokenFor, bootTestApp, sessionCookieFor } from '../helpers/http';
 
 let app: INestApplication;
@@ -474,10 +474,6 @@ describe('semantic retrieval: the same filter, on the surface that leaks quietly
 
     const run = await new EmbedService(stub.client).embedPending(harness.tenantId);
     expect(run.embedded).toBeGreaterThan(0);
-  });
-
-  afterAll(async () => {
-    await resetVectorIndex();
   });
 
   it('retrieves a page by meaning, so the negative assertions are not vacuous', async () => {

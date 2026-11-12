@@ -1,17 +1,18 @@
-/** Environment parsing, validation, and reporting */
+/** Parse, validate, and report environment settings */
 import { parseDuration } from './time';
 import { CodedError, ConfigError } from './errors';
 import { problem } from './config-problems';
+import { AzureCredentialKind, isAzureCredentialKind } from './azure-credential';
 
 /** Environment error codes */
 export type EnvCode = 'env.invalid-value' | 'env.required' | 'env.unknown';
 
-/** Invalid, missing, or unknown environment variables */
+/** Environment validation error */
 export class EnvError extends CodedError<EnvCode> {
   constructor(
     code: EnvCode,
     message: string,
-    /** Affected variable, if applicable */
+    /** Affected variable, if any */
     readonly variable: string | null = null,
     /** Unknown names and suggested replacements */
     readonly unknown: { name: string; suggestion: string | null }[] = [],
@@ -97,15 +98,27 @@ const asConfigSource = (raw: string): 'file' | 'database' => {
   if (raw === 'file' || raw === 'database') return raw;
   throw new ConfigError(
     problem('config.source-invalid', null, {
-      text: `SPEICHER_CONFIG_SOURCE: expected "file" or "database"; got ${JSON.stringify(raw)}.`,
+      text: `SPEICHER_CONFIG_SOURCE: invalid value ${JSON.stringify(raw)}. Use "file" or "database".`,
     }),
   );
 };
 
+/** PostgreSQL auth via URL password or Azure Entra token */
+export type DatabaseAuth = 'password' | AzureCredentialKind;
+
+function asDatabaseAuth(raw: string): DatabaseAuth {
+  if (raw === 'password' || isAzureCredentialKind(raw)) return raw;
+  throw new EnvError(
+    'env.invalid-value',
+    `SPEICHER_DATABASE_AUTH: invalid value ${JSON.stringify(raw)}. ` +
+      'Use "password", "managed_identity", "workload_identity", or "default".',
+    'SPEICHER_DATABASE_AUTH',
+  );
+}
+
 export const ENV_REGISTRY = {
   SPEICHER_CONFIG: define({
-    description:
-      'Instance YAML file path. The file must exist when `SPEICHER_CONFIG_SOURCE` is `file`.',
+    description: 'Instance YAML path. Must exist when `SPEICHER_CONFIG_SOURCE` is `file`.',
     parse: asString,
     fallback: './speicher.instance.yaml',
     required: false,
@@ -135,17 +148,40 @@ export const ENV_REGISTRY = {
     secret: false,
   }),
   SPEICHER_DATABASE_URL: define({
-    description: 'PostgreSQL connection URL. Startup fails if the database is unreachable.',
+    description: 'PostgreSQL URL. Database must be reachable at startup.',
     parse: asString,
     fallback: 'postgres://speicher:speicher@127.0.0.1:55432/speicher',
     required: false,
     readBy: 'both',
-    // Contains credentials
+    // URL includes credentials
     secret: true,
     alsoInScripts: true,
   }),
+  SPEICHER_DATABASE_AUTH: define({
+    description:
+      'PostgreSQL authentication: `password` uses the URL password. For Azure Entra tokens, use ' +
+      '`managed_identity` or `workload_identity`).',
+    parse: asDatabaseAuth,
+    fallback: 'password' as DatabaseAuth,
+    required: false,
+    readBy: 'both',
+    secret: false,
+    alsoInScripts: true,
+  }),
+  SPEICHER_DATABASE_CLIENT_ID: define({
+    description:
+      'Entra client ID for a user-assigned managed identity or workload identity app. ' +
+      'If unset, uses the system-assigned identity or `AZURE_CLIENT_ID`.',
+    parse: asString,
+    fallback: undefined as string | undefined,
+    defaultLabel: 'unset',
+    required: false,
+    readBy: 'both',
+    secret: false,
+    alsoInScripts: true,
+  }),
   SPEICHER_DB_POOL: define({
-    description: 'Maximum number of PostgreSQL connections in the pool.',
+    description: 'Maximum PostgreSQL connections in the pool.',
     parse: integerFor('SPEICHER_DB_POOL'),
     fallback: 10,
     required: false,
@@ -153,7 +189,7 @@ export const ENV_REGISTRY = {
     secret: false,
   }),
   SPEICHER_ASSET_PATH: define({
-    description: 'Upload directory. Must be writable by the process.',
+    description: 'Upload directory. The process needs write access.',
     parse: asString,
     fallback: './var/assets',
     required: false,

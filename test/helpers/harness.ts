@@ -11,12 +11,10 @@ import { ContentReports } from '../../src/authz/content/reports';
 import { SearchRepository } from '../../src/authz/content/search.repository';
 import { ConfigService } from '../../src/config/config.service';
 import { loadInstanceConfigFromFile } from '../../src/config/parser';
-import { migrateUp } from '../../src/db/migrate';
 import { Forge, Repo, initModels } from '../../src/db/models';
 import { getSequelize } from '../../src/db/sequelize';
-import { VECTOR_INDEX_NAME } from '../../src/embed/distance';
 import { IngestService } from '../../src/ingest/ingest.service';
-import { assertTestDatabase } from './test-database';
+import { truncateAsOwner } from './test-database';
 
 export const FIXTURE_ROOT = resolve(__dirname, '../fixtures');
 export const FIXTURE_SHA = '0'.repeat(40);
@@ -50,9 +48,7 @@ let blobRoot: string | null = null;
 export async function createHarness(): Promise<Harness> {
   const sequelize = getSequelize();
   initModels(sequelize);
-  await migrateUp(sequelize);
   await truncateAll();
-  await resetVectorIndex();
 
   const config = new ConfigService(
     loadInstanceConfigFromFile(process.env.SPEICHER_CONFIG as string),
@@ -185,23 +181,31 @@ export async function defaultTenantId(): Promise<string> {
   return rows[0].id;
 }
 
-export async function resetVectorIndex(): Promise<void> {
-  const sequelize = getSequelize();
-  assertTestDatabase(sequelize.getDatabaseName());
-  await sequelize.query(`DROP INDEX IF EXISTS ${VECTOR_INDEX_NAME}`);
-  await sequelize.query(`ALTER TABLE chunks ALTER COLUMN embedding TYPE vector`);
-}
-
 export async function truncateAll(): Promise<void> {
-  const sequelize = getSequelize();
-  assertTestDatabase(sequelize.getDatabaseName());
-  await sequelize.query(`
-    TRUNCATE documents, folders, assets, redirects, chunks, sync_runs, jobs,
-             repo_slug_history, repos, installations, forges, webhook_deliveries,
-             sessions, magic_link_tokens, login_flows, notification_state,
-             oauth_grants, oauth_codes,
-             rate_limits, instance_state, instance_configs, brand_images,
-             page_views, search_misses
-      RESTART IDENTITY CASCADE
-  `);
+  await truncateAsOwner([
+    'documents',
+    'folders',
+    'assets',
+    'redirects',
+    'chunks',
+    'sync_runs',
+    'jobs',
+    'repo_slug_history',
+    'repos',
+    'installations',
+    'forges',
+    'webhook_deliveries',
+    'sessions',
+    'magic_link_tokens',
+    'login_flows',
+    'notification_state',
+    'oauth_grants',
+    'oauth_codes',
+    'rate_limits',
+    'instance_state',
+    'instance_configs',
+    'brand_images',
+    'page_views',
+    'search_misses',
+  ]);
 }

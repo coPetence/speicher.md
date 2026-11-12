@@ -1,18 +1,18 @@
 import { join } from 'node:path';
 
-import { QueryInterface, Sequelize } from 'sequelize';
-import { SequelizeStorage, Umzug } from 'umzug';
+import { QueryInterface, QueryTypes, Sequelize } from 'sequelize';
+import { SequelizeStorage, Umzug, UmzugStorage } from 'umzug';
 
 import { getSequelize } from './sequelize';
+
+const MIGRATIONS_TABLE = 'schema_migrations';
 
 /**
  * Umzug migrator wired to the database
  *
- * Migrations live in src/db/migrations, one file per step
- * The storage table `schema_migrations` records which have been applied
- * Logger disabled to keep output quiet
+ * Migrations in src/db/migrations
  */
-export function buildUmzug(sequelize: Sequelize = getSequelize()) {
+export function buildUmzug(sequelize: Sequelize = getSequelize(), { readOnly = false } = {}) {
   return new Umzug({
     migrations: {
       // Picks up both `.ts` (dev) and `.js` (production build)
@@ -34,9 +34,41 @@ export function buildUmzug(sequelize: Sequelize = getSequelize()) {
       },
     },
     context: sequelize.getQueryInterface(),
-    storage: new SequelizeStorage({ sequelize, tableName: 'schema_migrations' }),
+    storage: readOnly
+      ? new ReadOnlyStorage(sequelize)
+      : new SequelizeStorage({ sequelize, tableName: MIGRATIONS_TABLE }),
     logger: undefined,
   });
+}
+
+/**
+ * Reads applied migrations with a plain SELECT
+ * Read-only, so web and worker only require read/write access to the schema_migrations table (no DDL rights)
+ */
+class ReadOnlyStorage implements UmzugStorage {
+  constructor(private readonly sequelize: Sequelize) {}
+
+  async executed(): Promise<string[]> {
+    const [table] = await this.sequelize.query<{ present: boolean }>(
+      `SELECT to_regclass(:table) IS NOT NULL AS present`,
+      { type: QueryTypes.SELECT, replacements: { table: MIGRATIONS_TABLE } },
+    );
+    // No table yet: nothing has been applied
+    if (!table.present) return [];
+    const rows = await this.sequelize.query<{ name: string }>(
+      `SELECT name FROM ${MIGRATIONS_TABLE} ORDER BY name`,
+      { type: QueryTypes.SELECT },
+    );
+    return rows.map((row) => row.name);
+  }
+
+  async logMigration(): Promise<void> {
+    throw new Error('the schema check cannot record migrations; run `speicher migrate up`');
+  }
+
+  async unlogMigration(): Promise<void> {
+    throw new Error('the schema check cannot revert migrations; run `speicher migrate down`');
+  }
 }
 
 /**
@@ -59,9 +91,11 @@ export async function migrateDown(sequelize?: Sequelize): Promise<string[]> {
 
 /**
  * List migration names that have not been applied yet
+ *
+ * Read-only, so web and worker only require read/write access to the schema_migrations table (no DDL rights)
  */
 export async function pendingMigrations(sequelize?: Sequelize): Promise<string[]> {
-  const umzug = buildUmzug(sequelize);
+  const umzug = buildUmzug(sequelize, { readOnly: true });
   return (await umzug.pending()).map((m) => m.name);
 }
 
