@@ -5,6 +5,7 @@
  * step with the rows
  */
 
+import { mountHistorySteps } from './history-steps';
 import { mountNav } from './slide';
 
 function mountSelectPage(): void {
@@ -32,6 +33,7 @@ function mountSelectPage(): void {
 
 function mount(): void {
   mountNav();
+  mountHistorySteps();
   mountSelectPage();
 }
 

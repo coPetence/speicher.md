@@ -5,6 +5,7 @@
  * Mounts nav folds for collapsible details/summary sections
  */
 
+import { mountHistorySteps } from './history-steps';
 import { mountNav } from './slide';
 
 const POLL_MS = 3_000;
@@ -65,6 +66,7 @@ function mountFindingsToggles(): void {
 
 function mount(): void {
   mountNav();
+  mountHistorySteps();
   mountSyncWatch();
   mountFindingsToggles();
 }

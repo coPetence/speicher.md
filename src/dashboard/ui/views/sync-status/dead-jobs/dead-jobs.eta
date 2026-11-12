@@ -1,4 +1,4 @@
-<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: 'Dead jobs' }] }) %>
+<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: 'Dead jobs' }], history: true }) %>
 
 <h1>Dead jobs</h1>
 <p class="spr-section-blurb"><%= it.intro %></p>
