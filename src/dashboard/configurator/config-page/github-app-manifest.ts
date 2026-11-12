@@ -21,6 +21,10 @@ import {
   convertManifestCode,
   manifestFormUrl,
 } from '../../../github/app-manifest';
+import type { CallerIdentity } from '../../../authz/caller';
+import type { ConfigService } from '../../../config/config.service';
+import { GithubProviderConfig, providerType } from '../../../config/types';
+import { githubLogin } from '../../../github/api';
 import { githubHosts } from '../../../github/hosts';
 import {
   directoryWebhookPath,
@@ -139,6 +143,24 @@ export interface ManifestUrls {
   origin: string;
   redirectUrl: string;
   setupUrl: string;
+  account?: string;
+}
+
+export interface GithubAdmin {
+  userId: string;
+  baseUrl?: string;
+}
+
+export function githubAdminOf(
+  config: Pick<ConfigService, 'provider'>,
+  identity: CallerIdentity | null,
+): GithubAdmin | null {
+  const provider = identity ? config.provider(identity.provider) : undefined;
+  if (!identity || !provider || providerType(provider) !== 'github') return null;
+  return {
+    userId: identity.subject,
+    baseUrl: (provider as GithubProviderConfig).base_url || undefined,
+  };
 }
 
 // What an App is created for, e.g. a content source or an identity provider
@@ -201,10 +223,12 @@ export function contentSourceTarget(forgeId: string, baseUrl = ''): ManifestTarg
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`forges.${forgeId}.app`),
     landsOnReady: true,
-    manifest: ({ origin, redirectUrl, setupUrl }) => {
+    manifest: ({ origin, redirectUrl, setupUrl, account }) => {
       const hook = webhookUrl(forgeId) ?? `${origin}${webhookPath(forgeId)}`;
       return appManifest({
         purpose: 'content-source',
+        sourceId: forgeId,
+        account,
         homepage: origin,
         // GitHub refuses a webhook on `localhost`
         webhookUrl: isLocalhostUrl(hook) ? undefined : hook,
@@ -252,9 +276,10 @@ export function identityProviderTarget(
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`auth.providers.${providerId}.app`),
     landsOnReady: true,
-    manifest: ({ origin, redirectUrl, setupUrl }) =>
+    manifest: ({ origin, redirectUrl, setupUrl, account }) =>
       appManifest({
         purpose: 'identity-provider',
+        account,
         homepage: origin,
         callbackUrl: `${origin}${GITHUB_CALLBACK_PATH}`,
         redirectUrl,
@@ -301,11 +326,12 @@ export function directoryTarget(providerId: string, baseUrl = ''): ManifestTarge
     baseUrl: baseUrl || undefined,
     switchName: choiceName(`auth.providers.${providerId}.directory.app`),
     landsOnReady: false,
-    manifest: ({ origin, redirectUrl, setupUrl }) => {
+    manifest: ({ origin, redirectUrl, setupUrl, account }) => {
       const hook =
         directoryWebhookUrl(providerId) ?? `${origin}${directoryWebhookPath(providerId)}`;
       return appManifest({
         purpose: 'directory',
+        account,
         homepage: origin,
         // GitHub refuses a webhook on `localhost`
         webhookUrl: isLocalhostUrl(hook) ? undefined : hook,
@@ -438,6 +464,7 @@ export class GithubAppManifestService {
    * @param owner the organization the App is created on. If it is empty, the App is created on the person's own account
    * @param origin the address of this instance, which GitHub sends the browser back to
    * @param form the page's form, carried to GitHub and back
+   * @param admin the administrator's GitHub account, which names an App created on it on localhost
    */
   async start(
     tenantId: string,
@@ -445,6 +472,7 @@ export class GithubAppManifestService {
     owner: string,
     origin: string,
     form: CarriedForm,
+    admin: GithubAdmin | null = null,
   ): Promise<{ handoff: ManifestHandoff; sealedForm: string; sealedHandoff: string }> {
     // The cookie holds the form sealed with this key, and only the flow's row holds the key
     const key = randomBytes(32);
@@ -475,6 +503,7 @@ export class GithubAppManifestService {
       redirectUrl: `${origin}${githubAppCallbackPath(target.sectionId, target.app)}`,
       // GitHub sends the browser here once the App is installed
       setupUrl: `${origin}${target.landsOnReady ? readyPath(target.sectionId) : configPageUrl}`,
+      account: owner || (await this.adminLogin(admin, target.baseUrl)),
     });
     const handoff: ManifestHandoff = {
       manifestPostUrl: manifestFormUrl(web, owner, state),
@@ -485,6 +514,23 @@ export class GithubAppManifestService {
     };
     // Sealed with the form's key, so the page that posts the manifest takes it from this flow only, unchanged
     return { handoff, sealedForm, sealedHandoff: `${state}.${seal(handoff, key)}` };
+  }
+
+  private async adminLogin(
+    admin: GithubAdmin | null,
+    baseUrl: string | undefined,
+  ): Promise<string | undefined> {
+    if (!admin) return undefined;
+    const { api } = githubHosts(baseUrl);
+    if (githubHosts(admin.baseUrl).api !== api) return undefined;
+    try {
+      return await githubLogin(this.fetchImpl, api, admin.userId);
+    } catch (err) {
+      this.log.warn('could not look up the GitHub login of the administrator', {
+        error: (err as Error).message,
+      });
+      return undefined;
+    }
   }
 
   /**

@@ -15,6 +15,7 @@ import {
   GITHUB_APP_FORM_COOKIE,
   GITHUB_APP_HANDOFF_COOKIE,
   GithubAppManifestService,
+  contentSourceTarget,
 } from '../../src/dashboard/configurator/config-page/github-app-manifest';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import type { AppManifest } from '../../src/github/app-manifest';
@@ -157,7 +158,12 @@ function manifestPostUrl(html: string): URL {
 /** The manifest the hand-off posts to GitHub */
 function manifestOf(html: string): AppManifest {
   const value = /name="manifest" value="([^"]+)"/.exec(html)?.[1] ?? '';
-  return JSON.parse(value.replace(/&quot;/g, '"').replace(/&amp;/g, '&')) as AppManifest;
+  return JSON.parse(
+    value
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&'),
+  ) as AppManifest;
 }
 
 /** The cookie that carries the page's form while the browser is on GitHub, as the start set it */
@@ -202,6 +208,43 @@ async function storeProvider(id: string): Promise<void> {
   await callback(id, `code=sign-in&state=${state}`, cookie, 'identity').expect(303);
   github.mockClear();
 }
+
+describe('the name of an App created on a personal account', () => {
+  const answers = (body: unknown, status = 200) =>
+    jest.fn(async () => new Response(JSON.stringify(body), { status }));
+  const start = (fetchImpl: typeof fetch, origin: string, baseUrl?: string) =>
+    new GithubAppManifestService(fetchImpl).start(
+      harness.tenantId,
+      contentSourceTarget('github2'),
+      '',
+      origin,
+      { body: {}, parts: {} },
+      { userId: '583231', baseUrl },
+    );
+
+  it("is the administrator's on localhost, by the login GitHub names for their account", async () => {
+    const lookup = answers({ login: 'timmol2' });
+    const { handoff } = await start(lookup as unknown as typeof fetch, 'http://localhost:3000');
+    expect(handoff.manifest.name).toBe("timmol2's speicher.md (github2)");
+    expect(lookup).toHaveBeenCalledWith('https://api.github.com/user/583231', expect.anything());
+  });
+
+  it('is the host when GitHub names no login', async () => {
+    const lookup = answers({ message: 'Not Found' }, 404);
+    const { handoff } = await start(lookup as unknown as typeof fetch, 'http://localhost:3000');
+    expect(handoff.manifest.name).toBe('localhost speicher.md (github2)');
+  });
+
+  it('asks nothing for an administrator of another GitHub', async () => {
+    const lookup = answers({ login: 'timmol2' });
+    await start(
+      lookup as unknown as typeof fetch,
+      'http://localhost:3000',
+      'https://ghe.acme.example',
+    );
+    expect(lookup).not.toHaveBeenCalled();
+  });
+});
 
 describe('creating the GitHub App of a new source from a manifest', () => {
   it('hands the manifest over to GitHub, and stores nothing yet', async () => {
@@ -503,8 +546,8 @@ describe('creating the GitHub App of a new identity provider from a manifest', (
 
     expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
     const manifest = manifestOf(response.text);
-    // Named after the host of this instance, which answers the test on 127.0.0.1
-    expect(manifest.name).toBe('127.0.0.1 speicher.md');
+    // Named after the organization it is created on, since this instance answers the test on 127.0.0.1
+    expect(manifest.name).toBe("acme's speicher.md");
     expect(manifest.callback_urls?.[0]).toMatch(/\/api\/auth\/github\/callback$/);
     expect(manifest.redirect_url).toMatch(
       /\/-\/config\/identity\/octo\/github-app\/manifest\/callback$/,
@@ -614,7 +657,7 @@ describe('creating the directory App of an identity provider from a manifest', (
 
     expect(manifestPostUrl(response.text).pathname).toBe('/organizations/acme/settings/apps/new');
     const manifest = manifestOf(response.text);
-    expect(manifest.name).toBe('speicher.md Directory');
+    expect(manifest.name).toBe("acme's speicher.md Directory");
     expect(manifest.default_permissions).toEqual({ members: 'read' });
     expect(manifest.callback_urls).toBeUndefined();
     expect(manifest.redirect_url).toMatch(
