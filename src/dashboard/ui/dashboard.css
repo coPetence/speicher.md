@@ -1971,30 +1971,32 @@
     overflow-wrap: anywhere;
   }
 
-  /* The funnel that opens the filter, tinted while the filter narrows the list */
-  .spr-filter-modal > summary {
+  .spr-filter-modal > summary,
+  .spr-filter-remove {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     min-height: calc(1lh + 2 * var(--spr-space-2) + 2 * var(--spr-border));
     padding: var(--spr-space-2) var(--spr-space-3);
     border: var(--spr-border) solid var(--spr-line);
-    background: var(--spr-surface);
+    border-radius: var(--spr-radius);
+    background: none;
     color: var(--spr-fg);
   }
 
-  .spr-filter-modal > summary:hover,
-  .spr-filter-modal[open] > summary {
-    border-color: var(--spr-accent);
-  }
-
-  .spr-filter-modal > summary .spr-icon {
+  .spr-filter-modal > summary .spr-icon,
+  .spr-filter-remove .spr-icon {
     width: 1.15em;
     height: 1.15em;
     margin: 0;
   }
 
+  .spr-filter-modal > summary:hover,
+  .spr-filter-modal[open] > summary {
+    background: var(--spr-surface);
+  }
+
   .spr-filter-modal[data-spr-active] > summary {
-    background: color-mix(in oklab, var(--spr-accent) 12%, var(--spr-surface));
     color: var(--spr-accent);
   }
 
@@ -2009,29 +2011,17 @@
     border-end-end-radius: 0;
   }
 
+  /* Its border lies over the funnel's, so both halves keep a full border and the same width */
   .spr-filter-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spr-space-2);
-    border: var(--spr-border) solid color-mix(in oklab, var(--spr-status-fail) 45%, var(--spr-line));
-    border-inline-start: 0;
-    border-start-end-radius: var(--spr-radius);
-    border-end-end-radius: var(--spr-radius);
-    background: color-mix(in oklab, var(--spr-status-fail) 14%, var(--spr-surface));
-    color: var(--spr-status-fail);
+    margin-inline-start: calc(-1 * var(--spr-border));
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    color: var(--spr-muted);
   }
 
   .spr-filter-remove:hover {
-    border-color: var(--spr-status-fail);
     background: var(--spr-status-fail);
     color: var(--spr-bg);
-  }
-
-  .spr-filter-remove .spr-icon {
-    width: 1em;
-    height: 1em;
-    margin: 0;
   }
 
   .spr-modal-panel.spr-filter-dialog {
