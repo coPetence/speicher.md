@@ -222,7 +222,8 @@ async function accessOf(
 function repositoriesText(access: InstallationAccess): string {
   const n = access.repositories;
   const noun = n === 1 ? 'repository' : 'repositories';
-  if (access.selection === 'all') return n === 1 ? 'its one repository' : `all ${n} ${noun}`;
+  if (access.selection === 'all-repositories')
+    return n === 1 ? 'its one repository' : `all ${n} ${noun}`;
   return n === 0 ? 'no repositories yet' : `${n} selected ${noun}`;
 }
 

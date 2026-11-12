@@ -44,15 +44,15 @@ interface GithubReach {
 
 export type SourceCheck = Pick<
   CheckModal,
-  | 'problem'
-  | 'repositories'
-  | 'more'
-  | 'installation_href'
-  | 'account'
-  | 'selection'
-  | 'new_repository_href'
+  | 'unchecked_reason'
+  | 'checked_repositories'
+  | 'has_unchecked_repositories'
+  | 'github_installation_href'
+  | 'installation_account'
+  | 'repository_selection'
+  | 'create_repository_href'
 > & {
-  missing: MissingGroup[];
+  missing_groups: MissingGroup[];
 };
 
 /**
@@ -77,7 +77,11 @@ export async function checkSource(
   const privateKey = String(forge.private_key);
   const { api, web } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
   const log = rootLogger.child('config.quick-setup');
-  const nothing = { repositories: [], more: false, missing: [] };
+  const nothing = {
+    checked_repositories: [],
+    has_unchecked_repositories: false,
+    missing_groups: [],
+  };
   const memory = sourceMemory(api, appId, privateKey, fetchImpl, fresh);
   const reach = { api, web, appId, privateKey, fetchImpl };
   // What the check was doing, so a failure says where it stopped
@@ -89,7 +93,7 @@ export async function checkSource(
     if (!installation) {
       return {
         ...nothing,
-        problem: {
+        unchecked_reason: {
           text: `The App is not installed on **${app.owner.accountName}** yet, so it cannot access any repositories.`,
           href: githubAppLinks(web, app.slug, app.owner).installUrl,
           label: 'Install on GitHub',
@@ -126,15 +130,15 @@ export async function checkSource(
       verdict: repo.files ? checkRepository(repo.files, known) : null,
     }));
     return {
-      more: read.more,
-      repositories: checked.map(({ repo, verdict }) =>
+      has_unchecked_repositories: read.more,
+      checked_repositories: checked.map(({ repo, verdict }) =>
         checkRow(repo, verdict, web, sourceId, back, known),
       ),
-      missing: missingGroups(checked),
-      installation_href: installationUrl(web, app.owner, installation.installationId),
-      account: app.owner.accountName,
-      selection: installation.selection,
-      new_repository_href: `${web}/new?${new URLSearchParams({ owner: app.owner.accountName })}`,
+      missing_groups: missingGroups(checked),
+      github_installation_href: installationUrl(web, app.owner, installation.installationId),
+      installation_account: app.owner.accountName,
+      repository_selection: installation.selection,
+      create_repository_href: `${web}/new?${new URLSearchParams({ owner: app.owner.accountName })}`,
     };
   } catch (err) {
     memory.installation ??= null;
@@ -146,7 +150,7 @@ export async function checkSource(
       code: err instanceof CodedError ? err.code : undefined,
       error: message,
     });
-    return { ...nothing, problem: { text: `Could not ${step}: ${message}.` } };
+    return { ...nothing, unchecked_reason: { text: `Could not ${step}: ${message}.` } };
   }
 }
 

@@ -24,10 +24,10 @@ const checked = (overrides: Partial<SourceCheck> = {}): Map<string, SourceCheck>
     [
       'gh',
       {
-        repositories: [],
-        more: false,
-        missing: [],
-        installation_href: 'https://github.com/organizations/acme/settings/installations/5',
+        checked_repositories: [],
+        has_unchecked_repositories: false,
+        missing_groups: [],
+        github_installation_href: 'https://github.com/organizations/acme/settings/installations/5',
         ...overrides,
       },
     ],
@@ -64,7 +64,7 @@ describe('the next step of the repositories page', () => {
     const fix = nextFix(
       input({
         checks: checked({
-          problem: {
+          unchecked_reason: {
             text: 'The App is not installed on **acme** yet.',
             href: 'https://github.com/apps/speicher-acme/installations/new',
             label: 'Install on GitHub',
@@ -90,9 +90,9 @@ describe('the next step of the repositories page', () => {
     const fix = nextFix(
       input({
         checks: checked({
-          account: 'acme',
-          selection: 'all',
-          new_repository_href: 'https://github.com/new?owner=acme',
+          installation_account: 'acme',
+          repository_selection: 'all-repositories',
+          create_repository_href: 'https://github.com/new?owner=acme',
         }),
       }),
     );
@@ -103,7 +103,14 @@ describe('the next step of the repositories page', () => {
       secondary: { href: 'https://github.com/organizations/acme/settings/installations/5' },
     });
     expect(
-      nextFix(input({ checks: checked({ account: 'acme', selection: 'selected' }) }))?.id,
+      nextFix(
+        input({
+          checks: checked({
+            installation_account: 'acme',
+            repository_selection: 'selected-repositories',
+          }),
+        }),
+      )?.id,
     ).toBe('no-repository');
   });
 
@@ -178,7 +185,7 @@ describe('the next step of the repositories page', () => {
   it('opens the modal of a new file in place when one repository can have it', () => {
     const fix = nextFix(
       input({
-        checks: checked({ repositories: [] }),
+        checks: checked({ checked_repositories: [] }),
         rows: [
           row('acme/handbook', {
             file: {
@@ -407,7 +414,9 @@ describe('the next step of the repositories page', () => {
           finished: true,
           rows: [row('acme/handbook')],
           checks: checked({
-            repositories: [{ name: 'acme/handbook', href: '', state: 'unpublished', text: '' }],
+            checked_repositories: [
+              { name: 'acme/handbook', href: '', state: 'unpublished', text: '' },
+            ],
           }),
         }),
       ),

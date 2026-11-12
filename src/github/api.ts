@@ -61,13 +61,13 @@ export async function githubRequest(
 }
 
 /**
- * githubLogin returns the login of a GitHub account, by the account's numeric id.
+ * fetchGithubUsername asks GitHub for the user name of an account, by the account's numeric id.
  *
  * @param fetchImpl how GitHub is reached
  * @param api the GitHub API base, e.g. `https://api.github.com`
  * @param userId the account's numeric id, e.g. `583231`
  */
-export async function githubLogin(
+export async function fetchGithubUsername(
   fetchImpl: typeof fetch,
   api: string,
   userId: string,

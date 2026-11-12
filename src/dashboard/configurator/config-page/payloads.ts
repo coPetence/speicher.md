@@ -2,6 +2,7 @@ import { Document } from 'yaml';
 
 import { EnvReportRow } from '../../../common/env';
 import { SaveVerdict } from '../../../config/classification';
+import type { RepositorySelection } from '../../../github/app-installation';
 import { ConfigSource, SkippedConfigVersion } from '../../../config/types';
 import { ShapeControl } from '../config-form/collections';
 import { FormSection } from '../config-form/model';
@@ -141,14 +142,14 @@ export interface CheckModal {
   id: string;
   title: string;
   // Why no repository could be checked, e.g. the App is not installed yet
-  problem?: { text: string; href?: string; label?: string };
-  repositories: CheckRow[];
+  unchecked_reason?: { text: string; href?: string; label?: string };
+  checked_repositories: CheckRow[];
   // Whether the source reads more repositories than were checked
-  more: boolean;
-  installation_href?: string;
-  account?: string;
-  selection?: 'all' | 'selected';
-  new_repository_href?: string;
+  has_unchecked_repositories: boolean;
+  github_installation_href?: string;
+  installation_account?: string;
+  repository_selection?: RepositorySelection;
+  create_repository_href?: string;
   // Not checked yet: the page answers at once, and the check runs at this address, which the modal is swapped for
   pending?: { href: string };
   primary: ReadyModal['primary'];

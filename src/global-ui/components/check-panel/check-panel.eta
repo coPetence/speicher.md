@@ -8,7 +8,7 @@
   const check = it.check;
   const titleId = 'check-' + check.id + '-title';
   const count = function (state) {
-    return check.repositories.filter(function (repo) { return repo.state === state; }).length;
+    return check.checked_repositories.filter(function (repo) { return repo.state === state; }).length;
   };
   const ready = count('ready');
 %>
@@ -21,31 +21,31 @@
     <p class="spr-check-summary spr-pending" data-spr-defer-text>
       <%~ it.syncingIcon || '' %>Loading GitHub repositories and <code>.speicher.yaml</code> files… <a href="<%= check.pending.href %>">Check now</a>
     </p>
-    <% } else if (check.problem) { %>
-    <%~ include('@note', { level: 'warn', html: md(check.problem.text) }) %>
-    <% if (check.problem.href && check.problem.label) { %>
-    <a class="spr-ready-action" href="<%= check.problem.href %>" target="_blank" rel="noopener"><%= check.problem.label %><%~ it.externalIcon || '' %></a>
+    <% } else if (check.unchecked_reason) { %>
+    <%~ include('@note', { level: 'warn', html: md(check.unchecked_reason.text) }) %>
+    <% if (check.unchecked_reason.href && check.unchecked_reason.label) { %>
+    <a class="spr-ready-action" href="<%= check.unchecked_reason.href %>" target="_blank" rel="noopener"><%= check.unchecked_reason.label %><%~ it.externalIcon || '' %></a>
     <% } %>
-    <% } else if (check.repositories.length === 0 && check.selection === 'all' && check.account) { %>
-    <p class="spr-check-summary">The App can read all repositories of <strong><%= check.account %></strong>, but the account has no repositories yet. Create a repository for your Markdown pages.</p>
-    <% if (check.new_repository_href) { %>
-    <a class="spr-ready-action" href="<%= check.new_repository_href %>" target="_blank" rel="noopener" data-spr-check-empty="create-repository">Create a repository<%~ it.externalIcon || '' %></a>
+    <% } else if (check.checked_repositories.length === 0 && check.repository_selection === 'all-repositories' && check.installation_account) { %>
+    <p class="spr-check-summary">The App can read all repositories of <strong><%= check.installation_account %></strong>, but the account has no repositories yet. Create a repository for your Markdown pages.</p>
+    <% if (check.create_repository_href) { %>
+    <a class="spr-ready-action" href="<%= check.create_repository_href %>" target="_blank" rel="noopener" data-spr-check-empty="create-repository">Create a repository<%~ it.externalIcon || '' %></a>
     <% } %>
-    <% } else if (check.repositories.length === 0) { %>
+    <% } else if (check.checked_repositories.length === 0) { %>
     <p class="spr-check-summary">The App is installed, but it cannot read any repositories. Add the repositories you want to publish to its installation.</p>
-    <% if (check.installation_href) { %>
-    <a class="spr-ready-action" href="<%= check.installation_href %>" target="_blank" rel="noopener" data-spr-check-empty="installation">Open the installation<%~ it.externalIcon || '' %></a>
+    <% if (check.github_installation_href) { %>
+    <a class="spr-ready-action" href="<%= check.github_installation_href %>" target="_blank" rel="noopener" data-spr-check-empty="installation">Open the installation<%~ it.externalIcon || '' %></a>
     <% } %>
     <% } else { %>
     <p class="spr-check-summary">
-      <%= ready %> of <%= check.repositories.length %> <%= check.repositories.length === 1 ? 'repository is' : 'repositories are' %> ready
+      <%= ready %> of <%= check.checked_repositories.length %> <%= check.checked_repositories.length === 1 ? 'repository is' : 'repositories are' %> ready
     </p>
     <ul class="spr-check-list">
-      <% check.repositories.forEach(function (repo) { %>
+      <% check.checked_repositories.forEach(function (repo) { %>
       <%~ include('@check-panel/row', { repo: repo, icon: it.checkIcons[repo.state], externalIcon: it.externalIcon }) %>
       <% }) %>
     </ul>
-    <% if (check.more) { %>
+    <% if (check.has_unchecked_repositories) { %>
     <p class="spr-check-summary">The App reads more repositories than were checked here.</p>
     <% } %>
     <% } %>

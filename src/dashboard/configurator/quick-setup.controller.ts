@@ -47,7 +47,7 @@ import {
   GithubAppManifestError,
   repositoriesConfigFilePath,
   GithubAppManifestService,
-  githubAdminOf,
+  findSpeicherAdminAccount,
   readyPath,
   sourceCheckPath,
   sourceConfigFilePath,
@@ -159,7 +159,7 @@ export class QuickSetupController {
             start.owner,
             originOf(req),
             { body: {}, parts: {}, quick: true, public: start.public },
-            githubAdminOf(this.config, caller.identity),
+            findSpeicherAdminAccount(this.config, caller.identity),
           );
           return handOffToGithub(res, start.target, started, 'modal');
         } catch (err) {
@@ -262,8 +262,8 @@ export class QuickSetupController {
     if (!ranNow(req)) {
       payload.check = {
         ...modal,
-        repositories: [],
-        more: false,
+        checked_repositories: [],
+        has_unchecked_repositories: false,
         pending: { href: withRun(sourceCheckPath(id), askedFresh(req)) },
         primary: done,
       };
@@ -273,18 +273,18 @@ export class QuickSetupController {
     const checked = await this.checkRepositories(id, forge, askedFresh(req));
     payload.check = {
       ...modal,
-      problem: checked.problem,
-      repositories: checked.repositories,
-      more: checked.more,
-      installation_href: checked.installation_href,
-      account: checked.account,
-      selection: checked.selection,
-      new_repository_href: checked.new_repository_href,
+      unchecked_reason: checked.unchecked_reason,
+      checked_repositories: checked.checked_repositories,
+      has_unchecked_repositories: checked.has_unchecked_repositories,
+      github_installation_href: checked.github_installation_href,
+      installation_account: checked.installation_account,
+      repository_selection: checked.repository_selection,
+      create_repository_href: checked.create_repository_href,
       // Missing groups are created next; otherwise the check is done, or the first setup goes on
       primary:
-        checked.missing.length > 0
+        checked.missing_groups.length > 0
           ? {
-              label: `Create ${checked.missing.length === 1 ? 'the missing group' : `${checked.missing.length} missing groups`}`,
+              label: `Create ${checked.missing_groups.length === 1 ? 'the missing group' : `${checked.missing_groups.length} missing groups`}`,
               href: sourceGroupsPath(id),
               onward: true,
             }
@@ -313,7 +313,7 @@ export class QuickSetupController {
       });
     }
     const checked = await this.checkRepositories(id, forge);
-    await this.sendCreateGroups(req, res, caller, state, id, checked.missing);
+    await this.sendCreateGroups(req, res, caller, state, id, checked.missing_groups);
   }
 
   /** Create the groups the modal was sent with, then check the repositories again */
@@ -369,7 +369,7 @@ export class QuickSetupController {
 
     // Refused: the modal again, with why
     const checked = await this.checkRepositories(id, forge);
-    await this.sendCreateGroups(req, res, caller, state, id, checked.missing, refusal);
+    await this.sendCreateGroups(req, res, caller, state, id, checked.missing_groups, refusal);
   }
 
   /** The groups a new `.speicher.yaml` grants reading to, as a modal over the list of sources */

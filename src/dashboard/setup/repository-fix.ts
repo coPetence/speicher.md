@@ -121,21 +121,22 @@ function fixOfSources(
   rows: RepositoryTableRow[],
 ): RepositoryFix | null {
   for (const [id, check] of checks) {
-    if (!check.problem) continue;
-    if (check.problem.href && check.problem.label) {
+    const reason = check.unchecked_reason;
+    if (!reason) continue;
+    if (reason.href && reason.label) {
       return {
         id: 'install',
         waits: false,
         title: 'Install the GitHub App',
-        text: check.problem.text,
-        action: { label: check.problem.label, href: check.problem.href, external: true },
+        text: reason.text,
+        action: { label: reason.label, href: reason.href, external: true },
       };
     }
     return {
       id: 'check-failed',
       waits: false,
       title: `speicher.md could not check the repositories of ${id}`,
-      text: check.problem.text,
+      text: reason.text,
       action: {
         label: 'Open the content source',
         href: `/-/config/sources/${encodeURIComponent(id)}`,
@@ -143,20 +144,20 @@ function fixOfSources(
     };
   }
   for (const [id, check] of checks) {
-    if (check.repositories.length > 0 || !check.installation_href) continue;
+    if (check.checked_repositories.length > 0 || !check.github_installation_href) continue;
     if (rows.some((row) => row.source === id)) continue;
-    if (check.selection === 'all' && check.account) {
+    if (check.repository_selection === 'all-repositories' && check.installation_account) {
       return {
         id: 'create-repository',
         waits: false,
-        title: `Create a repository on ${check.account}`,
-        text: `The GitHub App can read all repositories of **${check.account}**, but the account has no repositories yet. Create a repository for your Markdown pages.`,
-        action: check.new_repository_href
-          ? { label: 'Create a repository', href: check.new_repository_href, external: true }
+        title: `Create a repository on ${check.installation_account}`,
+        text: `The GitHub App can read all repositories of **${check.installation_account}**, but the account has no repositories yet. Create a repository for your Markdown pages.`,
+        action: check.create_repository_href
+          ? { label: 'Create a repository', href: check.create_repository_href, external: true }
           : undefined,
         secondary: {
           label: 'Open the installation',
-          href: check.installation_href,
+          href: check.github_installation_href,
           external: true,
         },
       };
@@ -166,7 +167,11 @@ function fixOfSources(
       waits: false,
       title: 'Give the GitHub App access to a repository',
       text: 'The App is installed, but it cannot read any repositories. Add the repositories you want to publish to its installation.',
-      action: { label: 'Open the installation', href: check.installation_href, external: true },
+      action: {
+        label: 'Open the installation',
+        href: check.github_installation_href,
+        external: true,
+      },
     };
   }
   return null;

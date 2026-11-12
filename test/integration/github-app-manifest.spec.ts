@@ -244,6 +244,13 @@ describe('the name of an App created on a personal account', () => {
     );
     expect(lookup).not.toHaveBeenCalled();
   });
+
+  it('asks nothing on a public address, where the hostname names the App', async () => {
+    const lookup = answers({ login: 'timmol2' });
+    const { handoff } = await start(lookup as unknown as typeof fetch, 'https://acme.example');
+    expect(handoff.manifest.name).toBe('acme.example speicher.md (github2)');
+    expect(lookup).not.toHaveBeenCalled();
+  });
 });
 
 describe('creating the GitHub App of a new source from a manifest', () => {

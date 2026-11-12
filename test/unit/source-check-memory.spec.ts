@@ -87,7 +87,7 @@ describe('a check of a source that was checked before', () => {
     const second = await check(fetchImpl);
 
     expect(asked).toEqual(['/app/installations', '/installation/repositories']);
-    expect(second.repositories).toEqual(first.repositories);
+    expect(second.checked_repositories).toEqual(first.checked_repositories);
   });
 
   it('reads a repository again once it has a new push, such as a new .speicher.yaml', async () => {
@@ -97,14 +97,14 @@ describe('a check of a source that was checked before', () => {
       'acme/wiki': wiki,
     });
     const first = await check(fetchImpl);
-    expect(first.repositories.map((row) => row.state)).toEqual(['ready', 'unpublished']);
+    expect(first.checked_repositories.map((row) => row.state)).toEqual(['ready', 'unpublished']);
 
     wiki.pushed_at = '2026-11-01T10:05:00Z';
     wiki.files = { '.speicher.yaml': CONFIG };
     asked.length = 0;
     const second = await check(fetchImpl);
 
-    expect(second.repositories.map((row) => row.state)).toEqual(['ready', 'ready']);
+    expect(second.checked_repositories.map((row) => row.state)).toEqual(['ready', 'ready']);
     expect(asked).toContain('/repos/acme/wiki/git/trees/main');
     expect(asked.some((path) => path.startsWith('/repos/acme/handbook/'))).toBe(false);
   });
@@ -117,7 +117,7 @@ describe('a check of a source that was checked before', () => {
       },
     });
     const first = await check(fetchImpl);
-    expect(first.repositories[0].state).toBe('unknown-groups');
+    expect(first.checked_repositories[0].state).toBe('unknown-groups');
 
     const second = await checkSource(
       'gh',
@@ -125,7 +125,7 @@ describe('a check of a source that was checked before', () => {
       { ...known, hasGroup: (name: string) => name === 'sales' },
       fetchImpl,
     );
-    expect(second.repositories[0].state).toBe('ready');
+    expect(second.checked_repositories[0].state).toBe('ready');
   });
 
   it('asks GitHub for everything when the person checks again', async () => {
@@ -190,7 +190,7 @@ describe('a check of a source that was checked before', () => {
     expect(rememberedInstallation(forge, fetchImpl)).toEqual({
       href: 'https://github.com/settings/installations/5',
       account: 'acme',
-      selection: 'all',
+      selection: 'all-repositories',
     });
     expect(asked).toEqual([]);
   });
@@ -206,10 +206,13 @@ describe('a check of a source that was checked before', () => {
 
     const checked = await check(fetchImpl);
 
-    expect(checked.repositories).toHaveLength(111);
-    expect(checked.repositories[110]).toMatchObject({ name: 'acme/repo-110', state: 'ready' });
-    expect(checked.repositories[110].edit_href).toContain('/edit/main/.speicher.yaml');
-    expect(checked.more).toBe(false);
+    expect(checked.checked_repositories).toHaveLength(111);
+    expect(checked.checked_repositories[110]).toMatchObject({
+      name: 'acme/repo-110',
+      state: 'ready',
+    });
+    expect(checked.checked_repositories[110].edit_href).toContain('/edit/main/.speicher.yaml');
+    expect(checked.has_unchecked_repositories).toBe(false);
     expect(asked.filter((path) => path === '/installation/repositories')).toHaveLength(2);
   });
 
@@ -220,7 +223,7 @@ describe('a check of a source that was checked before', () => {
 
     await lookUpInstallation('gh', forge, fetchImpl);
 
-    expect(rememberedInstallation(forge, fetchImpl)?.selection).toBe('all');
+    expect(rememberedInstallation(forge, fetchImpl)?.selection).toBe('all-repositories');
     expect(asked).toEqual(['/app', '/app/installations', expect.stringContaining('access_tokens')]);
     expect(asked.join(' ')).not.toContain('/repos/');
 
