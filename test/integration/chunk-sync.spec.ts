@@ -217,8 +217,8 @@ describe('chunks at ingest', () => {
     expect((await chunks('alpha')).length).toBeGreaterThan(0);
   });
 
-  it('takes the whole repository with it when it is unpublished', async () => {
-    await harness.ingest.purgeRepo(repoId);
+  it('takes the whole repository with it when it is removed', async () => {
+    await harness.ingest.removeRepo(repoId);
     expect(await chunks()).toEqual([]);
   });
 });

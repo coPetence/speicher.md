@@ -16,7 +16,7 @@ const row = (name: string, source: string): RepositoryTableRow => ({
   file: { level: 'idle', label: 'missing' },
   access: null,
   groups: null,
-  sync: { state: 'unpublished', activity: null, last_error: null },
+  sync: { state: 'unpublished', activity: null, last_error: null, documents: 0 },
   readable: false,
 });
 

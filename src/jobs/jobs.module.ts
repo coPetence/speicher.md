@@ -41,9 +41,9 @@ import { Worker } from './worker';
     },
     {
       provide: RegistrationService,
-      inject: [ConfigService, ForgeRegistry, RoutingService],
-      useFactory: (c: ConfigService, f: ForgeRegistry, r: RoutingService) =>
-        new RegistrationService(c, f, r),
+      inject: [ConfigService, ForgeRegistry, RoutingService, IngestService],
+      useFactory: (c: ConfigService, f: ForgeRegistry, r: RoutingService, i: IngestService) =>
+        new RegistrationService(c, f, r, i),
     },
     {
       provide: SyncService,

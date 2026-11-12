@@ -13,6 +13,7 @@ import { Logger, rootLogger } from '../../common/logger';
 import { ConfigService } from '../../config/config.service';
 import { providerType } from '../../config/types';
 import { TenancyService } from '../../db/tenancy';
+import { JobQueue } from '../../jobs/queue';
 import { GITHUB_APP_LOOKUP_FETCH } from '../../github/app-links';
 import { githubHosts } from '../../github/hosts';
 import { memberSectionId } from '../configurator/config-form/members';
@@ -25,10 +26,13 @@ import {
   githubSourceOf,
   lookUpInstallation,
   rememberedInstallation,
+  rememberedListing,
   rememberedRows,
+  SourceCheck,
 } from '../configurator/quick-setup/source-check';
 import { DashboardResponder } from '../respond';
 import { StatusService } from '../status/status.service';
+import type { RepoStatus } from '../status/status.types';
 import {
   ProvableProvider,
   sendSetupAdministrator,
@@ -36,7 +40,12 @@ import {
 import { sendSetup } from '../ui/views/setup/setup-overview/setup-overview';
 import { sendSetupRepository } from '../ui/views/setup/setup-repository/setup-repository';
 import { BLOCKING_FIXES, nextFix } from './repository-fix';
-import { addRepositorySources, repositoryMatchText, repositoryTable } from './repository-table';
+import {
+  addRepositorySources,
+  repositoryKey,
+  repositoryMatchText,
+  repositoryTable,
+} from './repository-table';
 import { SetupService } from './setup.service';
 import { REPOSITORY_STEP_PATH, SETUP_LATER_COOKIE } from './steps';
 
@@ -54,6 +63,7 @@ export class SetupWizardController {
     private readonly respond: DashboardResponder,
     private readonly setup: SetupService,
     private readonly status: StatusService,
+    private readonly queue: JobQueue,
     @Inject(GITHUB_APP_LOOKUP_FETCH) private readonly fetchImpl: typeof fetch,
   ) {}
 
@@ -93,7 +103,7 @@ export class SetupWizardController {
       this.status.statusPayload(caller, 'all'),
       this.setup.readableRepositories(caller.tenantId, caller.principals),
     ]);
-    const discovering = status.instance?.discovering ?? [];
+    const discovering = [...(status.instance?.discovering ?? [])];
 
     // The checks ask GitHub, so the page answers at once and asks for them at the check address
     const checking = req.query.check === '1';
@@ -127,6 +137,12 @@ export class SetupWizardController {
             ),
           )
         : null;
+    const vanished = this.vanished(github, checks, status.repos);
+    if (checks && fresh) {
+      for (const id of await this.discover(caller.tenantId, vanished)) {
+        if (!discovering.includes(id)) discovering.push(id);
+      }
+    }
     // Far quicker than the checks, so the modal that adds a repository need not wait for them
     if (req.query.installations === '1') {
       await Promise.all(
@@ -141,7 +157,12 @@ export class SetupWizardController {
             rememberedRows(id, forge, this.config, this.fetchImpl, 'setup'),
           ]),
     );
-    const rows = repositoryTable(status.repos, readable, found, copies);
+    const rows = repositoryTable(
+      status.repos.filter((repo) => !vanished.includes(repo)),
+      readable,
+      found,
+      copies,
+    );
     const busy = discovering.length > 0 || rows.some((row) => row.sync?.activity);
     const shown = rows.filter((row) => repositoryMatchText(row).includes(query.toLowerCase()));
 
@@ -212,6 +233,50 @@ export class SetupWizardController {
       busy,
       readable: readable.length > 0,
     });
+  }
+
+  private vanished(
+    github: Map<string, Record<string, unknown>>,
+    checks: Map<string, SourceCheck> | null,
+    synced: RepoStatus[],
+  ): RepoStatus[] {
+    const listings = new Map<string, { account: string; keys: Set<string> }>();
+    for (const [id, forge] of github) {
+      const check = checks?.get(id);
+      // Only a complete listing says a repository is gone
+      const listing = checks
+        ? check && !check.problem && !check.more && check.account
+          ? { account: check.account, names: check.repositories.map((repo) => repo.name) }
+          : undefined
+        : rememberedListing(forge, this.fetchImpl);
+      if (!listing) continue;
+      listings.set(id, {
+        account: listing.account.toLowerCase(),
+        keys: new Set([...listing.names].map(repositoryKey)),
+      });
+    }
+
+    return synced.filter((repo) => {
+      const listing = repo.forge_key ? listings.get(repo.forge_key) : undefined;
+      return (
+        listing !== undefined &&
+        repo.namespace.toLowerCase() === listing.account &&
+        !listing.keys.has(repositoryKey(`${repo.namespace}/${repo.slug}`))
+      );
+    });
+  }
+
+  private async discover(tenantId: string, repos: RepoStatus[]): Promise<string[]> {
+    const queued = [...new Set(repos.map((repo) => repo.forge_key ?? ''))].filter(Boolean);
+    for (const id of queued) {
+      await this.queue.enqueue({
+        tenantId,
+        kind: 'sync-repo-list',
+        payload: { forgeKey: id },
+        dedupeKey: `sync-repo-list:${id}`,
+      });
+    }
+    return queued;
   }
 
   /**

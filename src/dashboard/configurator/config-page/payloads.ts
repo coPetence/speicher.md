@@ -145,6 +145,10 @@ export interface CheckModal {
   repositories: CheckRow[];
   // Whether the source reads more repositories than were checked
   more: boolean;
+  installation_href?: string;
+  account?: string;
+  selection?: 'all' | 'selected';
+  new_repository_href?: string;
   // Not checked yet: the page answers at once, and the check runs at this address, which the modal is swapped for
   pending?: { href: string };
   primary: ReadyModal['primary'];
@@ -193,6 +197,7 @@ export interface CheckRow {
   create_href?: string;
   create_action?: string;
   edit_href?: string;
+  new_page_href?: string;
   readers?: string;
   groups?: string[];
   misnamed?: string;

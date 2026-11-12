@@ -26,7 +26,13 @@ import {
   missingGroups,
   publicRepoRef,
 } from './repository-check';
-import { APP_DETAILS_MS, SourceInstallation, SourceMemory, sourceMemory } from './source-memory';
+import {
+  APP_DETAILS_MS,
+  SourceInstallation,
+  SourceListing,
+  SourceMemory,
+  sourceMemory,
+} from './source-memory';
 
 interface GithubReach {
   api: string;
@@ -36,10 +42,17 @@ interface GithubReach {
   fetchImpl: typeof fetch;
 }
 
-export type SourceCheck = Pick<CheckModal, 'problem' | 'repositories' | 'more'> & {
+export type SourceCheck = Pick<
+  CheckModal,
+  | 'problem'
+  | 'repositories'
+  | 'more'
+  | 'installation_href'
+  | 'account'
+  | 'selection'
+  | 'new_repository_href'
+> & {
   missing: MissingGroup[];
-  // The installation's page on GitHub, where the repositories it reads are picked
-  installation_href?: string;
 };
 
 /**
@@ -93,6 +106,12 @@ export async function checkSource(
       memory.repositories,
       isMisnamedConfigFilename,
     );
+    memory.listed = read.more
+      ? undefined
+      : {
+          account: app.owner.accountName,
+          names: new Set(read.repositories.map((repo) => repo.fullName)),
+        };
     for (const repo of read.repositories) {
       if (repo.files !== null) continue;
       log.warn('could not read the .speicher.yaml files of a repository', {
@@ -113,6 +132,9 @@ export async function checkSource(
       ),
       missing: missingGroups(checked),
       installation_href: installationUrl(web, app.owner, installation.installationId),
+      account: app.owner.accountName,
+      selection: installation.selection,
+      new_repository_href: `${web}/new?${new URLSearchParams({ owner: app.owner.accountName })}`,
     };
   } catch (err) {
     memory.installation ??= null;
@@ -157,6 +179,14 @@ export function rememberedRows(
       known,
     ),
   );
+}
+
+export function rememberedListing(
+  forge: Record<string, unknown>,
+  fetchImpl: typeof fetch,
+): SourceListing | undefined {
+  const { api } = githubHosts(typeof forge.base_url === 'string' ? forge.base_url : undefined);
+  return sourceMemory(api, String(forge.app_id), String(forge.private_key), fetchImpl).listed;
 }
 
 /**
@@ -335,6 +365,7 @@ function checkRow(
         name,
         href,
         ...edit,
+        new_page_href: `${href}/new/${encodeURIComponent(repo.defaultBranch)}?filename=index.md`,
         state: 'ready',
         text: `Readable by ${readers}`,
         readers,

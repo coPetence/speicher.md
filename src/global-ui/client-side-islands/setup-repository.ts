@@ -32,19 +32,25 @@ const REPOSITORY_ROWS = `${ROWS} > tr[data-spr-repo-row]`;
 const SWAPPED = ['[data-spr-setup-region="group"]', '.spr-guide'];
 const DONE = '[data-spr-readable]';
 const REFRESH = 'form[data-spr-refresh]';
+const SYNC_AGAIN = `${FIX} form[data-spr-auto="on-return"]`;
+const DONE_ON_GITHUB = ['create-repository', 'no-repository', 'no-page']
+  .map((id) => `${FIX} [data-spr-setup-fix="${id}"]`)
+  .join(', ');
 
 // Narrows the rows again after rows were added or swapped; none when the server narrowed the page
 let refilter: (() => void) | null = null;
 let running: Promise<boolean> | null = null;
+let refreshNow: (() => Promise<void>) | null = null;
+const posted = new Set<string>();
 
 export function mountRepositoryStep(): void {
   if (!document.querySelector(STEP)) return;
   refilter = mountFilter('[data-spr-repository-table]');
   mountRefreshButton();
   // In this order, so the checks reuse the App and the token the lookup asked GitHub for
-  void lookUpSources(page).then(() =>
-    check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref),
-  );
+  void lookUpSources(page)
+    .then(() => check(document.querySelector<HTMLElement>(FIX)?.dataset.sprCheckHref))
+    .then(() => postAuto('now'));
   mountRefresh();
   mountConfigFilePicker();
   mountAddRepository(check);
@@ -54,9 +60,21 @@ function mountRefreshButton(): void {
   const form = document.querySelector<HTMLFormElement>(REFRESH);
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
-    const query = new URLSearchParams([...new FormData(form)] as [string, string][]);
-    void check(`${form.getAttribute('action')}?${query}`);
+    if (!document.querySelector(SYNC_AGAIN)) {
+      void check(freshCheckHref());
+      return;
+    }
+    showChecking(true);
+    void postAuto('on-return').finally(() => showChecking(false));
   });
+}
+
+// The address of the Refresh button, which asks GitHub for everything
+function freshCheckHref(): string | undefined {
+  const form = document.querySelector<HTMLFormElement>(REFRESH);
+  if (!form) return undefined;
+  const query = new URLSearchParams([...new FormData(form)] as [string, string][]);
+  return `${form.getAttribute('action')}?${query}`;
 }
 
 function showChecking(running: boolean): void {
@@ -144,7 +162,9 @@ async function runCheck(href: string): Promise<boolean> {
       if (current) current.replaceWith(document.importNode(row, true));
       else append(row);
     }
+    removeMissing(fresh, true);
     putInOrder(fresh);
+    updateJobsRunningFlag(fresh);
     replaceFix(next);
     takeSources(fresh);
     refilter?.();
@@ -165,6 +185,22 @@ async function runCheck(href: string): Promise<boolean> {
   }
 }
 
+function removeMissing(fresh: Document, checked: boolean): boolean {
+  const known = new Set(
+    [...fresh.querySelectorAll<HTMLElement>(REPOSITORY_ROWS)].map((row) => row.dataset.sprRepoRow),
+  );
+  let removed = false;
+  for (const row of document.querySelectorAll<HTMLElement>(REPOSITORY_ROWS)) {
+    if (known.has(row.dataset.sprRepoRow)) continue;
+    if (!checked && row.hasAttribute('data-spr-checked')) continue;
+    row.remove();
+    removed = true;
+  }
+  const table = document.querySelector<HTMLElement>(`${STEP} .spr-scroll`);
+  if (removed && table && !document.querySelector(REPOSITORY_ROWS)) table.hidden = true;
+  return removed;
+}
+
 // The rows in the order the server sorted them, which what the check found may have changed
 function putInOrder(fresh: Document): void {
   const body = document.querySelector(ROWS);
@@ -182,6 +218,31 @@ function replaceFix(next: Element): void {
   const blocked = next.hasAttribute('data-spr-blocked');
   const filtered = new URLSearchParams(window.location.search).has('q');
   step.hidden = blocked || (!document.querySelector(REPOSITORY_ROWS) && !filtered);
+  void postAuto('now');
+}
+
+async function postAuto(when: 'now' | 'on-return'): Promise<boolean> {
+  const form = document.querySelector<HTMLFormElement>(`${FIX} form[data-spr-auto="${when}"]`);
+  if (!form) return false;
+  const body = new URLSearchParams([...new FormData(form)] as [string, string][]);
+  const key = `${form.getAttribute('action')}?${body}`;
+  if (when === 'now' && posted.has(key)) return false;
+  posted.add(key);
+  try {
+    const response = await fetch(form.getAttribute('action') ?? '', {
+      method: 'POST',
+      body,
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return false;
+  } catch {
+    return false;
+  }
+  // A check that put the step in place is done before the page is asked again
+  if (running) await running;
+  await refreshNow?.();
+  return true;
 }
 
 function mountRefresh(): void {
@@ -194,7 +255,7 @@ function mountRefresh(): void {
     timer = window.setTimeout(() => void refresh(), busy ? BUSY_REFRESH_MS : REFRESH_MS);
   };
 
-  const refresh = async (): Promise<void> => {
+  const refresh = async (force = false): Promise<void> => {
     try {
       const fresh = await page(window.location.pathname + window.location.search);
       const changed = swap(fresh);
@@ -203,7 +264,7 @@ function mountRefresh(): void {
       const current = document.querySelector(FIX);
       if (next && !next.querySelector('[data-spr-setup-fix="checking"]')) {
         replaceFix(next);
-      } else if (changed || current?.hasAttribute('data-spr-blocked')) {
+      } else if (force || changed || current?.hasAttribute('data-spr-blocked')) {
         await check(href);
       }
     } catch {
@@ -211,10 +272,18 @@ function mountRefresh(): void {
     }
     schedule();
   };
+  refreshNow = () => refresh(true);
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) window.clearTimeout(timer);
-    else void refresh();
+    if (document.hidden) {
+      window.clearTimeout(timer);
+    } else if (document.querySelector(DONE_ON_GITHUB)) {
+      void postAuto('on-return').then((synced) =>
+        synced ? undefined : check(freshCheckHref()).finally(schedule),
+      );
+    } else {
+      void refresh();
+    }
   });
 
   schedule();
@@ -265,14 +334,26 @@ function swap(fresh: Document): boolean {
     if (name && nextName?.querySelector('a[href^="/-/status/"]'))
       name.innerHTML = nextName.innerHTML;
   }
+  if (removeMissing(fresh, false)) changed = true;
 
-  const step = document.querySelector(STEP);
-  const nextStep = fresh.querySelector(STEP);
-  if (step && nextStep) {
-    step.toggleAttribute('data-spr-busy', nextStep.hasAttribute('data-spr-busy'));
-  }
+  if (updateJobsRunningFlag(fresh)) changed = true;
   refilter?.();
   return changed;
+}
+
+/**
+ * Sets whether a sync or a discovery is queued or running. It returns true when that changed.
+ *
+ * @param freshPage the page the server answered with
+ */
+function updateJobsRunningFlag(freshPage: Document): boolean {
+  const currentStep = document.querySelector(STEP);
+  const freshStep = freshPage.querySelector(STEP);
+  if (!currentStep || !freshStep) return false;
+  const jobsRunning = freshStep.hasAttribute('data-spr-busy');
+  if (currentStep.hasAttribute('data-spr-busy') === jobsRunning) return false;
+  currentStep.toggleAttribute('data-spr-busy', jobsRunning);
+  return true;
 }
 
 function rowNamed(name: string): HTMLElement | null {

@@ -12,7 +12,7 @@
 <%
     } else if (link.post) {
 %>
-<form class="spr-setup-fix-form" method="post" action="<%= link.href %>">
+<form class="spr-setup-fix-form" method="post" action="<%= link.href %>"<% if (link.auto) { %> data-spr-auto="<%= link.auto %>"<% } %>>
   <% Object.keys(link.post).forEach(function (name) { %><input type="hidden" name="<%= name %>" value="<%= link.post[name] %>"><% }) %>
   <button type="submit" class="<%= kind %>"><%= link.label %></button>
 </form>

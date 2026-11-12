@@ -115,7 +115,7 @@ const WALKTHROUGHS: Walkthrough[] = [
       },
       {
         title: 'What is a group?',
-        text: 'A group is a named set of people in speicher.md, identified by its short id, for example `engineering`. A group is used to manage access to repositories. In the `.speicher.yaml` file of a repository, the `access` key lists the groups (by their short id) whose members may read it',
+        text: 'A group is a named set of people in speicher.md, identified by its short id, for example `engineering`. A group is used to manage access to repositories. In the `.speicher.yaml` file of a repository, you can add the groups (by their short id) under the `access` key to specify who can read the pages of this repository.',
         preview: 'group-add',
       },
       {
@@ -147,12 +147,23 @@ const WALKTHROUGHS: Walkthrough[] = [
     slides: [
       {
         title: 'What is a content source?',
-        text: 'A content source is a place speicher.md reads Git repositories from, for example GitHub or a plain git remote. speicher.md clones each repository of a source and publishes it once it has a `.speicher.yaml` file at its root. Repositories without this file are skipped.',
+        text: 'A content source is a location (like GitHub or a plain git remote) where speicher.md looks for your repositories. speicher.md scans the source and clones all available repositories. If a repository has a .speicher.yaml file at its root, it gets published; otherwise, it is ignored.',
         preview: 'source-repositories',
       },
       {
         title: 'Creating the GitHub App',
-        text: 'speicher.md needs a GitHub App to clone your repositories and to be notified about each push. This App is separate from the App of a GitHub identity provider, which signs people in and reads their teams but has no access to repositories. speicher.md creates the App with its permissions and webhook already filled in, and you only need to confirm the creation of the app on GitHub.',
+        faq: [
+          {
+            question: 'What does the GitHub App do?',
+            answer:
+              'The GitHub App gives speicher.md read access to the contents of your repositories. When you push new content to a repository, GitHub will notify speicher.md through the webhook of the App and speicher.md will synchronize the repository again.',
+          },
+          {
+            question: 'I already created a GitHub App. Why do I need another one?',
+            answer:
+              'You have likely already created a GitHub App to authenticate users, e.g. in the configuration of your identity provider, however this App does not have any access to your repositories. The App you need to create here is a second App that gives speicher.md read access to your repositories. While both functions can theoretically run within a single application, separating them is recommended to isolate their keys and secrets.',
+          },
+        ],
         preview: 'source-account',
       },
       {

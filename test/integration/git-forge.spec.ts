@@ -161,10 +161,11 @@ async function build(repos: string, origins: Record<string, string>): Promise<Fi
   await registry.syncForgeRows(tenantId);
 
   const routing = new RoutingService(config, sequelize);
-  const registration = new RegistrationService(config, registry, routing);
+  const ingest = new IngestService(config, new FilesystemBlobStore(blobRoot), sequelize);
+  const registration = new RegistrationService(config, registry, routing, ingest);
   const sync = new SyncService(
     registry,
-    new IngestService(config, new FilesystemBlobStore(blobRoot), sequelize),
+    ingest,
     routing,
     new NotifyService(config, new Mailer(config)),
   );

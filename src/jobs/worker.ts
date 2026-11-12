@@ -267,7 +267,7 @@ export class Worker {
         // Writes all configured forges to the database => ensures the database is up to date with the config (any new forges that have been added to the config will be added to the database)
         await this.forges.syncForgeRows(job.tenant_id);
 
-        const registered = payload.installationId
+        const { registered } = payload.installationId
           ? await this.registration.syncRepoRowsForInstallation(
               job.tenant_id,
               payload.installationId,
@@ -306,8 +306,7 @@ export class Worker {
         return;
 
       case 'purge':
-        // Remove all data for the repo
-        if (payload.repoId) await this.ingest.purgeRepo(payload.repoId);
+        if (payload.repoId) await this.ingest.removeRepo(payload.repoId);
         return;
 
       case 'purge-forge': {
@@ -321,7 +320,7 @@ export class Worker {
         }
 
         const repoIds = await this.forges.findRepoIdsOfForge(forgeId);
-        for (const repoId of repoIds) await this.ingest.purgeRepo(repoId);
+        for (const repoId of repoIds) await this.ingest.removeRepo(repoId);
         await this.forges.deleteForgeRow(forgeId);
         const cancelled = await this.queue.deletePendingJobsForForge(
           job.tenant_id,

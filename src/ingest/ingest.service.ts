@@ -8,7 +8,7 @@
  * NotPublishedError is a normal state — the repo is purged and marked as unpublished
  */
 import { Injectable } from '@nestjs/common';
-import { Sequelize } from 'sequelize';
+import { QueryTypes, Sequelize } from 'sequelize';
 
 import { BlobStore } from '../assets/blob-store';
 import { parseDurationWithFallback } from '../common/time';
@@ -252,7 +252,7 @@ export class IngestService {
     misnamed: string | null,
   ): Promise<Finding[]> {
     const findings = misnamed ? [misnamedConfigFinding(misnamed)] : [];
-    await this.purgeRepo(repo.id);
+    await this.clearContent(repo.id);
     await run.update({
       status: 'ok',
       finished_at: new Date(),
@@ -298,9 +298,16 @@ export class IngestService {
   }
 
   /**
-   * Removes all sync rows and blob storage for a repo
    */
-  async purgeRepo(repoId: string): Promise<void> {
+  async removeRepo(repoId: string): Promise<void> {
+    await this.clearContent(repoId);
+    await this.sequelize.query(`DELETE FROM repos WHERE id = :repoId`, {
+      type: QueryTypes.DELETE,
+      replacements: { repoId },
+    });
+  }
+
+  private async clearContent(repoId: string): Promise<void> {
     await purgeRepoRows(this.sequelize, repoId);
     await this.blobs.purgeRepo(repoId);
   }
