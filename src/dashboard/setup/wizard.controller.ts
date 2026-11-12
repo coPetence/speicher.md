@@ -151,7 +151,7 @@ export class SetupWizardController {
     }
     const found = new Map<string, CheckRow[]>(
       checks
-        ? [...checks].map(([id, check]) => [id, check.repositories])
+        ? [...checks].map(([id, check]) => [id, check.checked_repositories])
         : [...github].map(([id, forge]) => [
             id,
             rememberedRows(id, forge, this.config, this.fetchImpl, 'setup'),
@@ -245,8 +245,14 @@ export class SetupWizardController {
       const check = checks?.get(id);
       // Only a complete listing says a repository is gone
       const listing = checks
-        ? check && !check.problem && !check.more && check.account
-          ? { account: check.account, names: check.repositories.map((repo) => repo.name) }
+        ? check &&
+          !check.unchecked_reason &&
+          !check.has_unchecked_repositories &&
+          check.installation_account
+          ? {
+              account: check.installation_account,
+              names: check.checked_repositories.map((repo) => repo.name),
+            }
           : undefined
         : rememberedListing(forge, this.fetchImpl);
       if (!listing) continue;

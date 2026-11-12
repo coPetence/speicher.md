@@ -1,4 +1,4 @@
-import type { RememberedFiles } from '../../../github/app-installation';
+import type { RememberedFiles, RepositorySelection } from '../../../github/app-installation';
 import type { GithubAppOwner } from '../../../github/app-links';
 import { GithubTokenMinter } from '../../../github/tokens';
 
@@ -7,7 +7,7 @@ export const APP_DETAILS_MS = 60 * 60 * 1000;
 export interface SourceInstallation {
   href: string;
   account: string;
-  selection: 'all' | 'selected';
+  selection: RepositorySelection;
 }
 
 export interface SourceListing {

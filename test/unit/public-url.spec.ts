@@ -160,7 +160,7 @@ describe("an App's name", () => {
   });
 
   it("is the account's on localhost, which many instances share", () => {
-    expect(appName('http://localhost:3000', 'timmol2', 'speicher.md (github2)')).toBe(
+    expect(appName('http://localhost:3000', 'timmol2', 'speicher.md', 'github2')).toBe(
       "timmol2's speicher.md (github2)",
     );
     expect(appName('http://127.0.0.1:3000', 'james', 'speicher.md')).toBe("james' speicher.md");
@@ -169,17 +169,40 @@ describe("an App's name", () => {
     );
   });
 
-  it("shortens the hostname or account to fit GitHub's limit of 34 characters", () => {
-    const host = appName('https://documentation.copetence.example', undefined, 'speicher.md');
-    expect(host.length).toBeLessThanOrEqual(34);
-    expect(host.endsWith(' speicher.md')).toBe(true);
-    const account = appName(
-      'http://localhost',
-      'a-very-long-github-account-name',
-      'speicher.md (gh)',
+  it('leaves out a hostname or account that does not fit completely, rather than cutting it', () => {
+    expect(appName('https://documentation.copetence.example', undefined, 'speicher.md')).toBe(
+      'speicher.md',
     );
-    expect(account.length).toBeLessThanOrEqual(34);
-    expect(account.endsWith("'s speicher.md (gh)")).toBe(true);
+    expect(
+      appName('http://localhost', 'a-very-long-github-account-name', 'speicher.md', 'gh'),
+    ).toBe('speicher.md (gh)');
+  });
+
+  it('leaves out a short id that does not fit, even when nothing else is added', () => {
+    expect(appName('not a url', undefined, 'speicher.md', 'a'.repeat(32))).toBe('speicher.md');
+  });
+
+  it('keeps the short id over the hostname when both do not fit together', () => {
+    expect(
+      appName('https://docs.acme.example', undefined, 'speicher.md', 'github-content-01'),
+    ).toBe('speicher.md (github-content-01)');
+  });
+
+  it("never exceeds GitHub's limit of 34 characters", () => {
+    const hosts = [
+      'https://a.example',
+      'https://docs.acme.example',
+      'http://localhost',
+      'not a url',
+    ];
+    const ids = [undefined, 'gh', 'a'.repeat(19), 'a'.repeat(20), 'a'.repeat(21), 'a'.repeat(32)];
+    for (const host of hosts) {
+      for (const id of ids) {
+        for (const label of ['speicher.md', 'speicher.md Directory']) {
+          expect(appName(host, 'timmol2', label, id).length).toBeLessThanOrEqual(34);
+        }
+      }
+    }
   });
 
   it('is the label alone when the address cannot be read and no account is known', () => {

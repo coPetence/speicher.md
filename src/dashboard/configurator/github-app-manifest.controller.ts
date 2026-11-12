@@ -29,7 +29,7 @@ import {
   MANIFEST_TARGETS,
   appFields,
   carryForm,
-  githubAdminOf,
+  findSpeicherAdminAccount,
   githubAppCallbackPath,
   githubAppHandoffPath,
   providerInstallPath,
@@ -87,7 +87,7 @@ export class GithubAppManifestController {
         owner,
         originOf(req),
         carryForm(body, uploads),
-        githubAdminOf(this.config, caller.identity),
+        findSpeicherAdminAccount(this.config, caller.identity),
       );
       handOffToGithub(res, target, started, 'page');
     } catch (err) {

@@ -94,20 +94,39 @@ export type AppManifestOptions =
 // GitHub refuses an App name that is longer
 const MAX_APP_NAME = 34;
 
-export function appName(homepage: string, account: string | undefined, label: string): string {
-  let host = '';
-  try {
-    host = new URL(homepage).hostname;
-  } catch {
-    // ignore, the homepage is not a valid URL
-  }
-  const room = MAX_APP_NAME - label.length - 1;
+export function appName(
+  homepage: string,
+  account: string | undefined,
+  label: string,
+  sourceId?: string,
+): string {
+  const withId = sourceId ? `${label} (${sourceId})` : label;
+  const name = withId.length <= MAX_APP_NAME ? withId : label;
 
-  if (account && (host === '' || isLocalhostUrl(homepage))) {
-    const possessive = account.endsWith('s') ? "'" : "'s";
-    return `${account.slice(0, room - possessive.length)}${possessive} ${label}`;
+  const prefix = namePrefix(homepage, account);
+  const prefixed = `${prefix} ${name}`;
+  return prefix !== '' && prefixed.length <= MAX_APP_NAME ? prefixed : name;
+}
+
+/** Whether appName names the App after the account instead of the hostname of the homepage */
+export function namesAppAfterAccount(homepage: string): boolean {
+  return hostnameOf(homepage) === '' || isLocalhostUrl(homepage);
+}
+
+function namePrefix(homepage: string, account: string | undefined): string {
+  if (account && namesAppAfterAccount(homepage)) {
+    return account.endsWith('s') ? `${account}'` : `${account}'s`;
   }
-  return host === '' ? label : `${host.slice(0, room)} ${label}`;
+  return hostnameOf(homepage);
+}
+
+function hostnameOf(homepage: string): string {
+  try {
+    return new URL(homepage).hostname;
+  } catch {
+    // the homepage is not a valid URL
+    return '';
+  }
 }
 
 /**
@@ -147,7 +166,7 @@ export function appManifest(options: AppManifestOptions): AppManifest {
   return {
     ...base,
     ...webhookOf(options.webhookUrl, CONTENT_SOURCE_EVENTS),
-    name: appName(options.homepage, options.account, `speicher.md (${options.sourceId})`),
+    name: appName(options.homepage, options.account, 'speicher.md', options.sourceId),
     description: CONTENT_SOURCE_DESCRIPTION,
     default_permissions: CONTENT_SOURCE_PERMISSIONS,
   };

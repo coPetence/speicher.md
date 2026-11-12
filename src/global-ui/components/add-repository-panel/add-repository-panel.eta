@@ -16,7 +16,7 @@
       <% sources.forEach(function (source, index) { %>
       <%
         const installation = source.installation;
-        const everything = installation && installation.selection === 'all';
+        const everything = installation && installation.selection === 'all-repositories';
         const pending = source.github && installation === undefined;
       %>
       <div class="spr-add-repository-screen" data-spr-add-source="<%= source.id %>" data-spr-known="<%= source.known.join(' ') %>"<%= pending ? ' data-spr-add-pending' : '' %><%= index > 0 ? ' hidden' : '' %>>

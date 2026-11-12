@@ -9,10 +9,12 @@ const TREE_TIMEOUT_MS = 15000;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
+// Whether the installation reads every repository of the account, or the ones picked for it
+export type RepositorySelection = 'all-repositories' | 'selected-repositories';
+
 export interface InstallationAccess {
   installationId: string;
-  // Whether the installation reads every repository of the account, or the ones picked for it
-  selection: 'all' | 'selected';
+  selection: RepositorySelection;
   // How many repositories it can read
   repositories: number;
 }
@@ -67,7 +69,7 @@ export async function installationOn(
   account: string,
   fetchImpl: typeof fetch = fetch,
   minter = new GithubTokenMinter(appId, privateKey, api, fetchImpl),
-): Promise<{ installationId: string; selection: 'all' | 'selected'; token: string } | null> {
+): Promise<{ installationId: string; selection: RepositorySelection; token: string } | null> {
   const jwt = await minter.appJwt();
 
   let found: { id?: number; repository_selection?: string } | undefined;
@@ -83,7 +85,8 @@ export async function installationOn(
   const installationId = String(found.id);
   return {
     installationId,
-    selection: found.repository_selection === 'selected' ? 'selected' : 'all',
+    selection:
+      found.repository_selection === 'selected' ? 'selected-repositories' : 'all-repositories',
     token: await minter.installationToken(installationId),
   };
 }
