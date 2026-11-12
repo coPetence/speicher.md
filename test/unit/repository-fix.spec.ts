@@ -14,7 +14,7 @@ const row = (name: string, overrides: Partial<RepositoryTableRow> = {}): Reposit
   file: { level: 'idle', label: 'missing' },
   access: null,
   groups: null,
-  sync: { state: 'never-synced', activity: null, last_error: null },
+  sync: { state: 'never-synced', activity: null, last_error: null, documents: 0 },
   readable: false,
   ...overrides,
 });
@@ -84,6 +84,95 @@ describe('the next step of the repositories page', () => {
       id: 'no-repository',
       action: { href: 'https://github.com/organizations/acme/settings/installations/5' },
     });
+  });
+
+  it('asks to create a repository when the App reads all repositories of an account that has none', () => {
+    const fix = nextFix(
+      input({
+        checks: checked({
+          account: 'acme',
+          selection: 'all',
+          new_repository_href: 'https://github.com/new?owner=acme',
+        }),
+      }),
+    );
+    expect(fix).toMatchObject({
+      id: 'create-repository',
+      title: 'Create a repository on acme',
+      action: { href: 'https://github.com/new?owner=acme', external: true },
+      secondary: { href: 'https://github.com/organizations/acme/settings/installations/5' },
+    });
+    expect(
+      nextFix(input({ checks: checked({ account: 'acme', selection: 'selected' }) }))?.id,
+    ).toBe('no-repository');
+  });
+
+  it('asks to add a page once the sync of a granted repository found none, rather than waiting', () => {
+    const synced = row('acme/wiki', {
+      file: { level: 'ok', label: 'present' },
+      groups: ['staff'],
+      status_href: '/-/status/acme/wiki',
+      new_page_href: 'https://github.com/acme/wiki/new/main?filename=index.md',
+      sync: { state: 'ok', activity: null, last_error: null, documents: 0 },
+    });
+    // The sync runs again by itself once the person comes back from GitHub
+    expect(nextFix(input({ rows: [synced] }))).toMatchObject({
+      id: 'no-page',
+      waits: false,
+      action: { href: 'https://github.com/acme/wiki/new/main?filename=index.md' },
+      secondary: {
+        href: '/-/sync',
+        post: { namespace: 'acme', slug: 'wiki', back: 'repositories' },
+        auto: 'on-return',
+      },
+    });
+
+    // Still syncing: it waits for the sync
+    const syncing = { ...synced, sync: { ...synced.sync, activity: 'syncing' as const } };
+    expect(nextFix(input({ rows: [syncing] }))?.id).toBe('syncing');
+
+    // Another repository still to sync comes first
+    const pending = row('acme/handbook', {
+      file: { level: 'ok', label: 'present' },
+      groups: ['staff'],
+    });
+    expect(nextFix(input({ rows: [synced, pending] }))).toMatchObject({
+      id: 'syncing',
+      title: 'speicher.md is syncing acme/handbook',
+    });
+  });
+
+  it('asks to add a page to a synced repository no check has read', () => {
+    const fix = nextFix(
+      input({
+        sources: ['docs'],
+        checks: new Map(),
+        rows: [
+          row('handbook/handbook', {
+            source: 'docs',
+            file: { level: 'ok', label: 'present' },
+            sync: { state: 'ok', activity: null, last_error: null, documents: 0 },
+          }),
+        ],
+      }),
+    );
+    expect(fix).toMatchObject({ id: 'no-page', action: { href: '/-/sync', auto: 'on-return' } });
+  });
+
+  it('says a folder narrows access once the sync found pages the administrator cannot read', () => {
+    const fix = nextFix(
+      input({
+        rows: [
+          row('acme/wiki', {
+            file: { level: 'ok', label: 'present' },
+            groups: ['staff'],
+            sync: { state: 'ok', activity: null, last_error: null, documents: 3 },
+          }),
+        ],
+      }),
+    );
+    expect(fix).toMatchObject({ id: 'no-readable-page', waits: false });
+    expect(fix?.text).toContain('synced 3 pages of acme/wiki');
   });
 
   it('opens the modal of a new file in place when one repository can have it', () => {
@@ -252,9 +341,10 @@ describe('the next step of the repositories page', () => {
         synced: null,
       }),
     ];
+    // Posted by the page at once, for the source of the repository only
     expect(nextFix(input({ rows }))).toMatchObject({
       id: 'discover',
-      action: { label: 'Synchronize now' },
+      action: { href: '/-/discover', post: { back: 'repositories', source: 'gh' }, auto: 'now' },
     });
     expect(nextFix(input({ rows, discovering: ['gh'] }))).toMatchObject({
       id: 'discovering',
@@ -270,7 +360,7 @@ describe('the next step of the repositories page', () => {
             file: { level: 'ok', label: 'present' },
             groups: ['staff'],
             status_href: '/-/status/acme/wiki',
-            sync: { state: 'failed', activity: null, last_error: 'clone failed' },
+            sync: { state: 'failed', activity: null, last_error: 'clone failed', documents: 0 },
           }),
         ],
       }),
@@ -292,7 +382,12 @@ describe('the next step of the repositories page', () => {
       row('TimMolitor/TestSpeicher', {
         file: { level: 'ok', label: 'present' },
         groups: ['staff', 'public'],
-        sync: { state: 'failed', activity: null, last_error: 'public is not enabled' },
+        sync: {
+          state: 'failed',
+          activity: null,
+          last_error: 'public is not enabled',
+          documents: 0,
+        },
       }),
     ];
     expect(nextFix(input({ rows }))).toMatchObject({

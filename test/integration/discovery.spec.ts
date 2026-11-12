@@ -68,7 +68,19 @@ const PERSONAL_INSTALLATION_ID = 8181;
 const REPO_ID = 777_777;
 const PERSONAL_REPO_ID = 888_888;
 
-function githubApi(state: { installations: number; repositories: number }): typeof fetch {
+interface ApiState {
+  installations: number;
+  repositories: number;
+  deleted?: number[];
+  failing?: boolean;
+  archived?: number[];
+  // By the old id: the new id of a repository created again under the same name
+  recreated?: Record<number, number>;
+}
+
+const RECREATED_REPO_ID = 999_999;
+
+function githubApi(state: ApiState): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : String(input);
     const path = new URL(url).pathname + new URL(url).search;
@@ -99,33 +111,40 @@ function githubApi(state: { installations: number; repositories: number }): type
     }
     if (path.startsWith('/installation/repositories')) {
       state.repositories += 1;
+      if (state.failing) return new Response('', { status: 502, statusText: 'Bad Gateway' });
+      const listed = <T extends { id: number; archived: boolean }>(repositories: T[]) =>
+        json({
+          repositories: repositories
+            .filter((repo) => !state.deleted?.includes(repo.id))
+            .map((repo) => ({
+              ...repo,
+              id: state.recreated?.[repo.id] ?? repo.id,
+              archived: state.archived?.includes(repo.id) ?? repo.archived,
+            })),
+        });
       const bearer = (init?.headers as Record<string, string> | undefined)?.Authorization ?? '';
       if (bearer === `Bearer ghs_${PERSONAL_INSTALLATION_ID}`) {
-        return json({
-          repositories: [
-            {
-              id: PERSONAL_REPO_ID,
-              name: 'notebook',
-              default_branch: 'main',
-              private: true,
-              archived: false,
-              owner: PERSON,
-            },
-          ],
-        });
-      }
-      return json({
-        repositories: [
+        return listed([
           {
-            id: REPO_ID,
-            name: 'discovered',
+            id: PERSONAL_REPO_ID,
+            name: 'notebook',
             default_branch: 'main',
             private: true,
             archived: false,
-            owner: ACCOUNT,
+            owner: PERSON,
           },
-        ],
-      });
+        ]);
+      }
+      return listed([
+        {
+          id: REPO_ID,
+          name: 'discovered',
+          default_branch: 'main',
+          private: true,
+          archived: false,
+          owner: ACCOUNT,
+        },
+      ]);
     }
     if (path.startsWith(`/repositories/${REPO_ID}`)) {
       return json({
@@ -192,7 +211,8 @@ let tenantId: string;
 let forgeId: string;
 let registration: RegistrationService;
 let sync: SyncService;
-let apiCalls: { installations: number; repositories: number };
+let ingest: IngestService;
+let apiCalls: ApiState;
 
 beforeAll(async () => {
   const sequelize = getSequelize();
@@ -231,13 +251,9 @@ beforeAll(async () => {
   const registry = new OneDriverRegistry(config, driver);
   const routing = new RoutingService(config, sequelize);
 
-  registration = new RegistrationService(config, registry, routing);
-  sync = new SyncService(
-    registry,
-    new IngestService(config, new FilesystemBlobStore(blobRoot), sequelize),
-    routing,
-    new NotifyService(config, new Mailer(config)),
-  );
+  ingest = new IngestService(config, new FilesystemBlobStore(blobRoot), sequelize);
+  registration = new RegistrationService(config, registry, routing, ingest);
+  sync = new SyncService(registry, ingest, routing, new NotifyService(config, new Mailer(config)));
 });
 
 afterAll(async () => {
@@ -325,6 +341,80 @@ describe('an instance that is never sent a webhook', () => {
     const installations = await Installation.count({ where: { tenant_id: tenantId } });
     expect(repos).toBe(2);
     expect(installations).toBe(3);
+  });
+
+  describe('a repository the installations no longer list', () => {
+    const personal = () => Repo.findOne({ where: { forge_repo_id: String(PERSONAL_REPO_ID) } });
+    const discovered = () =>
+      Repo.findOne({ where: { tenant_id: tenantId, forge_repo_id: String(REPO_ID) } });
+
+    // Each case removes the personal repository; the next discovery registers it again
+    afterEach(async () => {
+      apiCalls.deleted = undefined;
+      apiCalls.archived = undefined;
+      apiCalls.recreated = undefined;
+      apiCalls.failing = false;
+      await registration.syncInstallationAndRepoRows(tenantId, 'gh');
+    });
+
+    it('is removed with its row, and the others are kept', async () => {
+      const removed = await personal();
+      apiCalls.deleted = [PERSONAL_REPO_ID];
+
+      expect(await registration.syncInstallationAndRepoRows(tenantId, 'gh')).toEqual({
+        registered: [],
+        removed: [removed?.id],
+      });
+      expect(await Repo.findByPk(removed!.id)).toBeNull();
+      expect(await discovered()).not.toBeNull();
+    });
+
+    it('is removed only by the installation it belonged to', async () => {
+      const removed = await personal();
+      apiCalls.deleted = [PERSONAL_REPO_ID];
+
+      const other = await registration.syncRepoRowsForInstallation(
+        tenantId,
+        String(INSTALLATION_ID),
+        'gh',
+      );
+      expect(other.removed).toEqual([]);
+      const own = await registration.syncRepoRowsForInstallation(
+        tenantId,
+        String(PERSONAL_INSTALLATION_ID),
+        'gh',
+      );
+      expect(own.removed).toEqual([removed?.id]);
+    });
+
+    it('is not removed when GitHub cannot list the repositories', async () => {
+      const before = await Repo.count({ where: { tenant_id: tenantId } });
+      apiCalls.failing = true;
+
+      await expect(registration.syncInstallationAndRepoRows(tenantId, 'gh')).rejects.toThrow();
+      expect(await Repo.count({ where: { tenant_id: tenantId } })).toBe(before);
+    });
+
+    it('is removed when it is archived, as its webhook removes it', async () => {
+      const removed = await personal();
+      apiCalls.archived = [PERSONAL_REPO_ID];
+
+      expect((await registration.syncInstallationAndRepoRows(tenantId, 'gh')).removed).toEqual([
+        removed?.id,
+      ]);
+    });
+
+    it('frees its name for a repository created again under it, in the same discovery', async () => {
+      const removed = await personal();
+      apiCalls.recreated = { [PERSONAL_REPO_ID]: RECREATED_REPO_ID };
+
+      const changes = await registration.syncInstallationAndRepoRows(tenantId, 'gh');
+      expect(changes.removed).toEqual([removed?.id]);
+      expect(changes.registered).toHaveLength(1);
+      const recreated = await Repo.findByPk(changes.registered[0]);
+      expect(recreated?.forge_repo_id).toBe(String(RECREATED_REPO_ID));
+      expect(recreated?.slug).toBe('notebook');
+    });
   });
 });
 

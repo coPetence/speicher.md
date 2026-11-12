@@ -34,9 +34,10 @@ export interface RepositoryTableRow {
   access: { level: Level; text: string } | null;
   // The groups its `.speicher.yaml` lets read it, once a check has read the file
   groups: string[] | null;
-  // As on the sync status page
-  sync: Pick<RepoStatus, 'state' | 'activity' | 'last_error'>;
+  // As on the sync status page, with the number of pages the sync published
+  sync: Pick<RepoStatus, 'state' | 'activity' | 'last_error' | 'documents'>;
   readable: boolean;
+  new_page_href?: string;
 }
 
 export interface AddRepositorySource {
@@ -102,7 +103,12 @@ export function repositoryTable(
       file: syncedFile(repo, copies),
       access: null,
       groups: null,
-      sync: { state: repo.state, activity: repo.activity, last_error: repo.last_error },
+      sync: {
+        state: repo.state,
+        activity: repo.activity,
+        last_error: repo.last_error,
+        documents: repo.documents,
+      },
       readable: reads.has(key),
     });
   }
@@ -126,6 +132,7 @@ export function repositoryTable(
           state: check.state === 'unpublished' ? 'unpublished' : 'never-synced',
           activity: null,
           last_error: null,
+          documents: 0,
         },
         readable: false,
       };
@@ -136,6 +143,7 @@ export function repositoryTable(
         file,
         access,
         groups: check.groups ?? null,
+        ...(check.new_page_href ? { new_page_href: check.new_page_href } : {}),
       });
     }
   }

@@ -22,6 +22,7 @@ import { githubProviderStarter } from '../../src/dashboard/configurator/quick-se
 import { quickSetupPath } from '../../src/dashboard/configurator/quick-setup/model';
 import { GITHUB_INSTALL_COOKIE } from '../../src/auth/github.service';
 import { SESSION_COOKIE } from '../../src/auth/session.service';
+import { Forge, Repo } from '../../src/db/models';
 import { closeSequelize, getSequelize } from '../../src/db/sequelize';
 import { GITHUB_APP_LOOKUP_FETCH } from '../../src/github/app-links';
 import type { AppManifest } from '../../src/github/app-manifest';
@@ -797,6 +798,22 @@ describe('checking the repositories a source reads', () => {
     expect(page.text).toContain(`href="${INSTALL_URL}"`);
   });
 
+  it('tells an account without repositories from an App that reads none of them', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'all' }];
+    repos = {};
+    const all = await ready('/-/config/sources/team/check?run=1').expect(200);
+    expect(all.text).toMatch(
+      /href="https:\/\/github\.com\/new\?owner=acme"[^>]*data-spr-check-empty="create-repository"/,
+    );
+
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'selected' }];
+    const selected = await ready('/-/config/sources/team/check?run=1&fresh=1').expect(200);
+    expect(selected.text).toMatch(
+      /href="https:\/\/github\.com\/organizations\/acme\/settings\/installations\/5"[^>]*data-spr-check-empty="installation"/,
+    );
+  });
+
   it('answers 404 for a source that is no GitHub App', async () => {
     await ready('/-/config/sources/nowhere/check').expect(404);
   });
@@ -860,6 +877,71 @@ describe('the next step of the repositories page', () => {
     expect(fixOf(page.text)).toBe('no-repository');
     expect(page.text).toContain(
       'href="https://github.com/organizations/acme/settings/installations/5" target="_blank" rel="noopener">Open the installation',
+    );
+  });
+
+  it('leaves out a synced repository the check no longer lists, and queues the discovery that purges it', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'all' }];
+    repos = { wiki: { '.speicher.yaml': 'version: 1\naccess: [engineering]\n' } };
+    const forge = await Forge.create({
+      tenant_id: harness.tenantId,
+      key: 'team',
+      type: 'github',
+      is_primary: false,
+      default_repository_owner: null,
+      config: {},
+    });
+    await Repo.create({
+      tenant_id: harness.tenantId,
+      forge_id: forge.id,
+      forge_repo_id: '4242',
+      namespace: 'acme',
+      namespace_id: '1',
+      slug: 'deleted',
+      branch: 'main',
+    });
+    await Repo.create({
+      tenant_id: harness.tenantId,
+      forge_id: forge.id,
+      forge_repo_id: '4343',
+      namespace: 'northwind',
+      namespace_id: '2',
+      slug: 'elsewhere',
+      branch: 'main',
+    });
+    const queued = async () =>
+      getSequelize().query(`SELECT id FROM jobs WHERE dedupe_key = 'sync-repo-list:team'`, {
+        type: QueryTypes.SELECT,
+      });
+    try {
+      const checked = await ready('/-/repositories?check=1').expect(200);
+      expect(checked.text).not.toContain('data-spr-repo-row="acme/deleted"');
+      expect(checked.text).toContain('data-spr-repo-row="northwind/elsewhere"');
+      // The checks of the refresh queue no discovery; the Refresh button does
+      expect(await queued()).toHaveLength(0);
+      await ready('/-/repositories?check=1&fresh=1').expect(200);
+      expect(await queued()).toHaveLength(1);
+
+      // The page the refresh asks for leaves it out too, from what the check listed
+      const refreshed = await ready('/-/repositories').expect(200);
+      expect(refreshed.text).not.toContain('data-spr-repo-row="acme/deleted"');
+      expect(refreshed.text).toContain('data-spr-repo-row="northwind/elsewhere"');
+    } finally {
+      await getSequelize().query(`DELETE FROM jobs WHERE dedupe_key = 'sync-repo-list:team'`);
+      await Repo.destroy({ where: { forge_id: forge.id } });
+      await forge.destroy();
+    }
+  });
+
+  it('asks to create a repository when the App reads all repositories of an account that has none', async () => {
+    await createOnGithub('sources', 'team');
+    installations = [{ id: 5, account: { login: 'acme' }, repository_selection: 'all' }];
+    repos = {};
+    const page = await ready('/-/repositories?check=1').expect(200);
+    expect(fixOf(page.text)).toBe('create-repository');
+    expect(page.text).toContain(
+      'href="https://github.com/new?owner=acme" target="_blank" rel="noopener">Create a repository',
     );
   });
 });

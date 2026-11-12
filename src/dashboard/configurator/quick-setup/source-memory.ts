@@ -10,11 +10,17 @@ export interface SourceInstallation {
   selection: 'all' | 'selected';
 }
 
+export interface SourceListing {
+  account: string;
+  names: Set<string>;
+}
+
 export interface SourceMemory {
   minter: GithubTokenMinter;
   app: { slug: string; owner: GithubAppOwner; until: number } | null;
   installation?: SourceInstallation | null;
   repositories: Map<string, RememberedFiles>;
+  listed?: SourceListing;
 }
 
 // By the fetch that reaches GitHub, because each test stubs its own

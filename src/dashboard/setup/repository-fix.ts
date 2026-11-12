@@ -15,6 +15,7 @@ export interface RepositoryFix {
     | 'install'
     | 'check-failed'
     | 'no-repository'
+    | 'create-repository'
     | 'discovering'
     | 'discover'
     | 'add-repository'
@@ -26,7 +27,9 @@ export interface RepositoryFix {
     | 'no-grant'
     | 'public'
     | 'sync-failed'
-    | 'syncing';
+    | 'syncing'
+    | 'no-page'
+    | 'no-readable-page';
   waits: boolean;
   title: string;
   text?: string;
@@ -43,6 +46,7 @@ export interface FixAction {
   create?: { action: string; repository: string };
   post?: Record<string, string>;
   disabled?: string;
+  auto?: 'now' | 'on-return';
 }
 
 export interface FixInput {
@@ -141,6 +145,22 @@ function fixOfSources(
   for (const [id, check] of checks) {
     if (check.repositories.length > 0 || !check.installation_href) continue;
     if (rows.some((row) => row.source === id)) continue;
+    if (check.selection === 'all' && check.account) {
+      return {
+        id: 'create-repository',
+        waits: false,
+        title: `Create a repository on ${check.account}`,
+        text: `The GitHub App can read all repositories of **${check.account}**, but the account has no repositories yet. Create a repository for your Markdown pages.`,
+        action: check.new_repository_href
+          ? { label: 'Create a repository', href: check.new_repository_href, external: true }
+          : undefined,
+        secondary: {
+          label: 'Open the installation',
+          href: check.installation_href,
+          external: true,
+        },
+      };
+    }
     return {
       id: 'no-repository',
       waits: false,
@@ -192,10 +212,13 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
     row.groups === null ? null : publishes(row) || row.groups.some((group) => mine.includes(group));
   const present = rows.filter((row) => row.file.level === 'ok');
 
-  // Granted to the administrator, or synced with a file no check has read: only the sync is left
-  const granted = present.find(
-    (row) => grants(row) === true || (grants(row) === null && row.sync.state !== 'ok'),
+  const candidates = present.filter(
+    (row) =>
+      grants(row) === true ||
+      (grants(row) === null && (row.sync.state !== 'ok' || row.sync.documents === 0)),
   );
+
+  const granted = candidates.find((row) => !syncDone(row)) ?? candidates[0];
   if (granted) {
     if (granted.groups?.includes(PUBLIC_GROUP_NAME) && !input.allowsPublic(granted.name)) {
       return fixOfPublic(input, granted);
@@ -216,6 +239,7 @@ function fixOfRepositories(input: FixInput, mine: string[]): RepositoryFix {
         secondary: { label: 'Open the sync status', href: granted.status_href ?? '/-/status' },
       };
     }
+    if (syncDone(granted)) return fixOfSynced(granted, yours);
     return {
       id: 'syncing',
       waits: true,
@@ -325,7 +349,8 @@ function fixOfPublic(input: FixInput, row: RepositoryTableRow): RepositoryFix {
                 : 'You can add the repository once it is synchronized.',
           }),
     },
-    secondary: row.synced || input.discovering.length > 0 ? editAction(row) : discoverAction(),
+    secondary:
+      row.synced || input.discovering.length > 0 ? editAction(row) : discoverAction(row.source),
   };
 }
 
@@ -344,12 +369,54 @@ function fixOfUnregistered(input: FixInput, row: RepositoryTableRow): Repository
     waits: false,
     title: `${row.name} is not synchronized yet`,
     text: 'speicher.md synchronizes a repository when it changes, for example with a new commit, and on a regular schedule. Start the synchronization now.',
-    action: discoverAction(),
+    action: { ...discoverAction(row.source), auto: 'now' },
   };
 }
 
-function discoverAction(): FixAction {
-  return { label: 'Synchronize now', href: '/-/discover', post: { back: 'repositories' } };
+function syncDone(row: RepositoryTableRow): boolean {
+  return (
+    row.synced !== null &&
+    row.sync.activity === null &&
+    (row.sync.state === 'ok' || row.sync.state === 'stale')
+  );
+}
+
+function fixOfSynced(row: RepositoryTableRow, yours: string): RepositoryFix {
+  const status = { label: 'Open the sync status', href: row.status_href ?? '/-/status' };
+  const pages = row.sync.documents;
+  if (pages === 0) {
+    const sync: FixAction = {
+      label: 'Sync again',
+      href: '/-/sync',
+      post: { ...row.synced, back: 'repositories' },
+      auto: 'on-return',
+    };
+    return {
+      id: 'no-page',
+      waits: false,
+      title: `Add a page to ${row.name}`,
+      text: `speicher.md synced ${row.name}, but the repository has no Markdown pages yet. Add a \`.md\` file to it, for example \`index.md\`.`,
+      action: row.new_page_href
+        ? { label: 'Add a page on GitHub', href: row.new_page_href, external: true }
+        : sync,
+      secondary: row.new_page_href ? sync : undefined,
+    };
+  }
+  return {
+    id: 'no-readable-page',
+    waits: false,
+    title: `You cannot read any page of ${row.name}`,
+    text: `speicher.md synced ${pages} ${pages === 1 ? 'page' : 'pages'} of ${row.name}, but you are not allowed to read any of them. Add ${yours} to the \`access\` of the folder you want to read.`,
+    action: status,
+  };
+}
+
+function discoverAction(source: string | null): FixAction {
+  return {
+    label: 'Synchronize now',
+    href: '/-/discover',
+    post: { back: 'repositories', ...(source ? { source } : {}) },
+  };
 }
 
 function editAction(row: RepositoryTableRow): FixAction | undefined {

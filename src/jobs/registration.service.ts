@@ -24,11 +24,29 @@ import { ConfigService } from '../config/config.service';
 import { RoutingService } from '../content-reader/routing';
 import { Installation, Repo, RepoSlugHistory, initModels } from '../db/models';
 import { getSequelize } from '../db/sequelize';
-import { ForgeDriver, RemoteInstallation } from '../forge/driver';
+import { ForgeDriver, RemoteInstallation, RemoteRepo } from '../forge/driver';
 import { ForgeRegistry } from '../forge/registry';
 import { DirectoryLookup } from '../ingest/grants';
+import { IngestService } from '../ingest/ingest.service';
 import { checkoutIncludedFiles } from '../ingest/select';
 import { WalkResult, walkRepo } from '../ingest/walk/walk';
+
+export interface RepoRowChanges {
+  registered: string[];
+  removed: string[];
+}
+
+interface ListedRepos {
+  installation: Installation | null;
+  repos: RemoteRepo[];
+}
+
+const NO_CHANGES: RepoRowChanges = { registered: [], removed: [] };
+
+// An archived repo is removed, as on its webhook, so it counts as unlisted until it is unarchived
+async function currentRepos(driver: ForgeDriver, installationId: string): Promise<RemoteRepo[]> {
+  return (await driver.listRepos(installationId)).filter((remote) => !remote.archived);
+}
 
 @Injectable()
 export class RegistrationService {
@@ -38,6 +56,7 @@ export class RegistrationService {
     private readonly config: ConfigService,
     private readonly forges: ForgeRegistry,
     private readonly routing: RoutingService,
+    private readonly ingest: IngestService,
   ) {
     initModels();
   }
@@ -52,27 +71,30 @@ export class RegistrationService {
   }
 
   /**
-   * Create or update the installation rows of one forge, then the repository rows of
-   * each installation that is not suspended. A forge without installations, such as a
-   * plain `git` remote, has only its repository rows written. Returns the ids of the
-   * repos it registered.
+   * syncInstallationAndRepoRows creates or updates the installation rows of one forge, then the repository rows of
+   * each installation that is not suspended. Before it writes them, it removes the repos no installation lists
+   * anymore, e.g. deleted on GitHub, so a repo created again under the name of one of them is registered in the same
+   * run. A forge without installations, such as a plain `git` remote, has only its repository rows written.
+   *
+   * @param tenantId the tenant
+   * @param forgeKey the forge's short id
    */
-  async syncInstallationAndRepoRows(tenantId: string, forgeKey: string): Promise<string[]> {
+  async syncInstallationAndRepoRows(tenantId: string, forgeKey: string): Promise<RepoRowChanges> {
     const driver = this.forges.driver(forgeKey);
-    if (!driver) return [];
+    if (!driver) return NO_CHANGES;
 
     if (!driver.hasInstallations) {
       return this.syncRepoRowsForInstallation(tenantId, null, forgeKey);
     }
 
     const forge = await this.forges.forgeRowByKey(tenantId, forgeKey);
-    if (!forge) return [];
+    if (!forge) return NO_CHANGES;
 
     const installations = await driver.listInstallations();
     this.log.info('listed installations', { forge: forgeKey, count: installations.length });
-    const registered: string[] = [];
+    const listings: ListedRepos[] = [];
     for (const remote of installations) {
-      await this.recordInstallation(tenantId, forge.id, remote);
+      const installation = await this.recordInstallation(tenantId, forge.id, remote);
 
       if (remote.suspended) {
         this.log.info('skipping a suspended installation', {
@@ -81,11 +103,15 @@ export class RegistrationService {
         });
         continue;
       }
-      registered.push(
-        ...(await this.syncRepoRowsForInstallation(tenantId, remote.installationId, forgeKey)),
-      );
+      listings.push({ installation, repos: await currentRepos(driver, remote.installationId) });
     }
-    return registered;
+
+    const removed = await this.removeUnlisted(tenantId, forge.id, listings);
+    const registered: string[] = [];
+    for (const listing of listings) {
+      registered.push(...(await this.writeRepoRows(tenantId, forge.id, forgeKey, listing)));
+    }
+    return { registered, removed };
   }
 
   /** Upsert an installation row, preserving an existing suspended_at on conflict */
@@ -130,30 +156,79 @@ export class RegistrationService {
   }
 
   /**
-   * List the repositories one GitHub App installation can read and create or update their rows.
-   * Returns the ids of the repos it registered.
+   * syncRepoRowsForInstallation lists the repositories one GitHub App installation can read, removes the repos of the
+   * installation it no longer lists, and creates or updates the rows of the others.
+   *
+   * @param tenantId the tenant
+   * @param forgeInstallationId the installation on the forge, or null for a forge without installations
+   * @param forgeKey the forge's short id
    */
   async syncRepoRowsForInstallation(
     tenantId: string,
     forgeInstallationId: string | null,
     forgeKey: string,
-  ): Promise<string[]> {
+  ): Promise<RepoRowChanges> {
     const driver = this.forges.driver(forgeKey);
-    if (!driver) return [];
+    if (!driver) return NO_CHANGES;
     const forge = await this.forges.forgeRowByKey(tenantId, forgeKey);
-    if (!forge) return [];
+    if (!forge) return NO_CHANGES;
 
     const installation = forgeInstallationId
       ? await this.installationRow(tenantId, forge.id, forgeKey, driver, forgeInstallationId)
       : null;
-    if (forgeInstallationId && !installation) return [];
+    if (forgeInstallationId && !installation) return NO_CHANGES;
 
-    const repos = await driver.listRepos(forgeInstallationId ?? '');
+    const listing = { installation, repos: await currentRepos(driver, forgeInstallationId ?? '') };
+
+    const removed = installation
+      ? await this.removeUnlisted(tenantId, forge.id, [listing], installation.id)
+      : [];
+    return { registered: await this.writeRepoRows(tenantId, forge.id, forgeKey, listing), removed };
+  }
+
+  /**
+   * removeUnlisted removes the repos of a forge that its installations no longer list, and returns their ids. The
+   * repos of a suspended installation are kept.
+   *
+   * @param tenantId the tenant
+   * @param forgeId the forge's row
+   * @param listings what the installations list
+   * @param installationId the installation's row, to look at its repos only
+   */
+  private async removeUnlisted(
+    tenantId: string,
+    forgeId: string,
+    listings: ListedRepos[],
+    installationId?: string,
+  ): Promise<string[]> {
+    const listed = new Set(listings.flatMap((listing) => listing.repos.map((r) => r.forgeRepoId)));
+    const rows = await getSequelize().query<{ id: string; forge_repo_id: string }>(
+      `SELECT r.id, r.forge_repo_id FROM repos r
+         JOIN installations i ON i.id = r.installation_id
+        WHERE r.tenant_id = :tenantId AND r.forge_id = :forgeId AND i.suspended_at IS NULL
+          ${installationId ? 'AND r.installation_id = :installationId' : ''}`,
+      { type: QueryTypes.SELECT, replacements: { tenantId, forgeId, installationId } },
+    );
+    const unlisted = rows.filter((row) => !listed.has(row.forge_repo_id)).map((row) => row.id);
+    for (const repoId of unlisted) {
+      await this.ingest.removeRepo(repoId);
+      this.log.info('removed a repo its installation no longer lists', { repo_id: repoId });
+    }
+    return unlisted;
+  }
+
+  // Creates or updates the rows of the listed repos, and returns the ids of the ones it created
+  private async writeRepoRows(
+    tenantId: string,
+    forgeId: string,
+    forgeKey: string,
+    { installation, repos }: ListedRepos,
+  ): Promise<string[]> {
     const registered: string[] = [];
     for (const remote of repos) {
       const slug = slugify(remote.name);
       const existing = await Repo.findOne({
-        where: { tenant_id: tenantId, forge_id: forge.id, forge_repo_id: remote.forgeRepoId },
+        where: { tenant_id: tenantId, forge_id: forgeId, forge_repo_id: remote.forgeRepoId },
       });
 
       try {
@@ -194,7 +269,7 @@ export class RegistrationService {
 
       const created = await Repo.create({
         tenant_id: tenantId,
-        forge_id: forge.id,
+        forge_id: forgeId,
         installation_id: installation?.id ?? null,
         forge_repo_id: remote.forgeRepoId,
         namespace: remote.namespace,

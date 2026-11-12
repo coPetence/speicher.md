@@ -44,7 +44,7 @@ export const JOB_DESCRIPTIONS: Record<JobKind, string> = {
   'sync-repo-list':
     'Fetches the list of repositories from one content source and updates the repositories in the database to match it. New repositories are added and queued for a sync, renamed ones are updated, and repositories that are no longer configured are queued for removal.',
   purge:
-    'Removes everything speicher.md has published from one repository: its pages, assets and search data. This happens when the repository is deleted, archived, transferred or made private on GitHub, when the GitHub App loses access to it, or when it leaves the configuration.',
+    'Removes one repository from speicher.md: its pages, assets and search data, and the repository itself. This happens when the repository is deleted, archived, transferred or made private on GitHub, when the GitHub App loses access to it, or when it leaves the configuration.',
   'purge-forge':
     'Removes a content source that is no longer configured, together with everything published from its repositories, and cancels the jobs still queued for it. If the content source is configured again before the job runs, nothing is removed.',
   'validate-pr':

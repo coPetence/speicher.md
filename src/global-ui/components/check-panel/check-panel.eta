@@ -26,8 +26,16 @@
     <% if (check.problem.href && check.problem.label) { %>
     <a class="spr-ready-action" href="<%= check.problem.href %>" target="_blank" rel="noopener"><%= check.problem.label %><%~ it.externalIcon || '' %></a>
     <% } %>
+    <% } else if (check.repositories.length === 0 && check.selection === 'all' && check.account) { %>
+    <p class="spr-check-summary">The App can read all repositories of <strong><%= check.account %></strong>, but the account has no repositories yet. Create a repository for your Markdown pages.</p>
+    <% if (check.new_repository_href) { %>
+    <a class="spr-ready-action" href="<%= check.new_repository_href %>" target="_blank" rel="noopener" data-spr-check-empty="create-repository">Create a repository<%~ it.externalIcon || '' %></a>
+    <% } %>
     <% } else if (check.repositories.length === 0) { %>
-    <p class="spr-check-summary">The App can read no repository yet.</p>
+    <p class="spr-check-summary">The App is installed, but it cannot read any repositories. Add the repositories you want to publish to its installation.</p>
+    <% if (check.installation_href) { %>
+    <a class="spr-ready-action" href="<%= check.installation_href %>" target="_blank" rel="noopener" data-spr-check-empty="installation">Open the installation<%~ it.externalIcon || '' %></a>
+    <% } %>
     <% } else { %>
     <p class="spr-check-summary">
       <%= ready %> of <%= check.repositories.length %> <%= check.repositories.length === 1 ? 'repository is' : 'repositories are' %> ready

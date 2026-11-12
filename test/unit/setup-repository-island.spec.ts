@@ -54,8 +54,22 @@ function run(): void {
 }
 
 let fetchMock: jest.Mock;
+// The listeners a run of the bundle adds to the document, removed after each test
+let listeners: [
+  string,
+  EventListenerOrEventListenerObject,
+  boolean | AddEventListenerOptions | undefined,
+][] = [];
+const addListener = document.addEventListener.bind(document);
 
 beforeEach(() => {
+  listeners = [];
+  jest
+    .spyOn(document, 'addEventListener')
+    .mockImplementation((type: string, listener: EventListenerOrEventListenerObject, options) => {
+      listeners.push([type, listener, options]);
+      addListener(type, listener, options);
+    });
   // jsdom has no CSS.escape, which the island finds rows by
   (globalThis as unknown as { CSS: { escape: (value: string) => string } }).CSS = {
     escape: (value) => value.replace(/["\\]/g, '\\$&'),
@@ -66,6 +80,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const [type, listener, options] of listeners) {
+    document.removeEventListener(type, listener, options);
+  }
+  jest.restoreAllMocks();
   jest.useRealTimers();
 });
 
@@ -192,6 +210,134 @@ describe('the next step of the repositories page', () => {
     expect(fetchMock).not.toHaveBeenCalledWith(CHECK, expect.anything());
   });
 
+  it('asks GitHub again when the tab is shown again on a step done on GitHub', async () => {
+    document.body.innerHTML = `
+      <form action="/-/repositories" data-spr-refresh>
+        <input type="hidden" name="check" value="1">
+        <input type="hidden" name="fresh" value="1">
+        <button type="submit"><svg></svg><span>Refresh</span></button>
+      </form>
+      ${page(region(fix('create-repository')), '', true)}`;
+    run();
+    answer(page(region(fix('no-file')), row('acme/handbook', 'not published')));
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+
+    expect(fetchMock).toHaveBeenCalledWith('/-/repositories?check=1&fresh=1', expect.anything());
+    expect(document.querySelector('[data-spr-setup-fix]')?.getAttribute('data-spr-setup-fix')).toBe(
+      'no-file',
+    );
+    expect(document.querySelector('[data-spr-repo-row="acme/handbook"]')).not.toBeNull();
+  });
+
+  it('takes out the rows a check no longer answers with', async () => {
+    document.body.innerHTML = page(
+      region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+      `${row('acme/deleted', 'ok', false)}${row('acme/wiki', 'ok')}`,
+    );
+    answer(page(region(fix('no-file')), row('acme/wiki', 'ok')));
+    run();
+    await flush();
+
+    expect(document.querySelector('[data-spr-repo-row="acme/deleted"]')).toBeNull();
+    expect(document.querySelector('[data-spr-repo-row="acme/wiki"]')).not.toBeNull();
+  });
+
+  it('takes out the synced rows the refresh no longer has, but leaves the rows of a check to the checks', async () => {
+    document.body.innerHTML = page(
+      region(fix('no-file')),
+      `${row('acme/purged', 'ok', false)}${row('acme/empty', 'never synced')}`,
+    );
+    run();
+    answer(page(region(fix('checking'), ` data-spr-check-href="${CHECK}"`), ''));
+    answer(page(region(fix('no-file')), row('acme/empty', 'never synced')));
+    jest.advanceTimersByTime(10_000);
+    await flush();
+
+    expect(document.querySelector('[data-spr-repo-row="acme/purged"]')).toBeNull();
+    expect(document.querySelector('[data-spr-repo-row="acme/empty"]')).not.toBeNull();
+    // A row taken out is a change, which the checks are run again for
+    expect(fetchMock).toHaveBeenLastCalledWith(CHECK, expect.anything());
+  });
+
+  it('asks for the next step again once the jobs it waits for ended, though no row changed', async () => {
+    document.body.innerHTML = page(region(fix('discovering')), row('acme/wiki', 'never synced'));
+    document.querySelector('[data-spr-repository-step]')?.setAttribute('data-spr-busy', '');
+    run();
+    answer(
+      page(
+        region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+        row('acme/wiki', 'never synced', false),
+      ),
+    );
+    answer(page(region(fix('discover')), row('acme/wiki', 'never synced')));
+    jest.advanceTimersByTime(3_000);
+    await flush();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, CHECK, expect.anything());
+    expect(document.querySelector('[data-spr-setup-fix]')?.getAttribute('data-spr-setup-fix')).toBe(
+      'discover',
+    );
+  });
+
+  const posts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+
+  it('posts the action of a step that runs by itself once, and checks again', async () => {
+    const discover = fix(
+      'discover',
+      `<form method="post" action="/-/discover" data-spr-auto="now">
+         <input type="hidden" name="back" value="repositories">
+         <input type="hidden" name="source" value="gh">
+       </form>`,
+    );
+    const pending = region(fix('checking'), ` data-spr-check-href="${CHECK}"`);
+    document.body.innerHTML = page(pending, '', true);
+    answer(page(region(discover), row('acme/wiki', 'never synced')));
+    answer('{}');
+    answer(page(pending, row('acme/wiki', 'never synced', false)));
+    answer(page(region(discover), row('acme/wiki', 'never synced')));
+    run();
+    await flush();
+
+    expect(posts()).toHaveLength(1);
+    expect(posts()[0][0]).toBe('/-/discover');
+    expect(String(posts()[0][1].body)).toBe('back=repositories&source=gh');
+    expect(fetchMock).toHaveBeenLastCalledWith(CHECK, expect.anything());
+  });
+
+  it('syncs again when the tab is shown again on a step with a sync to run', async () => {
+    const noPage = fix(
+      'no-page',
+      `<form method="post" action="/-/sync" data-spr-auto="on-return">
+         <input type="hidden" name="namespace" value="acme">
+         <input type="hidden" name="slug" value="wiki">
+       </form>`,
+    );
+    document.body.innerHTML = page(region(noPage), row('acme/wiki', 'ok'));
+    run();
+    await flush();
+    expect(posts()).toHaveLength(0);
+
+    answer('{}');
+    answer(
+      page(
+        region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+        row('acme/wiki', 'ok', false),
+      ),
+    );
+    answer(page(region(fix('syncing')), row('acme/wiki', 'queued')));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+
+    expect(posts()).toHaveLength(1);
+    expect(posts()[0][0]).toBe('/-/sync');
+    expect(String(posts()[0][1].body)).toBe('namespace=acme&slug=wiki');
+    expect(document.querySelector('[data-spr-setup-fix]')?.getAttribute('data-spr-setup-fix')).toBe(
+      'syncing',
+    );
+  });
+
   describe('Refresh button', () => {
     const REFRESH = `
       <form action="/-/repositories" data-spr-refresh>
@@ -228,6 +374,41 @@ describe('the next step of the repositories page', () => {
       expect(button().disabled).toBe(false);
       expect(button().textContent).toBe('Refresh');
       expect(icon().classList.contains('spr-spin')).toBe(false);
+    });
+
+    it('syncs again on a step with a sync to run, rather than only asking GitHub', async () => {
+      const noPage = fix(
+        'no-page',
+        `<form method="post" action="/-/sync" data-spr-auto="on-return">
+           <input type="hidden" name="namespace" value="acme">
+           <input type="hidden" name="slug" value="wiki">
+         </form>`,
+      );
+      document.body.innerHTML = `${REFRESH}${page(region(noPage), row('acme/wiki', 'ok'))}`;
+      run();
+      answer('{}');
+      answer(
+        page(
+          region(fix('checking'), ` data-spr-check-href="${CHECK}"`),
+          row('acme/wiki', 'ok', false),
+        ),
+      );
+      answer(page(region(fix('syncing')), row('acme/wiki', 'queued')));
+
+      document
+        .querySelector('[data-spr-refresh]')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await flush();
+
+      expect(fetchMock).toHaveBeenNthCalledWith(1, '/-/sync', expect.anything());
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        '/-/repositories?check=1&fresh=1',
+        expect.anything(),
+      );
+      expect(
+        document.querySelector('[data-spr-setup-fix]')?.getAttribute('data-spr-setup-fix'),
+      ).toBe('syncing');
+      expect(button().disabled).toBe(false);
     });
 
     it('shows the check the page starts with too, and stops when it fails', async () => {

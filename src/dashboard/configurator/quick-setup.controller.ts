@@ -274,6 +274,10 @@ export class QuickSetupController {
       problem: checked.problem,
       repositories: checked.repositories,
       more: checked.more,
+      installation_href: checked.installation_href,
+      account: checked.account,
+      selection: checked.selection,
+      new_repository_href: checked.new_repository_href,
       // Missing groups are created next; otherwise the check is done, or the first setup goes on
       primary:
         checked.missing.length > 0
