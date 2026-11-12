@@ -2,7 +2,7 @@
   { href: '/-/status', title: 'Sync status' },
   { href: it.repo_href, title: it.name },
   { title: it.stamp },
-] }) %>
+], history: true }) %>
 
 <h1>Sync run</h1>
 

@@ -1,4 +1,4 @@
-<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: it.name }] }) %>
+<%~ include('@crumbs', { crumbs: [{ href: '/-/status', title: 'Sync status' }, { title: it.name }], history: true }) %>
 
 <div class="spr-page-head">
   <h1 class="spr-titled"><%~ it.mark_html || '' %><%= it.name %></h1>
